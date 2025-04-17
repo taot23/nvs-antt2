@@ -18,11 +18,6 @@ export default function AuthPage() {
 
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="max-w-md mx-auto">
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Bem-vindo</h1>
-            <p className="text-gray-600 mt-2">Faça login para acessar o sistema</p>
-          </div>
-
           {/* Login Form Panel */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <LoginForm onSuccess={() => {}} />
