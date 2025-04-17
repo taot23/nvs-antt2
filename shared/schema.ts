@@ -15,10 +15,13 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  cpf: text("cpf").notNull(),
-  phone: text("phone").notNull(),
+  name: text("name").notNull(), // Nome ou Razão Social
+  document: text("document").notNull(), // CPF ou CNPJ
+  documentType: text("document_type").notNull().default("cpf"), // 'cpf' ou 'cnpj'
+  contactName: text("contact_name"), // Nome do contato (para CNPJ)
+  phone: text("phone").notNull(), // Telefone principal
+  phone2: text("phone2"), // Telefone secundário
+  email: text("email").notNull(), // Email
   userId: integer("user_id").notNull().references(() => users.id),
 });
 

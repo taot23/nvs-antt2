@@ -7,7 +7,8 @@ import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import { 
   Users, Home, Plus, Search, Edit, Trash2, 
-  RefreshCw, ChevronLeft, ChevronRight
+  RefreshCw, ChevronLeft, ChevronRight, Building,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ export default function CustomersPage() {
   const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.cpf.includes(searchTerm) ||
+    customer.document.includes(searchTerm) ||
     customer.phone.includes(searchTerm)
   );
 

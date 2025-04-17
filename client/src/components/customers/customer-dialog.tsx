@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Customer, InsertCustomer, insertCustomerSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -11,14 +11,30 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 // Estendendo o schema para adicionar validações adicionais
 const customerFormSchema = insertCustomerSchema.extend({
-  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("E-mail inválido"),
-  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF deve estar no formato 000.000.000-00"),
+  name: z.string().min(3, "Nome/Razão Social deve ter pelo menos 3 caracteres"),
+  documentType: z.enum(["cpf", "cnpj"], {
+    required_error: "Selecione o tipo de documento",
+  }),
+  document: z.string()
+    .refine(
+      (val) => {
+        // Verifica se é um CPF ou CNPJ válido (formato básico)
+        const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+        const cnpjRegex = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
+        return cpfRegex.test(val) || cnpjRegex.test(val);
+      },
+      {
+        message: "Formato de documento inválido",
+      }
+    ),
+  contactName: z.string().optional(),
   phone: z.string().regex(/^\(\d{2}\) \d{5}-\d{4}$/, "Telefone deve estar no formato (00) 00000-0000"),
+  phone2: z.string().optional(),
+  email: z.string().email("E-mail inválido"),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -38,22 +54,34 @@ export default function CustomerDialog({
 }: CustomerDialogProps) {
   const { toast } = useToast();
   const isEditing = !!customer;
-
+  const [documentType, setDocumentType] = useState<"cpf" | "cnpj">(customer?.documentType as "cpf" | "cnpj" || "cpf");
+  
   // Inicializar o formulário
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: customer ? {
       name: customer.name,
-      email: customer.email,
-      cpf: customer.cpf,
+      documentType: customer.documentType as "cpf" | "cnpj",
+      document: customer.document,
+      contactName: customer.contactName || "",
       phone: customer.phone,
+      phone2: customer.phone2 || "",
+      email: customer.email,
     } : {
       name: "",
-      email: "",
-      cpf: "",
+      documentType: "cpf",
+      document: "",
+      contactName: "",
       phone: "",
+      phone2: "",
+      email: "",
     },
   });
+
+  // Monitorar a mudança do tipo de documento
+  useEffect(() => {
+    setDocumentType(form.watch("documentType"));
+  }, [form.watch("documentType")]);
 
   // Cadastrar novo cliente
   const createCustomerMutation = useMutation({
@@ -101,17 +129,96 @@ export default function CustomerDialog({
     },
   });
 
+  // Verifica se um CPF é válido
+  const isValidCPF = (cpf: string): boolean => {
+    // Remove formatação
+    cpf = cpf.replace(/\D/g, '');
+    
+    // Verifica se tem 11 dígitos
+    if (cpf.length !== 11) return false;
+    
+    // Verifica se todos os dígitos são iguais
+    if (/^(\d)\1+$/.test(cpf)) return false;
+    
+    // Cálculo para verificação
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(cpf.charAt(i)) * (10 - i);
+    }
+    let rest = 11 - (sum % 11);
+    let digit1 = rest >= 10 ? 0 : rest;
+    
+    sum = 0;
+    for (let i = 0; i < 10; i++) {
+      sum += parseInt(cpf.charAt(i)) * (11 - i);
+    }
+    rest = 11 - (sum % 11);
+    let digit2 = rest >= 10 ? 0 : rest;
+    
+    return digit1 === parseInt(cpf.charAt(9)) && digit2 === parseInt(cpf.charAt(10));
+  };
+  
+  // Verifica se um CNPJ é válido
+  const isValidCNPJ = (cnpj: string): boolean => {
+    // Remove formatação
+    cnpj = cnpj.replace(/\D/g, '');
+    
+    // Verifica se tem 14 dígitos
+    if (cnpj.length !== 14) return false;
+    
+    // Verifica se todos os dígitos são iguais
+    if (/^(\d)\1+$/.test(cnpj)) return false;
+    
+    // Cálculo para verificação
+    let size = cnpj.length - 2;
+    let numbers = cnpj.substring(0, size);
+    let digits = cnpj.substring(size);
+    let sum = 0;
+    let pos = size - 7;
+    
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    
+    let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+    if (result !== parseInt(digits.charAt(0))) return false;
+    
+    size = size + 1;
+    numbers = cnpj.substring(0, size);
+    sum = 0;
+    pos = size - 7;
+    
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    
+    result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+    return result === parseInt(digits.charAt(1));
+  };
+
   // Formatar os campos conforme o usuário digita
-  const formatCPF = (value: string) => {
+  const formatDocument = (value: string, type: "cpf" | "cnpj") => {
     // Remove tudo que não é número
     const numbers = value.replace(/\D/g, "");
     
-    // Aplica a máscara: 000.000.000-00
-    return numbers
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})/, "$1-$2")
-      .replace(/(-\d{2})\d+?$/, "$1");
+    if (type === "cpf") {
+      // Aplica a máscara: 000.000.000-00
+      return numbers
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})/, "$1-$2")
+        .replace(/(-\d{2})\d+?$/, "$1");
+    } else {
+      // Aplica a máscara: 00.000.000/0000-00
+      return numbers
+        .replace(/(\d{2})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1/$2")
+        .replace(/(\d{4})(\d{1,2})/, "$1-$2")
+        .replace(/(-\d{2})\d+?$/, "$1");
+    }
   };
 
   const formatPhone = (value: string) => {
@@ -123,6 +230,16 @@ export default function CustomerDialog({
       .replace(/(\d{2})(\d)/, "($1) $2")
       .replace(/(\d{5})(\d)/, "$1-$2")
       .replace(/(-\d{4})\d+?$/, "$1");
+  };
+
+  // Verifica se o documento é válido para mostrar ícone verde
+  const validateDocument = (value: string, type: "cpf" | "cnpj") => {
+    const cleanValue = value.replace(/\D/g, "");
+    if (type === "cpf") {
+      return cleanValue.length === 11 && isValidCPF(cleanValue);
+    } else {
+      return cleanValue.length === 14 && isValidCNPJ(cleanValue);
+    }
   };
 
   // Handler para submit do formulário
@@ -138,6 +255,8 @@ export default function CustomerDialog({
   };
 
   const isPending = createCustomerMutation.isPending || updateCustomerMutation.isPending;
+  const document = form.watch("document");
+  const isDocumentValid = document ? validateDocument(document, documentType) : false;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -146,6 +265,11 @@ export default function CustomerDialog({
           <DialogTitle>
             {isEditing ? "Editar Cliente" : "Novo Cliente"}
           </DialogTitle>
+          <DialogDescription>
+            {documentType === "cpf" 
+              ? "Preencha os dados do cliente pessoa física" 
+              : "Preencha os dados da empresa"}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -155,9 +279,126 @@ export default function CustomerDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome</FormLabel>
+                  <FormLabel>{documentType === "cpf" ? "Nome completo" : "Razão Social"}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome completo" {...field} />
+                    <Input 
+                      placeholder={documentType === "cpf" ? "Nome completo" : "Razão Social da empresa"} 
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="documentType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Tipo de documento</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="cpf" id="cpf" />
+                        </FormControl>
+                        <FormLabel className="font-normal cursor-pointer" htmlFor="cpf">CPF</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="cnpj" id="cnpj" />
+                        </FormControl>
+                        <FormLabel className="font-normal cursor-pointer" htmlFor="cnpj">CNPJ</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="document"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{documentType === "cpf" ? "CPF" : "CNPJ"}</FormLabel>
+                  <div className="relative">
+                    <FormControl>
+                      <Input 
+                        placeholder={documentType === "cpf" ? "000.000.000-00" : "00.000.000/0000-00"}
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(formatDocument(e.target.value, documentType));
+                        }}
+                      />
+                    </FormControl>
+                    {isDocumentValid && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      </div>
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {documentType === "cnpj" && (
+              <FormField
+                control={form.control}
+                name="contactName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do contato</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome da pessoa para contato" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone principal</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="(00) 00000-0000" 
+                      {...field} 
+                      onChange={(e) => {
+                        field.onChange(formatPhone(e.target.value));
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phone2"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone secundário (opcional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="(00) 00000-0000" 
+                      {...field} 
+                      onChange={(e) => {
+                        field.onChange(formatPhone(e.target.value));
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -172,46 +413,6 @@ export default function CustomerDialog({
                   <FormLabel>E-mail</FormLabel>
                   <FormControl>
                     <Input placeholder="email@exemplo.com" type="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="cpf"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CPF</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="000.000.000-00" 
-                      {...field} 
-                      onChange={(e) => {
-                        field.onChange(formatCPF(e.target.value));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="(00) 00000-0000" 
-                      {...field} 
-                      onChange={(e) => {
-                        field.onChange(formatPhone(e.target.value));
-                      }}
-                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
