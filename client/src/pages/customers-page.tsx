@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import CustomerDialog from "@/components/customers/customer-dialog";
+import CustomerDialog from "../components/customers/customer-dialog";
 
 export default function CustomersPage() {
   const { toast } = useToast();
@@ -40,7 +40,7 @@ export default function CustomersPage() {
   const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.document.includes(searchTerm) ||
+    (customer.document && customer.document.includes(searchTerm)) ||
     customer.phone.includes(searchTerm)
   );
 
@@ -105,18 +105,14 @@ export default function CustomersPage() {
               Menu Principal
             </div>
             <nav className="mt-4 space-y-1">
-              <Link href="/">
-                <a className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md group">
-                  <Home className="mr-3 h-5 w-5 text-gray-500" />
-                  <span>Início</span>
-                </a>
-              </Link>
-              <Link href="/clientes">
-                <a className="flex items-center px-3 py-2 text-gray-700 bg-gray-100 rounded-md group">
-                  <Users className="mr-3 h-5 w-5 text-gray-500" />
-                  <span>Clientes</span>
-                </a>
-              </Link>
+              <div className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md group">
+                <Home className="mr-3 h-5 w-5 text-gray-500" />
+                <Link href="/">Início</Link>
+              </div>
+              <div className="flex items-center px-3 py-2 text-gray-700 bg-gray-100 rounded-md group">
+                <Users className="mr-3 h-5 w-5 text-gray-500" />
+                <Link href="/clientes">Clientes</Link>
+              </div>
             </nav>
           </div>
         </aside>
@@ -195,13 +191,13 @@ export default function CustomersPage() {
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nome
+                          Nome/Razão Social
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Documento
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Email
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          CPF
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Telefone
@@ -215,16 +211,38 @@ export default function CustomersPage() {
                       {filteredCustomers.map((customer) => (
                         <tr key={customer.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                {customer.documentType === 'cpf' 
+                                  ? <User className="h-4 w-4 text-gray-500" /> 
+                                  : <Building className="h-4 w-4 text-gray-500" />}
+                              </div>
+                              <div className="ml-3">
+                                <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                                {customer.contactName && (
+                                  <div className="text-xs text-gray-500">Contato: {customer.contactName}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">
+                              {customer.document}
+                              <div className="text-xs text-gray-400">
+                                {customer.documentType === 'cpf' ? 'CPF' : 'CNPJ'}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="text-sm text-gray-500">{customer.email}</div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{customer.cpf}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{customer.phone}</div>
+                            <div className="text-sm text-gray-500">
+                              {customer.phone}
+                              {customer.phone2 && (
+                                <div className="text-xs text-gray-400">{customer.phone2}</div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                             <div className="flex items-center justify-end space-x-2">
