@@ -120,15 +120,15 @@ export default function CustomersPage() {
         {/* Main content */}
         <main className="flex-1 p-6">
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
               <div>
                 <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
                 <p className="text-gray-600 mt-1">Gerencie os cadastros de clientes</p>
               </div>
-              <div className="mt-4 md:mt-0">
+              <div className="mt-4 sm:mt-0">
                 <Button 
                   onClick={handleAdd}
-                  className="flex items-center"
+                  className="flex items-center w-full sm:w-auto justify-center"
                 >
                   <Plus className="mr-1 h-4 w-4" />
                   Novo Cliente
@@ -187,19 +187,19 @@ export default function CustomersPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full table-auto">
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Nome/Razão Social
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                           Documento
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                           Email
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                           Telefone
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -222,10 +222,19 @@ export default function CustomersPage() {
                                 {customer.contactName && (
                                   <div className="text-xs text-gray-500">Contato: {customer.contactName}</div>
                                 )}
+                                {/* Informações adicionais para mobile */}
+                                <div className="sm:hidden flex flex-col mt-1">
+                                  <div className="text-xs text-gray-500">
+                                    <span className="font-medium">Tel:</span> {customer.phone}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    <span className="font-medium">{customer.documentType === 'cpf' ? 'CPF' : 'CNPJ'}:</span> {customer.document}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
                             <div className="text-sm text-gray-500">
                               {customer.document}
                               <div className="text-xs text-gray-400">
@@ -233,10 +242,10 @@ export default function CustomersPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
                             <div className="text-sm text-gray-500">{customer.email}</div>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
                             <div className="text-sm text-gray-500">
                               {customer.phone}
                               {customer.phone2 && (
@@ -271,8 +280,8 @@ export default function CustomersPage() {
               )}
 
               {filteredCustomers.length > 0 && (
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <div className="text-sm text-gray-500 text-center sm:text-left">
                     Mostrando {filteredCustomers.length} de {customers.length} clientes
                   </div>
                   <div className="flex items-center space-x-2">

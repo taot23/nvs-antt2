@@ -260,7 +260,7 @@ export default function CustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-[550px] lg:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Cliente" : "Novo Cliente"}
@@ -273,7 +273,7 @@ export default function CustomerDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-4">
             <FormField
               control={form.control}
               name="name"
@@ -365,45 +365,47 @@ export default function CustomerDialog({
               />
             )}
 
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone principal</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="(00) 00000-0000" 
-                      {...field} 
-                      onChange={(e) => {
-                        field.onChange(formatPhone(e.target.value));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone principal</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="(00) 00000-0000" 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(formatPhone(e.target.value));
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="phone2"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone secundário (opcional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="(00) 00000-0000" 
-                      {...field} 
-                      onChange={(e) => {
-                        field.onChange(formatPhone(e.target.value));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="phone2"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone secundário (opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="(00) 00000-0000" 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(formatPhone(e.target.value));
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
@@ -419,11 +421,21 @@ export default function CustomerDialog({
               )}
             />
 
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <DialogFooter className="pt-6 flex flex-col sm:flex-row gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose} 
+                disabled={isPending}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button 
+                type="submit" 
+                disabled={isPending}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? "Atualizar" : "Cadastrar"}
               </Button>
