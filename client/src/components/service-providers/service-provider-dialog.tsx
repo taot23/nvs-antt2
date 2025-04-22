@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceProvider } from '@shared/schema';
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 // Schema para validação do formulário
 const serviceProviderFormSchema = z.object({
@@ -162,6 +163,8 @@ export default function ServiceProviderDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!serviceProvider;
+  const [document, setDocument] = useState<string>(serviceProvider?.document || '');
+  const [documentStatus, setDocumentStatus] = useState<number>(0);
 
   // Inicializar formulário com react-hook-form e validação zod
   const form = useForm<ServiceProviderFormValues>({
@@ -178,6 +181,19 @@ export default function ServiceProviderDialog({
     },
   });
 
+  // Monitorar a mudança do documento e validar em tempo real
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'document' || name === 'documentType' || !name) {
+        const doc = value.document as string || '';
+        const docType = value.documentType as 'cpf' | 'cnpj';
+        setDocument(doc);
+        setDocumentStatus(validateDocument(doc, docType));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
+
   // Carregar dados para edição
   useEffect(() => {
     if (serviceProvider) {
@@ -191,6 +207,8 @@ export default function ServiceProviderDialog({
         email: serviceProvider.email,
         active: serviceProvider.active
       });
+      setDocument(serviceProvider.document);
+      setDocumentStatus(validateDocument(serviceProvider.document, serviceProvider.documentType as 'cpf' | 'cnpj'));
     } else {
       form.reset({
         name: '',
@@ -202,6 +220,8 @@ export default function ServiceProviderDialog({
         email: '',
         active: true
       });
+      setDocument('');
+      setDocumentStatus(0);
     }
   }, [serviceProvider, form]);
 
@@ -410,9 +430,9 @@ export default function ServiceProviderDialog({
     }
   };
 
-  // Determinar quando mostrar o campo de nome de contato
-  const documentType = form.watch('documentType');
-  const showContactName = documentType === 'cnpj';
+  // Obter o tipo de documento atual e definir se mostra o campo de contato
+  const currentDocumentType = form.watch('documentType') as 'cpf' | 'cnpj';
+  const showContactName = currentDocumentType === 'cnpj';
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -465,10 +485,10 @@ export default function ServiceProviderDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    {documentType === 'cpf' ? 'Nome Completo' : 'Razão Social'}
+                    {currentDocumentType === 'cpf' ? 'Nome Completo' : 'Razão Social'}
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder={documentType === 'cpf' ? 'Nome completo do prestador' : 'Razão social da empresa'} {...field} />
+                    <Input placeholder={currentDocumentType === 'cpf' ? 'Nome completo do prestador' : 'Razão social da empresa'} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -496,69 +516,35 @@ export default function ServiceProviderDialog({
             <FormField
               control={form.control}
               name="document"
-              render={({ field }) => {
-                const validationStatus = validateDocument(field.value, documentType as 'cpf' | 'cnpj');
-                return (
-                  <FormItem className="relative">
-                    <FormLabel>{documentType.toUpperCase()}</FormLabel>
-                    <div className="relative">
-                      <FormControl>
-                        <Input 
-                          placeholder={documentType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'} 
-                          {...field} 
-                          value={formatDocument(field.value, documentType as 'cpf' | 'cnpj')} 
-                          onChange={(e) => {
-                            // Limitar o número de caracteres
-                            const maxLength = documentType === 'cpf' ? 14 : 18; // 14 para CPF com formatação, 18 para CNPJ
-                            if (formatDocument(e.target.value, documentType as 'cpf' | 'cnpj').length <= maxLength) {
-                              field.onChange(e);
-                            }
-                          }}
-                          className={validationStatus === -1 ? "pr-10 border-red-500" : 
-                                    validationStatus === 1 ? "pr-10 border-green-500" : 
-                                    "pr-10"}
-                        />
-                      </FormControl>
-                      {validationStatus !== 0 && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          {validationStatus === 1 ? (
-                            <svg 
-                              className="h-5 w-5 text-green-500" 
-                              fill="none" 
-                              strokeWidth="2" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24" 
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                d="M5 13l4 4L19 7" 
-                              />
-                            </svg>
-                          ) : (
-                            <svg 
-                              className="h-5 w-5 text-red-500" 
-                              fill="none" 
-                              strokeWidth="2" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24" 
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                d="M6 18L18 6M6 6l12 12" 
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{currentDocumentType.toUpperCase()}</FormLabel>
+                  <div className="relative">
+                    <FormControl>
+                      <Input 
+                        placeholder={currentDocumentType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'} 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(formatDocument(e.target.value, currentDocumentType));
+                        }}
+                        className={documentStatus === -1 ? "pr-10 border-red-500" : 
+                                  documentStatus === 1 ? "pr-10 border-green-500" : 
+                                  "pr-10"}
+                      />
+                    </FormControl>
+                    {document && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {documentStatus === 1 ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : documentStatus === -1 ? (
+                          <AlertCircle className="h-5 w-5 text-red-500" />
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
             
             {/* Email */}
