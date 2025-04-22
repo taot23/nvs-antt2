@@ -1,14 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
-import { Customer, InsertCustomer } from "@shared/schema";
-import Header from "@/components/layout/header";
-import Footer from "@/components/layout/footer";
+import { Customer } from "@shared/schema";
 import { 
-  Users, Home, Plus, Search, Edit, Trash2, 
+  Plus, Search, Edit, Trash2, 
   RefreshCw, ChevronLeft, ChevronRight, Building,
-  User, LogOut, Download, Filter, X,
+  User, Download, Filter, X,
   FileText, FileSpreadsheet, ChevronUp, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -275,447 +272,401 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-
-      <div className="flex-grow flex">
-        {/* Sidebar */}
-        <aside className="w-64 bg-gray-50 border-r border-gray-200 hidden md:block">
-          <div className="p-4">
-            <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-              Menu Principal
-            </div>
-            <nav className="mt-4 space-y-1">
-              <div className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md group">
-                <Home className="mr-3 h-5 w-5 text-gray-500" />
-                <Link href="/">Início</Link>
-              </div>
-              <div className="flex items-center px-3 py-2 text-gray-700 bg-gray-100 rounded-md group">
-                <Users className="mr-3 h-5 w-5 text-gray-500" />
-                <Link href="/clientes">Clientes</Link>
-              </div>
-              <button 
-                onClick={() => {
-                  if (window.confirm("Tem certeza que deseja sair do sistema?")) {
-                    fetch("/api/logout", { method: "POST", credentials: "include" })
-                      .then(() => window.location.href = "/auth")
-                      .catch(err => console.error("Erro ao fazer logout:", err));
-                  }
-                }}
-                className="flex items-center w-full px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md group text-left mt-4"
-              >
-                <LogOut className="mr-3 h-5 w-5 text-gray-500" />
-                <span>Sair</span>
-              </button>
-            </nav>
+    <div className="w-full max-w-6xl mx-auto">
+      <div className="flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
+            <p className="text-gray-600 mt-1">Gerencie os cadastros de clientes</p>
           </div>
-        </aside>
+          <div className="mt-4 sm:mt-0 flex">
+            <Button 
+              onClick={handleAdd}
+              className="flex items-center w-full sm:w-auto justify-center py-2 px-4"
+              style={{ WebkitAppearance: "none" }}
+            >
+              <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Novo Cliente</span>
+            </Button>
+          </div>
+        </div>
 
-        {/* Main content */}
-        <main className="flex-1 p-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
-                <p className="text-gray-600 mt-1">Gerencie os cadastros de clientes</p>
-              </div>
-              <div className="mt-4 sm:mt-0 flex">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap flex-1">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar clientes..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ WebkitAppearance: "none" }}
+                    spellCheck="false"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                  />
+                </div>
+                
                 <Button 
-                  onClick={handleAdd}
-                  className="flex items-center w-full sm:w-auto justify-center py-2 px-4"
-                  style={{ WebkitAppearance: "none" }}
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="h-9 gap-1"
                 >
-                  <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Novo Cliente</span>
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filtros</span>
                 </Button>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap flex-1">
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Buscar clientes..."
-                        className="pl-8"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ WebkitAppearance: "none" }}
-                        spellCheck="false"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                      />
-                    </div>
-                    
+                
+                {/* Botões de exportação */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setShowFilters(!showFilters)}
                       className="h-9 gap-1"
+                      disabled={filteredCustomers.length === 0}
                     >
-                      <Filter className="h-4 w-4" />
-                      <span className="hidden sm:inline">Filtros</span>
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Exportar</span>
                     </Button>
-                    
-                    {/* Botões de exportação */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="h-9 gap-1"
-                          disabled={filteredCustomers.length === 0}
-                        >
-                          <Download className="h-4 w-4" />
-                          <span className="hidden sm:inline">Exportar</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
-                          <FileText className="h-4 w-4 mr-2" />
-                          <span>Exportar para PDF</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          <span>Exportar para Excel</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {(documentTypeFilter !== "all" || searchTerm || nameFilter || emailFilter) && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={clearFilters}
-                        className="h-9 gap-1"
-                      >
-                        <X className="h-4 w-4" />
-                        <span className="hidden sm:inline">Limpar filtros</span>
-                      </Button>
-                    )}
-                    
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => refetch()}
-                      disabled={isLoading}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+                      <FileText className="h-4 w-4 mr-2" />
+                      <span>Exportar para PDF</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      <span>Exportar para Excel</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {(documentTypeFilter !== "all" || searchTerm || nameFilter || emailFilter) && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={clearFilters}
+                    className="h-9 gap-1"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="hidden sm:inline">Limpar filtros</span>
+                  </Button>
+                )}
+                
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => refetch()}
+                  disabled={isLoading}
+                  style={{ WebkitAppearance: "none" }}
+                  className="w-9 h-9 flex items-center justify-center p-0"
+                  title="Atualizar lista"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Painel de filtros avançados */}
+            {showFilters && (
+              <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Tipo de documento</label>
+                  <Select 
+                    value={documentTypeFilter} 
+                    onValueChange={setDocumentTypeFilter}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="cpf">CPF (Pessoa Física)</SelectItem>
+                      <SelectItem value="cnpj">CNPJ (Pessoa Jurídica)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Nome/Razão Social</label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Filtrar por nome..."
+                      className="pl-8 h-9"
+                      value={nameFilter}
+                      onChange={(e) => setNameFilter(e.target.value)}
                       style={{ WebkitAppearance: "none" }}
-                      className="w-9 h-9 flex items-center justify-center p-0"
-                      title="Atualizar lista"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    </Button>
+                      spellCheck="false"
+                      autoComplete="off"
+                    />
                   </div>
                 </div>
                 
-                {/* Painel de filtros avançados */}
-                {showFilters && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Tipo de documento</label>
-                      <Select 
-                        value={documentTypeFilter} 
-                        onValueChange={setDocumentTypeFilter}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Todos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos</SelectItem>
-                          <SelectItem value="cpf">CPF (Pessoa Física)</SelectItem>
-                          <SelectItem value="cnpj">CNPJ (Pessoa Jurídica)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Nome/Razão Social</label>
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                        <Input
-                          placeholder="Filtrar por nome..."
-                          className="pl-8 h-9"
-                          value={nameFilter}
-                          onChange={(e) => setNameFilter(e.target.value)}
-                          style={{ WebkitAppearance: "none" }}
-                          spellCheck="false"
-                          autoComplete="off"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Email</label>
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                        <Input
-                          placeholder="Filtrar por email..."
-                          className="pl-8 h-9"
-                          value={emailFilter}
-                          onChange={(e) => setEmailFilter(e.target.value)}
-                          style={{ WebkitAppearance: "none" }}
-                          spellCheck="false"
-                          autoComplete="off"
-                        />
-                      </div>
-                    </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Email</label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Filtrar por email..."
+                      className="pl-8 h-9"
+                      value={emailFilter}
+                      onChange={(e) => setEmailFilter(e.target.value)}
+                      style={{ WebkitAppearance: "none" }}
+                      spellCheck="false"
+                      autoComplete="off"
+                    />
                   </div>
-                )}
+                </div>
               </div>
+            )}
+          </div>
 
-              {isError ? (
-                <div className="p-8 text-center">
-                  <p className="text-red-500 mb-4">Erro ao carregar os clientes</p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => refetch()} 
-                    style={{ WebkitAppearance: "none" }}
-                    className="py-2 px-4"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    <span className="whitespace-nowrap">Tentar novamente</span>
-                  </Button>
-                </div>
-              ) : isLoading ? (
-                <div className="p-8 text-center">
-                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
-                  <p className="text-gray-500">Carregando clientes...</p>
-                </div>
-              ) : filteredCustomers.length === 0 ? (
-                <div className="p-8 text-center">
-                  {searchTerm || documentTypeFilter !== "all" || nameFilter || emailFilter ? (
-                    <div>
-                      <p className="text-gray-500 mb-3">Nenhum cliente correspondente aos filtros aplicados</p>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          onClick={clearFilters}
-                          className="py-2 px-4"
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          <span>Limpar filtros</span>
-                        </Button>
-                        <Button 
-                          onClick={handleAdd}
-                          className="py-2 px-4"
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          <span>Adicionar Cliente</span>
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-gray-500 mb-4">Nenhum cliente cadastrado</p>
-                      <Button 
-                        onClick={handleAdd}
-                        className="py-2 px-4"
-                        style={{ WebkitAppearance: "none" }}
-                      >
-                        <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
-                        <span className="whitespace-nowrap">Adicionar Cliente</span>
-                      </Button>
-                    </div>
-                  )}
+          {isError ? (
+            <div className="p-8 text-center">
+              <p className="text-red-500 mb-4">Erro ao carregar os clientes</p>
+              <Button 
+                variant="outline" 
+                onClick={() => refetch()} 
+                style={{ WebkitAppearance: "none" }}
+                className="py-2 px-4"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                <span className="whitespace-nowrap">Tentar novamente</span>
+              </Button>
+            </div>
+          ) : isLoading ? (
+            <div className="p-8 text-center">
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
+              <p className="text-gray-500">Carregando clientes...</p>
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="p-8 text-center">
+              {searchTerm || documentTypeFilter !== "all" || nameFilter || emailFilter ? (
+                <div>
+                  <p className="text-gray-500 mb-3">Nenhum cliente correspondente aos filtros aplicados</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={clearFilters}
+                      className="py-2 px-4"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      <span>Limpar filtros</span>
+                    </Button>
+                    <Button 
+                      onClick={handleAdd}
+                      className="py-2 px-4"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span>Adicionar Cliente</span>
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <div className="px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
-                    {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} encontrado{filteredCustomers.length !== 1 ? 's' : ''}
-                    {(documentTypeFilter !== "all" || searchTerm || nameFilter || emailFilter) && (
-                      <span> (filtrados de {customers.length})</span>
-                    )}
-                  </div>
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th 
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100"
-                          onClick={() => handleSort("name")}
-                        >
-                          <div className="flex items-center">
-                            <span>Nome/Razão Social</span>
-                            {sortField === "name" && (
-                              <span className="ml-1">
-                                {sortDirection === "asc" ? (
-                                  <ChevronLeft className="h-4 w-4 rotate-90" />
-                                ) : (
-                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none hover:bg-gray-100"
-                          onClick={() => handleSort("document")}
-                        >
-                          <div className="flex items-center">
-                            <span>Documento</span>
-                            {sortField === "document" && (
-                              <span className="ml-1">
-                                {sortDirection === "asc" ? (
-                                  <ChevronLeft className="h-4 w-4 rotate-90" />
-                                ) : (
-                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell cursor-pointer select-none hover:bg-gray-100"
-                          onClick={() => handleSort("email")}
-                        >
-                          <div className="flex items-center">
-                            <span>Email</span>
-                            {sortField === "email" && (
-                              <span className="ml-1">
-                                {sortDirection === "asc" ? (
-                                  <ChevronLeft className="h-4 w-4 rotate-90" />
-                                ) : (
-                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none hover:bg-gray-100"
-                          onClick={() => handleSort("phone")}
-                        >
-                          <div className="flex items-center">
-                            <span>Telefone</span>
-                            {sortField === "phone" && (
-                              <span className="ml-1">
-                                {sortDirection === "asc" ? (
-                                  <ChevronLeft className="h-4 w-4 rotate-90" />
-                                ) : (
-                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredCustomers.map((customer) => (
-                        <tr key={customer.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                {customer.documentType === 'cpf' 
-                                  ? <User className="h-4 w-4 text-gray-500" /> 
-                                  : <Building className="h-4 w-4 text-gray-500" />}
-                              </div>
-                              <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                                {customer.contactName && (
-                                  <div className="text-xs text-gray-500">Contato: {customer.contactName}</div>
-                                )}
-                                {/* Informações adicionais para mobile */}
-                                <div className="sm:hidden flex flex-col mt-1">
-                                  <div className="text-xs text-gray-500">
-                                    <span className="font-medium">Tel:</span> {customer.phone}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    <span className="font-medium">{customer.documentType === 'cpf' ? 'CPF' : 'CNPJ'}:</span> {customer.document}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                            <div className="text-sm text-gray-500">
-                              {customer.document}
-                              <div className="text-xs text-gray-400">
-                                {customer.documentType === 'cpf' ? 'CPF' : 'CNPJ'}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
-                            <div className="text-sm text-gray-500">{customer.email}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                            <div className="text-sm text-gray-500">
-                              {customer.phone}
-                              {customer.phone2 && (
-                                <div className="text-xs text-gray-400">{customer.phone2}</div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                            <div className="flex items-center justify-end space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEdit(customer)}
-                                style={{ WebkitAppearance: "none" }}
-                                className="w-8 h-8 flex items-center justify-center"
-                              >
-                                <Edit className="h-4 w-4 text-blue-500" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDelete(customer.id)}
-                                disabled={deleteCustomerMutation.isPending}
-                                style={{ WebkitAppearance: "none" }}
-                                className="w-8 h-8 flex items-center justify-center"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {filteredCustomers.length > 0 && (
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2">
-                  <div className="text-sm text-gray-500 text-center sm:text-left">
-                    Mostrando {filteredCustomers.length} de {customers.length} clientes
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      disabled
-                      style={{ WebkitAppearance: "none" }}
-                      className="w-8 h-8 flex items-center justify-center p-0"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      disabled
-                      style={{ WebkitAppearance: "none" }}
-                      className="w-8 h-8 flex items-center justify-center p-0"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div>
+                  <p className="text-gray-500 mb-4">Nenhum cliente cadastrado</p>
+                  <Button 
+                    onClick={handleAdd}
+                    className="py-2 px-4"
+                    style={{ WebkitAppearance: "none" }}
+                  >
+                    <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Adicionar Cliente</span>
+                  </Button>
                 </div>
               )}
             </div>
-          </div>
-        </main>
-      </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
+                {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} encontrado{filteredCustomers.length !== 1 ? 's' : ''}
+                {(documentTypeFilter !== "all" || searchTerm || nameFilter || emailFilter) && (
+                  <span> (filtrados de {customers.length})</span>
+                )}
+              </div>
+              <table className="w-full table-auto">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100"
+                      onClick={() => handleSort("name")}
+                    >
+                      <div className="flex items-center">
+                        <span>Nome/Razão Social</span>
+                        {sortField === "name" && (
+                          <span className="ml-1">
+                            {sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none hover:bg-gray-100"
+                      onClick={() => handleSort("document")}
+                    >
+                      <div className="flex items-center">
+                        <span>Documento</span>
+                        {sortField === "document" && (
+                          <span className="ml-1">
+                            {sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell cursor-pointer select-none hover:bg-gray-100"
+                      onClick={() => handleSort("email")}
+                    >
+                      <div className="flex items-center">
+                        <span>Email</span>
+                        {sortField === "email" && (
+                          <span className="ml-1">
+                            {sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell cursor-pointer select-none hover:bg-gray-100"
+                      onClick={() => handleSort("phone")}
+                    >
+                      <div className="flex items-center">
+                        <span>Telefone</span>
+                        {sortField === "phone" && (
+                          <span className="ml-1">
+                            {sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCustomers.map((customer) => (
+                    <tr 
+                      key={customer.id}
+                      className="border-b border-gray-200 hover:bg-gray-50"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center">
+                          {customer.documentType === "cpf" ? (
+                            <User className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                          ) : (
+                            <Building className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                          )}
+                          <div>
+                            <div className="font-medium text-gray-900">{customer.name}</div>
+                            <div className="sm:hidden text-xs text-gray-500">
+                              {customer.document}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {customer.documentType === "cpf" ? "CPF" : "CNPJ"}
+                        </span>
+                        <div className="text-gray-900 mt-1">{customer.document}</div>
+                        {customer.documentType === "cnpj" && customer.contactName && (
+                          <div className="text-xs text-gray-500">
+                            Contato: {customer.contactName}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <div className="text-gray-500">{customer.email}</div>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <div className="text-gray-500">{customer.phone}</div>
+                        {customer.phone2 && (
+                          <div className="text-xs text-gray-400 mt-1">{customer.phone2}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(customer)}
+                            style={{ WebkitAppearance: "none" }}
+                            className="w-8 h-8 flex items-center justify-center"
+                          >
+                            <Edit className="h-4 w-4 text-blue-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(customer.id)}
+                            disabled={deleteCustomerMutation.isPending}
+                            style={{ WebkitAppearance: "none" }}
+                            className="w-8 h-8 flex items-center justify-center"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-      <Footer />
+          {filteredCustomers.length > 0 && (
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <div className="text-sm text-gray-500 text-center sm:text-left">
+                Mostrando {filteredCustomers.length} de {customers.length} clientes
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled
+                  style={{ WebkitAppearance: "none" }}
+                  className="w-8 h-8 flex items-center justify-center p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled
+                  style={{ WebkitAppearance: "none" }}
+                  className="w-8 h-8 flex items-center justify-center p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {dialogOpen && (
         <CustomerDialog

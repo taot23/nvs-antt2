@@ -8,14 +8,26 @@ import AuthPage from "@/pages/auth-page";
 import CustomersPage from "@/pages/customers-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
+import { AppLayout } from "@/components/layout/app-layout";
+
+// Componente que envolve as rotas protegidas com o layout 
+const ProtectedApp = ({ children }: { children: React.ReactNode }) => {
+  return <AppLayout>{children}</AppLayout>;
+};
 
 function Router() {
   return (
     <Switch>
-      <ProtectedRoute path="/" component={HomePage} />
-      <ProtectedRoute path="/clientes" component={CustomersPage} />
       <Route path="/auth" component={AuthPage} />
-      <Route component={NotFound} />
+      <Route path="/">
+        <ProtectedApp>
+          <Switch>
+            <ProtectedRoute path="/" component={HomePage} />
+            <ProtectedRoute path="/customers" component={CustomersPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </ProtectedApp>
+      </Route>
     </Switch>
   );
 }
