@@ -8,8 +8,8 @@ import Footer from "@/components/layout/footer";
 import { 
   Users, Home, Plus, Search, Edit, Trash2, 
   RefreshCw, ChevronLeft, ChevronRight, Building,
-  User, LogOut, Download, FileDown, Filter, X,
-  FileText, FileSpreadsheet
+  User, LogOut, Download, Filter, X,
+  FileText, FileSpreadsheet, ChevronUp, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,10 @@ export default function CustomersPage() {
   // Estados para filtros
   const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Estados para ordenação
+  const [sortField, setSortField] = useState<string>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Buscar clientes
   const { 
@@ -57,6 +61,18 @@ export default function CustomersPage() {
     }
   });
 
+  // Função de ordenação
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Se o campo já está selecionado, inverte a direção
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Se é um novo campo, define-o como o campo de ordenação e começa com asc
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
   // Filtrar clientes pelo termo de busca e outros filtros
   const filteredCustomers = customers.filter(customer => {
     // Filtro por texto de busca
@@ -70,6 +86,32 @@ export default function CustomersPage() {
     const matchesDocumentType = documentTypeFilter === "all" || customer.documentType === documentTypeFilter;
     
     return matchesSearch && matchesDocumentType;
+  })
+  // Aplicar ordenação
+  .sort((a, b) => {
+    let aValue: any = a[sortField as keyof Customer];
+    let bValue: any = b[sortField as keyof Customer];
+    
+    // Tratamentos especiais por campo
+    if (sortField === "document") {
+      // Remove caracteres não numéricos para ordenar corretamente
+      aValue = aValue?.replace(/\D/g, "") || "";
+      bValue = bValue?.replace(/\D/g, "") || "";
+    }
+    
+    // Ordenação de string
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      return sortDirection === "asc" 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+    
+    // Ordenação de valores numéricos ou outros tipos
+    if (sortDirection === "asc") {
+      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+    } else {
+      return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+    }
   });
   
   // Função para exportar para Excel
@@ -431,17 +473,73 @@ export default function CustomersPage() {
                   <table className="w-full table-auto">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nome/Razão Social
+                        <th 
+                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100"
+                          onClick={() => handleSort("name")}
+                        >
+                          <div className="flex items-center">
+                            <span>Nome/Razão Social</span>
+                            {sortField === "name" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? (
+                                  <ChevronLeft className="h-4 w-4 rotate-90" />
+                                ) : (
+                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                          Documento
+                        <th 
+                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none hover:bg-gray-100"
+                          onClick={() => handleSort("document")}
+                        >
+                          <div className="flex items-center">
+                            <span>Documento</span>
+                            {sortField === "document" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? (
+                                  <ChevronLeft className="h-4 w-4 rotate-90" />
+                                ) : (
+                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                          Email
+                        <th 
+                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell cursor-pointer select-none hover:bg-gray-100"
+                          onClick={() => handleSort("email")}
+                        >
+                          <div className="flex items-center">
+                            <span>Email</span>
+                            {sortField === "email" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? (
+                                  <ChevronLeft className="h-4 w-4 rotate-90" />
+                                ) : (
+                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                          Telefone
+                        <th 
+                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none hover:bg-gray-100"
+                          onClick={() => handleSort("phone")}
+                        >
+                          <div className="flex items-center">
+                            <span>Telefone</span>
+                            {sortField === "phone" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? (
+                                  <ChevronLeft className="h-4 w-4 rotate-90" />
+                                ) : (
+                                  <ChevronLeft className="h-4 w-4 -rotate-90" />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Ações
