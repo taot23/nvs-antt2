@@ -4,7 +4,10 @@ import {
   services, type Service, type InsertService, 
   paymentMethods, type PaymentMethod, type InsertPaymentMethod, 
   serviceTypes, type ServiceType, type InsertServiceType,
-  serviceProviders, type ServiceProvider, type InsertServiceProvider
+  serviceProviders, type ServiceProvider, type InsertServiceProvider,
+  sales, type Sale, type InsertSale,
+  saleItems, type SaleItem, type InsertSaleItem,
+  salesStatusHistory, type SalesStatusHistory, type InsertSalesStatusHistory
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -63,6 +66,33 @@ export interface IStorage {
   createServiceProvider(serviceProvider: InsertServiceProvider): Promise<ServiceProvider>;
   updateServiceProvider(id: number, serviceProvider: Partial<InsertServiceProvider>): Promise<ServiceProvider | undefined>;
   deleteServiceProvider(id: number): Promise<boolean>;
+  
+  // Sale methods
+  getSales(): Promise<Sale[]>;
+  getSalesByStatus(status: string): Promise<Sale[]>;
+  getSalesBySellerAndStatus(sellerId: number, status: string): Promise<Sale[]>;
+  getSale(id: number): Promise<Sale | undefined>;
+  getSaleByOrderNumber(orderNumber: string): Promise<Sale | undefined>;
+  createSale(sale: InsertSale): Promise<Sale>;
+  updateSale(id: number, sale: Partial<InsertSale>): Promise<Sale | undefined>;
+  deleteSale(id: number): Promise<boolean>;
+  
+  // Sale Items methods
+  getSaleItems(saleId: number): Promise<SaleItem[]>;
+  getSaleItem(id: number): Promise<SaleItem | undefined>;
+  createSaleItem(saleItem: InsertSaleItem): Promise<SaleItem>;
+  updateSaleItem(id: number, saleItem: Partial<InsertSaleItem>): Promise<SaleItem | undefined>;
+  deleteSaleItem(id: number): Promise<boolean>;
+  
+  // Sales Status History methods
+  getSalesStatusHistory(saleId: number): Promise<SalesStatusHistory[]>;
+  createSalesStatusHistory(statusHistory: InsertSalesStatusHistory): Promise<SalesStatusHistory>;
+  
+  // Special Sale operations
+  returnSaleToSeller(saleId: number, userId: number, reason: string): Promise<Sale | undefined>;
+  markSaleInProgress(saleId: number, operationalId: number): Promise<Sale | undefined>;
+  completeSaleExecution(saleId: number, operationalId: number): Promise<Sale | undefined>;
+  markSaleAsPaid(saleId: number, financialId: number): Promise<Sale | undefined>;
   
   sessionStore: any; // Using any to avoid type errors
 }
@@ -388,6 +418,254 @@ export class DatabaseStorage implements IStorage {
       .where(eq(serviceProviders.id, id))
       .returning();
     return !!deletedServiceProvider;
+  }
+
+  // Implementação dos métodos de vendas
+  async getSales(): Promise<Sale[]> {
+    return await db.select().from(sales);
+  }
+
+  async getSalesByStatus(status: string): Promise<Sale[]> {
+    const allSales = await db.select().from(sales);
+    return allSales.filter(sale => sale.status === status);
+  }
+
+  async getSalesBySellerAndStatus(sellerId: number, status: string): Promise<Sale[]> {
+    const allSales = await db.select().from(sales);
+    return allSales.filter(sale => 
+      sale.sellerId === sellerId && 
+      (status ? sale.status === status : true)
+    );
+  }
+
+  async getSale(id: number): Promise<Sale | undefined> {
+    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    return sale || undefined;
+  }
+
+  async getSaleByOrderNumber(orderNumber: string): Promise<Sale | undefined> {
+    const allSales = await db.select().from(sales);
+    return allSales.find(sale => sale.orderNumber === orderNumber);
+  }
+
+  async createSale(saleData: InsertSale): Promise<Sale> {
+    const [createdSale] = await db
+      .insert(sales)
+      .values(saleData)
+      .returning();
+    return createdSale;
+  }
+
+  async updateSale(id: number, saleData: Partial<InsertSale>): Promise<Sale | undefined> {
+    // Atualizar também o updatedAt
+    const dataWithTimestamp = {
+      ...saleData,
+      updatedAt: new Date()
+    };
+    
+    const [updatedSale] = await db
+      .update(sales)
+      .set(dataWithTimestamp)
+      .where(eq(sales.id, id))
+      .returning();
+    
+    return updatedSale || undefined;
+  }
+
+  async deleteSale(id: number): Promise<boolean> {
+    // Primeiro excluir os itens relacionados
+    await db.delete(saleItems).where(eq(saleItems.saleId, id));
+    
+    // Depois excluir a venda
+    const [deletedSale] = await db
+      .delete(sales)
+      .where(eq(sales.id, id))
+      .returning();
+      
+    return !!deletedSale;
+  }
+
+  // Implementação dos métodos de itens da venda
+  async getSaleItems(saleId: number): Promise<SaleItem[]> {
+    const allItems = await db.select().from(saleItems);
+    return allItems.filter(item => item.saleId === saleId);
+  }
+
+  async getSaleItem(id: number): Promise<SaleItem | undefined> {
+    const [item] = await db.select().from(saleItems).where(eq(saleItems.id, id));
+    return item || undefined;
+  }
+
+  async createSaleItem(saleItemData: InsertSaleItem): Promise<SaleItem> {
+    const [createdItem] = await db
+      .insert(saleItems)
+      .values(saleItemData)
+      .returning();
+    
+    // Atualizar o valor total da venda
+    await this.updateSaleTotalAmount(createdItem.saleId);
+    
+    return createdItem;
+  }
+
+  async updateSaleItem(id: number, saleItemData: Partial<InsertSaleItem>): Promise<SaleItem | undefined> {
+    const [updatedItem] = await db
+      .update(saleItems)
+      .set(saleItemData)
+      .where(eq(saleItems.id, id))
+      .returning();
+    
+    if (updatedItem) {
+      // Atualizar o valor total da venda
+      await this.updateSaleTotalAmount(updatedItem.saleId);
+    }
+    
+    return updatedItem || undefined;
+  }
+
+  async deleteSaleItem(id: number): Promise<boolean> {
+    // Obter o item antes de excluir para ter o saleId
+    const item = await this.getSaleItem(id);
+    
+    if (!item) {
+      return false;
+    }
+    
+    const [deletedItem] = await db
+      .delete(saleItems)
+      .where(eq(saleItems.id, id))
+      .returning();
+      
+    if (deletedItem) {
+      // Atualizar o valor total da venda
+      await this.updateSaleTotalAmount(item.saleId);
+    }
+      
+    return !!deletedItem;
+  }
+
+  // Método auxiliar para atualizar o valor total da venda
+  private async updateSaleTotalAmount(saleId: number): Promise<void> {
+    const items = await this.getSaleItems(saleId);
+    const totalAmount = items.reduce((total, item) => 
+      total + Number(item.totalPrice), 0);
+    
+    await db
+      .update(sales)
+      .set({ 
+        totalAmount: totalAmount.toString(),
+        updatedAt: new Date()
+      })
+      .where(eq(sales.id, saleId));
+  }
+
+  // Implementação dos métodos de histórico de status
+  async getSalesStatusHistory(saleId: number): Promise<SalesStatusHistory[]> {
+    const allHistory = await db.select().from(salesStatusHistory);
+    return allHistory.filter(record => record.saleId === saleId);
+  }
+
+  async createSalesStatusHistory(historyData: InsertSalesStatusHistory): Promise<SalesStatusHistory> {
+    const [createdHistory] = await db
+      .insert(salesStatusHistory)
+      .values(historyData)
+      .returning();
+    return createdHistory;
+  }
+
+  // Operações especiais de vendas
+  async returnSaleToSeller(saleId: number, userId: number, reason: string): Promise<Sale | undefined> {
+    const sale = await this.getSale(saleId);
+    
+    if (!sale) {
+      return undefined;
+    }
+    
+    // Registrar no histórico
+    await this.createSalesStatusHistory({
+      saleId,
+      fromStatus: sale.status,
+      toStatus: 'returned',
+      userId,
+      notes: reason
+    });
+    
+    // Atualizar status da venda
+    return await this.updateSale(saleId, {
+      status: 'returned',
+      returnReason: reason
+    });
+  }
+
+  async markSaleInProgress(saleId: number, operationalId: number): Promise<Sale | undefined> {
+    const sale = await this.getSale(saleId);
+    
+    if (!sale) {
+      return undefined;
+    }
+    
+    // Registrar no histórico
+    await this.createSalesStatusHistory({
+      saleId,
+      fromStatus: sale.status,
+      toStatus: 'in_progress',
+      userId: operationalId,
+      notes: 'Execução iniciada'
+    });
+    
+    // Atualizar status da venda
+    return await this.updateSale(saleId, {
+      status: 'in_progress',
+      executionStatus: 'in_progress',
+      responsibleOperationalId: operationalId
+    });
+  }
+
+  async completeSaleExecution(saleId: number, operationalId: number): Promise<Sale | undefined> {
+    const sale = await this.getSale(saleId);
+    
+    if (!sale) {
+      return undefined;
+    }
+    
+    // Registrar no histórico
+    await this.createSalesStatusHistory({
+      saleId,
+      fromStatus: sale.status,
+      toStatus: 'completed',
+      userId: operationalId,
+      notes: 'Execução concluída'
+    });
+    
+    // Atualizar status da venda
+    return await this.updateSale(saleId, {
+      status: 'completed',
+      executionStatus: 'completed',
+      responsibleOperationalId: operationalId
+    });
+  }
+
+  async markSaleAsPaid(saleId: number, financialId: number): Promise<Sale | undefined> {
+    const sale = await this.getSale(saleId);
+    
+    if (!sale) {
+      return undefined;
+    }
+    
+    // Registrar no histórico
+    await this.createSalesStatusHistory({
+      saleId,
+      fromStatus: sale.financialStatus,
+      toStatus: 'paid',
+      userId: financialId,
+      notes: 'Pagamento confirmado'
+    });
+    
+    // Atualizar status da venda
+    return await this.updateSale(saleId, {
+      financialStatus: 'paid',
+      responsibleFinancialId: financialId
+    });
   }
 }
 

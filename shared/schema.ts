@@ -105,7 +105,79 @@ export const insertServiceProviderSchema = createInsertSchema(serviceProviders).
   createdAt: true,
 });
 
+// Tabela de vendas
+export const sales = pgTable("sales", {
+  id: serial("id").primaryKey(),
+  orderNumber: text("order_number").notNull().unique(), // Número da ordem de serviço
+  date: timestamp("date").notNull().defaultNow(), // Data da venda
+  customerId: integer("customer_id").notNull().references(() => customers.id), // Cliente
+  paymentMethodId: integer("payment_method_id").notNull().references(() => paymentMethods.id), // Forma de pagamento
+  sellerId: integer("seller_id").notNull().references(() => users.id), // Vendedor responsável
+  totalAmount: numeric("total_amount").notNull().default("0"), // Valor total
+  status: text("status").notNull().default("pending"), // Status: pending, in_progress, returned, completed, canceled
+  executionStatus: text("execution_status").default("waiting"), // Status de execução: waiting, in_progress, completed
+  financialStatus: text("financial_status").default("pending"), // Status financeiro: pending, partial, paid
+  notes: text("notes"), // Observações gerais
+  returnReason: text("return_reason"), // Motivo de devolução
+  responsibleOperationalId: integer("responsible_operational_id").references(() => users.id), // Responsável operacional
+  responsibleFinancialId: integer("responsible_financial_id").references(() => users.id), // Responsável financeiro
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Tabela de itens da venda (serviços incluídos)
+export const saleItems = pgTable("sale_items", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull().references(() => sales.id), // Venda relacionada
+  serviceId: integer("service_id").notNull().references(() => services.id), // Serviço
+  serviceTypeId: integer("service_type_id").notNull().references(() => serviceTypes.id), // Tipo de serviço
+  quantity: integer("quantity").notNull().default(1), // Quantidade
+  price: numeric("price").notNull(), // Valor unitário
+  totalPrice: numeric("total_price").notNull(), // Valor total (quantidade * preço)
+  notes: text("notes"), // Observações específicas do item
+  status: text("status").notNull().default("pending"), // Status específico do item
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de vendas
+export const insertSaleSchema = createInsertSchema(sales).omit({
+  id: true,
+  totalAmount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Schema para inserção de itens de venda
+export const insertSaleItemSchema = createInsertSchema(saleItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Tabela de histórico de status das vendas
+export const salesStatusHistory = pgTable("sales_status_history", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull().references(() => sales.id), // Venda relacionada
+  fromStatus: text("from_status").notNull(), // Status anterior
+  toStatus: text("to_status").notNull(), // Novo status
+  userId: integer("user_id").notNull().references(() => users.id), // Usuário que alterou
+  notes: text("notes"), // Observações
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Schema para inserção no histórico de status
+export const insertSalesStatusHistorySchema = createInsertSchema(salesStatusHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertServiceType = z.infer<typeof insertServiceTypeSchema>;
 export type ServiceType = typeof serviceTypes.$inferSelect;
 export type InsertServiceProvider = z.infer<typeof insertServiceProviderSchema>;
 export type ServiceProvider = typeof serviceProviders.$inferSelect;
+
+export type InsertSale = z.infer<typeof insertSaleSchema>;
+export type Sale = typeof sales.$inferSelect;
+export type InsertSaleItem = z.infer<typeof insertSaleItemSchema>;
+export type SaleItem = typeof saleItems.$inferSelect;
+export type InsertSalesStatusHistory = z.infer<typeof insertSalesStatusHistorySchema>;
+export type SalesStatusHistory = typeof salesStatusHistory.$inferSelect;

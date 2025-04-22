@@ -8,7 +8,10 @@ import {
   insertServiceSchema, 
   insertPaymentMethodSchema, 
   insertServiceTypeSchema,
-  insertServiceProviderSchema
+  insertServiceProviderSchema,
+  insertSaleSchema,
+  insertSaleItemSchema,
+  insertSalesStatusHistorySchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 
