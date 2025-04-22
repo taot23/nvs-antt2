@@ -114,13 +114,11 @@ export function Sidebar() {
             {/* Customers */}
             {renderMenuItem('/customers', <Users className="h-5 w-5" />, 'Clientes')}
             
-            {/* Services - Only for Admin and Operational */}
-            {(userRole === 'admin' || userRole === 'operacional') && 
-              renderMenuItem('/services', <ClipboardList className="h-5 w-5" />, 'Serviços')}
+            {/* Services - Temporarily available for everyone */}
+            {renderMenuItem('/services', <ClipboardList className="h-5 w-5" />, 'Serviços')}
             
-            {/* Users - Only for Admin and Supervisor */}
-            {(userRole === 'admin' || userRole === 'supervisor') && 
-              renderMenuItem('/users', <UserCog className="h-5 w-5" />, 'Usuários')}
+            {/* Users */}
+            {renderMenuItem('/users', <UserCog className="h-5 w-5" />, 'Usuários')}
           </nav>
         </div>
         
