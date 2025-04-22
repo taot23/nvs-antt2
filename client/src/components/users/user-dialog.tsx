@@ -208,6 +208,9 @@ export default function UserDialog({
                     <SelectContent>
                       <SelectItem value="user">Usuário</SelectItem>
                       <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="supervisor">Supervisor</SelectItem>
+                      <SelectItem value="vendedor">Vendedor</SelectItem>
+                      <SelectItem value="operacional">Operacional</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

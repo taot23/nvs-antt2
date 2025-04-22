@@ -103,8 +103,8 @@ export default function UsersPage() {
     }
   };
 
-  // Verifica se o usuário atual é administrador
-  const isAdmin = currentUser?.role === "admin";
+  // Verifica se o usuário atual tem permissão para gerenciar usuários
+  const hasPermission = currentUser?.role === "admin" || currentUser?.role === "supervisor";
 
   return (
     <div className="space-y-6">
@@ -115,7 +115,7 @@ export default function UsersPage() {
             Gerencie os usuários do sistema
           </p>
         </div>
-        {isAdmin && (
+        {hasPermission && (
           <Button onClick={() => {
             setSelectedUser(null);
             setIsDialogOpen(true);
@@ -186,13 +186,21 @@ export default function UsersPage() {
                         <TableCell className="font-medium">{user.id}</TableCell>
                         <TableCell>{user.username}</TableCell>
                         <TableCell>
-                          <Badge variant={user.role === "admin" ? "default" : "secondary"}>
-                            {user.role === "admin" ? "Administrador" : "Usuário"}
+                          <Badge variant={
+                            user.role === "admin" ? "default" : 
+                            user.role === "supervisor" ? "destructive" :
+                            user.role === "vendedor" ? "outline" :
+                            user.role === "operacional" ? "secondary" : "secondary"
+                          }>
+                            {user.role === "admin" ? "Administrador" : 
+                             user.role === "supervisor" ? "Supervisor" :
+                             user.role === "vendedor" ? "Vendedor" :
+                             user.role === "operacional" ? "Operacional" : "Usuário"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            {isAdmin && (
+                            {hasPermission && (
                               <>
                                 <Button
                                   variant="ghost"

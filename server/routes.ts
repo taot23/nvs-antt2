@@ -208,10 +208,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", isAuthenticated, async (req, res) => {
     try {
-      // Verificar o perfil do usuário logado - apenas admins podem criar novos usuários
+      // Verificar o perfil do usuário logado - apenas admins e supervisores podem criar novos usuários
       const currentUser = req.user;
-      if (!currentUser || currentUser.role !== "admin") {
-        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem criar usuários." });
+      if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "supervisor")) {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores e supervisores podem criar usuários." });
       }
       
       // Validar os dados enviados
@@ -260,14 +260,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Regras de permissão:
       // 1. Um usuário comum só pode editar a si mesmo
-      // 2. Um administrador pode editar qualquer usuário
+      // 2. Administradores e supervisores podem editar qualquer usuário
       // 3. Um usuário comum não pode alterar seu próprio papel (role)
       const currentUser = req.user;
       if (!currentUser) {
         return res.status(401).json({ error: "Não autorizado" });
       }
       
-      if (currentUser.role !== "admin" && currentUser.id !== id) {
+      if (currentUser.role !== "admin" && currentUser.role !== "supervisor" && currentUser.id !== id) {
         return res.status(403).json({ error: "Permissão negada" });
       }
       
@@ -322,10 +322,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      // Verificar permissões (apenas admins podem excluir usuários)
+      // Verificar permissões (apenas admins e supervisores podem excluir usuários)
       const currentUser = req.user;
-      if (!currentUser || currentUser.role !== "admin") {
-        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem excluir usuários." });
+      if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "supervisor")) {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores e supervisores podem excluir usuários." });
       }
       
       // Não permitir excluir o próprio usuário
