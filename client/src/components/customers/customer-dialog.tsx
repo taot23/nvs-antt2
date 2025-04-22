@@ -172,6 +172,33 @@ export default function CustomerDialog({
   useEffect(() => {
     setDocumentType(form.watch("documentType"));
   }, [form.watch("documentType")]);
+  
+  // Atualizar o formulário quando o cliente mudar (importante para edição)
+  useEffect(() => {
+    if (customer) {
+      console.log("Atualizando formulário com dados do cliente:", customer);
+      form.reset({
+        name: customer.name,
+        documentType: customer.documentType as "cpf" | "cnpj",
+        document: customer.document,
+        contactName: customer.contactName || "",
+        phone: customer.phone,
+        phone2: customer.phone2 || "",
+        email: customer.email,
+      });
+    } else {
+      // Limpar o formulário para novo cadastro
+      form.reset({
+        name: "",
+        documentType: "cpf",
+        document: "",
+        contactName: "",
+        phone: "",
+        phone2: "",
+        email: "",
+      });
+    }
+  }, [customer, form]);
 
   // Cadastrar novo cliente
   const createCustomerMutation = useMutation({
