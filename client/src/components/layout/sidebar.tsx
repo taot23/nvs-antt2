@@ -17,7 +17,7 @@ import {
 export function Sidebar() {
   // Começar expandido por padrão
   const [expanded, setExpanded] = useState(true);
-  const { logoutMutation } = useAuth();
+  const { logoutMutation, user } = useAuth();
   const [location] = useLocation();
   
   const toggleSidebar = () => {
@@ -28,86 +28,41 @@ export function Sidebar() {
     logoutMutation.mutate();
   };
   
-  // Para obter o perfil do usuário logado
-  const { user } = useAuth();
+  // Definir os itens de navegação
+  const navItems = [];
   
-  const userRole = user?.role || '';
-  console.log("Usuário logado:", user?.username, "Perfil:", userRole);
+  // Início - disponível para todos
+  navItems.push({
+    path: '/',
+    icon: <Home className="h-5 w-5" />,
+    label: 'Início'
+  });
   
-  const menuItems = [
-    {
-      path: '/',
-      icon: <Home className="h-5 w-5" />,
-      label: 'Início',
-      exact: true,
-      show: true, // Sempre visível
-    },
-    {
-      path: '/customers',
-      icon: <Users className="h-5 w-5" />,
-      label: 'Clientes',
-      exact: false,
-      show: true, // Sempre visível
-    },
-    {
+  // Clientes - disponível para todos
+  navItems.push({
+    path: '/customers',
+    icon: <Users className="h-5 w-5" />,
+    label: 'Clientes'
+  });
+  
+  // Serviços - apenas para admin e operacional
+  if (user?.role === 'admin' || user?.role === 'operacional') {
+    navItems.push({
       path: '/services',
       icon: <ClipboardList className="h-5 w-5" />,
-      label: 'Serviços',
-      exact: false,
-      show: userRole === 'admin' || userRole === 'operacional',
-    },
-    {
+      label: 'Serviços'
+    });
+  }
+  
+  // Usuários - apenas para admin e supervisor
+  if (user?.role === 'admin' || user?.role === 'supervisor') {
+    navItems.push({
       path: '/users',
       icon: <UserCog className="h-5 w-5" />,
-      label: 'Usuários',
-      exact: false,
-      show: userRole === 'admin' || userRole === 'supervisor',
-    },
-  ];
-  
-  // Componente de botão de navegação com tooltip quando minimizado
-  const NavButton = ({ path, icon, label, active }: { path: string; icon: JSX.Element; label: string; active: boolean }) => {
-    return expanded ? (
-      <Link href={path}>
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start mb-1 font-normal",
-            active ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          )}
-        >
-          <div className="flex items-center">
-            <div className="mr-3">{icon}</div>
-            <span>{label}</span>
-          </div>
-        </Button>
-      </Link>
-    ) : (
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link href={path}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "w-full h-10 mb-1",
-                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                {icon}
-              </Button>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="font-normal">
-            {label}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  };
-  
-  // Componente principal da sidebar
+      label: 'Usuários'
+    });
+  }
+
   return (
     <>
       {/* Sidebar - sempre visível */}
@@ -137,22 +92,56 @@ export function Sidebar() {
         
         <div className="flex-1 py-4 px-2 overflow-y-auto">
           <nav className="space-y-1">
-            {menuItems
-              .filter(item => item.show)
-              .map((item) => (
-                <NavButton 
-                  key={item.path}
-                  path={item.path}
-                  icon={item.icon}
-                  label={item.label}
-                  active={
-                    item.exact 
-                      ? location === item.path
-                      : location.startsWith(item.path)
-                  }
-                />
-              ))
-            }
+            {navItems.map((item) => {
+              const isActive = item.path === '/' 
+                ? location === item.path
+                : location.startsWith(item.path);
+                
+              // Versão expandida
+              if (expanded) {
+                return (
+                  <Link key={item.path} href={item.path}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start mb-1 font-normal",
+                        isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center">
+                        <div className="mr-3">{item.icon}</div>
+                        <span>{item.label}</span>
+                      </div>
+                    </Button>
+                  </Link>
+                );
+              }
+              
+              // Versão recolhida com tooltip
+              return (
+                <TooltipProvider key={item.path} delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={item.path}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "w-full h-10 mb-1",
+                            isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          )}
+                        >
+                          {item.icon}
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-normal">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
           </nav>
         </div>
         
