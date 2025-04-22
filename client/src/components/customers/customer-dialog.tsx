@@ -260,7 +260,7 @@ export default function CustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[92vw] max-w-[92vw] md:max-w-[600px] lg:max-w-[650px] h-auto overflow-y-auto max-h-[90vh]">
+      <DialogContent className="dialog-content w-[90vw] max-w-[90vw] sm:max-w-[520px] md:max-w-[580px] lg:max-w-[650px] h-auto overflow-y-auto max-h-[85vh] sm:max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Cliente" : "Novo Cliente"}
@@ -377,7 +377,7 @@ export default function CustomerDialog({
               />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <FormField
                 control={form.control}
                 name="phone"
@@ -446,13 +446,13 @@ export default function CustomerDialog({
               )}
             />
 
-            <DialogFooter className="pt-6 pb-4 mb-2 flex flex-col sm:flex-row gap-3 mt-4">
+            <DialogFooter className="pt-5 pb-3 sm:pb-4 mb-1 sm:mb-2 flex flex-col sm:flex-row gap-3 mt-3 sm:mt-4">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={onClose} 
                 disabled={isPending}
-                className="w-full sm:w-auto order-2 sm:order-1 min-h-10 py-2 px-6"
+                className="w-full sm:w-auto order-2 sm:order-1 h-11 sm:h-10 py-1 sm:py-2 px-4 sm:px-6"
                 style={{ WebkitAppearance: "none" }}
               >
                 Cancelar
@@ -460,7 +460,7 @@ export default function CustomerDialog({
               <Button 
                 type="submit" 
                 disabled={isPending}
-                className="w-full sm:w-auto order-1 sm:order-2 min-h-10 py-2 px-6"
+                className="w-full sm:w-auto order-1 sm:order-2 h-11 sm:h-10 py-1 sm:py-2 px-4 sm:px-6"
                 style={{ WebkitAppearance: "none" }}
               >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

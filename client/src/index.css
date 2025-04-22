@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix para inputs em iOS para evitar zoom indesejado */
+@media screen and (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Ajustes adicionais para melhor responsividade */
+@media screen and (max-width: 640px) {
+  .dialog-content {
+    padding: 1rem !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
