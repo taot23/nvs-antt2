@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2, AlertTriangle, Receipt, BadgeCheck, Clock, FileSpreadsheet, ArrowDownToLine } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { File, User, CreditCard, Clock, Calendar, Package, Tag } from "lucide-react";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 
 // Função para obter a descrição do status
 function getStatusLabel(status: string) {
@@ -21,6 +22,7 @@ function getStatusLabel(status: string) {
     case 'returned': return 'Devolvida';
     case 'completed': return 'Concluída';
     case 'canceled': return 'Cancelada';
+    case 'paid': return 'Pago';
     default: return status;
   }
 }
@@ -33,6 +35,7 @@ function getStatusVariant(status: string) {
     case 'returned': return 'destructive';
     case 'completed': return 'success';
     case 'canceled': return 'outline';
+    case 'paid': return 'success';
     default: return 'default';
   }
 }
@@ -44,9 +47,11 @@ interface SaleDetailsDialogProps {
 }
 
 export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetailsDialogProps) {
-  const [activeTab, setActiveTab] = useState("details");
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("geral");
   
-  // Consulta da venda
+  // Consulta para obter os detalhes da venda
   const { data: sale, isLoading: isLoadingSale } = useQuery({
     queryKey: ["/api/sales", saleId],
     queryFn: async () => {
@@ -60,8 +65,8 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
     enabled: !!saleId
   });
   
-  // Consulta dos itens da venda
-  const { data: items = [], isLoading: isLoadingItems } = useQuery({
+  // Consulta para obter os itens da venda
+  const { data: saleItems = [], isLoading: isLoadingItems } = useQuery({
     queryKey: ["/api/sales", saleId, "items"],
     queryFn: async () => {
       if (!saleId) return [];
@@ -74,12 +79,12 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
     enabled: !!saleId
   });
   
-  // Consulta do histórico de status
-  const { data: history = [], isLoading: isLoadingHistory } = useQuery({
-    queryKey: ["/api/sales", saleId, "history"],
+  // Consulta para obter o histórico de status da venda
+  const { data: statusHistory = [], isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["/api/sales", saleId, "status-history"],
     queryFn: async () => {
       if (!saleId) return [];
-      const response = await fetch(`/api/sales/${saleId}/history`);
+      const response = await fetch(`/api/sales/${saleId}/status-history`);
       if (!response.ok) {
         throw new Error("Erro ao carregar histórico da venda");
       }
@@ -88,7 +93,7 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
     enabled: !!saleId
   });
   
-  // Consultas auxiliares para dados relacionados
+  // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
     queryKey: ["/api/customers"],
     queryFn: async () => {
@@ -99,7 +104,7 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
       return response.json();
     }
   });
-
+  
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
@@ -110,29 +115,7 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
       return response.json();
     }
   });
-
-  const { data: services = [] } = useQuery({
-    queryKey: ["/api/services"],
-    queryFn: async () => {
-      const response = await fetch("/api/services");
-      if (!response.ok) {
-        throw new Error("Erro ao carregar serviços");
-      }
-      return response.json();
-    }
-  });
-
-  const { data: serviceTypes = [] } = useQuery({
-    queryKey: ["/api/service-types"],
-    queryFn: async () => {
-      const response = await fetch("/api/service-types");
-      if (!response.ok) {
-        throw new Error("Erro ao carregar tipos de serviço");
-      }
-      return response.json();
-    }
-  });
-
+  
   const { data: paymentMethods = [] } = useQuery({
     queryKey: ["/api/payment-methods"],
     queryFn: async () => {
@@ -144,355 +127,341 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
     }
   });
   
-  // Dados enriquecidos
-  const customer = sale ? customers.find((c: any) => c.id === sale.customerId) : null;
-  const seller = sale ? users.find((u: any) => u.id === sale.sellerId) : null;
-  const paymentMethod = sale ? paymentMethods.find((p: any) => p.id === sale.paymentMethodId) : null;
-  const operationalUser = sale?.responsibleOperationalId 
-    ? users.find((u: any) => u.id === sale.responsibleOperationalId) 
-    : null;
-  const financialUser = sale?.responsibleFinancialId 
-    ? users.find((u: any) => u.id === sale.responsibleFinancialId) 
-    : null;
-  
-  // Resetar a aba ativa ao abrir o diálogo
-  useEffect(() => {
-    if (open) {
-      setActiveTab("details");
+  const { data: services = [] } = useQuery({
+    queryKey: ["/api/services"],
+    queryFn: async () => {
+      const response = await fetch("/api/services");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar serviços");
+      }
+      return response.json();
     }
-  }, [open]);
+  });
   
-  if (isLoadingSale) {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Detalhes da Venda</DialogTitle>
-          </DialogHeader>
-          <div className="py-8 text-center">Carregando detalhes da venda...</div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ["/api/service-types"],
+    queryFn: async () => {
+      const response = await fetch("/api/service-types");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar tipos de serviço");
+      }
+      return response.json();
+    }
+  });
   
-  if (!sale) {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Detalhes da Venda</DialogTitle>
-          </DialogHeader>
-          <div className="py-8 text-center text-destructive">Venda não encontrada</div>
-        </DialogContent>
-      </Dialog>
-    );
+  // Encontra os nomes dos objetos relacionados
+  const findCustomerName = (id: number) => {
+    const customer = customers.find((c: any) => c.id === id);
+    return customer?.name || `Cliente #${id}`;
+  };
+  
+  const findUserName = (id: number) => {
+    const user = users.find((u: any) => u.id === id);
+    return user?.username || `Usuário #${id}`;
+  };
+  
+  const findPaymentMethodName = (id: number) => {
+    const paymentMethod = paymentMethods.find((p: any) => p.id === id);
+    return paymentMethod?.name || `Forma de Pagamento #${id}`;
+  };
+  
+  const findServiceName = (id: number) => {
+    const service = services.find((s: any) => s.id === id);
+    return service?.name || `Serviço #${id}`;
+  };
+  
+  const findServiceTypeName = (id: number) => {
+    const serviceType = serviceTypes.find((t: any) => t.id === id);
+    return serviceType?.name || `Tipo de Serviço #${id}`;
+  };
+  
+  // Verifica se está carregando os dados
+  const isLoading = isLoadingSale || isLoadingItems || isLoadingHistory;
+  
+  // Verifica se há dados de venda para mostrar
+  if (!isLoading && !sale) {
+    return null;
   }
   
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <File className="h-5 w-5" />
-            <span>OS: {sale.orderNumber}</span>
-            <Badge variant={getStatusVariant(sale.status) as any} className="ml-2">
-              {getStatusLabel(sale.status)}
-            </Badge>
-            {sale.financialStatus === 'paid' && (
-              <Badge variant="outline" className="text-green-600 border-green-600">
-                Pago
-              </Badge>
-            )}
+            <Receipt className="h-5 w-5" />
+            <span>Detalhes da Venda</span>
           </DialogTitle>
+          {sale && (
+            <DialogDescription>
+              OS: <strong>{sale.orderNumber}</strong> | 
+              Data: <strong>{format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}</strong>
+            </DialogDescription>
+          )}
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <TabsList className="grid grid-cols-3">
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-            <TabsTrigger value="items">Itens</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-          </TabsList>
-          
-          <ScrollArea className="flex-1 h-[calc(85vh-180px)] mt-4">
-            <TabsContent value="details" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Informações do Cliente
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-2">
-                    <div>
-                      <div className="text-sm font-medium">Nome</div>
-                      <div>{customer?.name || `Cliente #${sale.customerId}`}</div>
-                    </div>
-                    
-                    {customer && (
-                      <>
-                        <div>
-                          <div className="text-sm font-medium">Documento</div>
-                          <div>{customer.document} ({customer.documentType === 'cpf' ? 'CPF' : 'CNPJ'})</div>
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium">Contato</div>
-                          <div>{customer.email}</div>
-                          <div>{customer.phone}{customer.phone2 ? `, ${customer.phone2}` : ''}</div>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      Informações de Pagamento
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-2">
-                    <div>
-                      <div className="text-sm font-medium">Forma de Pagamento</div>
-                      <div>{paymentMethod?.name || `Forma #${sale.paymentMethodId}`}</div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm font-medium">Valor Total</div>
-                      <div className="text-lg font-bold">
-                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm font-medium">Status Financeiro</div>
-                      <div>
-                        {sale.financialStatus === 'paid' 
-                          ? 'Pago' 
-                          : sale.financialStatus === 'partial' 
-                            ? 'Parcialmente Pago' 
-                            : 'Pendente'
-                        }
-                      </div>
-                    </div>
-                    
-                    {financialUser && (
-                      <div>
-                        <div className="text-sm font-medium">Confirmado por</div>
-                        <div>{financialUser.username}</div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Datas e Responsáveis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-2">
-                    <div>
-                      <div className="text-sm font-medium">Data da Venda</div>
-                      <div>{format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm font-medium">Vendedor</div>
-                      <div>{seller?.username || `Vendedor #${sale.sellerId}`}</div>
-                    </div>
-                    
-                    {operationalUser && (
-                      <div>
-                        <div className="text-sm font-medium">Responsável Operacional</div>
-                        <div>{operationalUser.username}</div>
-                      </div>
-                    )}
-                    
-                    <div>
-                      <div className="text-sm font-medium">Criado em</div>
-                      <div>{format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm font-medium">Última atualização</div>
-                      <div>{format(new Date(sale.updatedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Status e Detalhes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-2">
-                    <div>
-                      <div className="text-sm font-medium">Status da Venda</div>
-                      <div>
-                        <Badge variant={getStatusVariant(sale.status) as any}>
-                          {getStatusLabel(sale.status)}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm font-medium">Status de Execução</div>
-                      <div>
-                        {sale.executionStatus === 'waiting' 
-                          ? 'Aguardando' 
-                          : sale.executionStatus === 'in_progress' 
-                            ? 'Em Andamento' 
-                            : 'Concluído'
-                        }
-                      </div>
-                    </div>
-                    
-                    {sale.returnReason && (
-                      <div>
-                        <div className="text-sm font-medium text-destructive">Motivo da Devolução</div>
-                        <div className="text-destructive">{sale.returnReason}</div>
-                      </div>
-                    )}
-                    
-                    {sale.notes && (
-                      <div>
-                        <div className="text-sm font-medium">Observações</div>
-                        <div>{sale.notes}</div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="items" className="space-y-4">
-              {isLoadingItems ? (
-                <div className="py-4 text-center">Carregando itens...</div>
-              ) : items.length === 0 ? (
-                <div className="py-4 text-center text-muted-foreground">Nenhum item encontrado</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Serviço</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Qtd</TableHead>
-                      <TableHead>Preço Unit.</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item: any) => {
-                      const service = services.find((s: any) => s.id === item.serviceId);
-                      const serviceType = serviceTypes.find((st: any) => st.id === item.serviceTypeId);
-                      const totalPrice = parseFloat(item.totalPrice);
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Carregando detalhes...</span>
+          </div>
+        ) : (
+          <>
+            <Tabs defaultValue="geral" value={activeTab} onValueChange={setActiveTab} className="mt-2">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="geral">Geral</TabsTrigger>
+                <TabsTrigger value="itens">Itens</TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
+              </TabsList>
+              
+              {/* Aba Geral */}
+              <TabsContent value="geral" className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-medium">Status da Venda</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <Badge variant={getStatusVariant(sale.status) as any} className="mt-1">
+                        {getStatusLabel(sale.status)}
+                      </Badge>
                       
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <div className="font-medium">
-                              {service ? service.name : `Serviço #${item.serviceId}`}
-                            </div>
-                            {item.notes && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {item.notes}
+                      {sale.returnReason && (
+                        <div className="mt-2 text-sm">
+                          <span className="font-medium text-destructive flex items-center">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Motivo da devolução:
+                          </span>
+                          <p className="text-muted-foreground mt-1">{sale.returnReason}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-medium">Status de Execução</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <Badge variant={getStatusVariant(sale.executionStatus) as any} className="mt-1">
+                        {getStatusLabel(sale.executionStatus)}
+                      </Badge>
+                      
+                      {sale.responsibleOperationalId && (
+                        <div className="mt-2 text-sm">
+                          <span className="font-medium text-muted-foreground">Responsável:</span>
+                          <p>{findUserName(sale.responsibleOperationalId)}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-medium">Status Financeiro</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <Badge variant={getStatusVariant(sale.financialStatus) as any} className="mt-1">
+                        {getStatusLabel(sale.financialStatus)}
+                      </Badge>
+                      
+                      {sale.responsibleFinancialId && (
+                        <div className="mt-2 text-sm">
+                          <span className="font-medium text-muted-foreground">Responsável:</span>
+                          <p>{findUserName(sale.responsibleFinancialId)}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-medium">Informações Gerais</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <dl className="space-y-2 text-sm">
+                        <div className="flex flex-col">
+                          <dt className="font-medium text-muted-foreground">Cliente</dt>
+                          <dd>{findCustomerName(sale.customerId)}</dd>
+                        </div>
+                        <div className="flex flex-col">
+                          <dt className="font-medium text-muted-foreground">Vendedor</dt>
+                          <dd>{findUserName(sale.sellerId)}</dd>
+                        </div>
+                        <div className="flex flex-col">
+                          <dt className="font-medium text-muted-foreground">Forma de Pagamento</dt>
+                          <dd>{findPaymentMethodName(sale.paymentMethodId)}</dd>
+                        </div>
+                        <div className="flex flex-col">
+                          <dt className="font-medium text-muted-foreground">Valor Total</dt>
+                          <dd className="font-medium">R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-medium">Observações</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      {sale.notes ? (
+                        <p className="text-sm">{sale.notes}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Nenhuma observação registrada</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <Card>
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-medium">Datas e Registros</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <dl className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                      <div className="flex flex-col">
+                        <dt className="font-medium text-muted-foreground">Data de Registro</dt>
+                        <dd>{format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</dd>
+                      </div>
+                      <div className="flex flex-col">
+                        <dt className="font-medium text-muted-foreground">Última Atualização</dt>
+                        <dd>{format(new Date(sale.updatedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</dd>
+                      </div>
+                    </dl>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Aba Itens */}
+              <TabsContent value="itens" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      <span>Itens da Venda</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Total: {saleItems.length} {saleItems.length === 1 ? 'item' : 'itens'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-2">
+                    {saleItems.length === 0 ? (
+                      <div className="text-center py-4 text-muted-foreground">
+                        Nenhum item encontrado para esta venda
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Serviço</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead className="text-right">Qtd</TableHead>
+                            <TableHead className="text-right">Preço Unit.</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {saleItems.map((item: any) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium">
+                                {findServiceName(item.serviceId)}
+                                {item.notes && (
+                                  <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
+                                )}
+                              </TableCell>
+                              <TableCell>{findServiceTypeName(item.serviceTypeId)}</TableCell>
+                              <TableCell className="text-right">{item.quantity}</TableCell>
+                              <TableCell className="text-right">
+                                R$ {parseFloat(item.price).toFixed(2).replace('.', ',')}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                R$ {(parseFloat(item.price) * item.quantity).toFixed(2).replace('.', ',')}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <div className="flex justify-end">
+                  <Card className="w-full md:w-1/3">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Valor Total</span>
+                        <span className="text-lg font-bold">
+                          R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+              
+              {/* Aba Histórico */}
+              <TabsContent value="historico" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Histórico de Status</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Registro completo de todas as mudanças na venda
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-2">
+                    {statusHistory.length === 0 ? (
+                      <div className="text-center py-4 text-muted-foreground">
+                        Nenhum registro de alteração para esta venda
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {statusHistory.map((history: any) => (
+                          <div key={history.id} className="border-l-2 pl-4 pb-4 relative">
+                            <div className="absolute w-3 h-3 rounded-full bg-primary -left-[7px] top-0"></div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(history.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {findUserName(history.userId)}
+                                </Badge>
                               </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {serviceType ? serviceType.name : `Tipo #${item.serviceTypeId}`}
-                          </TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>
-                            R$ {parseFloat(item.price).toFixed(2).replace('.', ',')}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            R$ {totalPrice.toFixed(2).replace('.', ',')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getStatusVariant(item.status) as any}>
-                              {getStatusLabel(item.status)}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-right font-bold">
-                        Total da Venda:
-                      </TableCell>
-                      <TableCell colSpan={2} className="font-bold text-lg">
-                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="history" className="space-y-4">
-              {isLoadingHistory ? (
-                <div className="py-4 text-center">Carregando histórico...</div>
-              ) : history.length === 0 ? (
-                <div className="py-4 text-center text-muted-foreground">Nenhum registro de histórico encontrado</div>
-              ) : (
-                <div className="space-y-4">
-                  {history.map((record: any, index: number) => {
-                    const user = users.find((u: any) => u.id === record.userId);
-                    return (
-                      <Card key={record.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="font-medium flex items-center">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant={getStatusVariant(record.toStatus) as any}>
-                                    {getStatusLabel(record.toStatus)}
-                                  </Badge>
-                                  {record.fromStatus && (
-                                    <div className="text-sm flex items-center gap-1">
-                                      <span>de</span>
-                                      <Badge variant={getStatusVariant(record.fromStatus) as any}>
-                                        {getStatusLabel(record.fromStatus)}
-                                      </Badge>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {format(new Date(record.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                              </div>
-                            </div>
-                            <div className="text-sm">
-                              <span className="text-muted-foreground">por </span>
-                              <span className="font-medium">
-                                {user ? user.username : `Usuário #${record.userId}`}
-                              </span>
+                              <p className="text-sm font-medium">
+                                Status alterado de{" "}
+                                <Badge variant={getStatusVariant(history.fromStatus) as any} className="ml-1">
+                                  {getStatusLabel(history.fromStatus)}
+                                </Badge>{" "}
+                                para{" "}
+                                <Badge variant={getStatusVariant(history.toStatus) as any} className="ml-1">
+                                  {getStatusLabel(history.toStatus)}
+                                </Badge>
+                              </p>
+                              {history.notes && (
+                                <p className="text-sm text-muted-foreground">{history.notes}</p>
+                              )}
                             </div>
                           </div>
-                          {record.notes && (
-                            <div className="mt-2 pt-2 border-t text-sm">
-                              {record.notes}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
-          </ScrollArea>
-        </Tabs>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
         
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="mt-4 sm:justify-between">
+          <div className="hidden sm:block text-xs text-muted-foreground">
+            Criado em: {sale && format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+          </div>
+          <Button type="button" onClick={onClose}>
             Fechar
           </Button>
         </DialogFooter>
