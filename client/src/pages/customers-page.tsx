@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import CustomerDialog from "../components/customers/customer-dialog";
 import { jsPDF } from "jspdf";
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { 
   DropdownMenu, 
@@ -139,7 +139,7 @@ export default function CustomersPage() {
       ]);
       
       // Adicionar tabela automática
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
         startY: 40,
