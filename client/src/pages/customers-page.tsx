@@ -39,7 +39,7 @@ export default function CustomersPage() {
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   
   // Estados para filtros
-  const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
   // Buscar clientes
@@ -67,7 +67,7 @@ export default function CustomersPage() {
       customer.phone.includes(searchTerm);
     
     // Filtro por tipo de documento
-    const matchesDocumentType = documentTypeFilter === "" || customer.documentType === documentTypeFilter;
+    const matchesDocumentType = documentTypeFilter === "all" || customer.documentType === documentTypeFilter;
     
     return matchesSearch && matchesDocumentType;
   });
@@ -170,7 +170,7 @@ export default function CustomersPage() {
   // Limpar todos os filtros
   const clearFilters = () => {
     setSearchTerm("");
-    setDocumentTypeFilter("");
+    setDocumentTypeFilter("all");
   };
 
   // Deletar cliente
@@ -335,7 +335,7 @@ export default function CustomersPage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {(documentTypeFilter || searchTerm) && (
+                    {(documentTypeFilter !== "all" || searchTerm) && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -374,7 +374,7 @@ export default function CustomersPage() {
                           <SelectValue placeholder="Todos" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Todos</SelectItem>
+                          <SelectItem value="all">Todos</SelectItem>
                           <SelectItem value="cpf">CPF (Pessoa Física)</SelectItem>
                           <SelectItem value="cnpj">CNPJ (Pessoa Jurídica)</SelectItem>
                         </SelectContent>
@@ -424,7 +424,7 @@ export default function CustomersPage() {
                 <div className="overflow-x-auto">
                   <div className="px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
                     {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} encontrado{filteredCustomers.length !== 1 ? 's' : ''}
-                    {(documentTypeFilter || searchTerm) && (
+                    {(documentTypeFilter !== "all" || searchTerm) && (
                       <span> (filtrados de {customers.length})</span>
                     )}
                   </div>
