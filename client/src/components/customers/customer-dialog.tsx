@@ -11,7 +11,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 // Estendendo o schema para adicionar validações adicionais
 const customerFormSchema = insertCustomerSchema.extend({
@@ -30,7 +30,97 @@ const customerFormSchema = insertCustomerSchema.extend({
       {
         message: "Formato de documento inválido",
       }
-    ),
+    )
+    .superRefine((val, ctx) => {
+      // Valida algoritmo de CPF ou CNPJ
+      const clean = val.replace(/\D/g, '');
+      
+      if (clean.length === 11) { // CPF
+        // 11 dígitos repetidos são inválidos
+        if (/^(\d)\1+$/.test(clean)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CPF inválido (dígitos repetidos)"
+          });
+          return false;
+        }
+        
+        // Verificação dos dígitos do CPF
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+          sum += parseInt(clean.charAt(i)) * (10 - i);
+        }
+        let rest = 11 - (sum % 11);
+        let digit1 = rest >= 10 ? 0 : rest;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+          sum += parseInt(clean.charAt(i)) * (11 - i);
+        }
+        rest = 11 - (sum % 11);
+        let digit2 = rest >= 10 ? 0 : rest;
+        
+        if (!(digit1 === parseInt(clean.charAt(9)) && digit2 === parseInt(clean.charAt(10)))) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CPF inválido (algorítmo de verificação)"
+          });
+          return false;
+        }
+      } 
+      else if (clean.length === 14) { // CNPJ
+        // 14 dígitos repetidos são inválidos
+        if (/^(\d)\1+$/.test(clean)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CNPJ inválido (dígitos repetidos)"
+          });
+          return false;
+        }
+        
+        // Verificação dos dígitos do CNPJ
+        let size = clean.length - 2;
+        let numbers = clean.substring(0, size);
+        let digits = clean.substring(size);
+        let sum = 0;
+        let pos = size - 7;
+        
+        for (let i = size; i >= 1; i--) {
+          sum += parseInt(numbers.charAt(size - i)) * pos--;
+          if (pos < 2) pos = 9;
+        }
+        
+        let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+        if (result !== parseInt(digits.charAt(0))) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CNPJ inválido (algorítmo de verificação)"
+          });
+          return false;
+        }
+        
+        size = size + 1;
+        numbers = clean.substring(0, size);
+        sum = 0;
+        pos = size - 7;
+        
+        for (let i = size; i >= 1; i--) {
+          sum += parseInt(numbers.charAt(size - i)) * pos--;
+          if (pos < 2) pos = 9;
+        }
+        
+        result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+        if (result !== parseInt(digits.charAt(1))) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CNPJ inválido (algorítmo de verificação)"
+          });
+          return false;
+        }
+      }
+      
+      return true;
+    }),
   contactName: z.string().optional(),
   phone: z.string().regex(/^\(\d{2}\) \d{5}-\d{4}$/, "Telefone deve estar no formato (00) 00000-0000"),
   phone2: z.string().optional(),
@@ -292,12 +382,22 @@ export default function CustomerDialog({
   };
 
   // Verifica se o documento é válido para mostrar ícone verde
-  const validateDocument = (value: string, type: "cpf" | "cnpj") => {
+  // Verifica se o documento é válido e retorna o status (-1: inválido, 0: incompleto, 1: válido)
+  const validateDocument = (value: string, type: "cpf" | "cnpj"): number => {
+    if (!value) return 0;
+    
     const cleanValue = value.replace(/\D/g, "");
+    
+    // Verifica se o documento está completo
+    const isCompleteCpf = cleanValue.length === 11;
+    const isCompleteCnpj = cleanValue.length === 14;
+    
     if (type === "cpf") {
-      return cleanValue.length === 11 && isValidCPF(cleanValue);
+      if (!isCompleteCpf) return 0; // Incompleto
+      return isValidCPF(cleanValue) ? 1 : -1; // Válido ou inválido
     } else {
-      return cleanValue.length === 14 && isValidCNPJ(cleanValue);
+      if (!isCompleteCnpj) return 0; // Incompleto
+      return isValidCNPJ(cleanValue) ? 1 : -1; // Válido ou inválido
     }
   };
 
@@ -324,7 +424,7 @@ export default function CustomerDialog({
 
   const isPending = createCustomerMutation.isPending || updateCustomerMutation.isPending;
   const document = form.watch("document");
-  const isDocumentValid = document ? validateDocument(document, documentType) : false;
+  const documentStatus = document ? validateDocument(document, documentType) : 0; // 0 = incompleto
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -420,9 +520,13 @@ export default function CustomerDialog({
                         autoComplete="off"
                       />
                     </FormControl>
-                    {isDocumentValid && (
+                    {document && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        {documentStatus === 1 ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : documentStatus === -1 ? (
+                          <AlertCircle className="h-5 w-5 text-red-500" />
+                        ) : null}
                       </div>
                     )}
                   </div>
