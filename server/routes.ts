@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCustomerSchema, insertUserSchema } from "@shared/schema";
+import { insertCustomerSchema, insertUserSchema, insertServiceSchema } from "@shared/schema";
 import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -342,6 +342,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir usuário:", error);
       res.status(500).json({ error: "Erro ao excluir usuário" });
+    }
+  });
+
+  // ========== Rotas para gerenciamento de serviços ==========
+  
+  // Middleware para verificar se o usuário tem permissão para gerenciar serviços
+  const canManageServices = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const user = req.user;
+    if (user.role === "admin" || user.role === "operacional") {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: "Permissão negada", 
+      message: "Apenas administradores e operacionais podem gerenciar serviços."
+    });
+  };
+  
+  // Listar todos os serviços
+  app.get("/api/services", isAuthenticated, async (req, res) => {
+    try {
+      const services = await storage.getServices();
+      res.json(services);
+    } catch (error) {
+      console.error("Erro ao buscar serviços:", error);
+      res.status(500).json({ error: "Erro ao buscar serviços" });
+    }
+  });
+  
+  // Obter um serviço específico
+  app.get("/api/services/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const service = await storage.getService(id);
+      if (!service) {
+        return res.status(404).json({ error: "Serviço não encontrado" });
+      }
+      
+      res.json(service);
+    } catch (error) {
+      console.error("Erro ao buscar serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar serviço" });
+    }
+  });
+  
+  // Criar um novo serviço
+  app.post("/api/services", canManageServices, async (req, res) => {
+    try {
+      // Validar os dados enviados
+      const validatedData = insertServiceSchema.parse(req.body);
+      
+      // Verificar se já existe um serviço com este nome
+      const existingService = await storage.getServiceByName(validatedData.name);
+      if (existingService) {
+        return res.status(400).json({ 
+          error: "Serviço já cadastrado", 
+          message: `Já existe um serviço com o nome "${existingService.name}"`,
+          existingService: {
+            id: existingService.id,
+            name: existingService.name
+          }
+        });
+      }
+      
+      // Criar o serviço
+      const service = await storage.createService(validatedData);
+      res.status(201).json(service);
+    } catch (error) {
+      console.error("Erro ao criar serviço:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao criar serviço" });
+    }
+  });
+  
+  // Atualizar um serviço existente
+  app.put("/api/services/:id", canManageServices, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Buscar o serviço atual para verificações
+      const currentService = await storage.getService(id);
+      if (!currentService) {
+        return res.status(404).json({ error: "Serviço não encontrado" });
+      }
+      
+      // Validar os dados parciais
+      const serviceData = insertServiceSchema.parse(req.body);
+      
+      // Se o nome estiver sendo alterado, verifica se já existe
+      if (serviceData.name && serviceData.name !== currentService.name) {
+        const existingService = await storage.getServiceByName(serviceData.name);
+        if (existingService && existingService.id !== id) {
+          return res.status(400).json({ 
+            error: "Nome já cadastrado", 
+            message: `Já existe um serviço com o nome "${existingService.name}"`,
+            existingService: {
+              id: existingService.id,
+              name: existingService.name
+            }
+          });
+        }
+      }
+      
+      // Atualizar o serviço
+      const service = await storage.updateService(id, serviceData);
+      if (!service) {
+        return res.status(404).json({ error: "Serviço não encontrado" });
+      }
+      
+      res.json(service);
+    } catch (error) {
+      console.error("Erro ao atualizar serviço:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao atualizar serviço" });
+    }
+  });
+  
+  // Excluir um serviço
+  app.delete("/api/services/:id", canManageServices, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const success = await storage.deleteService(id);
+      if (!success) {
+        return res.status(404).json({ error: "Serviço não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir serviço:", error);
+      res.status(500).json({ error: "Erro ao excluir serviço" });
     }
   });
 
