@@ -10,6 +10,8 @@ export function ProtectedRoute({
   component: () => React.JSX.Element;
 }) {
   const { user, isLoading } = useAuth();
+  
+  console.log(`ProtectedRoute para ${path}: isLoading=${isLoading}, user=${user ? 'sim' : 'não'}`);
 
   if (isLoading) {
     return (
@@ -22,6 +24,7 @@ export function ProtectedRoute({
   }
 
   if (!user) {
+    console.log(`Redirecionando de ${path} para /auth porque não há usuário autenticado`);
     return (
       <Route path={path}>
         <Redirect to="/auth" />
@@ -29,5 +32,7 @@ export function ProtectedRoute({
     );
   }
 
+  // Aqui tentamos renderizar o componente da rota
+  console.log(`Renderizando componente para ${path}`);
   return <Route path={path} component={Component} />;
 }

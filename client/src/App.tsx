@@ -12,22 +12,37 @@ import { AppLayout } from "@/components/layout/app-layout";
 
 // Componente que envolve as rotas protegidas com o layout 
 const ProtectedApp = ({ children }: { children: React.ReactNode }) => {
+  console.log("Renderizando ProtectedApp");
   return <AppLayout>{children}</AppLayout>;
 };
 
+// Componentes específicos para cada rota
+const ProtectedHome = () => {
+  console.log("Renderizando ProtectedHome");
+  return (
+    <ProtectedApp>
+      <HomePage />
+    </ProtectedApp>
+  );
+};
+
+const ProtectedCustomers = () => {
+  console.log("Renderizando ProtectedCustomers");
+  return (
+    <ProtectedApp>
+      <CustomersPage />
+    </ProtectedApp>
+  );
+};
+
 function Router() {
+  console.log("Renderizando Router");
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <Route path="/">
-        <ProtectedApp>
-          <Switch>
-            <ProtectedRoute path="/" component={HomePage} />
-            <ProtectedRoute path="/customers" component={CustomersPage} />
-            <Route component={NotFound} />
-          </Switch>
-        </ProtectedApp>
-      </Route>
+      <ProtectedRoute path="/" exact component={ProtectedHome} />
+      <ProtectedRoute path="/customers" component={ProtectedCustomers} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
