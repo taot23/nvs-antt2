@@ -31,6 +31,9 @@ export function Sidebar() {
   // Definir os itens de navegação
   const navItems = [];
   
+  console.log("Sidebar: Usuário:", user);
+  console.log("Sidebar: Role do usuário:", user?.role);
+  
   // Início - disponível para todos
   navItems.push({
     path: '/',
@@ -45,14 +48,12 @@ export function Sidebar() {
     label: 'Clientes'
   });
   
-  // Serviços - apenas para admin e operacional
-  if (user?.role === 'admin' || user?.role === 'operacional') {
-    navItems.push({
-      path: '/services',
-      icon: <ClipboardList className="h-5 w-5" />,
-      label: 'Serviços'
-    });
-  }
+  // Serviços - vamos deixar visível para depuração
+  navItems.push({
+    path: '/services',
+    icon: <ClipboardList className="h-5 w-5" />,
+    label: 'Serviços'
+  });
   
   // Usuários - apenas para admin e supervisor
   if (user?.role === 'admin' || user?.role === 'supervisor') {
