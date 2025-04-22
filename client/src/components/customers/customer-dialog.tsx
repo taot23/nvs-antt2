@@ -260,7 +260,7 @@ export default function CustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-[550px] lg:max-w-[600px]">
+      <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-[600px] lg:max-w-[650px] h-fit">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Cliente" : "Novo Cliente"}
@@ -273,7 +273,7 @@ export default function CustomerDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
             <FormField
               control={form.control}
               name="name"
@@ -336,6 +336,9 @@ export default function CustomerDialog({
                         onChange={(e) => {
                           field.onChange(formatDocument(e.target.value, documentType));
                         }}
+                        style={{ WebkitAppearance: "none" }}
+                        className="py-2 px-3"
+                        autoComplete="off"
                       />
                     </FormControl>
                     {isDocumentValid && (
@@ -421,23 +424,25 @@ export default function CustomerDialog({
               )}
             />
 
-            <DialogFooter className="pt-6 flex flex-col sm:flex-row gap-2">
+            <DialogFooter className="pt-8 pb-2 flex flex-col sm:flex-row gap-3 mt-4">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={onClose} 
                 disabled={isPending}
-                className="w-full sm:w-auto order-2 sm:order-1"
+                className="w-full sm:w-auto order-2 sm:order-1 min-h-10 py-2 px-6"
+                style={{ WebkitAppearance: "none" }}
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
                 disabled={isPending}
-                className="w-full sm:w-auto order-1 sm:order-2"
+                className="w-full sm:w-auto order-1 sm:order-2 min-h-10 py-2 px-6"
+                style={{ WebkitAppearance: "none" }}
               >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEditing ? "Atualizar" : "Cadastrar"}
+                <span className="whitespace-nowrap">{isEditing ? "Atualizar" : "Cadastrar"}</span>
               </Button>
             </DialogFooter>
           </form>
