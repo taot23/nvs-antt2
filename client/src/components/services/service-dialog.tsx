@@ -1,14 +1,19 @@
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { Service } from "@shared/schema";
 import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Form,
   FormControl,
@@ -17,27 +22,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { insertServiceSchema, Service } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 
-// Estender o schema para adicionar validação personalizada
-const serviceFormSchema = insertServiceSchema.extend({
-  name: z.string()
-    .min(3, "Nome do serviço precisa ter pelo menos 3 caracteres")
-    .max(100, "Nome do serviço não pode ter mais de 100 caracteres"),
+// Schema para o formulário de serviço
+const serviceFormSchema = z.object({
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
-  price: z.string()
-    .min(1, "Preço é obrigatório")
-    .regex(/^\d+(\.\d{1,2})?$/, "Preço deve ser um número válido (ex: 100.00)"),
-  duration: z.coerce.number()
-    .min(1, "Duração deve ser pelo menos 1 minuto")
-    .max(1440, "Duração máxima é de 1440 minutos (24 horas)")
-    .optional(),
+  price: z.string().min(1, "O preço é obrigatório"),
+  duration: z.string().optional(),
   active: z.boolean().default(true),
 });
 
@@ -57,107 +50,96 @@ export default function ServiceDialog({
   onSaveSuccess,
 }: ServiceDialogProps) {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const isNewService = !service;
+  const isEditMode = !!service;
 
-  // Configurar formulário com valores padrão
+  // Inicializa o formulário
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
       name: service?.name || "",
       description: service?.description || "",
       price: service?.price || "",
-      duration: service?.duration || undefined,
+      duration: service?.duration ? String(service.duration) : "",
       active: service?.active !== undefined ? service.active : true,
     },
   });
 
-  // Reset do formulário quando o serviço muda
-  useState(() => {
-    if (open) {
-      form.reset({
-        name: service?.name || "",
-        description: service?.description || "",
-        price: service?.price || "",
-        duration: service?.duration || undefined,
-        active: service?.active !== undefined ? service.active : true,
-      });
-    }
-  });
-
-  // Criar um novo serviço
-  const createService = async (data: ServiceFormValues) => {
-    try {
-      setIsSubmitting(true);
+  // Mutation para criar serviço
+  const createServiceMutation = useMutation({
+    mutationFn: async (data: ServiceFormValues) => {
       const res = await apiRequest("POST", "/api/services", data);
-      
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || "Erro ao criar serviço");
+        throw new Error(errorData.error || "Erro ao criar serviço");
       }
-
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
       toast({
         title: "Sucesso",
         description: "Serviço criado com sucesso",
       });
       onSaveSuccess();
       onClose();
-    } catch (error) {
-      console.error("Erro ao criar serviço:", error);
+      form.reset();
+    },
+    onError: (error: Error) => {
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao criar serviço",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+  });
 
-  // Atualizar um serviço existente
-  const updateService = async (id: number, data: ServiceFormValues) => {
-    try {
-      setIsSubmitting(true);
-      const res = await apiRequest("PUT", `/api/services/${id}`, data);
-      
+  // Mutation para atualizar serviço
+  const updateServiceMutation = useMutation({
+    mutationFn: async (data: { id: number; service: ServiceFormValues }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/services/${data.id}`,
+        data.service
+      );
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || "Erro ao atualizar serviço");
+        throw new Error(errorData.error || "Erro ao atualizar serviço");
       }
-
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
       toast({
         title: "Sucesso",
         description: "Serviço atualizado com sucesso",
       });
       onSaveSuccess();
       onClose();
-    } catch (error) {
-      console.error("Erro ao atualizar serviço:", error);
+    },
+    onError: (error: Error) => {
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao atualizar serviço",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+  });
 
-  // Processar o envio do formulário
+  // Função para lidar com o envio do formulário
   const onSubmit = (data: ServiceFormValues) => {
-    if (isNewService) {
-      createService(data);
-    } else if (service) {
-      updateService(service.id, data);
+    if (isEditMode && service) {
+      updateServiceMutation.mutate({ id: service.id, service: data });
+    } else {
+      createServiceMutation.mutate(data);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isNewService ? "Novo Serviço" : "Editar Serviço"}
+            {isEditMode ? "Editar Serviço" : "Novo Serviço"}
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
@@ -167,18 +149,19 @@ export default function ServiceDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do serviço</FormLabel>
+                  <FormLabel>Nome*</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Nome do serviço"
-                      disabled={isSubmitting}
+                      placeholder="Digite o nome do serviço"
                       {...field}
+                      autoComplete="off"
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="description"
@@ -187,54 +170,46 @@ export default function ServiceDialog({
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Descreva o serviço (opcional)"
-                      disabled={isSubmitting}
-                      className="h-24 resize-none"
+                      placeholder="Descreva o serviço"
+                      className="resize-none"
                       {...field}
-                      value={field.value || ""}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Preço (R$)</FormLabel>
+                    <FormLabel>Preço*</FormLabel>
                     <FormControl>
                       <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="99.90"
-                        disabled={isSubmitting}
+                        placeholder="0,00"
                         {...field}
+                        autoComplete="off"
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duração (min)</FormLabel>
+                    <FormLabel>Duração (minutos)</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        placeholder="Duração"
-                        disabled={isSubmitting}
+                        placeholder="Ex: 60"
                         {...field}
-                        value={field.value || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value === "" ? undefined : parseInt(value, 10));
-                        }}
+                        autoComplete="off"
                       />
                     </FormControl>
                     <FormMessage />
@@ -242,38 +217,51 @@ export default function ServiceDialog({
                 )}
               />
             </div>
+
             <FormField
               control={form.control}
               name="active"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <FormItem className="flex flex-row items-center justify-between space-y-0 rounded-md border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel>Serviço ativo</FormLabel>
+                    <FormLabel className="text-base">
+                      Serviço Ativo
+                    </FormLabel>
                     <div className="text-sm text-muted-foreground">
-                      Determina se o serviço está disponível para uso
+                      Defina se este serviço está disponível
                     </div>
                   </div>
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      disabled={isSubmitting}
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
+
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={onClose}
-                disabled={isSubmitting}
+                className="mt-4"
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : "Salvar"}
+              <Button
+                type="submit"
+                className="mt-4"
+                disabled={
+                  createServiceMutation.isPending ||
+                  updateServiceMutation.isPending
+                }
+              >
+                {createServiceMutation.isPending ||
+                updateServiceMutation.isPending
+                  ? "Salvando..."
+                  : "Salvar"}
               </Button>
             </DialogFooter>
           </form>
