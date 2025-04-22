@@ -15,7 +15,8 @@ import {
   UserCog,
   Settings,
   Menu,
-  X
+  X,
+  CreditCard
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -79,6 +80,12 @@ export function Sidebar() {
       icon: <ClipboardList className="h-5 w-5" />,
       label: 'Serviços',
       roles: ['admin', 'operacional'] // Apenas admin e operacional
+    },
+    {
+      path: '/payment-methods',
+      icon: <CreditCard className="h-5 w-5" />,
+      label: 'Formas de Pagamento',
+      roles: ['admin', 'operacional', 'supervisor'] // Admin, operacional e supervisor
     },
     {
       path: '/users',
