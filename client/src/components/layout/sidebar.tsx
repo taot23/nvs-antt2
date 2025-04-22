@@ -11,8 +11,17 @@ import {
   Home, 
   LogOut,
   ClipboardList,
-  UserCog
+  UserCog,
+  Settings
 } from 'lucide-react';
+
+// Interface para os itens do menu
+type MenuItem = {
+  path: string;
+  icon: React.ReactNode;
+  label: string;
+  roles?: string[]; // Se definido, o item só será mostrado para esses perfis
+};
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(true);
@@ -28,57 +37,41 @@ export function Sidebar() {
   };
   
   const userRole = user?.role || '';
-  console.log('Sidebar userRole:', userRole);
+  console.log('Sidebar: usuário atual com perfil:', userRole);
   
-  // Função para renderizar um item de menu na barra lateral
-  const renderMenuItem = (path: string, icon: React.ReactNode, label: string) => {
-    const isActive = path === '/' 
-      ? location === path
-      : location.startsWith(path);
-    
-    if (expanded) {
-      return (
-        <Link key={path} href={path}>
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start mb-1 font-normal",
-              isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            <div className="flex items-center">
-              <div className="mr-3">{icon}</div>
-              <span>{label}</span>
-            </div>
-          </Button>
-        </Link>
-      );
-    } else {
-      return (
-        <TooltipProvider key={path} delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link href={path}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "w-full h-10 mb-1",
-                    isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  {icon}
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="font-normal">
-              {label}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
+  // Definir os itens de menu
+  const menuItems: MenuItem[] = [
+    {
+      path: '/',
+      icon: <Home className="h-5 w-5" />,
+      label: 'Início'
+    },
+    {
+      path: '/customers',
+      icon: <Users className="h-5 w-5" />,
+      label: 'Clientes'
+    },
+    {
+      path: '/services',
+      icon: <ClipboardList className="h-5 w-5" />,
+      label: 'Serviços',
+      roles: ['admin', 'operacional'] // Apenas admin e operacional
+    },
+    {
+      path: '/users',
+      icon: <UserCog className="h-5 w-5" />,
+      label: 'Usuários',
+      roles: ['admin', 'supervisor'] // Apenas admin e supervisor
     }
-  };
+  ];
+  
+  // Filtrar os itens de menu com base no perfil do usuário
+  const filteredMenuItems = menuItems.filter(item => {
+    // Se não tem restrição de perfil, todos podem ver
+    if (!item.roles) return true;
+    // Se tem restrição, verifica se o perfil do usuário está na lista
+    return item.roles.includes(userRole);
+  });
 
   return (
     <>
@@ -108,17 +101,56 @@ export function Sidebar() {
         
         <div className="flex-1 py-4 px-2 overflow-y-auto">
           <nav className="space-y-1">
-            {/* Home */}
-            {renderMenuItem('/', <Home className="h-5 w-5" />, 'Início')}
-            
-            {/* Customers */}
-            {renderMenuItem('/customers', <Users className="h-5 w-5" />, 'Clientes')}
-            
-            {/* Services - Temporarily available for everyone */}
-            {renderMenuItem('/services', <ClipboardList className="h-5 w-5" />, 'Serviços')}
-            
-            {/* Users */}
-            {renderMenuItem('/users', <UserCog className="h-5 w-5" />, 'Usuários')}
+            {filteredMenuItems.map((item) => {
+              const isActive = item.path === '/' 
+                ? location === item.path
+                : location.startsWith(item.path);
+                
+              // Versão expandida
+              if (expanded) {
+                return (
+                  <Link key={item.path} href={item.path}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start mb-1 font-normal",
+                        isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center">
+                        <div className="mr-3">{item.icon}</div>
+                        <span>{item.label}</span>
+                      </div>
+                    </Button>
+                  </Link>
+                );
+              }
+              
+              // Versão recolhida com tooltip
+              return (
+                <TooltipProvider key={item.path} delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={item.path}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "w-full h-10 mb-1",
+                            isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          )}
+                        >
+                          {item.icon}
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-normal">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
           </nav>
         </div>
         
