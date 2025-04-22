@@ -9,9 +9,13 @@ const PostgresSessionStore = connectPg(session);
 // modify the interface with any CRUD methods
 // you might need
 export interface IStorage {
+  // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getUsers(): Promise<User[]>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
   
   // Customer methods
   getCustomers(): Promise<Customer[]>;
