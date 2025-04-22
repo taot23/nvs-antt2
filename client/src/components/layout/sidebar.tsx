@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 export function Sidebar() {
+  // Começar expandido por padrão e deixar o useEffect ajustar com base no tamanho da tela
   const [expanded, setExpanded] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { logoutMutation } = useAuth();
@@ -33,6 +34,8 @@ export function Sidebar() {
   useEffect(() => {
     if (isMobile) {
       setExpanded(false);
+    } else {
+      setExpanded(true); // Sempre expandido em telas grandes por padrão
     }
   }, [isMobile]);
   
