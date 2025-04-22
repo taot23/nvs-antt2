@@ -24,7 +24,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 // Estendendo o schema de usuário para incluir a validação de senha
 const userFormSchema = insertUserSchema.extend({
@@ -50,6 +50,7 @@ export default function UserDialog({
 }: UserDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Configuração do formulário
   const form = useForm<UserFormValues>({
@@ -197,13 +198,28 @@ export default function UserDialog({
                   <FormLabel>
                     {user ? "Senha (deixe em branco para manter a atual)" : "Senha"}
                   </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder={user ? "••••••" : "Digite a senha"}
-                      {...field}
-                    />
-                  </FormControl>
+                  <div className="relative">
+                    <FormControl>
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder={user ? "••••••" : "Digite a senha"}
+                        {...field}
+                        className="pr-10"
+                      />
+                    </FormControl>
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
