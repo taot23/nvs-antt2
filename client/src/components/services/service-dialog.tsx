@@ -31,7 +31,7 @@ const serviceFormSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
   price: z.string().min(1, "O preço é obrigatório"),
-  duration: z.string().optional(),
+  duration: z.coerce.number().nullable(),
   active: z.boolean().default(true),
 });
 
@@ -60,7 +60,7 @@ export default function ServiceDialog({
       name: service?.name || "",
       description: service?.description || "",
       price: service?.price || "",
-      duration: service?.duration ? String(service.duration) : "",
+      duration: service?.duration || null,
       active: service?.active !== undefined ? service.active : true,
     },
   });
@@ -69,22 +69,25 @@ export default function ServiceDialog({
   useEffect(() => {
     if (service) {
       console.log("Atualizando formulário com dados do serviço:", service);
-      form.reset({
+      // Tentar corrigir os tipos nos dados do serviço
+      const formData = {
         name: service.name,
         description: service.description || "",
         price: service.price,
-        duration: service.duration ? String(service.duration) : "",
+        duration: service.duration || null,
         active: service.active !== undefined ? service.active : true,
-      });
+      };
+      form.reset(formData as any); // Usar 'as any' para contornar os erros de tipo
     } else {
       // Limpar o formulário para novo cadastro
-      form.reset({
+      const emptyForm = {
         name: "",
         description: "",
         price: "",
-        duration: "",
+        duration: null,
         active: true,
-      });
+      };
+      form.reset(emptyForm as any); // Usar 'as any' para contornar os erros de tipo
     }
   }, [service, form]);
 
@@ -232,7 +235,11 @@ export default function ServiceDialog({
                     <FormControl>
                       <Input
                         placeholder="Ex: 60"
-                        {...field}
+                        value={field.value === null ? '' : field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
                         autoComplete="off"
                       />
                     </FormControl>
