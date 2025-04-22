@@ -52,6 +52,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Valida os dados enviados pelo cliente
       const validatedData = insertCustomerSchema.parse(req.body);
       
+      // Verificar se já existe um cliente com este documento
+      const existingCustomer = await storage.getCustomerByDocument(validatedData.document);
+      if (existingCustomer) {
+        return res.status(400).json({ 
+          error: "Cliente já cadastrado", 
+          message: "Já existe um cliente cadastrado com este documento", 
+          existingCustomer
+        });
+      }
+      
       // Adiciona o ID do usuário logado como proprietário
       const customerData = {
         ...validatedData,
@@ -82,8 +92,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
+      // Buscar o cliente atual para verificações
+      const currentCustomer = await storage.getCustomer(id);
+      if (!currentCustomer) {
+        return res.status(404).json({ error: "Cliente não encontrado" });
+      }
+      
       // Valida os dados parciais
       const customerData = insertCustomerSchema.partial().parse(req.body);
+      
+      // Se o documento estiver sendo alterado, verifica se já existe
+      if (customerData.document && customerData.document !== currentCustomer.document) {
+        const existingCustomer = await storage.getCustomerByDocument(customerData.document);
+        if (existingCustomer && existingCustomer.id !== id) {
+          return res.status(400).json({ 
+            error: "Documento já cadastrado", 
+            message: "Já existe outro cliente cadastrado com este documento",
+            existingCustomer
+          });
+        }
+      }
       
       // Garantir que o usuário não está tentando modificar o userId
       if ('userId' in customerData) {

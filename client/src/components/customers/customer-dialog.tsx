@@ -95,6 +95,20 @@ export default function CustomerDialog({
         }
         
         const res = await apiRequest("POST", "/api/customers", data);
+        
+        // Verificar se houve erro na resposta
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("Erro na resposta do servidor:", errorData);
+          
+          // Se for erro de documento duplicado
+          if (errorData.error === "Cliente já cadastrado") {
+            throw new Error("Já existe um cliente cadastrado com este documento.");
+          }
+          
+          throw new Error(errorData.message || "Erro ao cadastrar cliente");
+        }
+        
         const jsonResponse = await res.json();
         console.log("Resposta do servidor:", jsonResponse);
         return jsonResponse;

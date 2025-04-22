@@ -16,6 +16,7 @@ export interface IStorage {
   // Customer methods
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: number): Promise<Customer | undefined>;
+  getCustomerByDocument(document: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: number): Promise<boolean>;
@@ -59,6 +60,21 @@ export class DatabaseStorage implements IStorage {
   async getCustomer(id: number): Promise<Customer | undefined> {
     const [customer] = await db.select().from(customers).where(eq(customers.id, id));
     return customer || undefined;
+  }
+  
+  async getCustomerByDocument(document: string): Promise<Customer | undefined> {
+    // Remover caracteres especiais para comparação
+    const normalizedDocument = document.replace(/[^\d]/g, '');
+    
+    // Buscar todos os clientes para verificar
+    const allCustomers = await this.getCustomers();
+    
+    // Encontrar cliente com o mesmo documento (ignorando formatação)
+    const foundCustomer = allCustomers.find(customer => 
+      customer.document.replace(/[^\d]/g, '') === normalizedDocument
+    );
+    
+    return foundCustomer;
   }
 
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
