@@ -229,23 +229,30 @@ export default function ServiceDialog({
               <FormField
                 control={form.control}
                 name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duração (minutos)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ex: 60"
-                        value={field.value === null ? '' : field.value}
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        autoComplete="off"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  return (
+                    <FormItem>
+                      <FormLabel>Duração (minutos)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: 60"
+                          value={field.value === null ? '' : String(field.value)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Se o valor for vazio, define como null, caso contrário, tenta converter para número
+                            field.onChange(value === '' ? null : parseInt(value, 10) || null);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          autoComplete="off"
+                          type="number"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
 
