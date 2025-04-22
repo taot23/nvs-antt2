@@ -49,13 +49,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers", isAuthenticated, async (req, res) => {
     try {
-      // Valida os dados usando o esquema Zod
-      const customerData = insertCustomerSchema.parse(req.body);
+      // Valida os dados enviados pelo cliente
+      const validatedData = insertCustomerSchema.parse(req.body);
       
       // Adiciona o ID do usuário logado como proprietário
-      customerData.userId = req.user!.id;
+      const customerData = {
+        ...validatedData,
+        userId: req.user!.id
+      };
+      
+      console.log("Dados para criação do cliente:", customerData);
       
       const customer = await storage.createCustomer(customerData);
+      console.log("Cliente criado com sucesso:", customer);
       res.status(201).json(customer);
     } catch (error) {
       console.error("Erro ao criar cliente:", error);
@@ -79,11 +85,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Valida os dados parciais
       const customerData = insertCustomerSchema.partial().parse(req.body);
       
+      // Garantir que o usuário não está tentando modificar o userId
+      if ('userId' in customerData) {
+        delete customerData.userId;
+      }
+      
+      console.log("Dados para atualização do cliente:", id, customerData);
+      
       const customer = await storage.updateCustomer(id, customerData);
       if (!customer) {
         return res.status(404).json({ error: "Cliente não encontrado" });
       }
       
+      console.log("Cliente atualizado com sucesso:", customer);
       res.json(customer);
     } catch (error) {
       console.error("Erro ao atualizar cliente:", error);

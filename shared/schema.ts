@@ -27,6 +27,7 @@ export const customers = pgTable("customers", {
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
