@@ -61,6 +61,21 @@ export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit
   createdAt: true
 });
 
+// Definição da tabela de tipos de execução de serviço
+export const serviceTypes = pgTable("service_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de tipo de execução de serviço
+export const insertServiceTypeSchema = createInsertSchema(serviceTypes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
@@ -69,3 +84,5 @@ export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertServiceType = z.infer<typeof insertServiceTypeSchema>;
+export type ServiceType = typeof serviceTypes.$inferSelect;

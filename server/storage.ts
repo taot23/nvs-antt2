@@ -1,4 +1,4 @@
-import { users, type User, type InsertUser, customers, type Customer, type InsertCustomer, services, type Service, type InsertService, paymentMethods, type PaymentMethod, type InsertPaymentMethod } from "@shared/schema";
+import { users, type User, type InsertUser, customers, type Customer, type InsertCustomer, services, type Service, type InsertService, paymentMethods, type PaymentMethod, type InsertPaymentMethod, serviceTypes, type ServiceType, type InsertServiceType } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { eq } from "drizzle-orm";
@@ -40,6 +40,14 @@ export interface IStorage {
   createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod>;
   updatePaymentMethod(id: number, paymentMethod: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined>;
   deletePaymentMethod(id: number): Promise<boolean>;
+  
+  // Service Type methods
+  getServiceTypes(): Promise<ServiceType[]>;
+  getServiceType(id: number): Promise<ServiceType | undefined>;
+  getServiceTypeByName(name: string): Promise<ServiceType | undefined>;
+  createServiceType(serviceType: InsertServiceType): Promise<ServiceType>;
+  updateServiceType(id: number, serviceType: Partial<InsertServiceType>): Promise<ServiceType | undefined>;
+  deleteServiceType(id: number): Promise<boolean>;
   
   sessionStore: any; // Using any to avoid type errors
 }
@@ -254,6 +262,57 @@ export class DatabaseStorage implements IStorage {
       .where(eq(paymentMethods.id, id))
       .returning();
     return !!deletedPaymentMethod;
+  }
+
+  // Service Type methods implementation
+  async getServiceTypes(): Promise<ServiceType[]> {
+    return await db.select().from(serviceTypes);
+  }
+
+  async getServiceType(id: number): Promise<ServiceType | undefined> {
+    const [serviceType] = await db.select().from(serviceTypes).where(eq(serviceTypes.id, id));
+    return serviceType || undefined;
+  }
+  
+  async getServiceTypeByName(name: string): Promise<ServiceType | undefined> {
+    // Buscar todos os tipos de serviço para verificar (usando lowercase para comparação insensitiva)
+    const allServiceTypes = await db.select().from(serviceTypes);
+    
+    // Encontrar tipo de serviço com o mesmo nome (comparação case-insensitive)
+    const foundServiceType = allServiceTypes.find(serviceType => 
+      serviceType.name.toLowerCase() === name.toLowerCase()
+    );
+    
+    return foundServiceType;
+  }
+
+  async createServiceType(serviceTypeData: InsertServiceType): Promise<ServiceType> {
+    const [createdServiceType] = await db
+      .insert(serviceTypes)
+      .values({
+        name: serviceTypeData.name,
+        description: serviceTypeData.description,
+        active: serviceTypeData.active
+      })
+      .returning();
+    return createdServiceType;
+  }
+
+  async updateServiceType(id: number, serviceTypeData: Partial<InsertServiceType>): Promise<ServiceType | undefined> {
+    const [updatedServiceType] = await db
+      .update(serviceTypes)
+      .set(serviceTypeData)
+      .where(eq(serviceTypes.id, id))
+      .returning();
+    return updatedServiceType || undefined;
+  }
+
+  async deleteServiceType(id: number): Promise<boolean> {
+    const [deletedServiceType] = await db
+      .delete(serviceTypes)
+      .where(eq(serviceTypes.id, id))
+      .returning();
+    return !!deletedServiceType;
   }
 }
 
