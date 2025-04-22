@@ -31,34 +31,37 @@ export function Sidebar() {
   // Para obter o perfil do usuário logado
   const { user } = useAuth();
   
+  const userRole = user?.role || '';
+  console.log("Usuário logado:", user?.username, "Perfil:", userRole);
+  
   const menuItems = [
     {
       path: '/',
       icon: <Home className="h-5 w-5" />,
       label: 'Início',
       exact: true,
-      roles: ['admin', 'supervisor', 'vendedor', 'operacional', 'usuario'], // Todos os perfis
+      show: true, // Sempre visível
     },
     {
       path: '/customers',
       icon: <Users className="h-5 w-5" />,
       label: 'Clientes',
       exact: false,
-      roles: ['admin', 'supervisor', 'vendedor', 'operacional', 'usuario'], // Todos os perfis
+      show: true, // Sempre visível
     },
     {
       path: '/services',
       icon: <ClipboardList className="h-5 w-5" />,
       label: 'Serviços',
       exact: false,
-      roles: ['admin', 'operacional'], // Apenas admin e operacional
+      show: userRole === 'admin' || userRole === 'operacional',
     },
     {
       path: '/users',
       icon: <UserCog className="h-5 w-5" />,
       label: 'Usuários',
       exact: false,
-      roles: ['admin', 'supervisor'], // Apenas admin e supervisor
+      show: userRole === 'admin' || userRole === 'supervisor',
     },
   ];
   
@@ -135,7 +138,7 @@ export function Sidebar() {
         <div className="flex-1 py-4 px-2 overflow-y-auto">
           <nav className="space-y-1">
             {menuItems
-              .filter(item => item.roles.includes(user?.role || ''))
+              .filter(item => item.show)
               .map((item) => (
                 <NavButton 
                   key={item.path}
