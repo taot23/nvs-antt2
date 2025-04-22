@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   CreditCard,
-  Tags
+  Tags,
+  HardHat
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -86,6 +87,12 @@ export function Sidebar() {
       path: '/service-types',
       icon: <Tags className="h-5 w-5" />,
       label: 'Tipos de Serviços',
+      roles: ['admin', 'operacional'] // Apenas admin e operacional
+    },
+    {
+      path: '/service-providers',
+      icon: <HardHat className="h-5 w-5" />,
+      label: 'Prestadores',
       roles: ['admin', 'operacional'] // Apenas admin e operacional
     },
     {
