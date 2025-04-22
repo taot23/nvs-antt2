@@ -382,6 +382,7 @@ export default function UsersPage() {
                       <SelectItem value="supervisor">Supervisor</SelectItem>
                       <SelectItem value="vendedor">Vendedor</SelectItem>
                       <SelectItem value="operacional">Operacional</SelectItem>
+                      <SelectItem value="financeiro">Financeiro</SelectItem>
                       <SelectItem value="user">Usuário</SelectItem>
                     </SelectContent>
                   </Select>
@@ -483,12 +484,14 @@ export default function UsersPage() {
                             user.role === "admin" ? "default" : 
                             user.role === "supervisor" ? "destructive" :
                             user.role === "vendedor" ? "outline" :
-                            user.role === "operacional" ? "secondary" : "secondary"
+                            user.role === "operacional" ? "secondary" :
+                            user.role === "financeiro" ? "warning" : "secondary"
                           }>
                             {user.role === "admin" ? "Administrador" : 
                              user.role === "supervisor" ? "Supervisor" :
                              user.role === "vendedor" ? "Vendedor" :
-                             user.role === "operacional" ? "Operacional" : "Usuário"}
+                             user.role === "operacional" ? "Operacional" :
+                             user.role === "financeiro" ? "Financeiro" : "Usuário"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
