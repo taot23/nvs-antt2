@@ -30,7 +30,108 @@ import { ServiceProvider } from '@shared/schema';
 // Schema para validação do formulário
 const serviceProviderFormSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
-  document: z.string().min(11, { message: 'Documento inválido' }),
+  document: z.string()
+    .refine(
+      (val) => {
+        // Verifica se é um CPF ou CNPJ válido (formato básico)
+        const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+        const cnpjRegex = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
+        return cpfRegex.test(val) || cnpjRegex.test(val);
+      },
+      {
+        message: "Formato de documento inválido",
+      }
+    )
+    .superRefine((val, ctx) => {
+      // Valida algoritmo de CPF ou CNPJ
+      const clean = val.replace(/\D/g, '');
+      
+      if (clean.length === 11) { // CPF
+        // 11 dígitos repetidos são inválidos
+        if (/^(\d)\1+$/.test(clean)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CPF inválido (dígitos repetidos)"
+          });
+          return false;
+        }
+        
+        // Verificação dos dígitos do CPF
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+          sum += parseInt(clean.charAt(i)) * (10 - i);
+        }
+        let rest = 11 - (sum % 11);
+        let digit1 = rest >= 10 ? 0 : rest;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+          sum += parseInt(clean.charAt(i)) * (11 - i);
+        }
+        rest = 11 - (sum % 11);
+        let digit2 = rest >= 10 ? 0 : rest;
+        
+        if (!(digit1 === parseInt(clean.charAt(9)) && digit2 === parseInt(clean.charAt(10)))) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CPF inválido (algoritmo de verificação)"
+          });
+          return false;
+        }
+      } 
+      else if (clean.length === 14) { // CNPJ
+        // 14 dígitos repetidos são inválidos
+        if (/^(\d)\1+$/.test(clean)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CNPJ inválido (dígitos repetidos)"
+          });
+          return false;
+        }
+        
+        // Verificação dos dígitos do CNPJ
+        let size = clean.length - 2;
+        let numbers = clean.substring(0, size);
+        let digits = clean.substring(size);
+        let sum = 0;
+        let pos = size - 7;
+        
+        for (let i = size; i >= 1; i--) {
+          sum += parseInt(numbers.charAt(size - i)) * pos--;
+          if (pos < 2) pos = 9;
+        }
+        
+        let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+        if (result !== parseInt(digits.charAt(0))) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CNPJ inválido (algoritmo de verificação)"
+          });
+          return false;
+        }
+        
+        size = size + 1;
+        numbers = clean.substring(0, size);
+        sum = 0;
+        pos = size - 7;
+        
+        for (let i = size; i >= 1; i--) {
+          sum += parseInt(numbers.charAt(size - i)) * pos--;
+          if (pos < 2) pos = 9;
+        }
+        
+        result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+        if (result !== parseInt(digits.charAt(1))) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CNPJ inválido (algoritmo de verificação)"
+          });
+          return false;
+        }
+      }
+      
+      return true;
+    }),
   documentType: z.enum(['cpf', 'cnpj'], { 
     required_error: "Selecione o tipo de documento",
     invalid_type_error: "Tipo de documento inválido" 
@@ -172,6 +273,94 @@ export default function ServiceProviderDialog({
     }
   };
 
+  // Verifica se um CPF é válido
+  const isValidCPF = (cpf: string): boolean => {
+    // Remove formatação
+    cpf = cpf.replace(/\D/g, '');
+    
+    // Verifica se tem 11 dígitos
+    if (cpf.length !== 11) return false;
+    
+    // Verifica se todos os dígitos são iguais
+    if (/^(\d)\1+$/.test(cpf)) return false;
+    
+    // Cálculo para verificação
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(cpf.charAt(i)) * (10 - i);
+    }
+    let rest = 11 - (sum % 11);
+    let digit1 = rest >= 10 ? 0 : rest;
+    
+    sum = 0;
+    for (let i = 0; i < 10; i++) {
+      sum += parseInt(cpf.charAt(i)) * (11 - i);
+    }
+    rest = 11 - (sum % 11);
+    let digit2 = rest >= 10 ? 0 : rest;
+    
+    return digit1 === parseInt(cpf.charAt(9)) && digit2 === parseInt(cpf.charAt(10));
+  };
+  
+  // Verifica se um CNPJ é válido
+  const isValidCNPJ = (cnpj: string): boolean => {
+    // Remove formatação
+    cnpj = cnpj.replace(/\D/g, '');
+    
+    // Verifica se tem 14 dígitos
+    if (cnpj.length !== 14) return false;
+    
+    // Verifica se todos os dígitos são iguais
+    if (/^(\d)\1+$/.test(cnpj)) return false;
+    
+    // Cálculo para verificação
+    let size = cnpj.length - 2;
+    let numbers = cnpj.substring(0, size);
+    let digits = cnpj.substring(size);
+    let sum = 0;
+    let pos = size - 7;
+    
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    
+    let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+    if (result !== parseInt(digits.charAt(0))) return false;
+    
+    size = size + 1;
+    numbers = cnpj.substring(0, size);
+    sum = 0;
+    pos = size - 7;
+    
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    
+    result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+    return result === parseInt(digits.charAt(1));
+  };
+
+  // Verifica se o documento é válido e retorna o status (-1: inválido, 0: incompleto, 1: válido)
+  const validateDocument = (value: string, type: "cpf" | "cnpj"): number => {
+    if (!value) return 0;
+    
+    const cleanValue = value.replace(/\D/g, "");
+    
+    // Verifica se o documento está completo
+    const isCompleteCpf = cleanValue.length === 11;
+    const isCompleteCnpj = cleanValue.length === 14;
+    
+    if (type === "cpf") {
+      if (!isCompleteCpf) return 0; // Incompleto
+      return isValidCPF(cleanValue) ? 1 : -1; // Válido ou inválido
+    } else {
+      if (!isCompleteCnpj) return 0; // Incompleto
+      return isValidCNPJ(cleanValue) ? 1 : -1; // Válido ou inválido
+    }
+  };
+
   // Formatar CPF/CNPJ ao digitar
   const formatDocument = (value: string, type: 'cpf' | 'cnpj'): string => {
     // Remover todos os caracteres não numéricos
@@ -307,26 +496,69 @@ export default function ServiceProviderDialog({
             <FormField
               control={form.control}
               name="document"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{documentType.toUpperCase()}</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder={documentType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'} 
-                      {...field} 
-                      value={formatDocument(field.value, documentType as 'cpf' | 'cnpj')} 
-                      onChange={(e) => {
-                        // Limitar o número de caracteres
-                        const maxLength = documentType === 'cpf' ? 14 : 18; // 14 para CPF com formatação, 18 para CNPJ
-                        if (formatDocument(e.target.value, documentType as 'cpf' | 'cnpj').length <= maxLength) {
-                          field.onChange(e);
-                        }
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const validationStatus = validateDocument(field.value, documentType as 'cpf' | 'cnpj');
+                return (
+                  <FormItem className="relative">
+                    <FormLabel>{documentType.toUpperCase()}</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input 
+                          placeholder={documentType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'} 
+                          {...field} 
+                          value={formatDocument(field.value, documentType as 'cpf' | 'cnpj')} 
+                          onChange={(e) => {
+                            // Limitar o número de caracteres
+                            const maxLength = documentType === 'cpf' ? 14 : 18; // 14 para CPF com formatação, 18 para CNPJ
+                            if (formatDocument(e.target.value, documentType as 'cpf' | 'cnpj').length <= maxLength) {
+                              field.onChange(e);
+                            }
+                          }}
+                          className={validationStatus === -1 ? "pr-10 border-red-500" : 
+                                    validationStatus === 1 ? "pr-10 border-green-500" : 
+                                    "pr-10"}
+                        />
+                      </FormControl>
+                      {validationStatus !== 0 && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          {validationStatus === 1 ? (
+                            <svg 
+                              className="h-5 w-5 text-green-500" 
+                              fill="none" 
+                              strokeWidth="2" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24" 
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                d="M5 13l4 4L19 7" 
+                              />
+                            </svg>
+                          ) : (
+                            <svg 
+                              className="h-5 w-5 text-red-500" 
+                              fill="none" 
+                              strokeWidth="2" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24" 
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                d="M6 18L18 6M6 6l12 12" 
+                              />
+                            </svg>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             
             {/* Email */}
