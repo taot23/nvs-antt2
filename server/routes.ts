@@ -500,6 +500,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== Rotas para gerenciamento de formas de pagamento ==========
+  
+  // Middleware para verificar se o usuário tem permissão para gerenciar formas de pagamento
+  const canManagePaymentMethods = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const user = req.user;
+    if (user.role === "admin" || user.role === "operacional" || user.role === "supervisor") {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: "Permissão negada", 
+      message: "Apenas administradores, supervisores e operacionais podem gerenciar formas de pagamento."
+    });
+  };
+  
+  // Listar todas as formas de pagamento
+  app.get("/api/payment-methods", isAuthenticated, async (req, res) => {
+    try {
+      const paymentMethods = await storage.getPaymentMethods();
+      res.json(paymentMethods);
+    } catch (error) {
+      console.error("Erro ao buscar formas de pagamento:", error);
+      res.status(500).json({ error: "Erro ao buscar formas de pagamento" });
+    }
+  });
+  
+  // Obter uma forma de pagamento específica
+  app.get("/api/payment-methods/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const paymentMethod = await storage.getPaymentMethod(id);
+      if (!paymentMethod) {
+        return res.status(404).json({ error: "Forma de pagamento não encontrada" });
+      }
+      
+      res.json(paymentMethod);
+    } catch (error) {
+      console.error("Erro ao buscar forma de pagamento:", error);
+      res.status(500).json({ error: "Erro ao buscar forma de pagamento" });
+    }
+  });
+  
+  // Criar nova forma de pagamento
+  app.post("/api/payment-methods", canManagePaymentMethods, async (req, res) => {
+    try {
+      // Validar os dados enviados
+      const validatedData = insertPaymentMethodSchema.parse(req.body);
+      
+      // Verificar se já existe uma forma de pagamento com este nome
+      const existingPaymentMethod = await storage.getPaymentMethodByName(validatedData.name);
+      if (existingPaymentMethod) {
+        return res.status(400).json({ 
+          error: "Forma de pagamento já cadastrada", 
+          message: `Já existe uma forma de pagamento com o nome "${existingPaymentMethod.name}"`,
+          existingPaymentMethod: {
+            id: existingPaymentMethod.id,
+            name: existingPaymentMethod.name
+          }
+        });
+      }
+      
+      // Criar a forma de pagamento
+      const paymentMethod = await storage.createPaymentMethod(validatedData);
+      res.status(201).json(paymentMethod);
+    } catch (error) {
+      console.error("Erro ao criar forma de pagamento:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao criar forma de pagamento" });
+    }
+  });
+  
+  // Atualizar uma forma de pagamento existente
+  app.put("/api/payment-methods/:id", canManagePaymentMethods, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Buscar a forma de pagamento atual para verificações
+      const currentPaymentMethod = await storage.getPaymentMethod(id);
+      if (!currentPaymentMethod) {
+        return res.status(404).json({ error: "Forma de pagamento não encontrada" });
+      }
+      
+      // Validar os dados
+      const paymentMethodData = insertPaymentMethodSchema.parse(req.body);
+      
+      // Se o nome estiver sendo alterado, verifica se já existe
+      if (paymentMethodData.name && paymentMethodData.name !== currentPaymentMethod.name) {
+        const existingPaymentMethod = await storage.getPaymentMethodByName(paymentMethodData.name);
+        if (existingPaymentMethod && existingPaymentMethod.id !== id) {
+          return res.status(400).json({ 
+            error: "Nome já cadastrado", 
+            message: `Já existe uma forma de pagamento com o nome "${existingPaymentMethod.name}"`,
+            existingPaymentMethod: {
+              id: existingPaymentMethod.id,
+              name: existingPaymentMethod.name
+            }
+          });
+        }
+      }
+      
+      // Atualizar a forma de pagamento
+      const paymentMethod = await storage.updatePaymentMethod(id, paymentMethodData);
+      if (!paymentMethod) {
+        return res.status(404).json({ error: "Forma de pagamento não encontrada" });
+      }
+      
+      res.json(paymentMethod);
+    } catch (error) {
+      console.error("Erro ao atualizar forma de pagamento:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao atualizar forma de pagamento" });
+    }
+  });
+  
+  // Excluir uma forma de pagamento
+  app.delete("/api/payment-methods/:id", canManagePaymentMethods, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const success = await storage.deletePaymentMethod(id);
+      if (!success) {
+        return res.status(404).json({ error: "Forma de pagamento não encontrada" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir forma de pagamento:", error);
+      res.status(500).json({ error: "Erro ao excluir forma de pagamento" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
