@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
@@ -8,18 +8,39 @@ import Footer from "@/components/layout/footer";
 import { 
   Users, Home, Plus, Search, Edit, Trash2, 
   RefreshCw, ChevronLeft, ChevronRight, Building,
-  User, LogOut
+  User, LogOut, Download, FileDown, Filter, X,
+  FileText, FileSpreadsheet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import CustomerDialog from "../components/customers/customer-dialog";
+import { jsPDF } from "jspdf";
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function CustomersPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
+  
+  // Estados para filtros
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
 
   // Buscar clientes
   const { 
@@ -36,13 +57,121 @@ export default function CustomersPage() {
     }
   });
 
-  // Filtrar clientes pelo termo de busca
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.document && customer.document.includes(searchTerm)) ||
-    customer.phone.includes(searchTerm)
-  );
+  // Filtrar clientes pelo termo de busca e outros filtros
+  const filteredCustomers = customers.filter(customer => {
+    // Filtro por texto de busca
+    const matchesSearch = 
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.document && customer.document.includes(searchTerm)) ||
+      customer.phone.includes(searchTerm);
+    
+    // Filtro por tipo de documento
+    const matchesDocumentType = documentTypeFilter === "" || customer.documentType === documentTypeFilter;
+    
+    return matchesSearch && matchesDocumentType;
+  });
+  
+  // Função para exportar para Excel
+  const exportToExcel = () => {
+    try {
+      // Preparar dados para exportação
+      const exportData = filteredCustomers.map(customer => ({
+        'Nome/Razão Social': customer.name,
+        'Tipo de Documento': customer.documentType === 'cpf' ? 'CPF' : 'CNPJ',
+        'Documento': customer.document,
+        'Nome do Contato': customer.contactName || '-',
+        'Email': customer.email,
+        'Telefone Principal': customer.phone,
+        'Telefone Secundário': customer.phone2 || '-'
+      }));
+      
+      // Criar uma nova planilha
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+      
+      // Gerar arquivo e download
+      XLSX.writeFile(workbook, "clientes.xlsx");
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados para Excel com sucesso.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para Excel:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Função para exportar para PDF
+  const exportToPDF = () => {
+    try {
+      // Criar novo documento PDF
+      const doc = new jsPDF();
+      
+      // Adicionar título
+      doc.setFontSize(18);
+      doc.text("Relatório de Clientes", 14, 22);
+      doc.setFontSize(11);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+      
+      // Preparar dados para a tabela
+      const tableColumn = [
+        "Nome/Razão Social", 
+        "Documento", 
+        "Contato", 
+        "Email", 
+        "Telefone"
+      ];
+      
+      const tableRows = filteredCustomers.map(customer => [
+        customer.name,
+        `${customer.documentType === 'cpf' ? 'CPF: ' : 'CNPJ: '}${customer.document}`,
+        customer.contactName || '-',
+        customer.email,
+        customer.phone
+      ]);
+      
+      // Adicionar tabela automática
+      (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 40,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        margin: { top: 40 },
+      });
+      
+      // Salvar o PDF
+      doc.save("clientes.pdf");
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados para PDF com sucesso.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para PDF:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Limpar todos os filtros
+  const clearFilters = () => {
+    setSearchTerm("");
+    setDocumentTypeFilter("");
+  };
 
   // Deletar cliente
   const deleteCustomerMutation = useMutation({
@@ -153,32 +282,106 @@ export default function CustomersPage() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-4 border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Buscar clientes..."
-                      className="pl-8"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      style={{ WebkitAppearance: "none" }}
-                      spellCheck="false"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                    />
+                  <div className="flex items-center gap-2 flex-wrap flex-1">
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Buscar clientes..."
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ WebkitAppearance: "none" }}
+                        spellCheck="false"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                      />
+                    </div>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="h-9 gap-1"
+                    >
+                      <Filter className="h-4 w-4" />
+                      <span className="hidden sm:inline">Filtros</span>
+                    </Button>
+                    
+                    {/* Botões de exportação */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="h-9 gap-1"
+                          disabled={filteredCustomers.length === 0}
+                        >
+                          <Download className="h-4 w-4" />
+                          <span className="hidden sm:inline">Exportar</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+                          <FileText className="h-4 w-4 mr-2" />
+                          <span>Exportar para PDF</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          <span>Exportar para Excel</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => refetch()}
-                    disabled={isLoading}
-                    style={{ WebkitAppearance: "none" }}
-                    className="w-8 h-8 flex items-center justify-center p-0"
-                    title="Atualizar lista"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  </Button>
+                  
+                  <div className="flex items-center gap-2">
+                    {(documentTypeFilter || searchTerm) && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={clearFilters}
+                        className="h-9 gap-1"
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="hidden sm:inline">Limpar filtros</span>
+                      </Button>
+                    )}
+                    
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => refetch()}
+                      disabled={isLoading}
+                      style={{ WebkitAppearance: "none" }}
+                      className="w-9 h-9 flex items-center justify-center p-0"
+                      title="Atualizar lista"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
                 </div>
+                
+                {/* Painel de filtros avançados */}
+                {showFilters && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-700 mb-1 block">Tipo de documento</label>
+                      <Select 
+                        value={documentTypeFilter} 
+                        onValueChange={setDocumentTypeFilter}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos</SelectItem>
+                          <SelectItem value="cpf">CPF (Pessoa Física)</SelectItem>
+                          <SelectItem value="cnpj">CNPJ (Pessoa Jurídica)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {isError ? (
@@ -219,6 +422,12 @@ export default function CustomersPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
+                  <div className="px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
+                    {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} encontrado{filteredCustomers.length !== 1 ? 's' : ''}
+                    {(documentTypeFilter || searchTerm) && (
+                      <span> (filtrados de {customers.length})</span>
+                    )}
+                  </div>
                   <table className="w-full table-auto">
                     <thead>
                       <tr className="bg-gray-50">
