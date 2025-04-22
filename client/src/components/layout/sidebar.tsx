@@ -28,18 +28,37 @@ export function Sidebar() {
     logoutMutation.mutate();
   };
   
+  // Para obter o perfil do usuário logado
+  const { user } = useAuth();
+  
   const menuItems = [
     {
       path: '/',
       icon: <Home className="h-5 w-5" />,
       label: 'Início',
       exact: true,
+      roles: ['admin', 'supervisor', 'vendedor', 'operacional', 'usuario'], // Todos os perfis
     },
     {
       path: '/customers',
       icon: <Users className="h-5 w-5" />,
       label: 'Clientes',
       exact: false,
+      roles: ['admin', 'supervisor', 'vendedor', 'operacional', 'usuario'], // Todos os perfis
+    },
+    {
+      path: '/services',
+      icon: <ClipboardList className="h-5 w-5" />,
+      label: 'Serviços',
+      exact: false,
+      roles: ['admin', 'operacional'], // Apenas admin e operacional
+    },
+    {
+      path: '/users',
+      icon: <UserCog className="h-5 w-5" />,
+      label: 'Usuários',
+      exact: false,
+      roles: ['admin', 'supervisor'], // Apenas admin e supervisor
     },
   ];
   
@@ -115,19 +134,22 @@ export function Sidebar() {
         
         <div className="flex-1 py-4 px-2 overflow-y-auto">
           <nav className="space-y-1">
-            {menuItems.map((item) => (
-              <NavButton 
-                key={item.path}
-                path={item.path}
-                icon={item.icon}
-                label={item.label}
-                active={
-                  item.exact 
-                    ? location === item.path
-                    : location.startsWith(item.path)
-                }
-              />
-            ))}
+            {menuItems
+              .filter(item => item.roles.includes(user?.role || ''))
+              .map((item) => (
+                <NavButton 
+                  key={item.path}
+                  path={item.path}
+                  icon={item.icon}
+                  label={item.label}
+                  active={
+                    item.exact 
+                      ? location === item.path
+                      : location.startsWith(item.path)
+                  }
+                />
+              ))
+            }
           </nav>
         </div>
         
