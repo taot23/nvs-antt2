@@ -53,7 +53,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ServiceDialog from "@/components/services/service-dialog";
+// Importação temporariamente comentada para depuração
+// import ServiceDialog from "@/components/services/service-dialog";
 
 export default function ServicesPage() {
   const { toast } = useToast();
@@ -558,13 +559,13 @@ export default function ServicesPage() {
         </CardContent>
       </Card>
 
-      {/* Modal de edição/criação */}
+      {/* Modal de edição/criação - Temporariamente comentado para depuração
       <ServiceDialog
         open={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         service={selectedService}
         onSaveSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/services"] })}
-      />
+      /> */}
 
       {/* Modal de confirmação de exclusão */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
