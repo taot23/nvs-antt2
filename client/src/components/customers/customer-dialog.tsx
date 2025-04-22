@@ -86,8 +86,16 @@ export default function CustomerDialog({
   // Cadastrar novo cliente
   const createCustomerMutation = useMutation({
     mutationFn: async (data: CustomerFormValues) => {
-      const res = await apiRequest("POST", "/api/customers", data);
-      return await res.json();
+      try {
+        console.log("Enviando dados para cadastro:", data);
+        const res = await apiRequest("POST", "/api/customers", data);
+        const jsonResponse = await res.json();
+        console.log("Resposta do servidor:", jsonResponse);
+        return jsonResponse;
+      } catch (error) {
+        console.error("Erro ao cadastrar cliente:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -109,8 +117,16 @@ export default function CustomerDialog({
   // Atualizar cliente existente
   const updateCustomerMutation = useMutation({
     mutationFn: async (data: { id: number; customer: CustomerFormValues }) => {
-      const res = await apiRequest("PUT", `/api/customers/${data.id}`, data.customer);
-      return await res.json();
+      try {
+        console.log("Enviando dados para atualização:", data);
+        const res = await apiRequest("PUT", `/api/customers/${data.id}`, data.customer);
+        const jsonResponse = await res.json();
+        console.log("Resposta do servidor:", jsonResponse);
+        return jsonResponse;
+      } catch (error) {
+        console.error("Erro ao atualizar cliente:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -244,13 +260,22 @@ export default function CustomerDialog({
 
   // Handler para submit do formulário
   const onSubmit = (data: CustomerFormValues) => {
-    if (isEditing && customer) {
-      updateCustomerMutation.mutate({
-        id: customer.id,
-        customer: data,
-      });
-    } else {
-      createCustomerMutation.mutate(data);
+    console.log("Formulário enviado com dados:", data);
+    console.log("Estado do formulário:", form.formState);
+    
+    try {
+      if (isEditing && customer) {
+        console.log("Executando atualização de cliente:", customer.id);
+        updateCustomerMutation.mutate({
+          id: customer.id,
+          customer: data,
+        });
+      } else {
+        console.log("Executando criação de novo cliente");
+        createCustomerMutation.mutate(data);
+      }
+    } catch (error) {
+      console.error("Erro ao enviar formulário:", error);
     }
   };
 
@@ -273,7 +298,15 @@ export default function CustomerDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-3">
+          <form 
+            onSubmit={(e) => {
+              console.log("Form onSubmit event triggered");
+              form.handleSubmit((data) => {
+                console.log("Form handleSubmit callback triggered", data);
+                onSubmit(data);
+              })(e);
+            }} 
+            className="space-y-5 pt-3">
             <FormField
               control={form.control}
               name="name"
