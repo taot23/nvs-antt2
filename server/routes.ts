@@ -27,6 +27,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(401).json({ error: "Não autorizado" });
   };
   
+  // Middleware para verificar permissões - gerenciamento de serviços
+  const canManageServices = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e operacionais podem gerenciar serviços
+    if (req.user?.role === "admin" || req.user?.role === "operacional") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
+  // Middleware para verificar permissões - gerenciamento de formas de pagamento
+  const canManagePaymentMethods = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e financeiros podem gerenciar formas de pagamento
+    if (req.user?.role === "admin" || req.user?.role === "financeiro") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
+  // Middleware para verificar permissões - gerenciamento de tipos de serviço
+  const canManageServiceTypes = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e operacionais podem gerenciar tipos de serviço
+    if (req.user?.role === "admin" || req.user?.role === "operacional") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
+  // Middleware para verificar permissões - gerenciamento de prestadores de serviço
+  const canManageServiceProviders = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e operacionais podem gerenciar prestadores de serviço
+    if (req.user?.role === "admin" || req.user?.role === "operacional") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
+  // Middleware para verificar permissões - operações operacionais em vendas
+  const canManageSaleOperations = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e operacionais podem gerenciar operações em vendas
+    if (req.user?.role === "admin" || req.user?.role === "operacional") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
+  // Middleware para verificar permissões - operações financeiras em vendas
+  const canManageSaleFinancials = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e financeiros podem gerenciar operações financeiras em vendas
+    if (req.user?.role === "admin" || req.user?.role === "financeiro") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
+  // Middleware para verificar se usuário pode ver todas as vendas da empresa
+  const canViewAllSales = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Admins, supervisores, operacionais e financeiros podem ver todas as vendas
+    if (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
   // Rotas para gerenciamento de clientes
   app.get("/api/customers", isAuthenticated, async (req, res) => {
     try {
@@ -357,24 +441,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== Rotas para gerenciamento de serviços ==========
   
-  // Middleware para verificar se o usuário tem permissão para gerenciar serviços
-  const canManageServices = (req: Request, res: Response, next: Function) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    const user = req.user;
-    if (user.role === "admin" || user.role === "operacional") {
-      return next();
-    }
-    
-    return res.status(403).json({ 
-      error: "Permissão negada", 
-      message: "Apenas administradores e operacionais podem gerenciar serviços."
-    });
-  };
-  
-  // Listar todos os serviços
   app.get("/api/services", isAuthenticated, async (req, res) => {
     try {
       const services = await storage.getServices();
@@ -384,8 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar serviços" });
     }
   });
-  
-  // Obter um serviço específico
+
   app.get("/api/services/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -404,27 +469,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar serviço" });
     }
   });
-  
-  // Criar um novo serviço
+
   app.post("/api/services", canManageServices, async (req, res) => {
     try {
       // Validar os dados enviados
       const validatedData = insertServiceSchema.parse(req.body);
       
-      // Verificar se já existe um serviço com este nome
+      // Verificar se já existe um serviço com esse nome
       const existingService = await storage.getServiceByName(validatedData.name);
       if (existingService) {
         return res.status(400).json({ 
           error: "Serviço já cadastrado", 
-          message: `Já existe um serviço com o nome "${existingService.name}"`,
-          existingService: {
-            id: existingService.id,
-            name: existingService.name
-          }
+          message: "Já existe um serviço com este nome. Por favor, escolha outro nome para o serviço."
         });
       }
       
-      // Criar o serviço
       const service = await storage.createService(validatedData);
       res.status(201).json(service);
     } catch (error) {
@@ -438,8 +497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao criar serviço" });
     }
   });
-  
-  // Atualizar um serviço existente
+
   app.put("/api/services/:id", canManageServices, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -447,37 +505,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      // Buscar o serviço atual para verificações
-      const currentService = await storage.getService(id);
-      if (!currentService) {
-        return res.status(404).json({ error: "Serviço não encontrado" });
-      }
-      
-      // Validar os dados parciais
-      const serviceData = insertServiceSchema.parse(req.body);
-      
-      // Se o nome estiver sendo alterado, verifica se já existe
-      if (serviceData.name && serviceData.name !== currentService.name) {
-        const existingService = await storage.getServiceByName(serviceData.name);
-        if (existingService && existingService.id !== id) {
-          return res.status(400).json({ 
-            error: "Nome já cadastrado", 
-            message: `Já existe um serviço com o nome "${existingService.name}"`,
-            existingService: {
-              id: existingService.id,
-              name: existingService.name
-            }
-          });
-        }
-      }
-      
-      // Atualizar o serviço
-      const service = await storage.updateService(id, serviceData);
+      // Verificar se o serviço existe
+      const service = await storage.getService(id);
       if (!service) {
         return res.status(404).json({ error: "Serviço não encontrado" });
       }
       
-      res.json(service);
+      // Validar os dados enviados
+      const validatedData = insertServiceSchema.parse(req.body);
+      
+      // Verificar se já existe outro serviço com esse nome
+      if (validatedData.name !== service.name) {
+        const existingService = await storage.getServiceByName(validatedData.name);
+        if (existingService && existingService.id !== id) {
+          return res.status(400).json({ 
+            error: "Nome de serviço já utilizado", 
+            message: "Já existe um serviço com este nome. Por favor, escolha outro nome para o serviço."
+          });
+        }
+      }
+      
+      const updatedService = await storage.updateService(id, validatedData);
+      if (!updatedService) {
+        return res.status(404).json({ error: "Serviço não encontrado" });
+      }
+      
+      res.json(updatedService);
     } catch (error) {
       console.error("Erro ao atualizar serviço:", error);
       if (error instanceof ZodError) {
@@ -489,8 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao atualizar serviço" });
     }
   });
-  
-  // Excluir um serviço
+
   app.delete("/api/services/:id", canManageServices, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -512,24 +564,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== Rotas para gerenciamento de formas de pagamento ==========
   
-  // Middleware para verificar se o usuário tem permissão para gerenciar formas de pagamento
-  const canManagePaymentMethods = (req: Request, res: Response, next: Function) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    const user = req.user;
-    if (user.role === "admin" || user.role === "financeiro") {
-      return next();
-    }
-    
-    return res.status(403).json({ 
-      error: "Permissão negada", 
-      message: "Apenas administradores e usuários do setor financeiro podem gerenciar formas de pagamento."
-    });
-  };
-  
-  // Listar todas as formas de pagamento
   app.get("/api/payment-methods", isAuthenticated, async (req, res) => {
     try {
       const paymentMethods = await storage.getPaymentMethods();
@@ -539,8 +573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar formas de pagamento" });
     }
   });
-  
-  // Obter uma forma de pagamento específica
+
   app.get("/api/payment-methods/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -559,27 +592,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar forma de pagamento" });
     }
   });
-  
-  // Criar nova forma de pagamento
+
   app.post("/api/payment-methods", canManagePaymentMethods, async (req, res) => {
     try {
       // Validar os dados enviados
       const validatedData = insertPaymentMethodSchema.parse(req.body);
       
-      // Verificar se já existe uma forma de pagamento com este nome
+      // Verificar se já existe uma forma de pagamento com esse nome
       const existingPaymentMethod = await storage.getPaymentMethodByName(validatedData.name);
       if (existingPaymentMethod) {
         return res.status(400).json({ 
           error: "Forma de pagamento já cadastrada", 
-          message: `Já existe uma forma de pagamento com o nome "${existingPaymentMethod.name}"`,
-          existingPaymentMethod: {
-            id: existingPaymentMethod.id,
-            name: existingPaymentMethod.name
-          }
+          message: "Já existe uma forma de pagamento com este nome. Por favor, escolha outro nome."
         });
       }
       
-      // Criar a forma de pagamento
       const paymentMethod = await storage.createPaymentMethod(validatedData);
       res.status(201).json(paymentMethod);
     } catch (error) {
@@ -593,8 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao criar forma de pagamento" });
     }
   });
-  
-  // Atualizar uma forma de pagamento existente
+
   app.put("/api/payment-methods/:id", canManagePaymentMethods, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -602,37 +628,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      // Buscar a forma de pagamento atual para verificações
-      const currentPaymentMethod = await storage.getPaymentMethod(id);
-      if (!currentPaymentMethod) {
-        return res.status(404).json({ error: "Forma de pagamento não encontrada" });
-      }
-      
-      // Validar os dados
-      const paymentMethodData = insertPaymentMethodSchema.parse(req.body);
-      
-      // Se o nome estiver sendo alterado, verifica se já existe
-      if (paymentMethodData.name && paymentMethodData.name !== currentPaymentMethod.name) {
-        const existingPaymentMethod = await storage.getPaymentMethodByName(paymentMethodData.name);
-        if (existingPaymentMethod && existingPaymentMethod.id !== id) {
-          return res.status(400).json({ 
-            error: "Nome já cadastrado", 
-            message: `Já existe uma forma de pagamento com o nome "${existingPaymentMethod.name}"`,
-            existingPaymentMethod: {
-              id: existingPaymentMethod.id,
-              name: existingPaymentMethod.name
-            }
-          });
-        }
-      }
-      
-      // Atualizar a forma de pagamento
-      const paymentMethod = await storage.updatePaymentMethod(id, paymentMethodData);
+      // Verificar se a forma de pagamento existe
+      const paymentMethod = await storage.getPaymentMethod(id);
       if (!paymentMethod) {
         return res.status(404).json({ error: "Forma de pagamento não encontrada" });
       }
       
-      res.json(paymentMethod);
+      // Validar os dados enviados
+      const validatedData = insertPaymentMethodSchema.parse(req.body);
+      
+      // Verificar se já existe outra forma de pagamento com esse nome
+      if (validatedData.name !== paymentMethod.name) {
+        const existingPaymentMethod = await storage.getPaymentMethodByName(validatedData.name);
+        if (existingPaymentMethod && existingPaymentMethod.id !== id) {
+          return res.status(400).json({ 
+            error: "Nome já utilizado", 
+            message: "Já existe uma forma de pagamento com este nome. Por favor, escolha outro nome."
+          });
+        }
+      }
+      
+      const updatedPaymentMethod = await storage.updatePaymentMethod(id, validatedData);
+      if (!updatedPaymentMethod) {
+        return res.status(404).json({ error: "Forma de pagamento não encontrada" });
+      }
+      
+      res.json(updatedPaymentMethod);
     } catch (error) {
       console.error("Erro ao atualizar forma de pagamento:", error);
       if (error instanceof ZodError) {
@@ -644,8 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao atualizar forma de pagamento" });
     }
   });
-  
-  // Excluir uma forma de pagamento
+
   app.delete("/api/payment-methods/:id", canManagePaymentMethods, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -665,37 +685,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ========== Rotas para gerenciamento de tipos de execução de serviço ==========
+  // ========== Rotas para gerenciamento de tipos de serviço ==========
   
-  // Middleware para verificar se o usuário tem permissão para gerenciar tipos de execução de serviço
-  const canManageServiceTypes = (req: Request, res: Response, next: Function) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    const user = req.user;
-    if (user.role === "admin" || user.role === "operacional") {
-      return next();
-    }
-    
-    return res.status(403).json({ 
-      error: "Permissão negada", 
-      message: "Apenas administradores e usuários operacionais podem gerenciar tipos de execução de serviço."
-    });
-  };
-  
-  // Listar todos os tipos de execução de serviço
   app.get("/api/service-types", isAuthenticated, async (req, res) => {
     try {
       const serviceTypes = await storage.getServiceTypes();
       res.json(serviceTypes);
     } catch (error) {
-      console.error("Erro ao buscar tipos de execução de serviço:", error);
-      res.status(500).json({ error: "Erro ao buscar tipos de execução de serviço" });
+      console.error("Erro ao buscar tipos de serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar tipos de serviço" });
     }
   });
-  
-  // Obter um tipo de execução de serviço específico
+
   app.get("/api/service-types/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -705,51 +706,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const serviceType = await storage.getServiceType(id);
       if (!serviceType) {
-        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+        return res.status(404).json({ error: "Tipo de serviço não encontrado" });
       }
       
       res.json(serviceType);
     } catch (error) {
-      console.error("Erro ao buscar tipo de execução de serviço:", error);
-      res.status(500).json({ error: "Erro ao buscar tipo de execução de serviço" });
+      console.error("Erro ao buscar tipo de serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar tipo de serviço" });
     }
   });
-  
-  // Criar novo tipo de execução de serviço
+
   app.post("/api/service-types", canManageServiceTypes, async (req, res) => {
     try {
       // Validar os dados enviados
       const validatedData = insertServiceTypeSchema.parse(req.body);
       
-      // Verificar se já existe um tipo de execução de serviço com este nome
+      // Verificar se já existe um tipo de serviço com esse nome
       const existingServiceType = await storage.getServiceTypeByName(validatedData.name);
       if (existingServiceType) {
         return res.status(400).json({ 
-          error: "Tipo de execução de serviço já cadastrado", 
-          message: `Já existe um tipo de execução de serviço com o nome "${existingServiceType.name}"`,
-          existingServiceType: {
-            id: existingServiceType.id,
-            name: existingServiceType.name
-          }
+          error: "Tipo de serviço já cadastrado", 
+          message: "Já existe um tipo de serviço com este nome. Por favor, escolha outro nome."
         });
       }
       
-      // Criar o tipo de execução de serviço
       const serviceType = await storage.createServiceType(validatedData);
       res.status(201).json(serviceType);
     } catch (error) {
-      console.error("Erro ao criar tipo de execução de serviço:", error);
+      console.error("Erro ao criar tipo de serviço:", error);
       if (error instanceof ZodError) {
         return res.status(400).json({ 
           error: "Dados inválidos", 
           details: error.errors 
         });
       }
-      res.status(500).json({ error: "Erro ao criar tipo de execução de serviço" });
+      res.status(500).json({ error: "Erro ao criar tipo de serviço" });
     }
   });
-  
-  // Atualizar um tipo de execução de serviço existente
+
   app.put("/api/service-types/:id", canManageServiceTypes, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -757,50 +751,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      // Buscar o tipo de execução de serviço atual para verificações
-      const currentServiceType = await storage.getServiceType(id);
-      if (!currentServiceType) {
-        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+      // Verificar se o tipo de serviço existe
+      const serviceType = await storage.getServiceType(id);
+      if (!serviceType) {
+        return res.status(404).json({ error: "Tipo de serviço não encontrado" });
       }
       
-      // Validar os dados
-      const serviceTypeData = insertServiceTypeSchema.parse(req.body);
+      // Validar os dados enviados
+      const validatedData = insertServiceTypeSchema.parse(req.body);
       
-      // Se o nome estiver sendo alterado, verifica se já existe
-      if (serviceTypeData.name && serviceTypeData.name !== currentServiceType.name) {
-        const existingServiceType = await storage.getServiceTypeByName(serviceTypeData.name);
+      // Verificar se já existe outro tipo de serviço com esse nome
+      if (validatedData.name !== serviceType.name) {
+        const existingServiceType = await storage.getServiceTypeByName(validatedData.name);
         if (existingServiceType && existingServiceType.id !== id) {
           return res.status(400).json({ 
-            error: "Nome já cadastrado", 
-            message: `Já existe um tipo de execução de serviço com o nome "${existingServiceType.name}"`,
-            existingServiceType: {
-              id: existingServiceType.id,
-              name: existingServiceType.name
-            }
+            error: "Nome já utilizado", 
+            message: "Já existe um tipo de serviço com este nome. Por favor, escolha outro nome."
           });
         }
       }
       
-      // Atualizar o tipo de execução de serviço
-      const serviceType = await storage.updateServiceType(id, serviceTypeData);
-      if (!serviceType) {
-        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+      const updatedServiceType = await storage.updateServiceType(id, validatedData);
+      if (!updatedServiceType) {
+        return res.status(404).json({ error: "Tipo de serviço não encontrado" });
       }
       
-      res.json(serviceType);
+      res.json(updatedServiceType);
     } catch (error) {
-      console.error("Erro ao atualizar tipo de execução de serviço:", error);
+      console.error("Erro ao atualizar tipo de serviço:", error);
       if (error instanceof ZodError) {
         return res.status(400).json({ 
           error: "Dados inválidos", 
           details: error.errors 
         });
       }
-      res.status(500).json({ error: "Erro ao atualizar tipo de execução de serviço" });
+      res.status(500).json({ error: "Erro ao atualizar tipo de serviço" });
     }
   });
-  
-  // Excluir um tipo de execução de serviço
+
   app.delete("/api/service-types/:id", canManageServiceTypes, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -810,36 +798,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const success = await storage.deleteServiceType(id);
       if (!success) {
-        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+        return res.status(404).json({ error: "Tipo de serviço não encontrado" });
       }
       
       res.status(204).end();
     } catch (error) {
-      console.error("Erro ao excluir tipo de execução de serviço:", error);
-      res.status(500).json({ error: "Erro ao excluir tipo de execução de serviço" });
+      console.error("Erro ao excluir tipo de serviço:", error);
+      res.status(500).json({ error: "Erro ao excluir tipo de serviço" });
     }
   });
 
-  // ========== Rotas para gerenciamento de prestadores de serviço parceiros ==========
+  // ========== Rotas para gerenciamento de prestadores de serviço ==========
   
-  // Middleware para verificar se o usuário tem permissão para gerenciar prestadores de serviço
-  const canManageServiceProviders = (req: Request, res: Response, next: Function) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    const user = req.user;
-    if (user.role === "admin" || user.role === "operacional") {
-      return next();
-    }
-    
-    return res.status(403).json({ 
-      error: "Permissão negada", 
-      message: "Apenas administradores e operacionais podem gerenciar prestadores de serviço parceiros."
-    });
-  };
-  
-  // Listar todos os prestadores de serviço
   app.get("/api/service-providers", isAuthenticated, async (req, res) => {
     try {
       const serviceProviders = await storage.getServiceProviders();
@@ -849,8 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar prestadores de serviço" });
     }
   });
-  
-  // Obter um prestador de serviço específico
+
   app.get("/api/service-providers/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -869,17 +838,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar prestador de serviço" });
     }
   });
-  
-  // Criar um novo prestador de serviço
+
   app.post("/api/service-providers", canManageServiceProviders, async (req, res) => {
     try {
       // Validar os dados enviados
       const validatedData = insertServiceProviderSchema.parse(req.body);
       
-      // Verificar se já existe um prestador com este documento
+      // Verificar se já existe um prestador com esse documento
       const existingServiceProvider = await storage.getServiceProviderByDocument(validatedData.document);
       if (existingServiceProvider) {
-        // Limitar os dados retornados para evitar exposição desnecessária
         return res.status(400).json({ 
           error: "Prestador já cadastrado", 
           message: `Este ${existingServiceProvider.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está cadastrado no sistema para o prestador "${existingServiceProvider.name}"`, 
@@ -892,7 +859,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Criar o prestador de serviço
       const serviceProvider = await storage.createServiceProvider(validatedData);
       res.status(201).json(serviceProvider);
     } catch (error) {
@@ -906,8 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao criar prestador de serviço" });
     }
   });
-  
-  // Atualizar um prestador de serviço existente
+
   app.put("/api/service-providers/:id", canManageServiceProviders, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -915,22 +880,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      // Buscar o prestador de serviço atual para verificações
-      const currentServiceProvider = await storage.getServiceProvider(id);
-      if (!currentServiceProvider) {
+      // Verificar se o prestador existe
+      const serviceProvider = await storage.getServiceProvider(id);
+      if (!serviceProvider) {
         return res.status(404).json({ error: "Prestador de serviço não encontrado" });
       }
       
-      // Validar os dados
-      const serviceProviderData = insertServiceProviderSchema.parse(req.body);
+      // Validar os dados enviados
+      const validatedData = insertServiceProviderSchema.parse(req.body);
       
-      // Se o documento estiver sendo alterado, verifica se já existe
-      if (serviceProviderData.document && serviceProviderData.document !== currentServiceProvider.document) {
-        const existingServiceProvider = await storage.getServiceProviderByDocument(serviceProviderData.document);
+      // Verificar se já existe outro prestador com esse documento
+      if (validatedData.document !== serviceProvider.document) {
+        const existingServiceProvider = await storage.getServiceProviderByDocument(validatedData.document);
         if (existingServiceProvider && existingServiceProvider.id !== id) {
           return res.status(400).json({ 
             error: "Documento já cadastrado", 
-            message: `Este ${existingServiceProvider.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está sendo utilizado pelo prestador "${existingServiceProvider.name}". Não é possível atualizar para um documento já cadastrado.`,
+            message: `Este ${existingServiceProvider.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está cadastrado no sistema para o prestador "${existingServiceProvider.name}"`, 
             existingServiceProvider: {
               id: existingServiceProvider.id,
               name: existingServiceProvider.name,
@@ -941,13 +906,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Atualizar o prestador de serviço
-      const serviceProvider = await storage.updateServiceProvider(id, serviceProviderData);
-      if (!serviceProvider) {
+      const updatedServiceProvider = await storage.updateServiceProvider(id, validatedData);
+      if (!updatedServiceProvider) {
         return res.status(404).json({ error: "Prestador de serviço não encontrado" });
       }
       
-      res.json(serviceProvider);
+      res.json(updatedServiceProvider);
     } catch (error) {
       console.error("Erro ao atualizar prestador de serviço:", error);
       if (error instanceof ZodError) {
@@ -959,8 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao atualizar prestador de serviço" });
     }
   });
-  
-  // Excluir um prestador de serviço
+
   app.delete("/api/service-providers/:id", canManageServiceProviders, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -980,7 +943,484 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  // ========== Rotas para gerenciamento de vendas ==========
+  
+  // Rota para listar todas as vendas (com base na permissão do usuário)
+  app.get("/api/sales", isAuthenticated, async (req, res) => {
+    try {
+      let sales = [];
+      
+      // Se for admin, supervisor, operacional ou financeiro, pode ver todas as vendas
+      if (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
+        sales = await storage.getSales();
+      } else {
+        // Se for vendedor, só vê as próprias vendas
+        sales = await storage.getSalesBySellerAndStatus(req.user!.id, "");
+      }
+      
+      res.json(sales);
+    } catch (error) {
+      console.error("Erro ao buscar vendas:", error);
+      res.status(500).json({ error: "Erro ao buscar vendas" });
+    }
+  });
 
+  // Rota para obter uma venda específica pelo ID
+  app.get("/api/sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode ver
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
+          sale.sellerId !== req.user!.id) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      res.json(sale);
+    } catch (error) {
+      console.error("Erro ao buscar venda:", error);
+      res.status(500).json({ error: "Erro ao buscar venda" });
+    }
+  });
+
+  // Rota para listar itens de uma venda
+  app.get("/api/sales/:id/items", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode ver
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
+          sale.sellerId !== req.user!.id) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      const items = await storage.getSaleItems(id);
+      res.json(items);
+    } catch (error) {
+      console.error("Erro ao buscar itens da venda:", error);
+      res.status(500).json({ error: "Erro ao buscar itens da venda" });
+    }
+  });
+
+  // Rota para criar uma nova venda
+  app.post("/api/sales", isAuthenticated, async (req, res) => {
+    try {
+      const userData = req.body;
+      
+      // Validação básica dos dados enviados
+      const validatedSaleData = insertSaleSchema.parse({
+        ...userData,
+        // Se for admin, supervisor, operacional ou financeiro, pode especificar o vendedor
+        // Caso contrário, o vendedor será o próprio usuário logado
+        sellerId: (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && userData.sellerId) 
+          ? userData.sellerId 
+          : req.user!.id
+      });
+      
+      // Verificar se o número de ordem de serviço já existe
+      const existingSale = await storage.getSaleByOrderNumber(validatedSaleData.orderNumber);
+      if (existingSale) {
+        return res.status(400).json({
+          error: "Número de ordem de serviço já utilizado",
+          message: "Este número de ordem de serviço já está cadastrado no sistema."
+        });
+      }
+      
+      // Criar a venda
+      const createdSale = await storage.createSale(validatedSaleData);
+      
+      // Se tiver itens, criar os itens da venda
+      if (userData.items && Array.isArray(userData.items)) {
+        for (const item of userData.items) {
+          // Validação básica de cada item
+          if (!item.serviceId || !item.serviceTypeId || !item.price) {
+            continue; // Pula itens inválidos
+          }
+          
+          // Calcular o preço total do item
+          const quantity = item.quantity || 1;
+          const totalPrice = Number(item.price) * quantity;
+          
+          await storage.createSaleItem({
+            saleId: createdSale.id,
+            serviceId: item.serviceId,
+            serviceTypeId: item.serviceTypeId,
+            quantity,
+            price: item.price.toString(),
+            totalPrice: totalPrice.toString(),
+            notes: item.notes || null,
+            status: "pending"
+          });
+        }
+      }
+      
+      // Registrar no histórico
+      await storage.createSalesStatusHistory({
+        saleId: createdSale.id,
+        fromStatus: "",
+        toStatus: "pending",
+        userId: req.user!.id,
+        notes: "Venda criada"
+      });
+      
+      // Buscar a venda atualizada com o valor total calculado
+      const updatedSale = await storage.getSale(createdSale.id);
+      res.status(201).json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao criar venda:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao criar venda" });
+    }
+  });
+
+  // Rota para adicionar um item à venda
+  app.post("/api/sales/:id/items", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode adicionar itens
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
+          sale.sellerId !== req.user!.id) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      // Não permitir adicionar itens a vendas que não estão em status pendente ou devolvida
+      if (sale.status !== "pending" && sale.status !== "returned") {
+        return res.status(400).json({ 
+          error: "Não é possível adicionar itens", 
+          message: "Só é possível adicionar itens a vendas com status pendente ou devolvida."
+        });
+      }
+      
+      // Validação básica dos dados do item
+      const itemData = req.body;
+      if (!itemData.serviceId || !itemData.serviceTypeId || !itemData.price) {
+        return res.status(400).json({ error: "Dados do item inválidos" });
+      }
+      
+      // Calcular o preço total do item
+      const quantity = itemData.quantity || 1;
+      const totalPrice = Number(itemData.price) * quantity;
+      
+      // Criar o item
+      const createdItem = await storage.createSaleItem({
+        saleId: id,
+        serviceId: itemData.serviceId,
+        serviceTypeId: itemData.serviceTypeId,
+        quantity,
+        price: itemData.price.toString(),
+        totalPrice: totalPrice.toString(),
+        notes: itemData.notes || null,
+        status: "pending"
+      });
+      
+      res.status(201).json(createdItem);
+    } catch (error) {
+      console.error("Erro ao adicionar item à venda:", error);
+      res.status(500).json({ error: "Erro ao adicionar item à venda" });
+    }
+  });
+
+  // Rota para atualizar uma venda
+  app.put("/api/sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode atualizar
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
+          sale.sellerId !== req.user!.id) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      // Não permitir atualizar vendas que já estão em execução ou concluídas, a menos que seja admin
+      if (req.user?.role !== "admin" && 
+          (sale.status === "in_progress" || sale.status === "completed")) {
+        return res.status(400).json({ 
+          error: "Não é possível atualizar", 
+          message: "Esta venda não pode ser atualizada pois já está em execução ou concluída."
+        });
+      }
+      
+      // Validação dos dados para atualização
+      const saleData = insertSaleSchema.partial().parse(req.body);
+      
+      // Se estiver tentando alterar o número da ordem de serviço, verificar se já não existe outro
+      if (saleData.orderNumber && saleData.orderNumber !== sale.orderNumber) {
+        const existingSale = await storage.getSaleByOrderNumber(saleData.orderNumber);
+        if (existingSale && existingSale.id !== id) {
+          return res.status(400).json({
+            error: "Número de ordem de serviço já utilizado",
+            message: "Este número de ordem de serviço já está cadastrado no sistema."
+          });
+        }
+      }
+      
+      // Registrar no histórico se houver mudança de status
+      if (saleData.status && saleData.status !== sale.status) {
+        await storage.createSalesStatusHistory({
+          saleId: id,
+          fromStatus: sale.status,
+          toStatus: saleData.status,
+          userId: req.user!.id,
+          notes: req.body.notes || "Status atualizado"
+        });
+      }
+      
+      // Atualizar a venda
+      const updatedSale = await storage.updateSale(id, saleData);
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao atualizar venda:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao atualizar venda" });
+    }
+  });
+
+  // Rota para excluir uma venda
+  app.delete("/api/sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Apenas admin pode excluir vendas
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem excluir vendas." });
+      }
+      
+      const success = await storage.deleteSale(id);
+      if (!success) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir venda:", error);
+      res.status(500).json({ error: "Erro ao excluir venda" });
+    }
+  });
+
+  // Rota para iniciar a execução de uma venda (setor operacional)
+  app.post("/api/sales/:id/start-execution", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está no status correto para iniciar execução
+      if (sale.status !== "pending") {
+        return res.status(400).json({ 
+          error: "Não é possível iniciar execução", 
+          message: "Só é possível iniciar a execução de vendas com status pendente."
+        });
+      }
+      
+      // Iniciar execução da venda
+      const updatedSale = await storage.markSaleInProgress(id, req.user!.id);
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao iniciar execução da venda:", error);
+      res.status(500).json({ error: "Erro ao iniciar execução da venda" });
+    }
+  });
+
+  // Rota para concluir a execução de uma venda (setor operacional)
+  app.post("/api/sales/:id/complete-execution", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está no status correto para concluir execução
+      if (sale.status !== "in_progress") {
+        return res.status(400).json({ 
+          error: "Não é possível concluir execução", 
+          message: "Só é possível concluir a execução de vendas que estão em andamento."
+        });
+      }
+      
+      // Concluir execução da venda
+      const updatedSale = await storage.completeSaleExecution(id, req.user!.id);
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao concluir execução da venda:", error);
+      res.status(500).json({ error: "Erro ao concluir execução da venda" });
+    }
+  });
+
+  // Rota para devolver uma venda para correção (operacional para vendedor)
+  app.post("/api/sales/:id/return", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se foi informado o motivo da devolução
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ error: "É necessário informar o motivo da devolução" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está no status correto para ser devolvida
+      if (sale.status !== "pending" && sale.status !== "in_progress") {
+        return res.status(400).json({ 
+          error: "Não é possível devolver a venda", 
+          message: "Só é possível devolver vendas que estão pendentes ou em andamento."
+        });
+      }
+      
+      // Devolver a venda
+      const updatedSale = await storage.returnSaleToSeller(id, req.user!.id, reason);
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao devolver venda:", error);
+      res.status(500).json({ error: "Erro ao devolver venda" });
+    }
+  });
+
+  // Rota para marcar uma venda como paga (setor financeiro)
+  app.post("/api/sales/:id/mark-paid", canManageSaleFinancials, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda já foi concluída
+      if (sale.status !== "completed") {
+        return res.status(400).json({ 
+          error: "Não é possível marcar como paga", 
+          message: "Só é possível marcar como paga vendas que já foram concluídas."
+        });
+      }
+      
+      // Marcar como paga
+      const updatedSale = await storage.markSaleAsPaid(id, req.user!.id);
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao marcar venda como paga:", error);
+      res.status(500).json({ error: "Erro ao marcar venda como paga" });
+    }
+  });
+
+  // Rota para obter o histórico de status de uma venda
+  app.get("/api/sales/:id/history", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode ver
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
+          sale.sellerId !== req.user!.id) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      const history = await storage.getSalesStatusHistory(id);
+      res.json(history);
+    } catch (error) {
+      console.error("Erro ao buscar histórico da venda:", error);
+      res.status(500).json({ error: "Erro ao buscar histórico da venda" });
+    }
+  });
+
+  const httpServer = createServer(app);
   return httpServer;
 }
