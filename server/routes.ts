@@ -55,10 +55,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verificar se já existe um cliente com este documento
       const existingCustomer = await storage.getCustomerByDocument(validatedData.document);
       if (existingCustomer) {
+        // Limitar os dados retornados para evitar exposição desnecessária
         return res.status(400).json({ 
           error: "Cliente já cadastrado", 
-          message: "Já existe um cliente cadastrado com este documento", 
-          existingCustomer
+          message: `Este ${existingCustomer.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está cadastrado no sistema para o cliente "${existingCustomer.name}"`, 
+          existingCustomer: {
+            id: existingCustomer.id,
+            name: existingCustomer.name,
+            document: existingCustomer.document,
+            documentType: existingCustomer.documentType
+          }
         });
       }
       
@@ -107,8 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingCustomer && existingCustomer.id !== id) {
           return res.status(400).json({ 
             error: "Documento já cadastrado", 
-            message: "Já existe outro cliente cadastrado com este documento",
-            existingCustomer
+            message: `Este ${existingCustomer.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está sendo utilizado pelo cliente "${existingCustomer.name}". Não é possível atualizar para um documento já cadastrado.`,
+            existingCustomer: {
+              id: existingCustomer.id,
+              name: existingCustomer.name,
+              document: existingCustomer.document,
+              documentType: existingCustomer.documentType
+            }
           });
         }
       }

@@ -103,14 +103,7 @@ export default function CustomerDialog({
           
           // Se for erro de documento duplicado
           if (errorData.error === "Cliente já cadastrado") {
-            // Extrair os dados do cliente existente para uma mensagem mais informativa
-            const existingCustomer = errorData.existingCustomer;
-            const docType = existingCustomer?.documentType === "cpf" ? "CPF" : "CNPJ";
-            
-            throw new Error(
-              `Este ${docType} já está cadastrado no sistema para o cliente "${existingCustomer?.name}". 
-              Por favor, verifique o documento informado.`
-            );
+            throw new Error(errorData.message || "Já existe um cliente cadastrado com este documento.");
           }
           
           throw new Error(errorData.message || "Erro ao cadastrar cliente");
@@ -121,6 +114,7 @@ export default function CustomerDialog({
         return jsonResponse;
       } catch (error) {
         console.error("Erro ao cadastrar cliente:", error);
+        console.log("Erro detalhado:", JSON.stringify(error));
         throw error;
       }
     },
@@ -162,14 +156,7 @@ export default function CustomerDialog({
           
           // Se for erro de documento duplicado
           if (errorData.error === "Documento já cadastrado") {
-            // Extrair os dados do cliente existente para uma mensagem mais informativa
-            const existingCustomer = errorData.existingCustomer;
-            const docType = existingCustomer?.documentType === "cpf" ? "CPF" : "CNPJ";
-            
-            throw new Error(
-              `Este ${docType} já está sendo utilizado pelo cliente "${existingCustomer?.name}". 
-              Não é possível atualizar para um documento já cadastrado.`
-            );
+            throw new Error(errorData.message || "Já existe outro cliente cadastrado com este documento.");
           }
           
           throw new Error(errorData.message || "Erro ao atualizar cliente");
