@@ -817,6 +817,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== Rotas para gerenciamento de prestadores de serviço parceiros ==========
+  
+  // Middleware para verificar se o usuário tem permissão para gerenciar prestadores de serviço
+  const canManageServiceProviders = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const user = req.user;
+    if (user.role === "admin" || user.role === "operacional") {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: "Permissão negada", 
+      message: "Apenas administradores e operacionais podem gerenciar prestadores de serviço parceiros."
+    });
+  };
+  
+  // Listar todos os prestadores de serviço
+  app.get("/api/service-providers", isAuthenticated, async (req, res) => {
+    try {
+      const serviceProviders = await storage.getServiceProviders();
+      res.json(serviceProviders);
+    } catch (error) {
+      console.error("Erro ao buscar prestadores de serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar prestadores de serviço" });
+    }
+  });
+  
+  // Obter um prestador de serviço específico
+  app.get("/api/service-providers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const serviceProvider = await storage.getServiceProvider(id);
+      if (!serviceProvider) {
+        return res.status(404).json({ error: "Prestador de serviço não encontrado" });
+      }
+      
+      res.json(serviceProvider);
+    } catch (error) {
+      console.error("Erro ao buscar prestador de serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar prestador de serviço" });
+    }
+  });
+  
+  // Criar um novo prestador de serviço
+  app.post("/api/service-providers", canManageServiceProviders, async (req, res) => {
+    try {
+      // Validar os dados enviados
+      const validatedData = insertServiceProviderSchema.parse(req.body);
+      
+      // Verificar se já existe um prestador com este documento
+      const existingServiceProvider = await storage.getServiceProviderByDocument(validatedData.document);
+      if (existingServiceProvider) {
+        // Limitar os dados retornados para evitar exposição desnecessária
+        return res.status(400).json({ 
+          error: "Prestador já cadastrado", 
+          message: `Este ${existingServiceProvider.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está cadastrado no sistema para o prestador "${existingServiceProvider.name}"`, 
+          existingServiceProvider: {
+            id: existingServiceProvider.id,
+            name: existingServiceProvider.name,
+            document: existingServiceProvider.document,
+            documentType: existingServiceProvider.documentType
+          }
+        });
+      }
+      
+      // Criar o prestador de serviço
+      const serviceProvider = await storage.createServiceProvider(validatedData);
+      res.status(201).json(serviceProvider);
+    } catch (error) {
+      console.error("Erro ao criar prestador de serviço:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao criar prestador de serviço" });
+    }
+  });
+  
+  // Atualizar um prestador de serviço existente
+  app.put("/api/service-providers/:id", canManageServiceProviders, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Buscar o prestador de serviço atual para verificações
+      const currentServiceProvider = await storage.getServiceProvider(id);
+      if (!currentServiceProvider) {
+        return res.status(404).json({ error: "Prestador de serviço não encontrado" });
+      }
+      
+      // Validar os dados
+      const serviceProviderData = insertServiceProviderSchema.parse(req.body);
+      
+      // Se o documento estiver sendo alterado, verifica se já existe
+      if (serviceProviderData.document && serviceProviderData.document !== currentServiceProvider.document) {
+        const existingServiceProvider = await storage.getServiceProviderByDocument(serviceProviderData.document);
+        if (existingServiceProvider && existingServiceProvider.id !== id) {
+          return res.status(400).json({ 
+            error: "Documento já cadastrado", 
+            message: `Este ${existingServiceProvider.documentType === 'cpf' ? 'CPF' : 'CNPJ'} já está sendo utilizado pelo prestador "${existingServiceProvider.name}". Não é possível atualizar para um documento já cadastrado.`,
+            existingServiceProvider: {
+              id: existingServiceProvider.id,
+              name: existingServiceProvider.name,
+              document: existingServiceProvider.document,
+              documentType: existingServiceProvider.documentType
+            }
+          });
+        }
+      }
+      
+      // Atualizar o prestador de serviço
+      const serviceProvider = await storage.updateServiceProvider(id, serviceProviderData);
+      if (!serviceProvider) {
+        return res.status(404).json({ error: "Prestador de serviço não encontrado" });
+      }
+      
+      res.json(serviceProvider);
+    } catch (error) {
+      console.error("Erro ao atualizar prestador de serviço:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao atualizar prestador de serviço" });
+    }
+  });
+  
+  // Excluir um prestador de serviço
+  app.delete("/api/service-providers/:id", canManageServiceProviders, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const success = await storage.deleteServiceProvider(id);
+      if (!success) {
+        return res.status(404).json({ error: "Prestador de serviço não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir prestador de serviço:", error);
+      res.status(500).json({ error: "Erro ao excluir prestador de serviço" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
