@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,6 +60,25 @@ export default function UserDialog({
       role: user?.role || "user",
     },
   });
+  
+  // Atualizar o formulário quando o usuário mudar (importante para edição)
+  useEffect(() => {
+    if (user) {
+      console.log("Atualizando formulário com dados do usuário:", user);
+      form.reset({
+        username: user.username,
+        password: "", // Senha vazia para manter a atual
+        role: user.role || "user",
+      });
+    } else {
+      // Limpar o formulário para novo cadastro
+      form.reset({
+        username: "",
+        password: "",
+        role: "user",
+      });
+    }
+  }, [user, form]);
 
   // Mutação para criar um novo usuário
   const createMutation = useMutation({

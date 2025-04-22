@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -63,6 +64,29 @@ export default function ServiceDialog({
       active: service?.active !== undefined ? service.active : true,
     },
   });
+  
+  // Atualizar o formulário quando o serviço mudar (importante para edição)
+  useEffect(() => {
+    if (service) {
+      console.log("Atualizando formulário com dados do serviço:", service);
+      form.reset({
+        name: service.name,
+        description: service.description || "",
+        price: service.price,
+        duration: service.duration ? String(service.duration) : "",
+        active: service.active !== undefined ? service.active : true,
+      });
+    } else {
+      // Limpar o formulário para novo cadastro
+      form.reset({
+        name: "",
+        description: "",
+        price: "",
+        duration: "",
+        active: true,
+      });
+    }
+  }, [service, form]);
 
   // Mutation para criar serviço
   const createServiceMutation = useMutation({
