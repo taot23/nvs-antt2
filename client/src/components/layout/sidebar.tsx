@@ -92,28 +92,64 @@ export function Sidebar() {
 
   return (
     <>
+      {/* Botão de menu mobile fixo no topo */}
+      {isMobile && (
+        <div className="fixed top-0 left-0 z-50 p-2 bg-background md:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-10 w-10 rounded-md"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+      )}
+      
+      {/* Overlay para fechar o menu mobile quando clicar fora */}
+      {isMobile && mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          onClick={toggleSidebar}
+        />
+      )}
+      
+      {/* Sidebar para desktop ou menu mobile */}
       <aside 
         className={cn(
-          "fixed top-0 left-0 h-full bg-card border-r border-border shadow-sm z-40 flex flex-col transition-all duration-300 ease-in-out",
-          expanded ? "w-60" : "w-14"
+          "fixed h-full bg-card border-r border-border shadow-sm z-50 flex flex-col transition-all duration-300 ease-in-out",
+          // Posicionamento
+          isMobile 
+            ? mobileMenuOpen 
+              ? "left-0 top-0" 
+              : "-left-full top-0" 
+            : "left-0 top-0",
+          // Largura
+          isMobile 
+            ? "w-[75vw] max-w-[280px]" 
+            : expanded 
+              ? "w-60" 
+              : "w-14"
         )}
       >
         <div className="flex items-center justify-between p-4 h-14 border-b border-border">
-          {expanded && (
+          {(expanded || isMobile) && (
             <h2 className="text-lg font-medium truncate">Gestão de Clientes</h2>
           )}
           
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleSidebar}
-            className={cn(
-              "ml-auto",
-              !expanded && "mx-auto"
-            )}
-          >
-            {expanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-          </Button>
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSidebar}
+              className={cn(
+                "ml-auto",
+                !expanded && "mx-auto"
+              )}
+            >
+              {expanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            </Button>
+          )}
         </div>
         
         <div className="flex-1 py-4 px-2 overflow-y-auto">
@@ -123,10 +159,14 @@ export function Sidebar() {
                 ? location === item.path
                 : location.startsWith(item.path);
                 
-              // Versão expandida
-              if (expanded) {
+              // Versão mobile ou expandida
+              if (isMobile || expanded) {
                 return (
-                  <Link key={item.path} href={item.path}>
+                  <Link 
+                    key={item.path} 
+                    href={item.path}
+                    onClick={isMobile ? toggleSidebar : undefined}
+                  >
                     <Button
                       variant="ghost"
                       className={cn(
@@ -143,7 +183,7 @@ export function Sidebar() {
                 );
               }
               
-              // Versão recolhida com tooltip
+              // Versão recolhida com tooltip (apenas desktop)
               return (
                 <TooltipProvider key={item.path} delayDuration={100}>
                   <Tooltip>
@@ -172,7 +212,7 @@ export function Sidebar() {
         </div>
         
         <div className="p-2 border-t border-border mt-auto">
-          {expanded ? (
+          {isMobile || expanded ? (
             <Button 
               variant="ghost" 
               className="w-full justify-start text-muted-foreground hover:text-foreground"
@@ -203,13 +243,20 @@ export function Sidebar() {
         </div>
       </aside>
       
-      {/* Espaçador para empurrar o conteúdo - sempre presente */}
-      <div 
-        className={cn(
-          "transition-all duration-300 ease-in-out",
-          expanded ? "ml-60" : "ml-14"
-        )}
-      />
+      {/* Espaçador para empurrar o conteúdo - apenas em desktop */}
+      {!isMobile && (
+        <div 
+          className={cn(
+            "transition-all duration-300 ease-in-out",
+            expanded ? "ml-60" : "ml-14"
+          )}
+        />
+      )}
+      
+      {/* Espaço para o botão do menu mobile */}
+      {isMobile && (
+        <div className="h-14" />
+      )}
     </>
   );
 }

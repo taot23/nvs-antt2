@@ -6,7 +6,8 @@ import {
   Plus, Search, Edit, Trash2, 
   RefreshCw, ChevronLeft, ChevronRight, Building,
   User, Download, Filter, X,
-  FileText, FileSpreadsheet, ChevronUp, ChevronDown
+  FileText, FileSpreadsheet, ChevronUp, ChevronDown,
+  Mail, Phone, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -423,7 +424,8 @@ export default function CustomersPage() {
             )}
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Tabela para desktop e tablets */}
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-gray-600 text-sm leading-normal">
                 <tr>
@@ -548,6 +550,91 @@ export default function CustomersPage() {
                 )}
               </tbody>
             </table>
+          </div>
+          
+          {/* Visualização mobile - Cards */}
+          <div className="md:hidden">
+            {isLoading ? (
+              <div className="py-6 text-center">
+                <div className="flex justify-center items-center gap-2">
+                  <RefreshCw className="h-5 w-5 animate-spin" />
+                  <span>Carregando clientes...</span>
+                </div>
+              </div>
+            ) : filteredCustomers.length === 0 ? (
+              <div className="py-6 text-center">
+                Nenhum cliente encontrado. {searchTerm && "Tente usar outros termos de busca."}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredCustomers.map(customer => (
+                  <div 
+                    key={customer.id} 
+                    className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="font-medium text-base">{customer.name}</h3>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(customer)}
+                          className="h-8 w-8"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(customer.id)}
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center">
+                        {customer.documentType === 'cpf' ? (
+                          <User className="h-4 w-4 mr-1.5 text-blue-600 flex-shrink-0" />
+                        ) : (
+                          <Building className="h-4 w-4 mr-1.5 text-purple-600 flex-shrink-0" />
+                        )}
+                        <span className="text-gray-600">
+                          {customer.documentType === 'cpf' ? 'CPF: ' : 'CNPJ: '}
+                          {customer.document}
+                        </span>
+                      </div>
+                      
+                      {customer.contactName && (
+                        <div className="flex items-center">
+                          <User className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                          <span className="text-gray-600">{customer.contactName}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-start">
+                        <Mail className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-600 break-all">{customer.email || "-"}</span>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <Phone className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                        <div>
+                          <div className="text-gray-600">{customer.phone}</div>
+                          {customer.phone2 && (
+                            <div className="text-gray-500 text-xs mt-0.5">{customer.phone2}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
