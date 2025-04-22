@@ -146,7 +146,6 @@ export default function ServicesPage() {
         'Nome': service.name,
         'Descrição': service.description || '-',
         'Preço': `R$ ${service.price}`,
-        'Duração (min)': service.duration || '-',
         'Status': service.active ? 'Ativo' : 'Inativo'
       }));
       
@@ -186,13 +185,12 @@ export default function ServicesPage() {
       doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
       
       // Preparar dados para a tabela
-      const tableColumn = ["Nome", "Descrição", "Preço", "Duração", "Status"];
+      const tableColumn = ["Nome", "Descrição", "Preço", "Status"];
       
       const tableRows = filteredServices.map(service => [
         service.name,
         service.description || '-',
         `R$ ${service.price}`,
-        service.duration ? `${service.duration} min` : '-',
         service.active ? 'Ativo' : 'Inativo'
       ]);
       
@@ -458,23 +456,7 @@ export default function ServicesPage() {
                         )}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="py-3 px-4 font-medium cursor-pointer"
-                      onClick={() => handleSort('duration')}
-                    >
-                      <div className="flex items-center">
-                        <span>Duração</span>
-                        {sortField === 'duration' && (
-                          <span className="ml-1">
-                            {sortDirection === 'asc' ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
+
                     <TableHead 
                       className="py-3 px-4 font-medium cursor-pointer"
                       onClick={() => handleSort('active')}
@@ -508,7 +490,6 @@ export default function ServicesPage() {
                         <TableCell className="font-medium">{service.name}</TableCell>
                         <TableCell>{service.description || '-'}</TableCell>
                         <TableCell>{formatPrice(service.price)}</TableCell>
-                        <TableCell>{service.duration ? `${service.duration} min` : '-'}</TableCell>
                         <TableCell>
                           <Badge variant={service.active ? "default" : "destructive"}>
                             {service.active ? (
