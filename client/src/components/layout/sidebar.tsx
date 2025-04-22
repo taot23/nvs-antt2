@@ -16,7 +16,8 @@ import {
   Settings,
   Menu,
   X,
-  CreditCard
+  CreditCard,
+  Tags
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -79,6 +80,12 @@ export function Sidebar() {
       path: '/services',
       icon: <ClipboardList className="h-5 w-5" />,
       label: 'Serviços',
+      roles: ['admin', 'operacional'] // Apenas admin e operacional
+    },
+    {
+      path: '/service-types',
+      icon: <Tags className="h-5 w-5" />,
+      label: 'Tipos de Serviços',
       roles: ['admin', 'operacional'] // Apenas admin e operacional
     },
     {

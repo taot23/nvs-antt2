@@ -89,6 +89,7 @@ function Router() {
       <ProtectedRoute path="/users" component={ProtectedUsers} />
       <ProtectedRoute path="/services" component={ProtectedServices} />
       <ProtectedRoute path="/payment-methods" component={ProtectedPaymentMethods} />
+      <ProtectedRoute path="/service-types" component={ProtectedServiceTypes} />
       <Route component={NotFound} />
     </Switch>
   );
