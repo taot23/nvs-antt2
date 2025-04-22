@@ -391,6 +391,9 @@ export default function CustomerDialog({
                         onChange={(e) => {
                           field.onChange(formatPhone(e.target.value));
                         }}
+                        style={{ WebkitAppearance: "none" }}
+                        className="py-2 px-3"
+                        autoComplete="off"
                       />
                     </FormControl>
                     <FormMessage />
@@ -411,6 +414,9 @@ export default function CustomerDialog({
                         onChange={(e) => {
                           field.onChange(formatPhone(e.target.value));
                         }}
+                        style={{ WebkitAppearance: "none" }}
+                        className="py-2 px-3"
+                        autoComplete="off"
                       />
                     </FormControl>
                     <FormMessage />
