@@ -9,7 +9,9 @@ import {
   ChevronRight, 
   Users, 
   Home, 
-  LogOut 
+  LogOut,
+  ClipboardList,
+  UserCog
 } from 'lucide-react';
 
 export function Sidebar() {
