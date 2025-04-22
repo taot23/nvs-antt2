@@ -38,7 +38,6 @@ export const services = pgTable("services", {
   name: text("name").notNull(),
   description: text("description"),
   price: text("price").notNull(), // Armazenamos como texto e convertemos para número na aplicação
-  duration: integer("duration"), // duração em minutos
   active: boolean("active").default(true).notNull(),
   createdAt: integer("created_at").default(Math.floor(Date.now() / 1000)).notNull() // timestamp em Unix
 });

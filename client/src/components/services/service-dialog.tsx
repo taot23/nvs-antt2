@@ -31,7 +31,6 @@ const serviceFormSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
   price: z.string().min(1, "O preço é obrigatório"),
-  duration: z.coerce.number().nullable(),
   active: z.boolean().default(true),
 });
 
@@ -60,7 +59,6 @@ export default function ServiceDialog({
       name: service?.name || "",
       description: service?.description || "",
       price: service?.price || "",
-      duration: service?.duration || null,
       active: service?.active !== undefined ? service.active : true,
     },
   });
@@ -74,20 +72,18 @@ export default function ServiceDialog({
         name: service.name,
         description: service.description || "",
         price: service.price,
-        duration: service.duration || null,
         active: service.active !== undefined ? service.active : true,
       };
-      form.reset(formData as any); // Usar 'as any' para contornar os erros de tipo
+      form.reset(formData); 
     } else {
       // Limpar o formulário para novo cadastro
       const emptyForm = {
         name: "",
         description: "",
         price: "",
-        duration: null,
         active: true,
       };
-      form.reset(emptyForm as any); // Usar 'as any' para contornar os erros de tipo
+      form.reset(emptyForm);
     }
   }, [service, form]);
 
@@ -207,54 +203,23 @@ export default function ServiceDialog({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preço*</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="0,00"
-                        {...field}
-                        autoComplete="off"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => {
-                  return (
-                    <FormItem>
-                      <FormLabel>Duração (minutos)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Ex: 60"
-                          value={field.value === null ? '' : String(field.value)}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Se o valor for vazio, define como null, caso contrário, tenta converter para número
-                            field.onChange(value === '' ? null : parseInt(value, 10) || null);
-                          }}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                          autoComplete="off"
-                          type="number"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preço*</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="0,00"
+                      {...field}
+                      autoComplete="off"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
