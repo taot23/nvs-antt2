@@ -67,7 +67,7 @@ export class DatabaseStorage implements IStorage {
     const normalizedDocument = document.replace(/[^\d]/g, '');
     
     // Buscar todos os clientes para verificar
-    const allCustomers = await this.getCustomers();
+    const allCustomers = await db.select().from(customers);
     
     // Encontrar cliente com o mesmo documento (ignorando formatação)
     const foundCustomer = allCustomers.find(customer => 
@@ -77,10 +77,20 @@ export class DatabaseStorage implements IStorage {
     return foundCustomer;
   }
 
-  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+  async createCustomer(customerData: any): Promise<Customer> {
+    // Usando any para evitar problemas de tipo temporariamente
     const [createdCustomer] = await db
       .insert(customers)
-      .values(customer)
+      .values([{
+        name: customerData.name,
+        document: customerData.document,
+        phone: customerData.phone,
+        email: customerData.email,
+        documentType: customerData.documentType,
+        userId: customerData.userId,
+        contactName: customerData.contactName || null,
+        phone2: customerData.phone2 || null
+      }])
       .returning();
     return createdCustomer;
   }
