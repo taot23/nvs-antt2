@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/use-auth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,7 +13,9 @@ import {
   LogOut,
   ClipboardList,
   UserCog,
-  Settings
+  Settings,
+  Menu,
+  X
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -24,12 +27,26 @@ type MenuItem = {
 };
 
 export function Sidebar() {
-  const [expanded, setExpanded] = useState(true);
+  const isMobile = useIsMobile();
+  const [expanded, setExpanded] = useState(!isMobile);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logoutMutation, user } = useAuth();
   const [location] = useLocation();
   
+  // Atualizar o estado expandido quando mudar entre mobile e desktop
+  useEffect(() => {
+    setExpanded(!isMobile);
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
+  }, [isMobile]);
+  
   const toggleSidebar = () => {
-    setExpanded(!expanded);
+    if (isMobile) {
+      setMobileMenuOpen(!mobileMenuOpen);
+    } else {
+      setExpanded(!expanded);
+    }
   };
   
   const handleLogout = () => {
