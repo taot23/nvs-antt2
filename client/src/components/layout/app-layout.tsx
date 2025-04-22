@@ -43,6 +43,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       label: 'Clientes',
       exact: false,
     },
+    {
+      path: '/users',
+      icon: <UserCog className="h-5 w-5" />,
+      label: 'Usuários',
+      exact: false,
+    },
   ];
   
   // Componente de botão de navegação com tooltip quando minimizado

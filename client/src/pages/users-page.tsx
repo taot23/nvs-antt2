@@ -1,464 +1,261 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { User } from "@shared/schema";
-import { 
-  Plus, Search, Edit, Trash2, 
-  RefreshCw, ChevronUp, ChevronDown,
-  User as UserIcon, Download, Filter, X,
-  FileText, FileSpreadsheet, Shield
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import UserDialog from "../components/users/user-dialog";
-import { jsPDF } from "jspdf";
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Pencil, Plus, Trash2, UserCog } from "lucide-react";
+import UserDialog from "@/components/users/user-dialog";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function UsersPage() {
-  console.log("Renderizando UsersPage");
-  
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentUser2Edit, setCurrentUser2Edit] = useState<User | null>(null);
-  
-  // Estados para ordenação
-  const [sortField, setSortField] = useState<string>("username");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  // Buscar usuários
-  const { 
-    data: users = [], 
-    isLoading,
-    isError,
-    refetch
-  } = useQuery<User[]>({
+  // Buscar lista de usuários
+  const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
-    queryFn: async ({ queryKey }) => {
-      const res = await fetch(queryKey[0] as string, {
-        credentials: "include"
-      });
+    queryFn: async () => {
+      const res = await fetch("/api/users");
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Erro ${res.status}: ${errorText || res.statusText}`);
+        throw new Error("Falha ao buscar usuários");
       }
       return res.json();
-    }
+    },
   });
-
-  // Função de ordenação
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Se o campo já está selecionado, inverte a direção
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      // Se é um novo campo, define-o como o campo de ordenação e começa com asc
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
 
   // Filtrar usuários pelo termo de busca
-  const filteredUsers = users.filter(user => {
-    return user.username.toLowerCase().includes(searchTerm.toLowerCase());
-  })
-  // Aplicar ordenação
-  .sort((a, b) => {
-    let aValue: any = a[sortField as keyof User];
-    let bValue: any = b[sortField as keyof User];
-    
-    // Ordenação de string
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      return sortDirection === "asc" 
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
-    }
-    
-    // Ordenação de valores numéricos ou outros tipos
-    if (sortDirection === "asc") {
-      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-    } else {
-      return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
-    }
-  });
-  
-  // Função para exportar para Excel
-  const exportToExcel = () => {
-    try {
-      // Preparar dados para exportação - não incluir a senha
-      const exportData = filteredUsers.map(user => ({
-        'ID': user.id,
-        'Usuário': user.username,
-        'Perfil': user.role || 'Usuário'
-      }));
-      
-      // Criar uma nova planilha
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Usuários");
-      
-      // Gerar arquivo e download
-      XLSX.writeFile(workbook, "usuarios.xlsx");
-      
-      toast({
-        title: "Exportação concluída",
-        description: "Os dados foram exportados para Excel com sucesso.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Erro ao exportar para Excel:", error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar os dados para Excel.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  // Função para exportar para PDF
-  const exportToPDF = () => {
-    try {
-      // Criar novo documento PDF
-      const doc = new jsPDF();
-      
-      // Adicionar título
-      doc.setFontSize(18);
-      doc.text("Relatório de Usuários", 14, 22);
-      doc.setFontSize(11);
-      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
-      
-      // Preparar dados para a tabela
-      const tableColumn = [
-        "ID", 
-        "Usuário", 
-        "Perfil"
-      ];
-      
-      const tableRows = filteredUsers.map(user => [
-        user.id,
-        user.username,
-        user.role || 'Usuário'
-      ]);
-      
-      // Adicionar tabela automática
-      autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 40,
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        alternateRowStyles: { fillColor: [240, 240, 240] },
-        margin: { top: 40 },
-      });
-      
-      // Salvar o PDF
-      doc.save("usuarios.pdf");
-      
-      toast({
-        title: "Exportação concluída",
-        description: "Os dados foram exportados para PDF com sucesso.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Erro ao exportar para PDF:", error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar os dados para PDF.",
-        variant: "destructive",
-      });
-    }
-  };
+  const filteredUsers = Array.isArray(users) ? users.filter((user: User) =>
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
+  ) : [];
 
-  // Deletar usuário
-  const deleteUserMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/users/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({
-        title: "Usuário excluído",
-        description: "O usuário foi excluído com sucesso.",
-        variant: "default",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir usuário",
-        description: error.message || "Não foi possível excluir o usuário.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleDelete = async (id: number) => {
-    // Não permitir excluir o usuário atual
-    if (id === currentUser?.id) {
-      toast({
-        title: "Operação não permitida",
-        description: "Você não pode excluir seu próprio usuário.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
-      deleteUserMutation.mutate(id);
-    }
-  };
-
+  // Função para abrir o modal de edição
   const handleEdit = (user: User) => {
-    // Não enviar a senha para o formulário de edição
-    const userWithoutPassword = { ...user, password: '' };
-    setCurrentUser2Edit(userWithoutPassword as User);
-    setDialogOpen(true);
+    setSelectedUser(user);
+    setIsDialogOpen(true);
   };
 
-  const handleAdd = () => {
-    setCurrentUser2Edit(null);
-    setDialogOpen(true);
+  // Função para abrir o modal de exclusão
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setCurrentUser2Edit(null);
+  // Função para excluir um usuário
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+
+    try {
+      const res = await apiRequest("DELETE", `/api/users/${userToDelete.id}`);
+      
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        toast({
+          title: "Sucesso",
+          description: "Usuário excluído com sucesso",
+        });
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Erro ao excluir usuário");
+      }
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao excluir usuário",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
   };
 
-  const handleSaveSuccess = () => {
-    setDialogOpen(false);
-    setCurrentUser2Edit(null);
-    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-  };
+  // Verifica se o usuário atual é administrador
+  const isAdmin = currentUser?.role === "admin";
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <div className="flex flex-col">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-800">Usuários</h1>
-            <p className="text-gray-600 mt-1">Gerencie os usuários do sistema</p>
-          </div>
-          <div className="mt-4 sm:mt-0 flex">
-            <Button 
-              onClick={handleAdd}
-              className="flex items-center w-full sm:w-auto justify-center py-2 px-4"
-              style={{ WebkitAppearance: "none" }}
-            >
-              <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Novo Usuário</span>
-            </Button>
-          </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Usuários</h1>
+          <p className="text-muted-foreground">
+            Gerencie os usuários do sistema
+          </p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => {
+            setSelectedUser(null);
+            setIsDialogOpen(true);
+          }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Usuário
+          </Button>
+        )}
+      </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-wrap flex-1">
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Buscar usuários..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ WebkitAppearance: "none" }}
-                    spellCheck="false"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                  />
-                </div>
-                
-                {/* Botões de exportação */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="h-9 gap-1"
-                      disabled={filteredUsers.length === 0}
-                    >
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Exportar</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
-                      <FileText className="h-4 w-4 mr-2" />
-                      <span>Exportar para PDF</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      <span>Exportar para Excel</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {searchTerm && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setSearchTerm("")}
-                    className="h-9 gap-1"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="hidden sm:inline">Limpar busca</span>
-                  </Button>
-                )}
-                
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => refetch()}
-                  disabled={isLoading}
-                  style={{ WebkitAppearance: "none" }}
-                  className="w-9 h-9 flex items-center justify-center p-0"
-                  title="Atualizar lista"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Usuários</CardTitle>
+          <CardDescription>
+            Total de {filteredUsers.length} usuários cadastrados
+          </CardDescription>
+          <div className="flex justify-between pt-2">
+            <div className="relative w-full max-w-sm">
+              <Input
+                placeholder="Buscar usuários..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead>Perfil</TableHead>
+                    <TableHead className="w-[100px] text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhum usuário encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredUsers.map((user: User) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.id}</TableCell>
+                        <TableCell>{user.username}</TableCell>
+                        <TableCell>
+                          <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                            {user.role === "admin" ? "Administrador" : "Usuário"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEdit(user)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Editar</span>
+                                </Button>
+                                {currentUser?.id !== user.id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteClick(user)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                    <span className="sr-only">Excluir</span>
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-600 text-sm leading-normal">
-                <tr>
-                  <th 
-                    className="py-3 px-4 font-medium cursor-pointer"
-                    onClick={() => handleSort('id')}
-                  >
-                    <div className="flex items-center">
-                      <span>ID</span>
-                      {sortField === 'id' && (
-                        <span className="ml-1">
-                          {sortDirection === 'asc' ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th 
-                    className="py-3 px-4 font-medium cursor-pointer"
-                    onClick={() => handleSort('username')}
-                  >
-                    <div className="flex items-center">
-                      <span>Usuário</span>
-                      {sortField === 'username' && (
-                        <span className="ml-1">
-                          {sortDirection === 'asc' ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th className="py-3 px-4 font-medium">Perfil</th>
-                  <th className="py-3 px-4 font-medium text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="text-gray-600 text-sm">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center">
-                      <div className="flex justify-center items-center gap-2">
-                        <RefreshCw className="h-5 w-5 animate-spin" />
-                        <span>Carregando usuários...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center">
-                      Nenhum usuário encontrado. {searchTerm && "Tente usar outros termos de busca."}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map(user => (
-                    <tr key={user.id} className={`border-t border-gray-100 hover:bg-gray-50 ${user.id === currentUser?.id ? 'bg-blue-50' : ''}`}>
-                      <td className="py-3 px-4">{user.id}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center">
-                          <UserIcon className="h-4 w-4 mr-1.5 text-blue-600" />
-                          <span>{user.username}</span>
-                          {user.id === currentUser?.id && (
-                            <Badge variant="outline" className="ml-2 px-2 py-0 text-xs">Você</Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center">
-                          {user.role === 'admin' ? (
-                            <>
-                              <Shield className="h-4 w-4 mr-1.5 text-purple-600" />
-                              <span>Administrador</span>
-                            </>
-                          ) : (
-                            <>
-                              <UserIcon className="h-4 w-4 mr-1.5 text-gray-600" />
-                              <span>Usuário</span>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(user)}
-                            className="h-8 w-8"
-                            title="Editar"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user.id)}
-                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            title="Excluir"
-                            disabled={user.id === currentUser?.id}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      
-      {/* Modal de adicionar/editar usuário */}
+      {/* Modal de edição/criação */}
       <UserDialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        user={currentUser2Edit}
-        onSaveSuccess={handleSaveSuccess}
+        open={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        user={selectedUser}
+        onSaveSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/users"] })}
       />
+
+      {/* Modal de confirmação de exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o usuário "{userToDelete?.username}"?
+              <br />
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
