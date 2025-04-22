@@ -655,6 +655,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== Rotas para gerenciamento de tipos de execução de serviço ==========
+  
+  // Middleware para verificar se o usuário tem permissão para gerenciar tipos de execução de serviço
+  const canManageServiceTypes = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const user = req.user;
+    if (user.role === "admin" || user.role === "operacional") {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: "Permissão negada", 
+      message: "Apenas administradores e usuários operacionais podem gerenciar tipos de execução de serviço."
+    });
+  };
+  
+  // Listar todos os tipos de execução de serviço
+  app.get("/api/service-types", isAuthenticated, async (req, res) => {
+    try {
+      const serviceTypes = await storage.getServiceTypes();
+      res.json(serviceTypes);
+    } catch (error) {
+      console.error("Erro ao buscar tipos de execução de serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar tipos de execução de serviço" });
+    }
+  });
+  
+  // Obter um tipo de execução de serviço específico
+  app.get("/api/service-types/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const serviceType = await storage.getServiceType(id);
+      if (!serviceType) {
+        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+      }
+      
+      res.json(serviceType);
+    } catch (error) {
+      console.error("Erro ao buscar tipo de execução de serviço:", error);
+      res.status(500).json({ error: "Erro ao buscar tipo de execução de serviço" });
+    }
+  });
+  
+  // Criar novo tipo de execução de serviço
+  app.post("/api/service-types", canManageServiceTypes, async (req, res) => {
+    try {
+      // Validar os dados enviados
+      const validatedData = insertServiceTypeSchema.parse(req.body);
+      
+      // Verificar se já existe um tipo de execução de serviço com este nome
+      const existingServiceType = await storage.getServiceTypeByName(validatedData.name);
+      if (existingServiceType) {
+        return res.status(400).json({ 
+          error: "Tipo de execução de serviço já cadastrado", 
+          message: `Já existe um tipo de execução de serviço com o nome "${existingServiceType.name}"`,
+          existingServiceType: {
+            id: existingServiceType.id,
+            name: existingServiceType.name
+          }
+        });
+      }
+      
+      // Criar o tipo de execução de serviço
+      const serviceType = await storage.createServiceType(validatedData);
+      res.status(201).json(serviceType);
+    } catch (error) {
+      console.error("Erro ao criar tipo de execução de serviço:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao criar tipo de execução de serviço" });
+    }
+  });
+  
+  // Atualizar um tipo de execução de serviço existente
+  app.put("/api/service-types/:id", canManageServiceTypes, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Buscar o tipo de execução de serviço atual para verificações
+      const currentServiceType = await storage.getServiceType(id);
+      if (!currentServiceType) {
+        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+      }
+      
+      // Validar os dados
+      const serviceTypeData = insertServiceTypeSchema.parse(req.body);
+      
+      // Se o nome estiver sendo alterado, verifica se já existe
+      if (serviceTypeData.name && serviceTypeData.name !== currentServiceType.name) {
+        const existingServiceType = await storage.getServiceTypeByName(serviceTypeData.name);
+        if (existingServiceType && existingServiceType.id !== id) {
+          return res.status(400).json({ 
+            error: "Nome já cadastrado", 
+            message: `Já existe um tipo de execução de serviço com o nome "${existingServiceType.name}"`,
+            existingServiceType: {
+              id: existingServiceType.id,
+              name: existingServiceType.name
+            }
+          });
+        }
+      }
+      
+      // Atualizar o tipo de execução de serviço
+      const serviceType = await storage.updateServiceType(id, serviceTypeData);
+      if (!serviceType) {
+        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+      }
+      
+      res.json(serviceType);
+    } catch (error) {
+      console.error("Erro ao atualizar tipo de execução de serviço:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao atualizar tipo de execução de serviço" });
+    }
+  });
+  
+  // Excluir um tipo de execução de serviço
+  app.delete("/api/service-types/:id", canManageServiceTypes, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const success = await storage.deleteServiceType(id);
+      if (!success) {
+        return res.status(404).json({ error: "Tipo de execução de serviço não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir tipo de execução de serviço:", error);
+      res.status(500).json({ error: "Erro ao excluir tipo de execução de serviço" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

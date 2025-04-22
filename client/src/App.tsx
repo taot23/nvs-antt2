@@ -9,6 +9,7 @@ import CustomersPage from "@/pages/customers-page";
 import UsersPage from "@/pages/users-page";
 import ServicesPage from "@/pages/services-page";
 import PaymentMethodsPage from "@/pages/payment-methods-page";
+import ServiceTypesPage from "@/pages/service-types-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -65,6 +66,15 @@ const ProtectedPaymentMethods = () => {
   return (
     <ProtectedApp>
       <PaymentMethodsPage />
+    </ProtectedApp>
+  );
+};
+
+const ProtectedServiceTypes = () => {
+  console.log("Renderizando ProtectedServiceTypes");
+  return (
+    <ProtectedApp>
+      <ServiceTypesPage />
     </ProtectedApp>
   );
 };
