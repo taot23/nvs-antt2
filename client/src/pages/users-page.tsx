@@ -19,7 +19,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Pencil, Plus, Trash2, UserCog } from "lucide-react";
+import { 
+  Pencil, Plus, Trash2, UserCog, Search, Download, Filter, 
+  RefreshCw, ChevronUp, ChevronDown, FileText, FileSpreadsheet, X 
+} from "lucide-react";
 import UserDialog from "@/components/users/user-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +37,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
+import { jsPDF } from "jspdf";
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function UsersPage() {
   const { toast } = useToast();
@@ -43,6 +62,13 @@ export default function UsersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  
+  // Estados para filtros e ordenação
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [usernameFilter, setUsernameFilter] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState<string>("username");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Buscar lista de usuários
   const { data: users = [], isLoading } = useQuery<User[]>({
@@ -56,10 +82,139 @@ export default function UsersPage() {
     },
   });
 
-  // Filtrar usuários pelo termo de busca
-  const filteredUsers = Array.isArray(users) ? users.filter((user: User) =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // Função para alterar o campo de ordenação
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Se já estiver ordenando por este campo, inverte a direção
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Se estiver ordenando por um novo campo, define-o e começa com ascendente
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Filtrar e ordenar usuários
+  const filteredUsers = Array.isArray(users) 
+    ? users
+        .filter((user: User) => {
+          // Aplicar todos os filtros
+          const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesRole = roleFilter === "all" || user.role === roleFilter;
+          const matchesUsername = usernameFilter === "" || 
+            user.username.toLowerCase().includes(usernameFilter.toLowerCase());
+          
+          return matchesSearch && matchesRole && matchesUsername;
+        })
+        // Aplicar ordenação
+        .sort((a, b) => {
+          let aValue: any = a[sortField as keyof User];
+          let bValue: any = b[sortField as keyof User];
+          
+          // Ordenação de string
+          if (typeof aValue === "string" && typeof bValue === "string") {
+            return sortDirection === "asc" 
+              ? aValue.localeCompare(bValue)
+              : bValue.localeCompare(aValue);
+          }
+          
+          // Ordenação de valores numéricos ou outros tipos
+          if (sortDirection === "asc") {
+            return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+          } else {
+            return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+          }
+        })
+    : [];
+
+  // Função para exportar para Excel
+  const exportToExcel = () => {
+    try {
+      // Preparar dados para exportação
+      const exportData = filteredUsers.map(user => ({
+        'ID': user.id,
+        'Usuário': user.username,
+        'Perfil': user.role === "admin" ? "Administrador" : 
+                  user.role === "supervisor" ? "Supervisor" :
+                  user.role === "vendedor" ? "Vendedor" :
+                  user.role === "operacional" ? "Operacional" : "Usuário"
+      }));
+      
+      // Criar uma nova planilha
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Usuários");
+      
+      // Gerar arquivo e download
+      XLSX.writeFile(workbook, "usuarios.xlsx");
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados para Excel com sucesso.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para Excel:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Função para exportar para PDF
+  const exportToPDF = () => {
+    try {
+      // Criar novo documento PDF
+      const doc = new jsPDF();
+      
+      // Adicionar título
+      doc.setFontSize(18);
+      doc.text("Relatório de Usuários", 14, 22);
+      doc.setFontSize(11);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+      
+      // Preparar dados para a tabela
+      const tableColumn = ["ID", "Usuário", "Perfil"];
+      
+      const tableRows = filteredUsers.map(user => [
+        user.id.toString(),
+        user.username,
+        user.role === "admin" ? "Administrador" : 
+        user.role === "supervisor" ? "Supervisor" :
+        user.role === "vendedor" ? "Vendedor" :
+        user.role === "operacional" ? "Operacional" : "Usuário"
+      ]);
+      
+      // Adicionar tabela automática
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 40,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        margin: { top: 40 },
+      });
+      
+      // Salvar o PDF
+      doc.save("usuarios.pdf");
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados para PDF com sucesso.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para PDF:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para PDF.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Função para abrir o modal de edição
   const handleEdit = (user: User) => {
@@ -103,6 +258,12 @@ export default function UsersPage() {
     }
   };
 
+  // Função para limpar filtros
+  const clearFilters = () => {
+    setRoleFilter("all");
+    setUsernameFilter("");
+  };
+
   // Verifica se o usuário atual tem permissão para gerenciar usuários
   const hasPermission = currentUser?.role === "admin" || currentUser?.role === "supervisor";
 
@@ -132,30 +293,114 @@ export default function UsersPage() {
           <CardDescription>
             Total de {filteredUsers.length} usuários cadastrados
           </CardDescription>
-          <div className="flex justify-between pt-2">
-            <div className="relative w-full max-w-sm">
-              <Input
-                placeholder="Buscar usuários..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2">
+            <div className="flex items-center gap-2 flex-wrap flex-1">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar usuários..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ WebkitAppearance: "none" }}
+                  spellCheck="false"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
                 />
-              </svg>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="h-9 gap-1"
+              >
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filtros</span>
+              </Button>
+              
+              {/* Botões de exportação */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-9 gap-1"
+                    disabled={filteredUsers.length === 0}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>Exportar para PDF</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    <span>Exportar para Excel</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+          
+          {/* Filtros avançados */}
+          {showFilters && (
+            <div className="bg-slate-50 border rounded-md p-3 mt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Filtros avançados</div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={clearFilters}
+                    className="h-8 px-2 text-xs"
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Limpar
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Perfil de usuário:
+                  </label>
+                  <Select
+                    value={roleFilter}
+                    onValueChange={setRoleFilter}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Todos os perfis" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os perfis</SelectItem>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="supervisor">Supervisor</SelectItem>
+                      <SelectItem value="vendedor">Vendedor</SelectItem>
+                      <SelectItem value="operacional">Operacional</SelectItem>
+                      <SelectItem value="user">Usuário</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome de usuário:
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Filtrar por nome de usuário"
+                    className="h-8 text-sm"
+                    value={usernameFilter}
+                    onChange={(e) => setUsernameFilter(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -164,13 +409,61 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="rounded-md border">
-              <Table>
+              <Table className="border-collapse">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>Perfil</TableHead>
-                    <TableHead className="w-[100px] text-right">Ações</TableHead>
+                    <TableHead 
+                      className="py-3 px-4 font-medium cursor-pointer"
+                      onClick={() => handleSort('id')}
+                    >
+                      <div className="flex items-center">
+                        <span>ID</span>
+                        {sortField === 'id' && (
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="py-3 px-4 font-medium cursor-pointer"
+                      onClick={() => handleSort('username')}
+                    >
+                      <div className="flex items-center">
+                        <span>Usuário</span>
+                        {sortField === 'username' && (
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="py-3 px-4 font-medium cursor-pointer"
+                      onClick={() => handleSort('role')}
+                    >
+                      <div className="flex items-center">
+                        <span>Perfil</span>
+                        {sortField === 'role' && (
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="py-3 px-4 font-medium text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
