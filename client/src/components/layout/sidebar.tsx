@@ -18,7 +18,8 @@ import {
   X,
   CreditCard,
   Tags,
-  HardHat
+  HardHat,
+  ShoppingCart
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -71,6 +72,12 @@ export function Sidebar() {
       path: '/',
       icon: <Home className="h-5 w-5" />,
       label: 'Início'
+    },
+    {
+      path: '/sales',
+      icon: <ShoppingCart className="h-5 w-5" />,
+      label: 'Vendas'
+      // Sem roles = todos os perfis têm acesso
     },
     {
       path: '/customers',

@@ -655,7 +655,7 @@ export class DatabaseStorage implements IStorage {
     // Registrar no histórico
     await this.createSalesStatusHistory({
       saleId,
-      fromStatus: sale.financialStatus,
+      fromStatus: sale.financialStatus || 'pending',
       toStatus: 'paid',
       userId: financialId,
       notes: 'Pagamento confirmado'

@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { Pool, neonConfig } from '@neondatabase/serverless';
-import { services, serviceTypes, serviceProviders } from './shared/schema';
+import { services, serviceTypes, serviceProviders, sales, saleItems, salesStatusHistory } from './shared/schema';
 import ws from 'ws';
 
 // Configure o WebSocket para Neon
@@ -67,6 +67,69 @@ async function main() {
   `);
 
   console.log('Service Providers table created successfully!');
+  
+  console.log('Creating sales table...');
+  
+  // Criar tabela sales
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sales (
+      id SERIAL PRIMARY KEY,
+      order_number TEXT NOT NULL,
+      date DATE NOT NULL,
+      customer_id INTEGER NOT NULL,
+      payment_method_id INTEGER NOT NULL,
+      seller_id INTEGER NOT NULL,
+      total_amount TEXT NOT NULL DEFAULT '0',
+      status TEXT NOT NULL DEFAULT 'pending',
+      execution_status TEXT NOT NULL DEFAULT 'pending',
+      financial_status TEXT NOT NULL DEFAULT 'pending',
+      notes TEXT,
+      return_reason TEXT,
+      responsible_operational_id INTEGER,
+      responsible_financial_id INTEGER,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  console.log('Sales table created successfully!');
+  
+  console.log('Creating sale_items table...');
+  
+  // Criar tabela sale_items
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sale_items (
+      id SERIAL PRIMARY KEY,
+      sale_id INTEGER NOT NULL,
+      service_id INTEGER NOT NULL,
+      service_type_id INTEGER NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      price TEXT NOT NULL,
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  console.log('Sale Items table created successfully!');
+  
+  console.log('Creating sales_status_history table...');
+  
+  // Criar tabela sales_status_history
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sales_status_history (
+      id SERIAL PRIMARY KEY,
+      sale_id INTEGER NOT NULL,
+      from_status TEXT NOT NULL,
+      to_status TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  console.log('Sales Status History table created successfully!');
+  
   await pool.end();
 }
 
