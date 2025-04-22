@@ -53,11 +53,14 @@ export default function CustomersPage() {
     refetch
   } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
-    queryFn: async () => {
-      const res = await fetch("/api/customers", {
+    queryFn: async ({ queryKey }) => {
+      const res = await fetch(queryKey[0] as string, {
         credentials: "include" // Incluir credenciais para autenticação
       });
-      if (!res.ok) throw new Error("Falha ao carregar clientes");
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Erro ${res.status}: ${errorText || res.statusText}`);
+      }
       return res.json();
     }
   });
