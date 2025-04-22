@@ -103,7 +103,14 @@ export default function CustomerDialog({
           
           // Se for erro de documento duplicado
           if (errorData.error === "Cliente já cadastrado") {
-            throw new Error("Já existe um cliente cadastrado com este documento.");
+            // Extrair os dados do cliente existente para uma mensagem mais informativa
+            const existingCustomer = errorData.existingCustomer;
+            const docType = existingCustomer?.documentType === "cpf" ? "CPF" : "CNPJ";
+            
+            throw new Error(
+              `Este ${docType} já está cadastrado no sistema para o cliente "${existingCustomer?.name}". 
+              Por favor, verifique o documento informado.`
+            );
           }
           
           throw new Error(errorData.message || "Erro ao cadastrar cliente");
@@ -130,6 +137,7 @@ export default function CustomerDialog({
         title: "Erro ao cadastrar cliente",
         description: error.message || "Não foi possível cadastrar o cliente.",
         variant: "destructive",
+        className: "whitespace-pre-line", // Permite quebras de linha na mensagem
       });
     },
   });
@@ -154,7 +162,14 @@ export default function CustomerDialog({
           
           // Se for erro de documento duplicado
           if (errorData.error === "Documento já cadastrado") {
-            throw new Error("Já existe outro cliente cadastrado com este documento.");
+            // Extrair os dados do cliente existente para uma mensagem mais informativa
+            const existingCustomer = errorData.existingCustomer;
+            const docType = existingCustomer?.documentType === "cpf" ? "CPF" : "CNPJ";
+            
+            throw new Error(
+              `Este ${docType} já está sendo utilizado pelo cliente "${existingCustomer?.name}". 
+              Não é possível atualizar para um documento já cadastrado.`
+            );
           }
           
           throw new Error(errorData.message || "Erro ao atualizar cliente");
@@ -181,6 +196,7 @@ export default function CustomerDialog({
         title: "Erro ao atualizar cliente",
         description: error.message || "Não foi possível atualizar o cliente.",
         variant: "destructive",
+        className: "whitespace-pre-line", // Permite quebras de linha na mensagem
       });
     },
   });
