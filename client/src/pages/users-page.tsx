@@ -485,7 +485,7 @@ export default function UsersPage() {
                             user.role === "supervisor" ? "destructive" :
                             user.role === "vendedor" ? "outline" :
                             user.role === "operacional" ? "secondary" :
-                            user.role === "financeiro" ? "warning" : "secondary"
+                            user.role === "financeiro" ? "outline" : "secondary"
                           }>
                             {user.role === "admin" ? "Administrador" : 
                              user.role === "supervisor" ? "Supervisor" :

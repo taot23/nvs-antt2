@@ -145,7 +145,7 @@ export default function PaymentMethodsPage() {
   const exportToExcel = () => {
     try {
       // Preparar dados para exportação
-      const exportData = filteredPaymentMethods.map(paymentMethod => ({
+      const exportData = filteredPaymentMethods.map((paymentMethod: PaymentMethod) => ({
         'ID': paymentMethod.id,
         'Nome': paymentMethod.name,
         'Descrição': paymentMethod.description || '-',
@@ -190,7 +190,7 @@ export default function PaymentMethodsPage() {
       // Preparar dados para a tabela
       const tableColumn = ["Nome", "Descrição", "Status"];
       
-      const tableRows = filteredPaymentMethods.map(paymentMethod => [
+      const tableRows = filteredPaymentMethods.map((paymentMethod: PaymentMethod) => [
         paymentMethod.name,
         paymentMethod.description || '-',
         paymentMethod.active ? 'Ativo' : 'Inativo'
@@ -274,7 +274,7 @@ export default function PaymentMethodsPage() {
   };
 
   // Verifica se o usuário atual tem permissão para gerenciar formas de pagamento
-  const hasPermission = currentUser?.role === "admin" || currentUser?.role === "operacional" || currentUser?.role === "supervisor";
+  const hasPermission = currentUser?.role === "admin" || currentUser?.role === "financeiro";
 
   return (
     <div className="space-y-6">

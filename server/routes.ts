@@ -509,13 +509,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const user = req.user;
-    if (user.role === "admin" || user.role === "operacional" || user.role === "supervisor") {
+    if (user.role === "admin" || user.role === "financeiro") {
       return next();
     }
     
     return res.status(403).json({ 
       error: "Permissão negada", 
-      message: "Apenas administradores, supervisores e operacionais podem gerenciar formas de pagamento."
+      message: "Apenas administradores e usuários do setor financeiro podem gerenciar formas de pagamento."
     });
   };
   

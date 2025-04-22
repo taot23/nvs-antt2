@@ -85,7 +85,7 @@ export function Sidebar() {
       path: '/payment-methods',
       icon: <CreditCard className="h-5 w-5" />,
       label: 'Formas de Pagamento',
-      roles: ['admin', 'operacional', 'supervisor'] // Admin, operacional e supervisor
+      roles: ['admin', 'financeiro'] // Apenas admin e financeiro
     },
     {
       path: '/users',
