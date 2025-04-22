@@ -260,7 +260,7 @@ export default function CustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-[600px] lg:max-w-[650px] h-fit">
+      <DialogContent className="w-[92vw] max-w-[92vw] md:max-w-[600px] lg:max-w-[650px] h-auto overflow-y-auto max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Cliente" : "Novo Cliente"}
@@ -273,7 +273,7 @@ export default function CustomerDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-3">
             <FormField
               control={form.control}
               name="name"
@@ -446,7 +446,7 @@ export default function CustomerDialog({
               )}
             />
 
-            <DialogFooter className="pt-8 pb-2 flex flex-col sm:flex-row gap-3 mt-4">
+            <DialogFooter className="pt-6 pb-4 mb-2 flex flex-col sm:flex-row gap-3 mt-4">
               <Button 
                 type="button" 
                 variant="outline" 
