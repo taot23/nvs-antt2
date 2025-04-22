@@ -40,7 +40,6 @@ const serviceProviderFormSchema = z.object({
   phone: z.string().min(10, { message: 'Telefone deve ter pelo menos 10 dígitos' }),
   phone2: z.string().optional(),
   email: z.string().email({ message: 'E-mail inválido' }),
-  address: z.string().optional(),
   active: z.boolean().default(true)
 });
 
@@ -75,7 +74,6 @@ export default function ServiceProviderDialog({
       phone: '',
       phone2: '',
       email: '',
-      address: '',
       active: true
     },
   });
@@ -91,7 +89,6 @@ export default function ServiceProviderDialog({
         phone: serviceProvider.phone,
         phone2: serviceProvider.phone2 || '',
         email: serviceProvider.email,
-        address: serviceProvider.address || '',
         active: serviceProvider.active
       });
     } else {
@@ -103,7 +100,6 @@ export default function ServiceProviderDialog({
         phone: '',
         phone2: '',
         email: '',
-        address: '',
         active: true
       });
     }
@@ -402,25 +398,7 @@ export default function ServiceProviderDialog({
               />
             </div>
             
-            {/* Endereço */}
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Endereço Completo</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Endereço completo (opcional)" 
-                      className="resize-none" 
-                      {...field} 
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
             
             {/* Status Ativo */}
             <FormField

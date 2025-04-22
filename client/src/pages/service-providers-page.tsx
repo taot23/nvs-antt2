@@ -182,7 +182,6 @@ export default function ServiceProvidersPage() {
       Email: provider.email,
       "Telefone Principal": provider.phone,
       "Telefone Secundário": provider.phone2 || "",
-      Endereço: provider.address || "",
       Ativo: provider.active ? 'Sim' : 'Não',
       "Data de Cadastro": new Date(provider.createdAt).toLocaleDateString('pt-BR')
     }));
@@ -201,7 +200,6 @@ export default function ServiceProvidersPage() {
       { wch: 30 }, // Email
       { wch: 20 }, // Telefone Principal
       { wch: 20 }, // Telefone Secundário
-      { wch: 40 }, // Endereço
       { wch: 6 },  // Ativo
       { wch: 15 }, // Data de Cadastro
     ];
