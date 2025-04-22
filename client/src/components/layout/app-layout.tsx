@@ -9,7 +9,8 @@ import {
   ChevronRight, 
   Users, 
   Home, 
-  LogOut 
+  LogOut,
+  UserCog
 } from 'lucide-react';
 
 interface AppLayoutProps {

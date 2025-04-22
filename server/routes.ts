@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCustomerSchema } from "@shared/schema";
+import { insertCustomerSchema, insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -166,6 +166,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir cliente:", error);
       res.status(500).json({ error: "Erro ao excluir cliente" });
+    }
+  });
+
+  // ========== Rotas para gerenciamento de usuários ==========
+  app.get("/api/users", isAuthenticated, async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      
+      // Não enviar as senhas para o frontend
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ error: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.get("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+      
+      // Não enviar a senha para o frontend
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao buscar usuário:", error);
+      res.status(500).json({ error: "Erro ao buscar usuário" });
+    }
+  });
+
+  app.post("/api/users", isAuthenticated, async (req, res) => {
+    try {
+      // Verificar o perfil do usuário logado - apenas admins podem criar novos usuários
+      const currentUser = req.user;
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem criar usuários." });
+      }
+      
+      // Validar os dados enviados
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Verificar se já existe um usuário com este nome de usuário
+      const existingUser = await storage.getUserByUsername(validatedData.username);
+      if (existingUser) {
+        return res.status(400).json({ 
+          error: "Nome de usuário já cadastrado", 
+          message: "Este nome de usuário já está em uso. Escolha outro nome de usuário."
+        });
+      }
+      
+      // Criar o usuário
+      const user = await storage.createUser(validatedData);
+      
+      // Não enviar a senha para o frontend
+      const { password, ...userWithoutPassword } = user;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao criar usuário:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao criar usuário" });
+    }
+  });
+
+  app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se o usuário existe
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+      
+      // Regras de permissão:
+      // 1. Um usuário comum só pode editar a si mesmo
+      // 2. Um administrador pode editar qualquer usuário
+      // 3. Um usuário comum não pode alterar seu próprio papel (role)
+      const currentUser = req.user;
+      if (!currentUser) {
+        return res.status(401).json({ error: "Não autorizado" });
+      }
+      
+      if (currentUser.role !== "admin" && currentUser.id !== id) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      // Validar dados parciais
+      const userData = insertUserSchema.partial().parse(req.body);
+      
+      // Se estiver alterando username, verificar se já existe
+      if (userData.username && userData.username !== user.username) {
+        const existingUser = await storage.getUserByUsername(userData.username);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(400).json({ 
+            error: "Nome de usuário já cadastrado", 
+            message: "Este nome de usuário já está sendo utilizado por outro usuário."
+          });
+        }
+      }
+      
+      // Verificar se usuário comum está tentando alterar seu próprio papel
+      if (currentUser.role !== "admin" && userData.role && userData.role !== user.role) {
+        return res.status(403).json({ 
+          error: "Permissão negada", 
+          message: "Você não pode alterar seu próprio perfil de acesso."
+        });
+      }
+      
+      // Atualizar usuário
+      const updatedUser = await storage.updateUser(id, userData);
+      if (!updatedUser) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+      
+      // Não enviar a senha para o frontend
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Erro ao atualizar usuário" });
+    }
+  });
+
+  app.delete("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar permissões (apenas admins podem excluir usuários)
+      const currentUser = req.user;
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem excluir usuários." });
+      }
+      
+      // Não permitir excluir o próprio usuário
+      if (currentUser.id === id) {
+        return res.status(400).json({ error: "Você não pode excluir seu próprio usuário." });
+      }
+      
+      const success = await storage.deleteUser(id);
+      if (!success) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ error: "Erro ao excluir usuário" });
     }
   });
 

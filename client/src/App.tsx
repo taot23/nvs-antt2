@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
 import CustomersPage from "@/pages/customers-page";
+import UsersPage from "@/pages/users-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -35,6 +36,15 @@ const ProtectedCustomers = () => {
   );
 };
 
+const ProtectedUsers = () => {
+  console.log("Renderizando ProtectedUsers");
+  return (
+    <ProtectedApp>
+      <UsersPage />
+    </ProtectedApp>
+  );
+};
+
 function Router() {
   console.log("Renderizando Router");
   return (
@@ -42,6 +52,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/" component={ProtectedHome} />
       <ProtectedRoute path="/customers" component={ProtectedCustomers} />
+      <ProtectedRoute path="/users" component={ProtectedUsers} />
       <Route component={NotFound} />
     </Switch>
   );
