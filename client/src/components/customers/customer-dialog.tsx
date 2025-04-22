@@ -284,6 +284,9 @@ export default function CustomerDialog({
                     <Input 
                       placeholder={documentType === "cpf" ? "Nome completo" : "Razão Social da empresa"} 
                       {...field}
+                      style={{ WebkitAppearance: "none" }}
+                      className="py-2 px-3"
+                      autoComplete="off"
                     />
                   </FormControl>
                   <FormMessage />
@@ -360,7 +363,13 @@ export default function CustomerDialog({
                   <FormItem>
                     <FormLabel>Nome do contato</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome da pessoa para contato" {...field} />
+                      <Input 
+                        placeholder="Nome da pessoa para contato" 
+                        {...field} 
+                        style={{ WebkitAppearance: "none" }}
+                        className="py-2 px-3"
+                        autoComplete="off"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -417,7 +426,14 @@ export default function CustomerDialog({
                 <FormItem>
                   <FormLabel>E-mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="email@exemplo.com" type="email" {...field} />
+                    <Input 
+                      placeholder="email@exemplo.com" 
+                      type="email" 
+                      {...field} 
+                      style={{ WebkitAppearance: "none" }}
+                      className="py-2 px-3"
+                      autoComplete="off"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
