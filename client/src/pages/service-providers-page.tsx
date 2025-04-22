@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -563,25 +563,27 @@ export default function ServiceProvidersPage() {
                         {provider.active ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2"
-                        onClick={() => handleEdit(provider)}
-                      >
-                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-8 px-2"
-                        onClick={() => handleDeleteClick(provider)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Excluir
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(provider)}
+                          className="h-8 w-8"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(provider)}
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
