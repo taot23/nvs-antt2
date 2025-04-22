@@ -40,6 +40,8 @@ export default function CustomersPage() {
   
   // Estados para filtros
   const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("all");
+  const [nameFilter, setNameFilter] = useState<string>("");
+  const [emailFilter, setEmailFilter] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
   
   // Estados para ordenação
@@ -85,7 +87,13 @@ export default function CustomersPage() {
     // Filtro por tipo de documento
     const matchesDocumentType = documentTypeFilter === "all" || customer.documentType === documentTypeFilter;
     
-    return matchesSearch && matchesDocumentType;
+    // Filtro por nome específico
+    const matchesName = nameFilter === "" || customer.name.toLowerCase().includes(nameFilter.toLowerCase());
+    
+    // Filtro por email específico
+    const matchesEmail = emailFilter === "" || customer.email.toLowerCase().includes(emailFilter.toLowerCase());
+    
+    return matchesSearch && matchesDocumentType && matchesName && matchesEmail;
   })
   // Aplicar ordenação
   .sort((a, b) => {
@@ -213,6 +221,8 @@ export default function CustomersPage() {
   const clearFilters = () => {
     setSearchTerm("");
     setDocumentTypeFilter("all");
+    setNameFilter("");
+    setEmailFilter("");
   };
 
   // Deletar cliente
@@ -377,7 +387,7 @@ export default function CustomersPage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {(documentTypeFilter !== "all" || searchTerm) && (
+                    {(documentTypeFilter !== "all" || searchTerm || nameFilter || emailFilter) && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -405,7 +415,7 @@ export default function CustomersPage() {
                 
                 {/* Painel de filtros avançados */}
                 {showFilters && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <div>
                       <label className="text-xs font-medium text-gray-700 mb-1 block">Tipo de documento</label>
                       <Select 
@@ -421,6 +431,38 @@ export default function CustomersPage() {
                           <SelectItem value="cnpj">CNPJ (Pessoa Jurídica)</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-700 mb-1 block">Nome/Razão Social</label>
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Filtrar por nome..."
+                          className="pl-8 h-9"
+                          value={nameFilter}
+                          onChange={(e) => setNameFilter(e.target.value)}
+                          style={{ WebkitAppearance: "none" }}
+                          spellCheck="false"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-700 mb-1 block">Email</label>
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Filtrar por email..."
+                          className="pl-8 h-9"
+                          value={emailFilter}
+                          onChange={(e) => setEmailFilter(e.target.value)}
+                          style={{ WebkitAppearance: "none" }}
+                          spellCheck="false"
+                          autoComplete="off"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -446,8 +488,27 @@ export default function CustomersPage() {
                 </div>
               ) : filteredCustomers.length === 0 ? (
                 <div className="p-8 text-center">
-                  {searchTerm ? (
-                    <p className="text-gray-500">Nenhum cliente encontrado para "{searchTerm}"</p>
+                  {searchTerm || documentTypeFilter !== "all" || nameFilter || emailFilter ? (
+                    <div>
+                      <p className="text-gray-500 mb-3">Nenhum cliente correspondente aos filtros aplicados</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={clearFilters}
+                          className="py-2 px-4"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          <span>Limpar filtros</span>
+                        </Button>
+                        <Button 
+                          onClick={handleAdd}
+                          className="py-2 px-4"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          <span>Adicionar Cliente</span>
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <div>
                       <p className="text-gray-500 mb-4">Nenhum cliente cadastrado</p>
@@ -466,7 +527,7 @@ export default function CustomersPage() {
                 <div className="overflow-x-auto">
                   <div className="px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
                     {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} encontrado{filteredCustomers.length !== 1 ? 's' : ''}
-                    {(documentTypeFilter !== "all" || searchTerm) && (
+                    {(documentTypeFilter !== "all" || searchTerm || nameFilter || emailFilter) && (
                       <span> (filtrados de {customers.length})</span>
                     )}
                   </div>
