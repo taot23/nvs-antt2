@@ -28,14 +28,20 @@ type MenuItem = {
 
 export function Sidebar() {
   const isMobile = useIsMobile();
-  const [expanded, setExpanded] = useState(!isMobile);
+  const [expanded, setExpanded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logoutMutation, user } = useAuth();
   const [location] = useLocation();
   
   // Atualizar o estado expandido quando mudar entre mobile e desktop
   useEffect(() => {
+    // Em desktop (md ou maior), expandir a barra lateral por padrão
     setExpanded(!isMobile);
+    
+    // Log para debug
+    console.log("Sidebar - Mudou dispositivo:", isMobile ? "Mobile" : "Desktop");
+    
+    // Em mobile, sempre fechar o menu mobile
     if (isMobile) {
       setMobileMenuOpen(false);
     }
@@ -90,21 +96,22 @@ export function Sidebar() {
     return item.roles.includes(userRole);
   });
 
+  // Certifique-se de que mobileMenuOpen seja mostrado no console para debug
+  console.log("Mobile:", isMobile, "Menu aberto:", mobileMenuOpen);
+
   return (
     <>
-      {/* Botão de menu mobile fixo no topo */}
-      {isMobile && (
-        <div className="fixed top-0 left-0 z-50 p-2 bg-background md:hidden">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-10 w-10 rounded-md"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-        </div>
-      )}
+      {/* Botão de menu mobile fixo no topo - sempre mostra em telas pequenas */}
+      <div className="fixed top-0 left-0 z-50 p-2 bg-background md:hidden">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleSidebar}
+          className="h-10 w-10 rounded-md"
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
       
       {/* Overlay para fechar o menu mobile quando clicar fora */}
       {isMobile && mobileMenuOpen && (
