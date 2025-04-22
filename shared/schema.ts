@@ -47,9 +47,25 @@ export const insertServiceSchema = createInsertSchema(services).omit({
   createdAt: true
 });
 
+// Tabela de formas de pagamento
+export const paymentMethods = pgTable("payment_methods", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: integer("created_at").default(Math.floor(Date.now() / 1000)).notNull() // timestamp em Unix
+});
+
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;

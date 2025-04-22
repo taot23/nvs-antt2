@@ -1,4 +1,4 @@
-import { users, type User, type InsertUser, customers, type Customer, type InsertCustomer, services, type Service, type InsertService } from "@shared/schema";
+import { users, type User, type InsertUser, customers, type Customer, type InsertCustomer, services, type Service, type InsertService, paymentMethods, type PaymentMethod, type InsertPaymentMethod } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { eq } from "drizzle-orm";
@@ -32,6 +32,14 @@ export interface IStorage {
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: number): Promise<boolean>;
+  
+  // Payment Method methods
+  getPaymentMethods(): Promise<PaymentMethod[]>;
+  getPaymentMethod(id: number): Promise<PaymentMethod | undefined>;
+  getPaymentMethodByName(name: string): Promise<PaymentMethod | undefined>;
+  createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(id: number, paymentMethod: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined>;
+  deletePaymentMethod(id: number): Promise<boolean>;
   
   sessionStore: any; // Using any to avoid type errors
 }
@@ -174,7 +182,6 @@ export class DatabaseStorage implements IStorage {
         name: serviceData.name,
         description: serviceData.description,
         price: serviceData.price,
-        duration: serviceData.duration,
         active: serviceData.active
       })
       .returning();
@@ -196,6 +203,57 @@ export class DatabaseStorage implements IStorage {
       .where(eq(services.id, id))
       .returning();
     return !!deletedService;
+  }
+
+  // Payment Methods methods implementation
+  async getPaymentMethods(): Promise<PaymentMethod[]> {
+    return await db.select().from(paymentMethods);
+  }
+
+  async getPaymentMethod(id: number): Promise<PaymentMethod | undefined> {
+    const [paymentMethod] = await db.select().from(paymentMethods).where(eq(paymentMethods.id, id));
+    return paymentMethod || undefined;
+  }
+  
+  async getPaymentMethodByName(name: string): Promise<PaymentMethod | undefined> {
+    // Buscar todas as formas de pagamento para verificar (usando lowercase para comparação insensitiva)
+    const allPaymentMethods = await db.select().from(paymentMethods);
+    
+    // Encontrar forma de pagamento com o mesmo nome (comparação case-insensitive)
+    const foundPaymentMethod = allPaymentMethods.find(paymentMethod => 
+      paymentMethod.name.toLowerCase() === name.toLowerCase()
+    );
+    
+    return foundPaymentMethod;
+  }
+
+  async createPaymentMethod(paymentMethodData: InsertPaymentMethod): Promise<PaymentMethod> {
+    const [createdPaymentMethod] = await db
+      .insert(paymentMethods)
+      .values({
+        name: paymentMethodData.name,
+        description: paymentMethodData.description,
+        active: paymentMethodData.active
+      })
+      .returning();
+    return createdPaymentMethod;
+  }
+
+  async updatePaymentMethod(id: number, paymentMethodData: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined> {
+    const [updatedPaymentMethod] = await db
+      .update(paymentMethods)
+      .set(paymentMethodData)
+      .where(eq(paymentMethods.id, id))
+      .returning();
+    return updatedPaymentMethod || undefined;
+  }
+
+  async deletePaymentMethod(id: number): Promise<boolean> {
+    const [deletedPaymentMethod] = await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.id, id))
+      .returning();
+    return !!deletedPaymentMethod;
   }
 }
 
