@@ -40,7 +40,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/" exact component={ProtectedHome} />
+      <ProtectedRoute path="/" component={ProtectedHome} />
       <ProtectedRoute path="/customers" component={ProtectedCustomers} />
       <Route component={NotFound} />
     </Switch>
