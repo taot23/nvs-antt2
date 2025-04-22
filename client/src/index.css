@@ -11,3 +11,59 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Compatibilidade entre navegadores */
+/* Resets e normalizações */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix para iOS Safari */
+input,
+button,
+textarea,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0.5rem;
+  font-family: inherit;
+}
+
+/* Melhorias para Firefox */
+@-moz-document url-prefix() {
+  input, button, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* Fix para elementos flex no Safari */
+.flex {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.flex-col {
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+  flex-direction: column;
+}
+
+/* Melhorias em dispositivos touchscreen */
+@media (hover: none) {
+  button:hover {
+    background-color: inherit;
+  }
+}
+
+/* Ajustes para telas pequenas */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px; /* Evita zoom automático em campos de formulário no iOS */
+  }
+}

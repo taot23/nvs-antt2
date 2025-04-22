@@ -125,13 +125,14 @@ export default function CustomersPage() {
                 <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
                 <p className="text-gray-600 mt-1">Gerencie os cadastros de clientes</p>
               </div>
-              <div className="mt-4 sm:mt-0">
+              <div className="mt-4 sm:mt-0 flex">
                 <Button 
                   onClick={handleAdd}
-                  className="flex items-center w-full sm:w-auto justify-center"
+                  className="flex items-center w-full sm:w-auto justify-center py-2 px-4"
+                  style={{ WebkitAppearance: "none" }}
                 >
-                  <Plus className="mr-1 h-4 w-4" />
-                  Novo Cliente
+                  <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Novo Cliente</span>
                 </Button>
               </div>
             </div>
@@ -153,6 +154,9 @@ export default function CustomersPage() {
                     size="icon" 
                     onClick={() => refetch()}
                     disabled={isLoading}
+                    style={{ WebkitAppearance: "none" }}
+                    className="w-8 h-8 flex items-center justify-center p-0"
+                    title="Atualizar lista"
                   >
                     <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   </Button>
@@ -178,9 +182,13 @@ export default function CustomersPage() {
                   ) : (
                     <div>
                       <p className="text-gray-500 mb-4">Nenhum cliente cadastrado</p>
-                      <Button onClick={handleAdd}>
-                        <Plus className="mr-1 h-4 w-4" />
-                        Adicionar Cliente
+                      <Button 
+                        onClick={handleAdd}
+                        className="py-2 px-4"
+                        style={{ WebkitAppearance: "none" }}
+                      >
+                        <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
+                        <span className="whitespace-nowrap">Adicionar Cliente</span>
                       </Button>
                     </div>
                   )}
@@ -259,6 +267,8 @@ export default function CustomersPage() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleEdit(customer)}
+                                style={{ WebkitAppearance: "none" }}
+                                className="w-8 h-8 flex items-center justify-center"
                               >
                                 <Edit className="h-4 w-4 text-blue-500" />
                               </Button>
@@ -267,6 +277,8 @@ export default function CustomersPage() {
                                 size="icon"
                                 onClick={() => handleDelete(customer.id)}
                                 disabled={deleteCustomerMutation.isPending}
+                                style={{ WebkitAppearance: "none" }}
+                                className="w-8 h-8 flex items-center justify-center"
                               >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
@@ -285,10 +297,22 @@ export default function CustomersPage() {
                     Mostrando {filteredCustomers.length} de {customers.length} clientes
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" disabled>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled
+                      style={{ WebkitAppearance: "none" }}
+                      className="w-8 h-8 flex items-center justify-center p-0"
+                    >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" disabled>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled
+                      style={{ WebkitAppearance: "none" }}
+                      className="w-8 h-8 flex items-center justify-center p-0"
+                    >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
