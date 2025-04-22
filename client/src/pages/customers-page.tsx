@@ -8,7 +8,7 @@ import Footer from "@/components/layout/footer";
 import { 
   Users, Home, Plus, Search, Edit, Trash2, 
   RefreshCw, ChevronLeft, ChevronRight, Building,
-  User
+  User, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +113,19 @@ export default function CustomersPage() {
                 <Users className="mr-3 h-5 w-5 text-gray-500" />
                 <Link href="/clientes">Clientes</Link>
               </div>
+              <button 
+                onClick={() => {
+                  if (window.confirm("Tem certeza que deseja sair do sistema?")) {
+                    fetch("/api/logout", { method: "POST", credentials: "include" })
+                      .then(() => window.location.href = "/auth")
+                      .catch(err => console.error("Erro ao fazer logout:", err));
+                  }
+                }}
+                className="flex items-center w-full px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md group text-left mt-4"
+              >
+                <LogOut className="mr-3 h-5 w-5 text-gray-500" />
+                <span>Sair</span>
+              </button>
             </nav>
           </div>
         </aside>

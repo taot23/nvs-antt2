@@ -88,6 +88,12 @@ export default function CustomerDialog({
     mutationFn: async (data: CustomerFormValues) => {
       try {
         console.log("Enviando dados para cadastro:", data);
+        // Verificar se o usuário está autenticado antes de enviar o formulário
+        const userRes = await fetch("/api/user", { credentials: "include" });
+        if (!userRes.ok) {
+          throw new Error("Usuário não está autenticado. Faça login novamente.");
+        }
+        
         const res = await apiRequest("POST", "/api/customers", data);
         const jsonResponse = await res.json();
         console.log("Resposta do servidor:", jsonResponse);
@@ -119,6 +125,12 @@ export default function CustomerDialog({
     mutationFn: async (data: { id: number; customer: CustomerFormValues }) => {
       try {
         console.log("Enviando dados para atualização:", data);
+        // Verificar se o usuário está autenticado antes de enviar o formulário
+        const userRes = await fetch("/api/user", { credentials: "include" });
+        if (!userRes.ok) {
+          throw new Error("Usuário não está autenticado. Faça login novamente.");
+        }
+        
         const res = await apiRequest("PUT", `/api/customers/${data.id}`, data.customer);
         const jsonResponse = await res.json();
         console.log("Resposta do servidor:", jsonResponse);
