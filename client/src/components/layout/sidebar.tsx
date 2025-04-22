@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/use-auth';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { 
-  Menu, 
-  X, 
   ChevronLeft, 
   ChevronRight, 
   Users, 
@@ -16,35 +13,13 @@ import {
 } from 'lucide-react';
 
 export function Sidebar() {
-  // Começar expandido por padrão e deixar o useEffect ajustar com base no tamanho da tela
+  // Começar expandido por padrão
   const [expanded, setExpanded] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const { logoutMutation } = useAuth();
-  const isMobile = useIsMobile();
   const [location] = useLocation();
-  
-  // Fechar o menu no mobile quando mudar de rota
-  useEffect(() => {
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-  }, [location, isMobile]);
-  
-  // Ajustar o estado de expansão baseado no tamanho da tela
-  useEffect(() => {
-    if (isMobile) {
-      setExpanded(false);
-    } else {
-      setExpanded(true); // Sempre expandido em telas grandes por padrão
-    }
-  }, [isMobile]);
   
   const toggleSidebar = () => {
     setExpanded(!expanded);
-  };
-  
-  const toggleMobileMenu = () => {
-    setMobileOpen(!mobileOpen);
   };
   
   const handleLogout = () => {
@@ -107,39 +82,15 @@ export function Sidebar() {
       </TooltipProvider>
     );
   };
-
-  // Overlay para dispositivos móveis
-  const MobileOverlay = () => (
-    <div 
-      className={cn(
-        "fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden",
-        mobileOpen ? "block" : "hidden"
-      )}
-      onClick={toggleMobileMenu}
-    />
-  );
   
   // Componente principal da sidebar
   return (
     <>
-      <MobileOverlay />
-      
-      {/* Botão do menu mobile */}
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="fixed top-4 left-4 z-50 lg:hidden"
-        onClick={toggleMobileMenu}
-      >
-        {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </Button>
-      
-      {/* Sidebar */}
+      {/* Sidebar - sempre visível */}
       <aside 
         className={cn(
           "fixed top-0 left-0 h-full bg-card border-r border-border shadow-sm z-40 flex flex-col transition-all duration-300 ease-in-out",
-          expanded ? "w-60" : "w-14",
-          isMobile && !mobileOpen ? "-translate-x-full" : "translate-x-0"
+          expanded ? "w-60" : "w-14"
         )}
       >
         <div className="flex items-center justify-between p-4 h-14 border-b border-border">
@@ -210,12 +161,11 @@ export function Sidebar() {
         </div>
       </aside>
       
-      {/* Espaçador para empurrar o conteúdo */}
+      {/* Espaçador para empurrar o conteúdo - sempre presente */}
       <div 
         className={cn(
           "transition-all duration-300 ease-in-out",
-          expanded ? "ml-60" : "ml-14",
-          isMobile && "ml-0"
+          expanded ? "ml-60" : "ml-14"
         )}
       />
     </>
