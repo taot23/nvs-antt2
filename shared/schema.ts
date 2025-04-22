@@ -84,5 +84,28 @@ export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
+// Definição da tabela de prestadores de serviço parceiros
+export const serviceProviders = pgTable("service_providers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  document: text("document").notNull(), // CPF ou CNPJ
+  documentType: text("document_type").notNull().default("cpf"), // 'cpf' ou 'cnpj'
+  contactName: text("contact_name"), // Nome do contato (para CNPJ)
+  phone: text("phone").notNull(), // Telefone principal
+  phone2: text("phone2"), // Telefone secundário
+  email: text("email").notNull(), // Email
+  address: text("address"), // Endereço completo
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de prestadores de serviço parceiros
+export const insertServiceProviderSchema = createInsertSchema(serviceProviders).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertServiceType = z.infer<typeof insertServiceTypeSchema>;
 export type ServiceType = typeof serviceTypes.$inferSelect;
+export type InsertServiceProvider = z.infer<typeof insertServiceProviderSchema>;
+export type ServiceProvider = typeof serviceProviders.$inferSelect;

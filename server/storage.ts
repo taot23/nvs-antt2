@@ -1,4 +1,11 @@
-import { users, type User, type InsertUser, customers, type Customer, type InsertCustomer, services, type Service, type InsertService, paymentMethods, type PaymentMethod, type InsertPaymentMethod, serviceTypes, type ServiceType, type InsertServiceType } from "@shared/schema";
+import { 
+  users, type User, type InsertUser, 
+  customers, type Customer, type InsertCustomer, 
+  services, type Service, type InsertService, 
+  paymentMethods, type PaymentMethod, type InsertPaymentMethod, 
+  serviceTypes, type ServiceType, type InsertServiceType,
+  serviceProviders, type ServiceProvider, type InsertServiceProvider
+} from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { eq } from "drizzle-orm";
@@ -48,6 +55,14 @@ export interface IStorage {
   createServiceType(serviceType: InsertServiceType): Promise<ServiceType>;
   updateServiceType(id: number, serviceType: Partial<InsertServiceType>): Promise<ServiceType | undefined>;
   deleteServiceType(id: number): Promise<boolean>;
+  
+  // Service Provider methods
+  getServiceProviders(): Promise<ServiceProvider[]>;
+  getServiceProvider(id: number): Promise<ServiceProvider | undefined>;
+  getServiceProviderByDocument(document: string): Promise<ServiceProvider | undefined>;
+  createServiceProvider(serviceProvider: InsertServiceProvider): Promise<ServiceProvider>;
+  updateServiceProvider(id: number, serviceProvider: Partial<InsertServiceProvider>): Promise<ServiceProvider | undefined>;
+  deleteServiceProvider(id: number): Promise<boolean>;
   
   sessionStore: any; // Using any to avoid type errors
 }
@@ -313,6 +328,66 @@ export class DatabaseStorage implements IStorage {
       .where(eq(serviceTypes.id, id))
       .returning();
     return !!deletedServiceType;
+  }
+
+  // Service Provider methods implementation
+  async getServiceProviders(): Promise<ServiceProvider[]> {
+    return await db.select().from(serviceProviders);
+  }
+
+  async getServiceProvider(id: number): Promise<ServiceProvider | undefined> {
+    const [serviceProvider] = await db.select().from(serviceProviders).where(eq(serviceProviders.id, id));
+    return serviceProvider || undefined;
+  }
+  
+  async getServiceProviderByDocument(document: string): Promise<ServiceProvider | undefined> {
+    // Remover caracteres especiais para comparação
+    const normalizedDocument = document.replace(/[^\d]/g, '');
+    
+    // Buscar todos os prestadores para verificar
+    const allServiceProviders = await db.select().from(serviceProviders);
+    
+    // Encontrar prestador com o mesmo documento (ignorando formatação)
+    const foundServiceProvider = allServiceProviders.find(serviceProvider => 
+      serviceProvider.document.replace(/[^\d]/g, '') === normalizedDocument
+    );
+    
+    return foundServiceProvider;
+  }
+
+  async createServiceProvider(serviceProviderData: InsertServiceProvider): Promise<ServiceProvider> {
+    const [createdServiceProvider] = await db
+      .insert(serviceProviders)
+      .values({
+        name: serviceProviderData.name,
+        document: serviceProviderData.document,
+        documentType: serviceProviderData.documentType,
+        contactName: serviceProviderData.contactName,
+        phone: serviceProviderData.phone,
+        phone2: serviceProviderData.phone2,
+        email: serviceProviderData.email,
+        address: serviceProviderData.address,
+        active: serviceProviderData.active
+      })
+      .returning();
+    return createdServiceProvider;
+  }
+
+  async updateServiceProvider(id: number, serviceProviderData: Partial<InsertServiceProvider>): Promise<ServiceProvider | undefined> {
+    const [updatedServiceProvider] = await db
+      .update(serviceProviders)
+      .set(serviceProviderData)
+      .where(eq(serviceProviders.id, id))
+      .returning();
+    return updatedServiceProvider || undefined;
+  }
+
+  async deleteServiceProvider(id: number): Promise<boolean> {
+    const [deletedServiceProvider] = await db
+      .delete(serviceProviders)
+      .where(eq(serviceProviders.id, id))
+      .returning();
+    return !!deletedServiceProvider;
   }
 }
 

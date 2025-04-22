@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { Pool, neonConfig } from '@neondatabase/serverless';
-import { services, serviceTypes } from './shared/schema';
+import { services, serviceTypes, serviceProviders } from './shared/schema';
 import ws from 'ws';
 
 // Configure o WebSocket para Neon
@@ -46,6 +46,27 @@ async function main() {
   `);
 
   console.log('Service Types table created successfully!');
+  
+  console.log('Creating service_providers table...');
+  
+  // Criar tabela service_providers com SQL direto para evitar problemas com drizzle-kit push
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS service_providers (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      document TEXT NOT NULL,
+      document_type TEXT NOT NULL DEFAULT 'cpf',
+      contact_name TEXT,
+      phone TEXT NOT NULL,
+      phone2 TEXT,
+      email TEXT NOT NULL,
+      address TEXT,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  console.log('Service Providers table created successfully!');
   await pool.end();
 }
 
