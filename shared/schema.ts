@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, numeric, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -32,7 +32,25 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   userId: true,
 });
 
+// Tabela de serviços
+export const services = pgTable("services", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  price: text("price").notNull(), // Armazenamos como texto e convertemos para número na aplicação
+  duration: integer("duration"), // duração em minutos
+  active: boolean("active").default(true).notNull(),
+  createdAt: integer("created_at").default(Math.floor(Date.now() / 1000)).notNull() // timestamp em Unix
+});
+
+export const insertServiceSchema = createInsertSchema(services).omit({
+  id: true,
+  createdAt: true
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
+export type InsertService = z.infer<typeof insertServiceSchema>;
+export type Service = typeof services.$inferSelect;
