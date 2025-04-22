@@ -147,6 +147,11 @@ export default function CustomersPage() {
                       className="pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{ WebkitAppearance: "none" }}
+                      spellCheck="false"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
                     />
                   </div>
                   <Button 
@@ -166,8 +171,14 @@ export default function CustomersPage() {
               {isError ? (
                 <div className="p-8 text-center">
                   <p className="text-red-500 mb-4">Erro ao carregar os clientes</p>
-                  <Button variant="outline" onClick={() => refetch()}>
-                    Tentar novamente
+                  <Button 
+                    variant="outline" 
+                    onClick={() => refetch()} 
+                    style={{ WebkitAppearance: "none" }}
+                    className="py-2 px-4"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    <span className="whitespace-nowrap">Tentar novamente</span>
                   </Button>
                 </div>
               ) : isLoading ? (

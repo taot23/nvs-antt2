@@ -66,4 +66,24 @@ select {
   input, select, textarea {
     font-size: 16px; /* Evita zoom automático em campos de formulário no iOS */
   }
+  
+  /* Melhorias para toque em dispositivos móveis */
+  button, 
+  [role="button"],
+  a {
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Ajuste para tabelas em mobile */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  /* Otimiza scrolling em dispositivos móveis */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }
