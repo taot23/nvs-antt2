@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +81,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formInitialized = useRef(false);
   
   // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
@@ -138,6 +139,45 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     }
   });
   
+  // Gerar número de OS padrão
+  const generateOrderNumber = () => {
+    const today = new Date();
+    const yearMonth = format(today, 'yyyyMM');
+    const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `OS${yearMonth}${randomPart}`;
+  };
+  
+  // Valores padrão iniciais do formulário
+  const defaultFormValues = {
+    orderNumber: generateOrderNumber(),
+    date: new Date(),
+    customerId: 0,
+    paymentMethodId: 0,
+    sellerId: user?.id || 0,
+    notes: "",
+    items: [
+      {
+        serviceId: 0,
+        serviceTypeId: 0,
+        quantity: 1,
+        price: "",
+        notes: ""
+      }
+    ]
+  };
+  
+  // Formulário
+  const form = useForm<z.infer<typeof saleSchema>>({
+    resolver: zodResolver(saleSchema),
+    defaultValues: defaultFormValues
+  });
+  
+  // Field array para os itens da venda
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items"
+  });
+  
   // Consulta para obter os itens da venda ao editar
   const { data: saleItems = [] } = useQuery({
     queryKey: ["/api/sales", sale?.id, "items"],
@@ -152,37 +192,9 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     enabled: !!sale?.id
   });
   
-  // Formulário
-  const form = useForm<z.infer<typeof saleSchema>>({
-    resolver: zodResolver(saleSchema),
-    defaultValues: {
-      orderNumber: "",
-      date: new Date(),
-      customerId: 0,
-      paymentMethodId: 0,
-      sellerId: user?.id || 0,
-      notes: "",
-      items: [
-        {
-          serviceId: 0,
-          serviceTypeId: 0,
-          quantity: 1,
-          price: "",
-          notes: ""
-        }
-      ]
-    }
-  });
-  
-  // Field array para os itens da venda
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "items"
-  });
-  
-  // Atualiza o formulário quando carrega os dados do sale ou quando novos dados são carregados
+  // Efeito para atualizar o formulário quando os itens são carregados
   useEffect(() => {
-    if (sale) {
+    if (sale && saleItems.length > 0 && !formInitialized.current) {
       form.reset({
         orderNumber: sale.orderNumber,
         date: new Date(sale.date),
@@ -198,32 +210,26 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
           notes: item.notes
         }))
       });
-    } else {
-      // Para novas vendas, gera um número de OS
-      const today = new Date();
-      const yearMonth = format(today, 'yyyyMM');
-      const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const orderNumber = `OS${yearMonth}${randomPart}`;
-      
-      form.reset({
-        orderNumber,
-        date: today,
-        customerId: 0,
-        paymentMethodId: 0,
-        sellerId: user?.id || 0,
-        notes: "",
-        items: [
-          {
-            serviceId: 0,
-            serviceTypeId: 0,
-            quantity: 1,
-            price: "",
-            notes: ""
-          }
-        ]
-      });
+      formInitialized.current = true;
     }
-  }, [sale, saleItems, form, user?.id]);
+  }, [sale, saleItems, form]);
+  
+  // Atualizamos o formulário quando o modal é aberto/fechado
+  useEffect(() => {
+    if (open) {
+      if (sale) {
+        // Aguarda os itens serem carregados via query
+        formInitialized.current = false;
+      } else {
+        // Nova venda
+        form.reset(defaultFormValues);
+        formInitialized.current = true;
+      }
+    } else {
+      // Quando o modal é fechado
+      formInitialized.current = false;
+    }
+  }, [open, sale?.id, form]);
   
   // Atualiza o preço do item quando seleciona um serviço
   const handleServiceChange = (index: number, serviceId: number) => {
@@ -306,6 +312,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{sale ? "Editar Venda" : "Nova Venda"}</DialogTitle>
+          <DialogDescription>
+            {sale 
+              ? "Atualize os dados da venda conforme necessário" 
+              : "Preencha os dados para criar uma nova venda"}
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
