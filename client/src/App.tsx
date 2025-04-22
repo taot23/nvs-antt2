@@ -47,7 +47,11 @@ const ProtectedUsers = () => {
 };
 
 const ProtectedServices = () => {
+  // Adiciona log para depuração
   console.log("Renderizando ProtectedServices");
+  console.log("ServicesPage:", ServicesPage);
+  // Fim dos logs de depuração
+  
   return (
     <ProtectedApp>
       <ServicesPage />

@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 
 export function Sidebar() {
-  // Começar expandido por padrão
   const [expanded, setExpanded] = useState(true);
   const { logoutMutation, user } = useAuth();
   const [location] = useLocation();
@@ -28,45 +27,61 @@ export function Sidebar() {
     logoutMutation.mutate();
   };
   
-  // Definir os itens de navegação
-  const navItems = [];
+  const userRole = user?.role || '';
+  console.log('Sidebar userRole:', userRole);
   
-  console.log("Sidebar: Usuário:", user);
-  console.log("Sidebar: Role do usuário:", user?.role);
-  
-  // Início - disponível para todos
-  navItems.push({
-    path: '/',
-    icon: <Home className="h-5 w-5" />,
-    label: 'Início'
-  });
-  
-  // Clientes - disponível para todos
-  navItems.push({
-    path: '/customers',
-    icon: <Users className="h-5 w-5" />,
-    label: 'Clientes'
-  });
-  
-  // Serviços - vamos deixar visível para depuração
-  navItems.push({
-    path: '/services',
-    icon: <ClipboardList className="h-5 w-5" />,
-    label: 'Serviços'
-  });
-  
-  // Usuários - apenas para admin e supervisor
-  if (user?.role === 'admin' || user?.role === 'supervisor') {
-    navItems.push({
-      path: '/users',
-      icon: <UserCog className="h-5 w-5" />,
-      label: 'Usuários'
-    });
-  }
+  // Função para renderizar um item de menu na barra lateral
+  const renderMenuItem = (path: string, icon: React.ReactNode, label: string) => {
+    const isActive = path === '/' 
+      ? location === path
+      : location.startsWith(path);
+    
+    if (expanded) {
+      return (
+        <Link key={path} href={path}>
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start mb-1 font-normal",
+              isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <div className="flex items-center">
+              <div className="mr-3">{icon}</div>
+              <span>{label}</span>
+            </div>
+          </Button>
+        </Link>
+      );
+    } else {
+      return (
+        <TooltipProvider key={path} delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={path}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "w-full h-10 mb-1",
+                    isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  {icon}
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-normal">
+              {label}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+  };
 
   return (
     <>
-      {/* Sidebar - sempre visível */}
       <aside 
         className={cn(
           "fixed top-0 left-0 h-full bg-card border-r border-border shadow-sm z-40 flex flex-col transition-all duration-300 ease-in-out",
@@ -93,56 +108,19 @@ export function Sidebar() {
         
         <div className="flex-1 py-4 px-2 overflow-y-auto">
           <nav className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = item.path === '/' 
-                ? location === item.path
-                : location.startsWith(item.path);
-                
-              // Versão expandida
-              if (expanded) {
-                return (
-                  <Link key={item.path} href={item.path}>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "w-full justify-start mb-1 font-normal",
-                        isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      )}
-                    >
-                      <div className="flex items-center">
-                        <div className="mr-3">{item.icon}</div>
-                        <span>{item.label}</span>
-                      </div>
-                    </Button>
-                  </Link>
-                );
-              }
-              
-              // Versão recolhida com tooltip
-              return (
-                <TooltipProvider key={item.path} delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link href={item.path}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            "w-full h-10 mb-1",
-                            isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                          )}
-                        >
-                          {item.icon}
-                        </Button>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="font-normal">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
+            {/* Home */}
+            {renderMenuItem('/', <Home className="h-5 w-5" />, 'Início')}
+            
+            {/* Customers */}
+            {renderMenuItem('/customers', <Users className="h-5 w-5" />, 'Clientes')}
+            
+            {/* Services - Only for Admin and Operational */}
+            {(userRole === 'admin' || userRole === 'operacional') && 
+              renderMenuItem('/services', <ClipboardList className="h-5 w-5" />, 'Serviços')}
+            
+            {/* Users - Only for Admin and Supervisor */}
+            {(userRole === 'admin' || userRole === 'supervisor') && 
+              renderMenuItem('/users', <UserCog className="h-5 w-5" />, 'Usuários')}
           </nav>
         </div>
         
