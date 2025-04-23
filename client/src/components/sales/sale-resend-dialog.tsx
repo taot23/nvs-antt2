@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -58,10 +58,18 @@ function getStatusVariant(status: string) {
 export function SaleResendDialog({ open, onOpenChange, sale }: SaleResendDialogProps) {
   const { toast } = useToast();
   const [notes, setNotes] = useState("");
+  
+  // Limpar observações quando o diálogo é aberto com uma nova venda
+  useEffect(() => {
+    if (open && sale) {
+      setNotes("");
+    }
+  }, [open, sale?.id]);
 
   // Mutation para reenviar venda
   const resendMutation = useMutation({
     mutationFn: async () => {
+      console.log("Reenviando venda com observações:", notes);
       const response = await apiRequest("POST", `/api/sales/${sale.id}/resend`, {
         notes: notes
       });

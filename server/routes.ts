@@ -1699,8 +1699,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Obter mensagem de correção (opcional)
+      // Obter mensagem de correção (para vendedor é obrigatório)
       const { notes } = req.body;
+      
+      // Se for vendedor, a mensagem é obrigatória
+      if (req.user!.role === "vendedor" && (!notes || notes.trim() === "")) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          message: "É necessário informar as correções realizadas ao reenviar a venda."
+        });
+      }
+      
       const notesMessage = notes || "Venda corrigida e reenviada para operacional";
       
       // Atualizar status para pendente novamente
