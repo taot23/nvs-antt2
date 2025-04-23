@@ -165,13 +165,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     sellerId: user?.id || 0,
     totalAmount: "",
     notes: "",
-    items: [
-      {
-        serviceId: 0,
-        quantity: 1,
-        notes: ""
-      }
-    ]
+    items: [] // Sem item inicial, usuário precisa adicionar manualmente
   };
   
   // Formulário
