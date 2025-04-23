@@ -1236,6 +1236,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Buscar a venda atualizada com o valor total definido
       const updatedSale = await storage.getSale(createdSale.id);
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
       res.status(201).json(updatedSale);
     } catch (error) {
       console.error("Erro ao criar venda:", error);
@@ -1345,6 +1349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("Venda após atualização do valor total:", updateResult.rows[0]);
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
       
       // Retornar a venda atualizada
       res.json(updateResult.rows[0]);
@@ -1458,6 +1465,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
       
       res.json(updatedSale);
     } catch (error) {
