@@ -293,12 +293,16 @@ export default function SalesPage() {
     console.log("Botão Nova Venda clicado");
     // Primeiro limpar o sale selecionado
     setSelectedSale(null);
-    // Usar um setTimeout para garantir que o estado seja atualizado
+    // Forçar abertura imediata do diálogo
+    setDialogOpen(true);
+    
+    // Logs para diagnóstico
+    console.log("Abrindo diálogo de nova venda");
+    
+    // Verificar se o estado foi atualizado
     setTimeout(() => {
-      // Então abrir o diálogo
-      setDialogOpen(true);
-      console.log("Estado do diálogo após clique:", true);
-    }, 0);
+      console.log("dialogOpen após timeout:", dialogOpen);
+    }, 100);
   };
   
   const handleEdit = (sale: Sale) => {

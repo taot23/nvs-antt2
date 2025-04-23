@@ -475,8 +475,13 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   // Log para debug
   console.log('SaleDialog renderizado, open =', open, 'sale =', sale ? sale.id : null);
 
+  // Se não estiver aberto, não renderizar o conteúdo para evitar problemas de performance
+  if (!open) {
+    return null;
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
+    <Dialog open={true} onOpenChange={(isOpen) => {
       console.log('Dialog onOpenChange: ', isOpen);
       if (!isOpen) onClose();
     }}>
@@ -1112,7 +1117,14 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
             </div>
             
             <DialogFooter className="mt-6 flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  console.log("Botão Cancelar clicado");
+                  onClose();
+                }}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
