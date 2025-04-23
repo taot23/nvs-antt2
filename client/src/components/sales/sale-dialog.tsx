@@ -458,15 +458,14 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
         // Garante que a data seja válida
         date: values.date || new Date(),
+        // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
+        totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
         // Corrige os itens
         items: values.items.map(item => ({
           ...item,
           serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
-          // Garante que todos os itens tenham valores válidos e converte formato brasileiro para ponto decimal
-          price: item.price ? item.price.replace(',', '.') : "0",
-          totalPrice: item.totalPrice ? item.totalPrice.replace(',', '.') : "0",
-          quantity: item.quantity || 1,
-          status: item.status || "pending"
+          // Itens não terão mais preços individuais
+          quantity: item.quantity || 1
         }))
       };
       

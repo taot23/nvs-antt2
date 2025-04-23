@@ -627,17 +627,23 @@ export class DatabaseStorage implements IStorage {
         return;
       }
       
-      // Importante: Se o valor já foi definido pelo usuário e é diferente de 0,
-      // não devemos recalculá-lo automaticamente
+      // Importante: SEMPRE preservar o valor total definido pelo usuário
+      // Esta função não deve mais sobrescrever os valores definidos manualmente
+      
+      // Apenas para fins de debug, exibimos o valor atual
+      console.log(`Valor total atual da venda #${saleId}: ${sale.totalAmount}`);
+      
+      // Se o valor já está definido pelo usuário (diferente de 0 ou null), não o alteramos
       if (sale.totalAmount && sale.totalAmount !== "0") {
-        console.log(`Valor total da venda #${saleId} já definido pelo usuário: ${sale.totalAmount}`);
+        console.log(`Preservando valor total da venda #${saleId} definido pelo usuário: ${sale.totalAmount}`);
         return;
       }
       
-      // Caso contrário, calculamos com base nos itens
+      // Apenas se o valor for zero ou não existir é que calculamos com base nos itens
       const items = await this.getSaleItems(saleId);
       
       // Cálculo utilizando totalPrice se disponível, ou calculando como price * quantity
+      // Na versão atual, não devemos mais precisar disso já que o valor é definido pelo usuário
       const totalAmount = items.reduce((total, item) => {
         if (item.totalPrice) {
           return total + Number(item.totalPrice);
@@ -648,11 +654,12 @@ export class DatabaseStorage implements IStorage {
         }
       }, 0);
       
-      console.log(`Recalculando valor total da venda #${saleId} com base nos itens: ${totalAmount}`);
+      console.log(`Calculado valor total da venda #${saleId} com base nos itens: ${totalAmount}`);
       
+      // Atualizar o valor total da venda APENAS se o valor atual for 0 ou null
       await db
         .update(sales)
-        .set({ 
+        .set({
           totalAmount: totalAmount.toString(),
           updatedAt: new Date()
         })
