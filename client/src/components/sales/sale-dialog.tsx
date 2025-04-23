@@ -20,14 +20,30 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
+// Tipo Sale para tipagem da venda
+type Sale = {
+  id: number;
+  orderNumber: string;
+  date: string;
+  customerId: number;
+  paymentMethodId: number;
+  sellerId: number;
+  totalAmount: string;
+  status: string;
+  executionStatus: string;
+  financialStatus: string;
+  notes: string | null;
+  returnReason: string | null;
+  responsibleOperationalId: number | null;
+  responsibleFinancialId: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 // Esquema de validação para itens da venda
 const saleItemSchema = z.object({
   serviceId: z.coerce.number().min(1, "Serviço é obrigatório"),
-  serviceTypeId: z.coerce.number().min(1, "Tipo de serviço é obrigatório"),
   quantity: z.coerce.number().min(1, "Quantidade mínima é 1"),
-  price: z.string().optional(),
-  totalPrice: z.string().optional(),
-  status: z.string().optional(),
   notes: z.string().optional().nullable(),
 });
 
@@ -303,18 +319,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       return;
     }
     
-    // Adiciona o preço ao item
-    const selectedService = services.find((s: any) => s.id === selectedServiceId);
-    const price = selectedService?.price || "0";
-    
+    // Adiciona o serviço (sem preço individual)
     append({
       serviceId: selectedServiceId,
-      serviceTypeId: serviceTypeId, // Mesmo que seja 0, será validado no envio do formulário
       quantity: selectedServiceQuantity,
-      notes: "",
-      price: price, // Adicionar o preço do serviço
-      totalPrice: (parseFloat(price) * selectedServiceQuantity).toString(), // Calcular o preço total
-      status: "pending" // Adicionar status ao item
+      notes: ""
     });
     
     // Reseta os valores para o próximo item
@@ -1039,9 +1048,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
               {/* Lista de itens adicionados */}
               <div className="rounded-md border">
                 <div className="bg-muted py-2 px-4 text-sm font-medium grid grid-cols-12 gap-4">
-                  <div className="col-span-6">Serviço</div>
-                  <div className="col-span-2">Qtd</div>
-                  <div className="col-span-3">Valor</div>
+                  <div className="col-span-8">Serviço</div>
+                  <div className="col-span-3">Qtd</div>
                   <div className="col-span-1"></div>
                 </div>
                 <div className="divide-y">
@@ -1056,21 +1064,14 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       
                       return (
                         <div key={field.id} className="py-2 px-4 grid grid-cols-12 gap-4 items-center text-sm">
-                          <div className="col-span-6">
+                          <div className="col-span-8">
                             {service ? service.name : "Serviço não encontrado"}
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-3">
                             <Input
                               type="number"
                               min="1"
                               {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
-                              className="h-8"
-                            />
-                          </div>
-                          <div className="col-span-3">
-                            <Input
-                              {...form.register(`items.${index}.totalPrice`)}
-                              placeholder="0,00"
                               className="h-8"
                             />
                           </div>
