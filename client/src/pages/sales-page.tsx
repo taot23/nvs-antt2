@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -1083,6 +1083,20 @@ export default function SalesPage() {
                             title="Devolver para correção"
                           >
                             <AlertTriangle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {/* Permissão para vendedor reenviar venda corrigida */}
+                        {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && 
+                          sale.status === "returned" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleResendSale(sale)}
+                            className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                            title="Reenviar venda corrigida"
+                          >
+                            <SendHorizontal className="h-4 w-4" />
                           </Button>
                         )}
                         
