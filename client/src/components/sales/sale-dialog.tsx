@@ -139,17 +139,9 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     }
   });
   
-  // Gerar número de OS padrão
-  const generateOrderNumber = () => {
-    const today = new Date();
-    const yearMonth = format(today, 'yyyyMM');
-    const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `OS${yearMonth}${randomPart}`;
-  };
-  
   // Valores padrão iniciais do formulário
   const defaultFormValues = {
-    orderNumber: generateOrderNumber(),
+    orderNumber: "",
     date: new Date(),
     customerId: 0,
     paymentMethodId: 0,
