@@ -87,8 +87,12 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   // Estados para controle de busca
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [sellerSearchTerm, setSellerSearchTerm] = useState("");
+  const [serviceSearchTerm, setServiceSearchTerm] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState<number>(0);
+  const [selectedServiceQuantity, setSelectedServiceQuantity] = useState<number>(1);
   const [showCustomerPopover, setShowCustomerPopover] = useState(false);
   const [showSellerPopover, setShowSellerPopover] = useState(false);
+  const [showServicePopover, setShowServicePopover] = useState(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
@@ -249,6 +253,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   const filteredSellers = sellers.filter((seller: any) => 
     seller.username.toLowerCase().includes(sellerSearchTerm.toLowerCase())
   );
+  
+  // Filtra serviços com base no termo de busca
+  const filteredServices = services.filter((service: any) =>
+    service.name.toLowerCase().includes(serviceSearchTerm.toLowerCase())
+  );
 
   // Efeito para atualizar o formulário quando os itens são carregados
   useEffect(() => {
@@ -316,13 +325,37 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     }
   }, [open, sale?.id, form, user, users]);
   
-  // Adiciona um novo item
-  const addItem = () => {
+  // Adiciona um item em branco ao formulário
+  const addEmptyItem = () => {
     append({
       serviceId: 0,
       quantity: 1,
       notes: ""
     });
+  };
+  
+  // Adiciona um item com o serviço selecionado
+  const addServiceItem = () => {
+    if (selectedServiceId <= 0) {
+      toast({
+        title: "Serviço não selecionado",
+        description: "Selecione um serviço para adicionar",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    append({
+      serviceId: selectedServiceId,
+      quantity: selectedServiceQuantity,
+      notes: ""
+    });
+    
+    // Reseta os valores para o próximo item
+    setSelectedServiceId(0);
+    setSelectedServiceQuantity(1);
+    setServiceSearchTerm("");
+    setShowServicePopover(false);
   };
 
   // Função para criar novo cliente
@@ -751,7 +784,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     type="button" 
                     variant="outline" 
                     size="sm" 
-                    onClick={addItem}
+                    onClick={addEmptyItem}
                     className="h-8"
                   >
                     <Plus className="h-4 w-4 mr-1" />
