@@ -37,7 +37,7 @@ export const services = pgTable("services", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  price: text("price").notNull(), // Armazenamos como texto e convertemos para número na aplicação
+  // Campo price removido conforme solicitado
   active: boolean("active").default(true).notNull(),
   createdAt: integer("created_at").default(Math.floor(Date.now() / 1000)).notNull() // timestamp em Unix
 });

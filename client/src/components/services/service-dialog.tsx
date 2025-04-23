@@ -30,7 +30,6 @@ import { Switch } from "@/components/ui/switch";
 const serviceFormSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
-  price: z.string().min(1, "O preço é obrigatório"),
   active: z.boolean().default(true),
 });
 
@@ -58,7 +57,6 @@ export default function ServiceDialog({
     defaultValues: {
       name: service?.name || "",
       description: service?.description || "",
-      price: service?.price || "",
       active: service?.active !== undefined ? service.active : true,
     },
   });
