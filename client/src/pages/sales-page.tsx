@@ -868,7 +868,9 @@ export default function SalesPage() {
                       {sale.orderNumber}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
+                      {sale.date ? 
+                        format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                     </TableCell>
                     <TableCell>{sale.customerName}</TableCell>
                     <TableCell>{sale.sellerName}</TableCell>

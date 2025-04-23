@@ -1136,7 +1136,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Calcular o preço total do item
           const quantity = item.quantity || 1;
-          const price = parseFloat(item.price) || 0;
+          // Tratar preço com vírgula para ponto
+          const priceStr = typeof item.price === 'string' ? item.price.replace(',', '.') : String(item.price);
+          const price = parseFloat(priceStr) || 0;
           const totalPrice = price * quantity;
           
           console.log("Criando item:", {
