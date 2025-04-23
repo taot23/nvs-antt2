@@ -448,25 +448,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSale(saleData: InsertSale): Promise<Sale> {
-    // Garantir que o totalAmount seja preservado como enviado pelo cliente
-    // em vez de ser calculado automaticamente
+    console.log("Criando venda com dados:", JSON.stringify(saleData, null, 2));
+
+    // Precisamos garantir que o totalAmount seja preservado
+    // Vamos extrair ele antes da inserção
+    const userTotalAmount = saleData.totalAmount;
+
     const [createdSale] = await db
       .insert(sales)
       .values(saleData)
       .returning();
     
+    console.log("Venda criada inicialmente:", JSON.stringify(createdSale, null, 2));
+    
     // Se houver um valor total definido, devemos preservá-lo
-    if (saleData.totalAmount && saleData.totalAmount !== "0") {
-      await db
-        .update(sales)
-        .set({ 
-          totalAmount: saleData.totalAmount,
-          updatedAt: new Date()
-        })
-        .where(eq(sales.id, createdSale.id));
+    // com uma verificação mais rigorosa
+    if (userTotalAmount) {
+      console.log(`Atualizando o valor total para: ${userTotalAmount}`);
       
-      // Atualizar o objeto para refletir o valor correto
-      createdSale.totalAmount = saleData.totalAmount;
+      try {
+        // Vamos fazer a atualização diretamente via SQL para garantir
+        const { pool } = await import('./db');
+        await pool.query(
+          'UPDATE sales SET total_amount = $1, updated_at = $2 WHERE id = $3',
+          [userTotalAmount, new Date(), createdSale.id]
+        );
+        
+        // Atualizar o objeto para refletir o valor correto
+        createdSale.totalAmount = userTotalAmount;
+        
+        console.log("Venda atualizada com valor correto:", JSON.stringify(createdSale, null, 2));
+      } catch (error) {
+        console.error("Erro ao atualizar valor total:", error);
+      }
     }
     
     return createdSale;
