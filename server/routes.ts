@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import { setupWebsocket, notifySalesUpdate } from "./websocket";
 import { 
   insertCustomerSchema, 
   insertUserSchema, 
@@ -1765,6 +1766,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Criar o servidor HTTP
   const httpServer = createServer(app);
+  
+  // Configurar o WebSocket
+  const wss = setupWebsocket(httpServer);
+  
   return httpServer;
 }
