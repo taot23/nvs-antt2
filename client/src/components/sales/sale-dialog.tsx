@@ -1263,7 +1263,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       paymentMethodId: values.paymentMethodId || 1,
                       serviceTypeId: values.serviceTypeId,
                       sellerId: values.sellerId || user?.id,
-                      totalAmount: values.totalAmount || "0",
+                      totalAmount: values.totalAmount ? values.totalAmount.replace(",", ".") : "0",
                       notes: values.notes || "",
                       items: values.items.map(item => ({
                         serviceId: item.serviceId,
