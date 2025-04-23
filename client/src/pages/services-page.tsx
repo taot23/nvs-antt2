@@ -115,11 +115,7 @@ export default function ServicesPage() {
           let aValue: any = a[sortField as keyof Service];
           let bValue: any = b[sortField as keyof Service];
           
-          // Tratamento especial para preço (convertendo de string para número)
-          if (sortField === "price") {
-            aValue = parseFloat(aValue || "0");
-            bValue = parseFloat(bValue || "0");
-          }
+          // Nota: Tratamento especial para preço foi removido
           
           // Ordenação de string
           if (typeof aValue === "string" && typeof bValue === "string") {
@@ -145,7 +141,6 @@ export default function ServicesPage() {
         'ID': service.id,
         'Nome': service.name,
         'Descrição': service.description || '-',
-        'Preço': `R$ ${service.price}`,
         'Status': service.active ? 'Ativo' : 'Inativo'
       }));
       
@@ -185,12 +180,11 @@ export default function ServicesPage() {
       doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
       
       // Preparar dados para a tabela
-      const tableColumn = ["Nome", "Descrição", "Preço", "Status"];
+      const tableColumn = ["Nome", "Descrição", "Status"];
       
       const tableRows = filteredServices.map(service => [
         service.name,
         service.description || '-',
-        `R$ ${service.price}`,
         service.active ? 'Ativo' : 'Inativo'
       ]);
       
