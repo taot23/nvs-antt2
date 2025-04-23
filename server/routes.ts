@@ -1564,6 +1564,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
       res.json(updatedSale);
     } catch (error) {
       console.error("Erro ao iniciar execução da venda:", error);
@@ -1597,6 +1600,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
       
       res.json(updatedSale);
     } catch (error) {
@@ -1637,6 +1643,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
       
       res.json(updatedSale);
     } catch (error) {
@@ -1698,6 +1707,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: notesMessage
       });
       
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
       res.json(updatedSale);
     } catch (error) {
       console.error("Erro ao reenviar venda:", error);
@@ -1731,6 +1743,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
       
       res.json(updatedSale);
     } catch (error) {
