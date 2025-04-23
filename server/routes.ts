@@ -14,10 +14,21 @@ import {
   insertSalesStatusHistorySchema
 } from "@shared/schema";
 import { ZodError } from "zod";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+  
+  // Função auxiliar para gerar hash de senha
+  const scryptAsync = promisify(scrypt);
+  
+  async function hashPassword(password: string) {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  }
   
   // Middleware para verificar se o usuário está autenticado
   const isAuthenticated = (req: Request, res: Response, next: Function) => {
