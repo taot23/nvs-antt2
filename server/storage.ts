@@ -448,10 +448,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSale(saleData: InsertSale): Promise<Sale> {
+    // Garantir que o totalAmount seja preservado como enviado pelo cliente
+    // em vez de ser calculado automaticamente
     const [createdSale] = await db
       .insert(sales)
       .values(saleData)
       .returning();
+    
+    // Se houver um valor total definido, devemos preservá-lo
+    if (saleData.totalAmount && saleData.totalAmount !== "0") {
+      await db
+        .update(sales)
+        .set({ 
+          totalAmount: saleData.totalAmount,
+          updatedAt: new Date()
+        })
+        .where(eq(sales.id, createdSale.id));
+      
+      // Atualizar o objeto para refletir o valor correto
+      createdSale.totalAmount = saleData.totalAmount;
+    }
+    
     return createdSale;
   }
 
@@ -585,6 +602,25 @@ export class DatabaseStorage implements IStorage {
   // Método auxiliar para atualizar o valor total da venda
   private async updateSaleTotalAmount(saleId: number): Promise<void> {
     try {
+      // Primeiro, vamos obter o valor atual da venda
+      const [sale] = await db
+        .select()
+        .from(sales)
+        .where(eq(sales.id, saleId));
+      
+      // Se não encontrar a venda, não faz nada
+      if (!sale) {
+        return;
+      }
+      
+      // Importante: Se o valor já foi definido pelo usuário e é diferente de 0,
+      // não devemos recalculá-lo automaticamente
+      if (sale.totalAmount && sale.totalAmount !== "0") {
+        console.log(`Valor total da venda #${saleId} já definido pelo usuário: ${sale.totalAmount}`);
+        return;
+      }
+      
+      // Caso contrário, calculamos com base nos itens
       const items = await this.getSaleItems(saleId);
       
       // Cálculo utilizando totalPrice se disponível, ou calculando como price * quantity
@@ -597,6 +633,8 @@ export class DatabaseStorage implements IStorage {
           return total + (itemPrice * itemQuantity);
         }
       }, 0);
+      
+      console.log(`Recalculando valor total da venda #${saleId} com base nos itens: ${totalAmount}`);
       
       await db
         .update(sales)
