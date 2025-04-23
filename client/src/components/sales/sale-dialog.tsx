@@ -92,6 +92,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
+  
+
 
   // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
@@ -426,13 +428,13 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   // Função para obter o nome do cliente pelo ID
   const getCustomerName = (id: number) => {
     const customer = customers.find((c: any) => c.id === id);
-    return customer ? customer.name : "";
+    return customer ? customer.name : `Cliente #${id}`;
   };
 
   // Função para obter o nome do vendedor pelo ID
   const getSellerName = (id: number) => {
     const seller = users.find((u: any) => u.id === id);
-    return seller ? seller.username : "";
+    return seller ? seller.username : `Vendedor #${id}`;
   };
 
   return (
@@ -555,7 +557,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                               />
                               {field.value > 0 && (
                                 <Badge variant="outline" className="absolute right-3 top-2 bg-primary/10 text-xs">
-                                  #{field.value}
+                                  {getCustomerName(field.value)}
                                 </Badge>
                               )}
                             </div>
