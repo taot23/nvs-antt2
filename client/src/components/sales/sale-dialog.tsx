@@ -24,6 +24,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 const saleItemSchema = z.object({
   serviceId: z.coerce.number().min(1, "Serviço é obrigatório"),
   quantity: z.coerce.number().min(1, "Quantidade mínima é 1"),
+  price: z.string().optional(),
+  totalPrice: z.string().optional(),
+  status: z.string().optional(),
   notes: z.string().optional().nullable(),
 });
 
@@ -67,6 +70,8 @@ type SaleItem = {
   serviceTypeId: number;
   quantity: number;
   price: string;
+  totalPrice: string;
+  status?: string;
   notes?: string | null;
 };
 
@@ -339,10 +344,17 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       return;
     }
     
+    // Adiciona o preço ao item
+    const selectedService = services.find((s: any) => s.id === selectedServiceId);
+    const price = selectedService?.price || "0";
+    
     append({
       serviceId: selectedServiceId,
       quantity: selectedServiceQuantity,
-      notes: ""
+      notes: "",
+      price: price, // Adicionar o preço do serviço
+      totalPrice: (parseFloat(price) * selectedServiceQuantity).toString(), // Calcular o preço total
+      status: "pending" // Adicionar status ao item
     });
     
     // Reseta os valores para o próximo item
@@ -350,6 +362,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     setSelectedServiceQuantity(1);
     setServiceSearchTerm("");
     setShowServicePopover(false);
+    
+    toast({
+      title: "Item adicionado",
+      description: "Item adicionado com sucesso à venda",
+    });
   };
 
   // Função para criar novo cliente

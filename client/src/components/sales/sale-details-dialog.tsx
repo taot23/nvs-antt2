@@ -194,7 +194,7 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
           {sale && (
             <DialogDescription>
               OS: <strong>{sale.orderNumber}</strong> | 
-              Data: <strong>{format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}</strong>
+              Data: <strong>{sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : "Data não especificada"}</strong>
             </DialogDescription>
           )}
         </DialogHeader>
