@@ -18,6 +18,7 @@ import autoTable from "jspdf-autotable";
 import SaleDialog from "@/components/sales/sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
+import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
 
 // Tipos
 type Sale = {
@@ -87,6 +88,7 @@ export default function SalesPage() {
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clearSalesDialogOpen, setClearSalesDialogOpen] = useState(false); // Estado para diálogo de limpar vendas
+  const [operationDialogOpen, setOperationDialogOpen] = useState(false); // Estado para diálogo de operação de vendas
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
@@ -403,11 +405,25 @@ export default function SalesPage() {
   };
   
   const handleStartExecution = (sale: Sale) => {
-    startExecutionMutation.mutate(sale.id);
+    // Novo fluxo: abrir tela de tratativa ao invés de executar diretamente
+    if (user?.role === "operacional" || user?.role === "admin") {
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+    } else {
+      // Manter o comportamento anterior para outros casos
+      startExecutionMutation.mutate(sale.id);
+    }
   };
   
   const handleCompleteExecution = (sale: Sale) => {
-    completeExecutionMutation.mutate(sale.id);
+    // Novo fluxo: abrir tela de tratativa para vendas em andamento também
+    if (user?.role === "operacional" || user?.role === "admin") {
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+    } else {
+      // Manter o comportamento anterior para outros casos
+      completeExecutionMutation.mutate(sale.id);
+    }
   };
   
   const handleMarkAsPaid = (sale: Sale) => {
@@ -1245,6 +1261,13 @@ export default function SalesPage() {
           }}
         />
       )}
+      
+      {/* Diálogo de operação da venda para operacionais */}
+      <SaleOperationDialog
+        open={operationDialogOpen}
+        onClose={() => setOperationDialogOpen(false)}
+        saleId={selectedSale?.id}
+      />
     </div>
   );
 }
