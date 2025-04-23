@@ -1079,10 +1079,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validação básica dos dados enviados - convertendo a data para o formato correto
       const today = new Date(); // Obter a data atual
       
+      // Vamos garantir que a data esteja no formato correto para ser salva no banco
+      let saleDate = today; // Por padrão, usamos a data de hoje
+      
+      if (userData.date) {
+        if (typeof userData.date === 'string') {
+          // Se for string, convertemos para Date
+          saleDate = new Date(userData.date);
+          
+          // Verificamos se a data é válida
+          if (isNaN(saleDate.getTime())) {
+            saleDate = today; // Se for inválida, usamos hoje
+          }
+        } else {
+          // Se já for um objeto Date, usamos diretamente
+          saleDate = userData.date;
+        }
+      }
+      
       const validatedSaleData = insertSaleSchema.parse({
         ...userData,
-        // Definir a data como a data atual
-        date: typeof userData.date === 'string' ? new Date(userData.date) : (userData.date || today),
+        // Usar a data processada
+        date: saleDate,
         // Se for admin, supervisor, operacional ou financeiro, pode especificar o vendedor
         // Caso contrário, o vendedor será o próprio usuário logado
         sellerId: (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && userData.sellerId) 
@@ -1238,10 +1256,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validação dos dados para atualização
       const today = new Date(); // Obter a data atual
       
-      // Se a data for null ou undefined, usar a data atual
+      // Processamento da data
+      let saleDate = today; // Por padrão, usamos a data de hoje
+      
+      if (req.body.date) {
+        if (typeof req.body.date === 'string') {
+          // Se for string, convertemos para Date
+          saleDate = new Date(req.body.date);
+          
+          // Verificamos se a data é válida
+          if (isNaN(saleDate.getTime())) {
+            saleDate = today; // Se for inválida, usamos hoje
+          }
+        } else {
+          // Se já for um objeto Date, usamos diretamente
+          saleDate = req.body.date;
+        }
+      }
+      
+      // Se a data for null ou undefined, usar a data processada
       const dataToValidate = {
         ...req.body,
-        date: req.body.date || today
+        date: saleDate
       };
       
       const saleData = insertSaleSchema.partial().parse(dataToValidate);

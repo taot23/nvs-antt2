@@ -273,7 +273,10 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         items: saleItems.map((item: SaleItem) => ({
           serviceId: item.serviceId,
           quantity: item.quantity,
-          notes: item.notes
+          notes: item.notes,
+          price: item.price,
+          totalPrice: item.totalPrice,
+          status: item.status || "pending"
         }))
       });
 
@@ -329,7 +332,10 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     append({
       serviceId: 0,
       quantity: 1,
-      notes: ""
+      notes: "",
+      price: "0",
+      totalPrice: "0",
+      status: "pending"
     });
   };
   

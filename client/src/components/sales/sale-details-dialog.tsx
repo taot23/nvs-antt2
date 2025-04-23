@@ -377,7 +377,9 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                                 R$ {parseFloat(item.price).toFixed(2).replace('.', ',')}
                               </TableCell>
                               <TableCell className="text-right font-medium">
-                                R$ {(parseFloat(item.price) * item.quantity).toFixed(2).replace('.', ',')}
+                                R$ {item.totalPrice 
+                                  ? parseFloat(item.totalPrice).toFixed(2).replace('.', ',')
+                                  : (parseFloat(item.price) * item.quantity).toFixed(2).replace('.', ',')}
                               </TableCell>
                             </TableRow>
                           ))}
