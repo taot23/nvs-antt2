@@ -587,11 +587,15 @@ export class DatabaseStorage implements IStorage {
     try {
       const items = await this.getSaleItems(saleId);
       
-      // Cálculo usando price * quantity em vez de totalPrice que não existe
+      // Cálculo utilizando totalPrice se disponível, ou calculando como price * quantity
       const totalAmount = items.reduce((total, item) => {
-        const itemPrice = Number(item.price) || 0;
-        const itemQuantity = item.quantity || 1;
-        return total + (itemPrice * itemQuantity);
+        if (item.totalPrice) {
+          return total + Number(item.totalPrice);
+        } else {
+          const itemPrice = Number(item.price) || 0;
+          const itemQuantity = item.quantity || 1;
+          return total + (itemPrice * itemQuantity);
+        }
       }, 0);
       
       await db
