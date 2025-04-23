@@ -1187,29 +1187,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: "Venda criada"
       });
       
-      // Se o valor total foi fornecido pelo usuário, vamos garantir que ele seja usado
-      if (userData.totalAmount) {
-        try {
-          // Tratar possíveis formatos de valor (vírgula para ponto)
-          const totalAmountStr = typeof userData.totalAmount === 'string' 
-            ? userData.totalAmount.replace(',', '.') 
-            : String(userData.totalAmount);
-          
-          console.log(`Atualizando diretamente o valor total para: ${totalAmountStr}`);
-          
-          // Atualizar diretamente no banco, evitando qualquer recálculo
-          const { pool } = await import('./db');
-          await pool.query(
-            'UPDATE sales SET total_amount = $1, updated_at = $2 WHERE id = $3',
-            [totalAmountStr, new Date(), createdSale.id]
-          );
-          
-          // Atualizar o objeto a ser retornado para o cliente
-          createdSale.totalAmount = totalAmountStr;
-          console.log("Valor total atualizado com sucesso!");
-        } catch (error) {
-          console.error("Erro ao atualizar valor total:", error);
-        }
+      // Verificando o valor total fornecido
+      console.log("Verificando valor total fornecido:", userData.totalAmount, typeof userData.totalAmount);
+      
+      // Sempre garantir que o valor total seja usado, mesmo que seja zero
+      try {
+        // Tratar possíveis formatos de valor (vírgula para ponto)
+        const totalAmountStr = userData.totalAmount
+          ? (typeof userData.totalAmount === 'string' 
+              ? userData.totalAmount.replace(',', '.') 
+              : String(userData.totalAmount))
+          : '0';
+        
+        console.log(`Atualizando diretamente o valor total para: ${totalAmountStr}`);
+        
+        // Atualizar diretamente no banco, evitando qualquer recálculo
+        const { pool } = await import('./db');
+        await pool.query(
+          'UPDATE sales SET total_amount = $1, updated_at = $2 WHERE id = $3',
+          [totalAmountStr, new Date(), createdSale.id]
+        );
+        
+        // Verificar se o update funcionou buscando o valor atual
+        const checkResult = await pool.query(
+          'SELECT total_amount FROM sales WHERE id = $1',
+          [createdSale.id]
+        );
+        console.log("Valor após atualização:", checkResult.rows[0]);
+        
+        // Atualizar o objeto a ser retornado para o cliente
+        createdSale.totalAmount = totalAmountStr;
+        console.log("Valor total atualizado com sucesso!");
+      } catch (error) {
+        console.error("Erro ao atualizar valor total:", error);
       }
       
       // Buscar a venda atualizada com o valor total definido
