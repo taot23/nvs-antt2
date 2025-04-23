@@ -472,8 +472,14 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     return seller ? seller.username : `Vendedor #${id}`;
   };
 
+  // Log para debug
+  console.log('SaleDialog renderizado, open =', open, 'sale =', sale ? sale.id : null);
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      console.log('Dialog onOpenChange: ', isOpen);
+      if (!isOpen) onClose();
+    }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader className="mb-6">
           <DialogTitle className="text-2xl font-bold">

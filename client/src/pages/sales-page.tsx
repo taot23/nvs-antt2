@@ -290,13 +290,27 @@ export default function SalesPage() {
   
   // Handlers
   const handleOpenCreateDialog = () => {
+    console.log("Botão Nova Venda clicado");
+    // Primeiro limpar o sale selecionado
     setSelectedSale(null);
-    setDialogOpen(true);
+    // Usar um setTimeout para garantir que o estado seja atualizado
+    setTimeout(() => {
+      // Então abrir o diálogo
+      setDialogOpen(true);
+      console.log("Estado do diálogo após clique:", true);
+    }, 0);
   };
   
   const handleEdit = (sale: Sale) => {
+    console.log("Botão Editar Venda clicado para venda:", sale.id);
+    // Primeiro selecionamos a venda
     setSelectedSale(sale);
-    setDialogOpen(true);
+    // Usar um setTimeout para garantir que o estado seja atualizado
+    setTimeout(() => {
+      // Então abrir o diálogo
+      setDialogOpen(true);
+      console.log("Estado do diálogo após editar:", true);
+    }, 0);
   };
   
   const handleViewDetails = (sale: Sale) => {
@@ -1004,9 +1018,13 @@ export default function SalesPage() {
       {/* Diálogo de criação/edição */}
       <SaleDialog
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => {
+          console.log("Fechando diálogo de venda");
+          setDialogOpen(false);
+        }}
         sale={selectedSale}
         onSaveSuccess={() => {
+          console.log("Venda salva com sucesso");
           queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
           setDialogOpen(false);
         }}
