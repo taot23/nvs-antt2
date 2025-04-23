@@ -23,9 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 // Esquema de validação para itens da venda
 const saleItemSchema = z.object({
   serviceId: z.coerce.number().min(1, "Serviço é obrigatório"),
-  serviceTypeId: z.coerce.number().min(1, "Tipo de serviço é obrigatório"),
   quantity: z.coerce.number().min(1, "Quantidade mínima é 1"),
-  price: z.string().min(1, "Preço é obrigatório"),
   notes: z.string().optional().nullable(),
 });
 
@@ -37,7 +35,9 @@ const saleSchema = z.object({
   }),
   customerId: z.coerce.number().min(1, "Cliente é obrigatório"),
   paymentMethodId: z.coerce.number().min(1, "Forma de pagamento é obrigatória"),
+  serviceTypeId: z.coerce.number().min(1, "Tipo de execução é obrigatório"),
   sellerId: z.coerce.number().min(1, "Vendedor é obrigatório"),
+  totalAmount: z.string().min(1, "Valor total é obrigatório"),
   notes: z.string().optional().nullable(),
   items: z.array(saleItemSchema).min(1, "Pelo menos um item é obrigatório"),
 });
@@ -157,14 +157,14 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     date: new Date(),
     customerId: 0,
     paymentMethodId: 0,
+    serviceTypeId: 0,
     sellerId: user?.id || 0,
+    totalAmount: "",
     notes: "",
     items: [
       {
         serviceId: 0,
-        serviceTypeId: 0,
         quantity: 1,
-        price: "",
         notes: ""
       }
     ]
@@ -258,13 +258,13 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         date: new Date(sale.date),
         customerId: sale.customerId,
         paymentMethodId: sale.paymentMethodId,
+        serviceTypeId: saleItems[0]?.serviceTypeId || 0, // Pega o tipo de serviço do primeiro item
         sellerId: sale.sellerId,
+        totalAmount: sale.totalAmount,
         notes: sale.notes,
         items: saleItems.map((item: SaleItem) => ({
           serviceId: item.serviceId,
-          serviceTypeId: item.serviceTypeId,
           quantity: item.quantity,
-          price: item.price,
           notes: item.notes
         }))
       });
@@ -316,21 +316,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     }
   }, [open, sale?.id, form, user, users]);
   
-  // Atualiza o preço do item quando seleciona um serviço
-  const handleServiceChange = (index: number, serviceId: number) => {
-    const service = services.find((s: any) => s.id === serviceId);
-    if (service) {
-      form.setValue(`items.${index}.price`, service.price);
-    }
-  };
-  
   // Adiciona um novo item
   const addItem = () => {
     append({
       serviceId: 0,
-      serviceTypeId: 0,
       quantity: 1,
-      price: "",
       notes: ""
     });
   };
@@ -350,27 +340,6 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       name: newCustomerName,
       document: newCustomerDocument,
     });
-  };
-
-  // Calcula o valor total da venda
-  const calculateTotal = () => {
-    let total = 0;
-    
-    fields.forEach((field, index) => {
-      const price = form.getValues(`items.${index}.price`);
-      const quantity = form.getValues(`items.${index}.quantity`);
-      
-      if (price && quantity) {
-        // Converte o formato brasileiro (vírgula) para formato numérico
-        const numericPrice = parseFloat(price.replace(/\./g, '').replace(',', '.'));
-        if (!isNaN(numericPrice)) {
-          total += numericPrice * quantity;
-        }
-      }
-    });
-    
-    // Formata para moeda brasileira
-    return total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
   
   // Mutation para salvar a venda
@@ -823,7 +792,6 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                                 onValueChange={(value) => {
                                   const serviceId = parseInt(value);
                                   field.onChange(serviceId);
-                                  handleServiceChange(index, serviceId);
                                 }}
                                 value={field.value ? field.value.toString() : "0"}
                               >
@@ -846,36 +814,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         />
                       </div>
                       
-                      {/* Tipo de Serviço */}
-                      <div className="md:col-span-3">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.serviceTypeId`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Tipo de Execução</FormLabel>
-                              <Select 
-                                onValueChange={(value) => field.onChange(parseInt(value))}
-                                value={field.value ? field.value.toString() : "0"}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {serviceTypes.map((type: any) => (
-                                    <SelectItem key={type.id} value={type.id.toString()}>
-                                      {type.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+
                       
                       {/* Quantidade */}
                       <div className="md:col-span-2">
