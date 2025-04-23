@@ -20,6 +20,7 @@ import SaleDialog from "@/components/sales/sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
+import { SaleResendDialog } from "@/components/sales/sale-resend-dialog";
 
 // Tipos
 type Sale = {
@@ -92,6 +93,7 @@ export default function SalesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clearSalesDialogOpen, setClearSalesDialogOpen] = useState(false); // Estado para diálogo de limpar vendas
   const [operationDialogOpen, setOperationDialogOpen] = useState(false); // Estado para diálogo de operação de vendas
+  const [resendDialogOpen, setResendDialogOpen] = useState(false); // Estado para diálogo de reenvio de vendas
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
@@ -478,7 +480,14 @@ export default function SalesPage() {
   
   // Handler para reenviar venda corrigida
   const handleResendSale = (sale: Sale) => {
-    resendSaleMutation.mutate(sale.id);
+    // Para perfil vendedor, abrir o diálogo de reenvio com observações
+    if (user?.role === "vendedor" || user?.role === "admin") {
+      setSelectedSale(sale);
+      setResendDialogOpen(true);
+    } else {
+      // Para outros perfis, manter o comportamento anterior
+      resendSaleMutation.mutate(sale.id);
+    }
   };
   
   // Handler para limpar todas as vendas
@@ -1339,6 +1348,13 @@ export default function SalesPage() {
         open={operationDialogOpen}
         onClose={() => setOperationDialogOpen(false)}
         saleId={selectedSale?.id}
+      />
+      
+      {/* Diálogo de reenvio de venda corrigida para vendedores */}
+      <SaleResendDialog
+        open={resendDialogOpen}
+        onOpenChange={setResendDialogOpen}
+        sale={selectedSale}
       />
     </div>
   );
