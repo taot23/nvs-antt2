@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign } from "lucide-react";
+import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog } from "lucide-react";
 import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -903,7 +903,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                   render={({ field }) => (
                     <FormItem className="flex-1">
                       <FormLabel className="flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
+                        <Cog className="h-4 w-4" />
                         Tipo de Execução
                       </FormLabel>
                       <Select 
