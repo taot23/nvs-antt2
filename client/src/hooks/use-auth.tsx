@@ -38,6 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Disponibilizar o usuário atual globalmente para o WebSocket
+      if (typeof window !== 'undefined') {
+        window.currentUser = user;
+      }
+      
       toast({
         title: "Login realizado com sucesso!",
         description: `Bem-vindo, ${user.username}!`,

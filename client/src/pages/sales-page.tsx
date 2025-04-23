@@ -78,7 +78,7 @@ export default function SalesPage() {
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  const { lastEvent, isConnected } = useWebSocket();
+  const { lastEvent, isConnected, reconnect } = useWebSocket();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Estados
@@ -382,6 +382,13 @@ export default function SalesPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Primeiro tentar reconectar o WebSocket se não estiver conectado
+      if (!isConnected) {
+        console.log('WebSocket não conectado. Tentando reconectar...');
+        reconnect();
+      }
+      
+      // Então atualizar os dados
       await refetch();
       toast({
         title: "Dados atualizados",

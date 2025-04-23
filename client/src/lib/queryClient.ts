@@ -55,3 +55,22 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Tipo para o usuário atual (simplificado)
+type CurrentUser = {
+  id: number;
+  username: string;
+  role: string;
+};
+
+// Disponibilizar o queryClient e o usuário atual globalmente para que o WebSocket possa acessá-los
+declare global {
+  interface Window {
+    queryClient: typeof queryClient;
+    currentUser?: CurrentUser;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.queryClient = queryClient;
+}
