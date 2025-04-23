@@ -443,6 +443,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   
   // Submit do formulário
   const onSubmit = (values: z.infer<typeof saleSchema>) => {
+    // Log para debug
+    console.log("Enviando venda com itens:", values.items);
     saveMutation.mutate(values);
   };
 

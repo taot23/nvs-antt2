@@ -491,13 +491,13 @@ export class DatabaseStorage implements IStorage {
       // Importar o pool do banco de dados diretamente
       const { pool } = await import('./db');
       
-      // Usar SQL puro para evitar problema com colunas que não existem
+      // Usar SQL puro para obter todas as colunas, incluindo as novas total_price e status
       const result = await pool.query(
-        `SELECT id, sale_id, service_id, service_type_id, quantity, price, notes, created_at 
-         FROM sale_items
-         WHERE sale_id = $1`,
+        `SELECT * FROM sale_items WHERE sale_id = $1`,
         [saleId]
       );
+      
+      console.log("Resultado da consulta de itens:", result.rows);
       
       if (!result.rows || result.rows.length === 0) {
         return [];
@@ -505,7 +505,7 @@ export class DatabaseStorage implements IStorage {
       
       // Mapeia os resultados para o tipo esperado
       return result.rows.map(row => {
-        // Calcular o preço total para cada item (já que não existe na tabela)
+        // Calcular o preço total para cada item se não existir na tabela
         const itemPrice = Number(row.price) || 0;
         const itemQuantity = Number(row.quantity) || 1;
         
@@ -516,10 +516,11 @@ export class DatabaseStorage implements IStorage {
           serviceTypeId: row.service_type_id,
           quantity: row.quantity,
           price: row.price,
-          // Adicionamos um valor calculado para o total_price
-          totalPrice: (itemPrice * itemQuantity).toString(),
+          // Usar o total_price da tabela se existir, senão calcular
+          totalPrice: row.total_price || (itemPrice * itemQuantity).toString(),
           notes: row.notes || null,
-          status: "pending", // Valor padrão já que não existe na tabela
+          // Usar o status da tabela se existir, senão usar "pending"
+          status: row.status || "pending",
           createdAt: row.created_at,
         } as unknown as SaleItem;
       });

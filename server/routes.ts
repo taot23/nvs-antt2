@@ -1076,6 +1076,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userData = req.body;
       
+      // Debug - exibir os dados recebidos
+      console.log("Dados da venda recebidos:", JSON.stringify(userData, null, 2));
+      
       // Validação básica dos dados enviados - convertendo a data para o formato correto
       const today = new Date(); // Obter a data atual
       
@@ -1121,27 +1124,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdSale = await storage.createSale(validatedSaleData);
       
       // Se tiver itens, criar os itens da venda
+      console.log("Itens para criar:", JSON.stringify(userData.items || [], null, 2));
+      
       if (userData.items && Array.isArray(userData.items)) {
         for (const item of userData.items) {
           // Validação básica de cada item
-          if (!item.serviceId || !item.serviceTypeId || !item.price) {
+          if (!item.serviceId || item.serviceId <= 0 || !item.serviceTypeId || !item.price) {
+            console.log("Item inválido pulado:", item);
             continue; // Pula itens inválidos
           }
           
           // Calcular o preço total do item
           const quantity = item.quantity || 1;
-          const totalPrice = Number(item.price) * quantity;
+          const price = parseFloat(item.price) || 0;
+          const totalPrice = price * quantity;
           
-          await storage.createSaleItem({
+          console.log("Criando item:", {
             saleId: createdSale.id,
             serviceId: item.serviceId,
             serviceTypeId: item.serviceTypeId,
             quantity,
-            price: item.price.toString(),
-            totalPrice: totalPrice.toString(),
-            notes: item.notes || null,
-            status: "pending"
+            price: price.toString(),
+            totalPrice: totalPrice.toString()
           });
+          
+          try {
+            await storage.createSaleItem({
+              saleId: createdSale.id,
+              serviceId: item.serviceId,
+              serviceTypeId: item.serviceTypeId,
+              quantity,
+              price: price.toString(),
+              totalPrice: totalPrice.toString(),
+              notes: item.notes || null,
+              status: "pending"
+            });
+          } catch (itemError) {
+            console.error("Erro ao criar item:", itemError);
+          }
         }
       }
       
