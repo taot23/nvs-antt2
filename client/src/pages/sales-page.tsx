@@ -1015,20 +1015,26 @@ export default function SalesPage() {
         </CardContent>
       </Card>
       
-      {/* Diálogo de criação/edição */}
-      <SaleDialog
-        open={dialogOpen}
-        onClose={() => {
-          console.log("Fechando diálogo de venda");
-          setDialogOpen(false);
-        }}
-        sale={selectedSale}
-        onSaveSuccess={() => {
-          console.log("Venda salva com sucesso");
-          queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-          setDialogOpen(false);
-        }}
-      />
+      {/* Diálogo apenas para edição de vendas existentes */}
+      {dialogOpen && (
+        <SaleDialog
+          open={dialogOpen}
+          onClose={() => {
+            console.log("Fechando diálogo de edição de venda");
+            setDialogOpen(false);
+          }}
+          sale={selectedSale}
+          onSaveSuccess={() => {
+            console.log("Venda atualizada com sucesso");
+            toast({
+              title: "Venda atualizada",
+              description: "A venda foi atualizada com sucesso",
+            });
+            queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+            setDialogOpen(false);
+          }}
+        />
+      )}
       
       {/* Diálogo de detalhes */}
       <SaleDetailsDialog
@@ -1067,6 +1073,26 @@ export default function SalesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Novo diálogo dedicado para criação de vendas */}
+      {showCreateVendaDialog && (
+        <SaleDialog 
+          open={showCreateVendaDialog} 
+          onClose={() => {
+            console.log("Fechando diálogo de criação de venda");
+            setShowCreateVendaDialog(false);
+          }}
+          sale={null}
+          onSaveSuccess={() => {
+            setShowCreateVendaDialog(false);
+            toast({
+              title: "Venda criada",
+              description: "A venda foi criada com sucesso",
+            });
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
