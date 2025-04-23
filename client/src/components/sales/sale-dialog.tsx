@@ -244,10 +244,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     return nameMatch || documentMatch;
   });
 
-  // Filtra vendedores com base no papel - apenas administrador, supervisor e vendedor
-  const sellers = users.filter((user: any) => 
-    ['admin', 'vendedor', 'supervisor'].includes(user.role)
-  );
+  // Mostra todos os usuários para perfis admin, supervisor, operacional e financeiro
+  // Para perfil vendedor, mostra apenas ele mesmo
+  const sellers = user?.role === 'vendedor'
+    ? users.filter((u: any) => u.id === user.id)
+    : users;
   
   const filteredSellers = sellers.filter((seller: any) => 
     seller.username.toLowerCase().includes(sellerSearchTerm.toLowerCase())
