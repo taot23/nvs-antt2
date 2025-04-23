@@ -1077,10 +1077,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userData = req.body;
       
       // Validação básica dos dados enviados - convertendo a data para o formato correto
+      const today = new Date(); // Obter a data atual
+      
       const validatedSaleData = insertSaleSchema.parse({
         ...userData,
-        // Se a data for uma string ISO, converte para um objeto Date
-        date: typeof userData.date === 'string' ? new Date(userData.date) : userData.date,
+        // Definir a data como a data atual
+        date: typeof userData.date === 'string' ? new Date(userData.date) : (userData.date || today),
         // Se for admin, supervisor, operacional ou financeiro, pode especificar o vendedor
         // Caso contrário, o vendedor será o próprio usuário logado
         sellerId: (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && userData.sellerId) 
@@ -1234,7 +1236,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validação dos dados para atualização
-      const saleData = insertSaleSchema.partial().parse(req.body);
+      const today = new Date(); // Obter a data atual
+      
+      // Se a data for null ou undefined, usar a data atual
+      const dataToValidate = {
+        ...req.body,
+        date: req.body.date || today
+      };
+      
+      const saleData = insertSaleSchema.partial().parse(dataToValidate);
       
       // Se estiver tentando alterar o número da ordem de serviço, verificar se já não existe outro
       if (saleData.orderNumber && saleData.orderNumber !== sale.orderNumber) {
