@@ -488,10 +488,12 @@ export class DatabaseStorage implements IStorage {
   // Implementação dos métodos de itens da venda
   async getSaleItems(saleId: number): Promise<SaleItem[]> {
     try {
+      // Importar o pool do banco de dados diretamente
+      const { pool } = await import('./db');
+      
       // Usar SQL puro para evitar problema com colunas que não existem
-      const pool = db.getDriver();
       const result = await pool.query(
-        `SELECT id, sale_id, service_id, service_type_id, quantity, price, notes, status, created_at 
+        `SELECT id, sale_id, service_id, service_type_id, quantity, price, notes, created_at 
          FROM sale_items
          WHERE sale_id = $1`,
         [saleId]
@@ -514,12 +516,12 @@ export class DatabaseStorage implements IStorage {
           serviceTypeId: row.service_type_id,
           quantity: row.quantity,
           price: row.price,
-          // Adiciona o total_price calculado
+          // Adicionamos um valor calculado para o total_price
           totalPrice: (itemPrice * itemQuantity).toString(),
-          notes: row.notes,
-          status: row.status,
+          notes: row.notes || null,
+          status: "pending", // Valor padrão já que não existe na tabela
           createdAt: row.created_at,
-        } as unknown as SaleItem; // Usar unknown como intermediário para contornar incompatibilidade
+        } as unknown as SaleItem;
       });
     } catch (error) {
       console.error("Erro ao buscar itens da venda:", error);
