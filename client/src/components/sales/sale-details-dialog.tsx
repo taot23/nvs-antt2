@@ -362,8 +362,6 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                             <TableHead>Serviço</TableHead>
                             <TableHead>Tipo</TableHead>
                             <TableHead className="text-right">Qtd</TableHead>
-                            <TableHead className="text-right">Preço Unit.</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -377,14 +375,6 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                               </TableCell>
                               <TableCell>{findServiceTypeName(item.serviceTypeId)}</TableCell>
                               <TableCell className="text-right">{item.quantity}</TableCell>
-                              <TableCell className="text-right">
-                                R$ {parseFloat(item.price).toFixed(2).replace('.', ',')}
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                R$ {item.totalPrice 
-                                  ? parseFloat(item.totalPrice).toFixed(2).replace('.', ',')
-                                  : (parseFloat(item.price) * item.quantity).toFixed(2).replace('.', ',')}
-                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

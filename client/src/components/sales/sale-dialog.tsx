@@ -1159,8 +1159,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       serviceId: item.serviceId,
                       serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
                       quantity: item.quantity || 1,
-                      price: item.price ? item.price.replace(',', '.') : "0",
-                      totalPrice: item.totalPrice ? item.totalPrice.replace(',', '.') : "0",
+                      price: "0", // Preço unitário fixado em zero
+                      totalPrice: "0", // Preço total do item fixado em zero - só usamos o valor total da venda
                       status: "pending",
                       notes: item.notes || ""
                     }))
