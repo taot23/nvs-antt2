@@ -322,7 +322,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                   <FormItem>
                     <FormLabel>Número da OS</FormLabel>
                     <FormControl>
-                      <Input placeholder="OS202400001" {...field} />
+                      <Input placeholder="123456" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
