@@ -826,6 +826,17 @@ export default function SalesPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar Excel
             </Button>
+            
+            {/* Botão de administração para limpar todas as vendas */}
+            {(user?.role === "admin" || user?.role === "operacional") && (
+              <Button 
+                variant="destructive" 
+                onClick={handleClearAllSales}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Limpar Vendas
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1113,6 +1124,36 @@ export default function SalesPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Diálogo de confirmação para limpar todas as vendas */}
+      <AlertDialog open={clearSalesDialogOpen} onOpenChange={setClearSalesDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ ATENÇÃO: Ação Irreversível!</AlertDialogTitle>
+            <AlertDialogDescription>
+              <p className="mb-2">
+                Esta ação <strong>não pode ser desfeita</strong>. Todas as vendas, itens e históricos serão 
+                <strong className="text-destructive"> permanentemente excluídos</strong> do sistema.
+              </p>
+              <p className="mb-2">
+                Use esta opção apenas em ambiente de testes ou quando precisar limpar completamente os dados.
+              </p>
+              <p className="font-semibold">
+                Tem certeza que deseja continuar?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmClearAllSales}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sim, Limpar Todas as Vendas
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
