@@ -1131,8 +1131,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Criar a venda
-      const createdSale = await storage.createSale(validatedSaleData);
+      // Preservar o valor total fornecido pelo usuário para uso posterior
+      const userTotalAmount = userData.totalAmount 
+          ? (typeof userData.totalAmount === 'string' 
+              ? userData.totalAmount.replace(',', '.') 
+              : String(userData.totalAmount)) 
+          : '0';
+      console.log("Valor total definido pelo usuário:", userTotalAmount);
+      
+      // Adicionar o valor total diretamente na criação da venda
+      const saleDataWithTotal = {
+          ...validatedSaleData,
+          totalAmount: userTotalAmount // Adicionamos o valor diretamente aqui
+      };
+      
+      // Criar a venda com o valor total já definido
+      console.log("Criando venda com valor total:", saleDataWithTotal);
+      
+      // Usar SQL direto para garantir que o valor total seja respeitado
+      const { pool } = await import('./db');
+      const result = await pool.query(
+          `INSERT INTO sales (
+              order_number, date, customer_id, payment_method_id, 
+              seller_id, total_amount, notes, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+              saleDataWithTotal.orderNumber,
+              saleDataWithTotal.date,
+              saleDataWithTotal.customerId,
+              saleDataWithTotal.paymentMethodId,
+              saleDataWithTotal.sellerId,
+              userTotalAmount, // Valor total definido pelo usuário
+              saleDataWithTotal.notes || null,
+              new Date(),
+              new Date()
+          ]
+      );
+      
+      // Obter a venda criada a partir do resultado da query
+      const createdSale = result.rows[0];
+      console.log("Venda criada com valor total:", createdSale);
       
       // Se tiver itens, criar os itens da venda
       console.log("Itens para criar:", JSON.stringify(userData.items || [], null, 2));
@@ -1187,40 +1225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: "Venda criada"
       });
       
-      // Verificando o valor total fornecido
-      console.log("Verificando valor total fornecido:", userData.totalAmount, typeof userData.totalAmount);
-      
-      // Sempre garantir que o valor total seja usado, mesmo que seja zero
-      try {
-        // Tratar possíveis formatos de valor (vírgula para ponto)
-        const totalAmountStr = userData.totalAmount
-          ? (typeof userData.totalAmount === 'string' 
-              ? userData.totalAmount.replace(',', '.') 
-              : String(userData.totalAmount))
-          : '0';
-        
-        console.log(`Atualizando diretamente o valor total para: ${totalAmountStr}`);
-        
-        // Atualizar diretamente no banco, evitando qualquer recálculo
-        const { pool } = await import('./db');
-        await pool.query(
-          'UPDATE sales SET total_amount = $1, updated_at = $2 WHERE id = $3',
-          [totalAmountStr, new Date(), createdSale.id]
-        );
-        
-        // Verificar se o update funcionou buscando o valor atual
-        const checkResult = await pool.query(
-          'SELECT total_amount FROM sales WHERE id = $1',
-          [createdSale.id]
-        );
-        console.log("Valor após atualização:", checkResult.rows[0]);
-        
-        // Atualizar o objeto a ser retornado para o cliente
-        createdSale.totalAmount = totalAmountStr;
-        console.log("Valor total atualizado com sucesso!");
-      } catch (error) {
-        console.error("Erro ao atualizar valor total:", error);
-      }
+      // Este código não é mais necessário pois agora inserimos o valor total diretamente
+      // na criação da venda usando SQL direto para garantir que o valor seja respeitado
       
       // Buscar a venda atualizada com o valor total definido
       const updatedSale = await storage.getSale(createdSale.id);
