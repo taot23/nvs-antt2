@@ -1451,6 +1451,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota especial para administração - limpar todas as vendas
+  app.delete("/api/admin/clear-sales", isAuthenticated, async (req, res) => {
+    try {
+      // Verificar se é um administrador
+      if (req.user?.role !== "admin" && req.user?.role !== "operacional") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem executar esta operação." });
+      }
+      
+      console.log("⚠️ ATENÇÃO: Excluindo todas as vendas do banco de dados...");
+      
+      // Usar SQL puro para maior eficiência
+      const { pool } = await import('./db');
+      
+      // Remover primeiro os itens de vendas (dependência)
+      await pool.query('DELETE FROM sale_items');
+      console.log("Todos os itens de vendas foram excluídos");
+      
+      // Remover histórico de status (dependência)
+      await pool.query('DELETE FROM sales_status_history');
+      console.log("Todo o histórico de status foi excluído");
+      
+      // Remover as vendas
+      const result = await pool.query('DELETE FROM sales RETURNING *');
+      console.log(`${result.rowCount} vendas foram excluídas`);
+      
+      return res.status(200).json({ 
+        message: "Todas as vendas foram excluídas com sucesso",
+        count: result.rowCount
+      });
+    } catch (error) {
+      console.error("Erro ao limpar vendas:", error);
+      return res.status(500).json({ error: "Erro ao limpar vendas" });
+    }
+  });
+
   // Rota para excluir uma venda
   app.delete("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {

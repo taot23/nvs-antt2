@@ -86,6 +86,7 @@ export default function SalesPage() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clearSalesDialogOpen, setClearSalesDialogOpen] = useState(false); // Estado para diálogo de limpar vendas
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
@@ -255,6 +256,39 @@ export default function SalesPage() {
     },
   });
   
+  // Mutation para limpar todas as vendas
+  const clearAllSalesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/admin/clear-sales`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao limpar vendas");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      toast({
+        title: "Vendas removidas",
+        description: `Foram removidas ${data.count} vendas do sistema`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao limpar vendas",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Mutation para marcar como paga
   const markAsPaidMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -344,6 +378,16 @@ export default function SalesPage() {
   
   const handleMarkAsPaid = (sale: Sale) => {
     markAsPaidMutation.mutate(sale.id);
+  };
+  
+  // Handler para limpar todas as vendas
+  const handleClearAllSales = () => {
+    setClearSalesDialogOpen(true);
+  };
+  
+  const handleConfirmClearAllSales = () => {
+    clearAllSalesMutation.mutate();
+    setClearSalesDialogOpen(false);
   };
   
   const clearSearch = () => {
