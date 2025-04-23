@@ -460,7 +460,6 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       console.log("Formulário validado com sucesso!");
       console.log("Valores do formulário:", values);
       console.log("Número de itens:", values.items.length);
-      console.log("Itens da venda:", JSON.stringify(values.items, null, 2));
       
       // Verificações adicionais antes de salvar
       if (values.customerId <= 0) {
@@ -490,9 +489,21 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         return;
       }
       
-      // Chama a mutação para salvar a venda
+      // CORREÇÃO IMPORTANTE: Garante que todos os itens tenham o mesmo serviceTypeId da venda
+      const correctedValues = {
+        ...values,
+        items: values.items.map(item => ({
+          ...item,
+          serviceTypeId: values.serviceTypeId // Usa o serviceTypeId da venda para todos os itens
+        }))
+      };
+      
+      console.log("Valores corrigidos (serviceTypeId aplicado aos itens):", correctedValues);
+      console.log("Itens da venda corrigidos:", JSON.stringify(correctedValues.items, null, 2));
+      
+      // Chama a mutação para salvar a venda com os valores corrigidos
       console.log("Chamando saveMutation...");
-      saveMutation.mutate(values);
+      saveMutation.mutate(correctedValues);
     } catch (error) {
       console.error("Erro ao enviar formulário:", error);
       toast({
