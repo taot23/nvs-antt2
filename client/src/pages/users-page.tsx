@@ -21,9 +21,11 @@ import {
 } from "@/components/ui/card";
 import { 
   Pencil, Plus, Trash2, UserCog, Search, Download, Filter, 
-  RefreshCw, ChevronUp, ChevronDown, FileText, FileSpreadsheet, X 
+  RefreshCw, ChevronUp, ChevronDown, FileText, FileSpreadsheet, X,
+  KeyRound
 } from "lucide-react";
 import UserDialog from "@/components/users/user-dialog";
+import ResetPasswordDialog from "@/components/users/reset-password-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,6 +64,8 @@ export default function UsersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
   
   // Estados para filtros e ordenação
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -258,6 +262,12 @@ export default function UsersPage() {
     }
   };
 
+  // Função para abrir o modal de redefinição de senha
+  const handleResetPassword = (user: User) => {
+    setUserToResetPassword(user);
+    setIsResetPasswordDialogOpen(true);
+  };
+  
   // Função para limpar filtros
   const clearFilters = () => {
     setRoleFilter("all");
@@ -506,6 +516,16 @@ export default function UsersPage() {
                                   <Pencil className="h-4 w-4" />
                                   <span className="sr-only">Editar</span>
                                 </Button>
+                                {currentUser?.role === "admin" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleResetPassword(user)}
+                                  >
+                                    <KeyRound className="h-4 w-4 text-yellow-600" />
+                                    <span className="sr-only">Redefinir senha</span>
+                                  </Button>
+                                )}
                                 {currentUser?.id !== user.id && (
                                   <Button
                                     variant="ghost"
@@ -560,6 +580,18 @@ export default function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Modal de redefinição de senha */}
+      {userToResetPassword && (
+        <ResetPasswordDialog
+          user={userToResetPassword}
+          isOpen={isResetPasswordDialogOpen}
+          onClose={() => {
+            setIsResetPasswordDialogOpen(false);
+            setUserToResetPassword(null);
+          }}
+        />
+      )}
     </div>
   );
 }
