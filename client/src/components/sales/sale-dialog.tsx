@@ -23,6 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 // Esquema de validação para itens da venda
 const saleItemSchema = z.object({
   serviceId: z.coerce.number().min(1, "Serviço é obrigatório"),
+  serviceTypeId: z.coerce.number().min(1, "Tipo de serviço é obrigatório"),
   quantity: z.coerce.number().min(1, "Quantidade mínima é 1"),
   price: z.string().optional(),
   totalPrice: z.string().optional(),
@@ -273,6 +274,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         notes: sale.notes,
         items: saleItems.map((item: SaleItem) => ({
           serviceId: item.serviceId,
+          serviceTypeId: item.serviceTypeId,
           quantity: item.quantity,
           notes: item.notes,
           price: item.price,
@@ -330,8 +332,12 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   
   // Adiciona um item em branco ao formulário
   const addEmptyItem = () => {
+    // Obtém o serviceTypeId do formulário
+    const serviceTypeId = form.getValues().serviceTypeId;
+    
     append({
       serviceId: 0,
+      serviceTypeId: serviceTypeId,
       quantity: 1,
       notes: "",
       price: "0",
@@ -351,12 +357,25 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       return;
     }
     
+    // Obtém o serviceTypeId do formulário
+    const serviceTypeId = form.getValues().serviceTypeId;
+    
+    if (!serviceTypeId) {
+      toast({
+        title: "Tipo de execução não selecionado",
+        description: "Selecione um tipo de execução para adicionar o serviço",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Adiciona o preço ao item
     const selectedService = services.find((s: any) => s.id === selectedServiceId);
     const price = selectedService?.price || "0";
     
     append({
       serviceId: selectedServiceId,
+      serviceTypeId: serviceTypeId,
       quantity: selectedServiceQuantity,
       notes: "",
       price: price, // Adicionar o preço do serviço
