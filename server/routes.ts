@@ -1131,46 +1131,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Preservar o valor total fornecido pelo usuário para uso posterior
-      const userTotalAmount = userData.totalAmount 
-          ? (typeof userData.totalAmount === 'string' 
-              ? userData.totalAmount.replace(',', '.') 
-              : String(userData.totalAmount)) 
-          : '0';
-      console.log("Valor total definido pelo usuário:", userTotalAmount);
+      // Criar a venda normal usando o Drizzle
+      const createdSale = await storage.createSale(validatedSaleData);
+      console.log("Venda criada inicialmente:", createdSale);
       
-      // Adicionar o valor total diretamente na criação da venda
-      const saleDataWithTotal = {
-          ...validatedSaleData,
-          totalAmount: userTotalAmount // Adicionamos o valor diretamente aqui
-      };
-      
-      // Criar a venda com o valor total já definido
-      console.log("Criando venda com valor total:", saleDataWithTotal);
-      
-      // Usar SQL direto para garantir que o valor total seja respeitado
-      const { pool } = await import('./db');
-      const result = await pool.query(
-          `INSERT INTO sales (
-              order_number, date, customer_id, payment_method_id, 
-              seller_id, total_amount, notes, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-          [
-              saleDataWithTotal.orderNumber,
-              saleDataWithTotal.date,
-              saleDataWithTotal.customerId,
-              saleDataWithTotal.paymentMethodId,
-              saleDataWithTotal.sellerId,
-              userTotalAmount, // Valor total definido pelo usuário
-              saleDataWithTotal.notes || null,
-              new Date(),
-              new Date()
-          ]
-      );
-      
-      // Obter a venda criada a partir do resultado da query
-      const createdSale = result.rows[0];
-      console.log("Venda criada com valor total:", createdSale);
+      // Depois de criar a venda, atualizar manualmente o valor total
+      if (userData.totalAmount) {
+        try {
+          // Formatar o valor total (substituir vírgula por ponto)
+          const totalAmountStr = typeof userData.totalAmount === 'string' 
+            ? userData.totalAmount.replace(',', '.') 
+            : String(userData.totalAmount);
+            
+          console.log(`Atualizando valor total para: ${totalAmountStr}`);
+          
+          // Atualização direta no banco usando SQL puro
+          const { pool } = await import('./db');
+          await pool.query(
+            'UPDATE sales SET total_amount = $1 WHERE id = $2',
+            [totalAmountStr, createdSale.id]
+          );
+          
+          // Verificar se a atualização funcionou
+          const checkResult = await pool.query(
+            'SELECT id, total_amount FROM sales WHERE id = $1',
+            [createdSale.id]
+          );
+          
+          if (checkResult.rows.length > 0) {
+            console.log("Venda após atualização do valor total:", checkResult.rows[0]);
+            // Atualizar o objeto da venda para refletir o novo valor
+            createdSale.totalAmount = totalAmountStr;
+          } else {
+            console.error("Erro: Venda não encontrada após atualização do valor total");
+          }
+        } catch (updateError) {
+          console.error("Erro ao atualizar valor total:", updateError);
+        }
+      } else {
+        console.log("Nenhum valor total fornecido para esta venda.");
+      }
       
       // Se tiver itens, criar os itens da venda
       console.log("Itens para criar:", JSON.stringify(userData.items || [], null, 2));

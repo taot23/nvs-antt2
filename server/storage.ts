@@ -487,19 +487,58 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSale(id: number, saleData: Partial<InsertSale>): Promise<Sale | undefined> {
-    // Atualizar também o updatedAt
-    const dataWithTimestamp = {
-      ...saleData,
-      updatedAt: new Date()
-    };
-    
-    const [updatedSale] = await db
-      .update(sales)
-      .set(dataWithTimestamp)
-      .where(eq(sales.id, id))
-      .returning();
-    
-    return updatedSale || undefined;
+    try {
+      // Verificar se a venda existe antes da atualização
+      const [existingSale] = await db
+        .select()
+        .from(sales)
+        .where(eq(sales.id, id));
+      
+      if (!existingSale) {
+        return undefined;
+      }
+      
+      // Se estiver tentando atualizar o valor total, garantimos que ele seja preservado
+      if (saleData.totalAmount) {
+        // Formatar o valor total (substituir vírgula por ponto)
+        if (typeof saleData.totalAmount === 'string') {
+          saleData.totalAmount = saleData.totalAmount.replace(',', '.');
+        }
+        
+        console.log(`Atualizando valor total da venda #${id} para ${saleData.totalAmount}`);
+      }
+        
+      // Atualizar também o updatedAt
+      const dataWithTimestamp = {
+        ...saleData,
+        updatedAt: new Date()
+      };
+      
+      const [updatedSale] = await db
+        .update(sales)
+        .set(dataWithTimestamp)
+        .where(eq(sales.id, id))
+        .returning();
+      
+      // Verificar se a atualização foi bem-sucedida
+      if (updatedSale && saleData.totalAmount) {
+        // Garantir que o valor total foi atualizado corretamente
+        const { pool } = await import('./db');
+        const checkResult = await pool.query(
+          'SELECT id, total_amount FROM sales WHERE id = $1',
+          [id]
+        );
+        
+        if (checkResult.rows.length > 0) {
+          console.log(`Valor total após atualização: ${checkResult.rows[0].total_amount}`);
+        }
+      }
+      
+      return updatedSale || undefined;
+    } catch (error) {
+      console.error(`Erro ao atualizar venda #${id}:`, error);
+      return undefined;
+    }
   }
 
   async deleteSale(id: number): Promise<boolean> {
@@ -615,59 +654,8 @@ export class DatabaseStorage implements IStorage {
 
   // Método auxiliar para atualizar o valor total da venda
   private async updateSaleTotalAmount(saleId: number): Promise<void> {
-    try {
-      // Primeiro, vamos obter o valor atual da venda
-      const [sale] = await db
-        .select()
-        .from(sales)
-        .where(eq(sales.id, saleId));
-      
-      // Se não encontrar a venda, não faz nada
-      if (!sale) {
-        return;
-      }
-      
-      // Importante: SEMPRE preservar o valor total definido pelo usuário
-      // Esta função não deve mais sobrescrever os valores definidos manualmente
-      
-      // Apenas para fins de debug, exibimos o valor atual
-      console.log(`Valor total atual da venda #${saleId}: ${sale.totalAmount}`);
-      
-      // Se o valor já está definido pelo usuário (diferente de 0 ou null), não o alteramos
-      if (sale.totalAmount && sale.totalAmount !== "0") {
-        console.log(`Preservando valor total da venda #${saleId} definido pelo usuário: ${sale.totalAmount}`);
-        return;
-      }
-      
-      // Apenas se o valor for zero ou não existir é que calculamos com base nos itens
-      const items = await this.getSaleItems(saleId);
-      
-      // Cálculo utilizando totalPrice se disponível, ou calculando como price * quantity
-      // Na versão atual, não devemos mais precisar disso já que o valor é definido pelo usuário
-      const totalAmount = items.reduce((total, item) => {
-        if (item.totalPrice) {
-          return total + Number(item.totalPrice);
-        } else {
-          const itemPrice = Number(item.price) || 0;
-          const itemQuantity = item.quantity || 1;
-          return total + (itemPrice * itemQuantity);
-        }
-      }, 0);
-      
-      console.log(`Calculado valor total da venda #${saleId} com base nos itens: ${totalAmount}`);
-      
-      // Atualizar o valor total da venda APENAS se o valor atual for 0 ou null
-      await db
-        .update(sales)
-        .set({
-          totalAmount: totalAmount.toString(),
-          updatedAt: new Date()
-        })
-        .where(eq(sales.id, saleId));
-    } catch (error) {
-      console.error("Erro ao atualizar valor total da venda:", error);
-      // Não propagar o erro para não interromper outras operações
-    }
+    console.log(`Este método foi desativado. A venda ${saleId} deve manter seu valor total original.`);
+    return; // Não faz nada - preservamos sempre o valor definido pelo usuário
   }
 
   // Implementação dos métodos de histórico de status
