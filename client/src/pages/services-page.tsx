@@ -274,10 +274,7 @@ export default function ServicesPage() {
   // Verifica se o usuário atual tem permissão para gerenciar serviços
   const hasPermission = currentUser?.role === "admin" || currentUser?.role === "operacional";
 
-  // Função para formatar o preço em reais
-  const formatPrice = (price: string) => {
-    return `R$ ${price}`;
-  };
+  // Função para formatar o preço foi removida
 
   return (
     <div className="space-y-6">
@@ -439,23 +436,7 @@ export default function ServicesPage() {
                       </div>
                     </TableHead>
                     <TableHead className="py-3 px-4 font-medium">Descrição</TableHead>
-                    <TableHead 
-                      className="py-3 px-4 font-medium cursor-pointer"
-                      onClick={() => handleSort('price')}
-                    >
-                      <div className="flex items-center">
-                        <span>Preço</span>
-                        {sortField === 'price' && (
-                          <span className="ml-1">
-                            {sortDirection === 'asc' ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
+                    {/* Coluna de preço removida */}
 
                     <TableHead 
                       className="py-3 px-4 font-medium cursor-pointer"
@@ -489,7 +470,6 @@ export default function ServicesPage() {
                       <TableRow key={service.id}>
                         <TableCell className="font-medium">{service.name}</TableCell>
                         <TableCell>{service.description || '-'}</TableCell>
-                        <TableCell>{formatPrice(service.price)}</TableCell>
                         <TableCell>
                           <Badge variant={service.active ? "default" : "destructive"}>
                             {service.active ? (

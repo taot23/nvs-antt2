@@ -234,7 +234,6 @@ export class DatabaseStorage implements IStorage {
       .values({
         name: serviceData.name,
         description: serviceData.description,
-        price: serviceData.price,
         active: serviceData.active
       })
       .returning();

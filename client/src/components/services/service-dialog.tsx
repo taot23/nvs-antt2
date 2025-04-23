@@ -69,7 +69,6 @@ export default function ServiceDialog({
       const formData = {
         name: service.name,
         description: service.description || "",
-        price: service.price,
         active: service.active !== undefined ? service.active : true,
       };
       form.reset(formData); 
@@ -78,7 +77,6 @@ export default function ServiceDialog({
       const emptyForm = {
         name: "",
         description: "",
-        price: "",
         active: true,
       };
       form.reset(emptyForm);
@@ -201,23 +199,7 @@ export default function ServiceDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Preço*</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="0,00"
-                      {...field}
-                      autoComplete="off"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Campo de preço removido conforme solicitação */}
 
             <FormField
               control={form.control}
