@@ -839,22 +839,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         />
                       </div>
                       
-                      {/* Preço */}
-                      <div className="md:col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.price`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Preço (R$)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="0,00" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+
                       
                       {/* Observações do Item - linha inteira abaixo */}
                       <div className="md:col-span-12">
@@ -877,7 +862,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                 </div>
               </div>
 
-              {/* Valor Total */}
+              {/* Forma de Pagamento e Tipo de Execução */}
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Forma de Pagamento */}
                 <FormField
@@ -910,17 +895,56 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     </FormItem>
                   )}
                 />
+                
+                {/* Tipo de Execução */}
+                <FormField
+                  control={form.control}
+                  name="serviceTypeId"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Tipo de Execução
+                      </FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        value={field.value ? field.value.toString() : "0"}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {serviceTypes.map((type: any) => (
+                            <SelectItem key={type.id} value={type.id.toString()}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                {/* Valor Total (calculado) */}
-                <div className="flex-1">
-                  <FormLabel className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Valor Total
-                  </FormLabel>
-                  <div className="flex items-center h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-lg font-medium">
-                    R$ {calculateTotal()}
-                  </div>
-                </div>
+                {/* Valor Total (digitado pelo vendedor) */}
+                <FormField
+                  control={form.control}
+                  name="totalAmount"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Valor Total
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="0,00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               {/* Observações */}
