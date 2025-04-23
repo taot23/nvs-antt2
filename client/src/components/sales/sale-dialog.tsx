@@ -527,58 +527,103 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       Cliente
                     </FormLabel>
                     <div className="relative">
-                      <div className="flex gap-2 items-center">
-                        <div className="relative flex-1">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Digite o nome ou CPF/CNPJ do cliente"
-                            value={customerSearchTerm}
-                            onChange={(e) => {
-                              setCustomerSearchTerm(e.target.value);
-                            }}
-                            className="pl-9"
-                          />
-                        </div>
-                        <Select 
-                          onValueChange={(value) => {
-                            const customerId = parseInt(value);
-                            field.onChange(customerId);
-                            const customer = customers.find((c: any) => c.id === customerId);
-                            if (customer) {
-                              setCustomerSearchTerm(customer.name);
+                      <Popover
+                        open={showCustomerPopover}
+                        onOpenChange={(open) => {
+                          setShowCustomerPopover(open);
+                          if (!open) {
+                            // Se não houver cliente selecionado, limpa o termo de busca
+                            if (!field.value) {
+                              setCustomerSearchTerm("");
                             }
-                          }}
-                          value={field.value ? field.value.toString() : "0"}
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="Selecionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredCustomers.length > 0 ? (
-                              filteredCustomers.map((customer: any) => (
-                                <SelectItem key={customer.id} value={customer.id.toString()}>
-                                  {customer.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              customers.map((customer: any) => (
-                                <SelectItem key={customer.id} value={customer.id.toString()}>
-                                  {customer.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="icon"
-                          onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
-                          className="h-10 w-10"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                        </Button>
-                      </div>
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <PopoverTrigger asChild className="flex-1">
+                            <div className="relative w-full">
+                              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Digite o nome ou CPF/CNPJ do cliente"
+                                value={customerSearchTerm}
+                                onChange={(e) => {
+                                  setCustomerSearchTerm(e.target.value);
+                                  setShowCustomerPopover(true);
+                                }}
+                                className="pl-9 pr-10"
+                                onClick={() => setShowCustomerPopover(true)}
+                              />
+                              {field.value > 0 && (
+                                <Badge variant="outline" className="absolute right-3 top-2 bg-primary/10 text-xs">
+                                  #{field.value}
+                                </Badge>
+                              )}
+                            </div>
+                          </PopoverTrigger>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                            className="h-10 w-10 shrink-0"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Buscar cliente por nome ou CPF/CNPJ"
+                              value={customerSearchTerm}
+                              onValueChange={(value) => {
+                                setCustomerSearchTerm(value);
+                              }}
+                              className="border-none focus:ring-0"
+                            />
+                            <CommandList>
+                              <CommandEmpty className="py-6 text-center">
+                                <div className="space-y-2">
+                                  <p className="text-sm">Nenhum cliente encontrado</p>
+                                  <Button 
+                                    type="button" 
+                                    variant="secondary" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setShowNewCustomerForm(true);
+                                      setShowCustomerPopover(false);
+                                    }}
+                                  >
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Cadastrar novo cliente
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {filteredCustomers.map((customer: any) => (
+                                  <CommandItem
+                                    key={customer.id}
+                                    value={`${customer.name} ${customer.document}`}
+                                    onSelect={() => {
+                                      field.onChange(customer.id);
+                                      setCustomerSearchTerm(customer.name);
+                                      setShowCustomerPopover(false);
+                                    }}
+                                    className="py-2"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{customer.name}</span>
+                                      <span className="text-xs text-muted-foreground">{customer.document}</span>
+                                    </div>
+                                    {field.value === customer.id && (
+                                      <Check className="ml-auto h-4 w-4 text-primary" />
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <FormMessage />
                   </FormItem>
@@ -636,51 +681,88 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       Vendedor
                     </FormLabel>
                     <div className="relative">
-                      <div className="flex gap-2 items-center">
-                        <div className="relative flex-1">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Digite o nome do vendedor"
-                            value={sellerSearchTerm}
-                            onChange={(e) => {
-                              setSellerSearchTerm(e.target.value);
-                            }}
-                            className="pl-9"
-                            disabled={user?.role !== 'admin' && user?.role !== 'supervisor' && user?.role !== 'financeiro' && user?.role !== 'operacional'}
-                          />
-                        </div>
-                        <Select 
-                          onValueChange={(value) => {
-                            const sellerId = parseInt(value);
-                            field.onChange(sellerId);
-                            const seller = sellers.find((s: any) => s.id === sellerId);
-                            if (seller) {
-                              setSellerSearchTerm(seller.username);
+                      <Popover
+                        open={showSellerPopover}
+                        onOpenChange={(open) => {
+                          if (user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'financeiro' || user?.role === 'operacional') {
+                            setShowSellerPopover(open);
+                            if (!open && !field.value) {
+                              setSellerSearchTerm("");
                             }
-                          }}
-                          value={field.value ? field.value.toString() : "0"}
-                          disabled={user?.role !== 'admin' && user?.role !== 'supervisor' && user?.role !== 'financeiro' && user?.role !== 'operacional'}
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="Selecionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredSellers.length > 0 ? (
-                              filteredSellers.map((seller: any) => (
-                                <SelectItem key={seller.id} value={seller.id.toString()}>
-                                  {seller.username}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              sellers.map((seller: any) => (
-                                <SelectItem key={seller.id} value={seller.id.toString()}>
-                                  {seller.username}
-                                </SelectItem>
-                              ))
+                          }
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <div className="relative w-full">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Digite o nome do vendedor"
+                              value={sellerSearchTerm}
+                              onChange={(e) => {
+                                setSellerSearchTerm(e.target.value);
+                                if (user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'financeiro' || user?.role === 'operacional') {
+                                  setShowSellerPopover(true);
+                                }
+                              }}
+                              className="pl-9 pr-10"
+                              disabled={user?.role !== 'admin' && user?.role !== 'supervisor' && user?.role !== 'financeiro' && user?.role !== 'operacional'}
+                              onClick={() => {
+                                if (user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'financeiro' || user?.role === 'operacional') {
+                                  setShowSellerPopover(true);
+                                }
+                              }}
+                            />
+                            {field.value > 0 && (
+                              <Badge variant="outline" className="absolute right-3 top-2 bg-primary/10 text-xs">
+                                {getSellerName(field.value)}
+                              </Badge>
                             )}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Buscar vendedor por nome"
+                              value={sellerSearchTerm}
+                              onValueChange={(value) => {
+                                setSellerSearchTerm(value);
+                              }}
+                              className="border-none focus:ring-0"
+                            />
+                            <CommandList>
+                              <CommandEmpty className="py-6 text-center">
+                                <div className="space-y-2">
+                                  <p className="text-sm">Nenhum vendedor encontrado</p>
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {filteredSellers.map((seller: any) => (
+                                  <CommandItem
+                                    key={seller.id}
+                                    value={seller.username}
+                                    onSelect={() => {
+                                      field.onChange(seller.id);
+                                      setSellerSearchTerm(seller.username);
+                                      setShowSellerPopover(false);
+                                    }}
+                                    className="py-2"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{seller.username}</span>
+                                      <Badge variant="outline" className="text-xs">
+                                        {seller.role}
+                                      </Badge>
+                                    </div>
+                                    {field.value === seller.id && (
+                                      <Check className="ml-auto h-4 w-4 text-primary" />
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <FormMessage />
                   </FormItem>
