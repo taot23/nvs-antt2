@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -30,6 +30,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
+  
+  // Efeito para disponibilizar o usuário atual globalmente
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user) {
+      window.currentUser = user;
+    }
+  }, [user]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
@@ -66,6 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Disponibilizar o usuário atual globalmente para o WebSocket
+      if (typeof window !== 'undefined') {
+        window.currentUser = user;
+      }
+      
       toast({
         title: "Cadastro realizado com sucesso!",
         description: "Sua conta foi criada e você já está logado.",
@@ -87,6 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
+      
+      // Remover o usuário atual do objeto window
+      if (typeof window !== 'undefined') {
+        window.currentUser = undefined;
+      }
+      
       toast({
         title: "Logout realizado com sucesso",
         description: "Você saiu do sistema.",

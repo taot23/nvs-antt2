@@ -58,13 +58,17 @@ export function useWebSocket() {
               // Invalidar todas as consultas de vendas, incluindo as específicas para vendedores
               queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
               
-              // Também invalidar especificamente o vendedor atual se houver um usuário logado
-              const user = window.currentUser;
-              if (user && user.role === 'vendedor') {
-                console.log('Invalidando consulta específica para o vendedor:', user.id);
-                queryClient.invalidateQueries({ 
-                  queryKey: ['/api/sales', user.id]
-                });
+              // Também invalidar consulta específica para vendedores (se houver)
+              try {
+                const user = window.currentUser;
+                if (user && user.role === 'vendedor') {
+                  console.log('Invalidando consulta específica para o vendedor:', user.id);
+                  queryClient.invalidateQueries({ 
+                    queryKey: ['/api/sales', user.id]
+                  });
+                }
+              } catch (err) {
+                console.error('Erro ao acessar usuário atual:', err);
               }
             }
           }

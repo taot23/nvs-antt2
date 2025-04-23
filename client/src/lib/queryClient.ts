@@ -60,7 +60,7 @@ export const queryClient = new QueryClient({
 type CurrentUser = {
   id: number;
   username: string;
-  role: string;
+  role: string | null;
 };
 
 // Disponibilizar o queryClient e o usuário atual globalmente para que o WebSocket possa acessá-los
