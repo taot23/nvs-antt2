@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
@@ -77,6 +78,8 @@ export default function SalesPage() {
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
+  const { lastEvent, isConnected } = useWebSocket();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Estados
   const [searchTerm, setSearchTerm] = useState("");
@@ -358,6 +361,42 @@ export default function SalesPage() {
       });
     },
   });
+  
+  // Efeito para escutar atualizações via WebSocket
+  useEffect(() => {
+    if (lastEvent?.type === 'sales_update') {
+      console.log('Recebida atualização de vendas via WebSocket');
+      
+      // Atualizar automaticamente os dados
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      
+      // Mostrar notificação
+      toast({
+        title: "Atualização de vendas",
+        description: "As vendas foram atualizadas",
+      });
+    }
+  }, [lastEvent, queryClient, toast]);
+  
+  // Função para forçar a atualização dos dados
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      toast({
+        title: "Dados atualizados",
+        description: "Os dados de vendas foram atualizados",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar os dados",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   
   // Handlers
   const handleOpenCreateDialog = () => {
