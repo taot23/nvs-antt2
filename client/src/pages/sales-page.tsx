@@ -603,10 +603,23 @@ export default function SalesPage() {
       <div className="container py-4 space-y-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Vendas</h1>
-          <Button size="sm" onClick={handleOpenCreateDialog}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nova
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Atualizar dados"
+              className={`h-8 w-8 ${isConnected ? "border-green-500" : ""}`}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+            
+            <Button size="sm" onClick={handleOpenCreateDialog}>
+              <Plus className="h-4 w-4 mr-1" />
+              Nova
+            </Button>
+          </div>
         </div>
         
         <div className="flex flex-col space-y-2">
@@ -855,10 +868,23 @@ export default function SalesPage() {
           </p>
         </div>
         
-        <Button onClick={handleOpenCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Venda
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Atualizar dados"
+            className={isConnected ? "border-green-500" : ""}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </Button>
+          
+          <Button onClick={handleOpenCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Venda
+          </Button>
+        </div>
       </div>
       
       {/* Barra de ferramentas */}
