@@ -332,12 +332,13 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   
   // Adiciona um item em branco ao formulário
   const addEmptyItem = () => {
-    // Obtém o serviceTypeId do formulário
+    // Obtém o serviceTypeId do formulário (mesmo que não esteja definido ainda)
+    // O tipo de execução é validado no envio do formulário, não na adição do item
     const serviceTypeId = form.getValues().serviceTypeId;
     
     append({
       serviceId: 0,
-      serviceTypeId: serviceTypeId,
+      serviceTypeId: serviceTypeId, // Mesmo que seja 0, será validado no envio do formulário
       quantity: 1,
       notes: "",
       price: "0",
@@ -357,17 +358,9 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       return;
     }
     
-    // Obtém o serviceTypeId do formulário
+    // Obtém o serviceTypeId do formulário (mesmo que não esteja definido ainda)
+    // O tipo de execução é validado no envio do formulário, não na adição do item
     const serviceTypeId = form.getValues().serviceTypeId;
-    
-    if (!serviceTypeId) {
-      toast({
-        title: "Tipo de execução não selecionado",
-        description: "Selecione um tipo de execução para adicionar o serviço",
-        variant: "destructive",
-      });
-      return;
-    }
     
     // Adiciona o preço ao item
     const selectedService = services.find((s: any) => s.id === selectedServiceId);
@@ -375,7 +368,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     
     append({
       serviceId: selectedServiceId,
-      serviceTypeId: serviceTypeId,
+      serviceTypeId: serviceTypeId, // Mesmo que seja 0, será validado no envio do formulário
       quantity: selectedServiceQuantity,
       notes: "",
       price: price, // Adicionar o preço do serviço
