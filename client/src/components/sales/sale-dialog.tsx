@@ -374,9 +374,10 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     mutationFn: async (data: z.infer<typeof saleSchema>) => {
       setIsSubmitting(true);
       
+      // Formato ISO para data que será corretamente processado pelo servidor
       const formattedData = {
         ...data,
-        date: format(data.date, 'yyyy-MM-dd'),
+        date: data.date instanceof Date ? data.date.toISOString() : data.date,
       };
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";

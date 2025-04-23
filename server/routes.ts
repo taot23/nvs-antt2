@@ -1023,9 +1023,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userData = req.body;
       
-      // Validação básica dos dados enviados
+      // Validação básica dos dados enviados - convertendo a data para o formato correto
       const validatedSaleData = insertSaleSchema.parse({
         ...userData,
+        // Se a data for uma string ISO, converte para um objeto Date
+        date: typeof userData.date === 'string' ? new Date(userData.date) : userData.date,
         // Se for admin, supervisor, operacional ou financeiro, pode especificar o vendedor
         // Caso contrário, o vendedor será o próprio usuário logado
         sellerId: (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && userData.sellerId) 
@@ -1151,7 +1153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rota para atualizar uma venda
-  app.put("/api/sales/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
