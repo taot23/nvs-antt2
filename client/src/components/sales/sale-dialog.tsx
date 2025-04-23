@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Calculator, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Esquema de validação para itens da venda
 const saleItemSchema = z.object({
@@ -312,7 +313,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Número de OS */}
               <FormField
@@ -377,7 +378,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     <FormLabel>Cliente</FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value.toString()}
+                      value={field.value ? field.value.toString() : "0"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -408,7 +409,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     <FormLabel>Vendedor</FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value.toString()}
+                      value={field.value ? field.value.toString() : "0"}
                       disabled={user?.role !== 'admin' && user?.role !== 'supervisor' && user?.role !== 'financeiro' && user?.role !== 'operacional'}
                     >
                       <FormControl>
@@ -438,7 +439,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     <FormLabel>Forma de Pagamento</FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value.toString()}
+                      value={field.value ? field.value.toString() : "0"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -481,22 +482,55 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
             
             {/* Itens da venda */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <Label className="text-base font-medium">Itens da Venda</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                <Button 
+                  type="button" 
+                  variant="default" 
+                  size="sm" 
+                  onClick={addItem}
+                  className="bg-primary hover:bg-primary/90 text-white transition-all duration-200 hover:scale-105"
+                >
                   <Plus className="h-4 w-4 mr-1" />
                   Adicionar Item
                 </Button>
               </div>
               
+              {/* Resumo dos Itens */}
+              <Card className="border-primary/20 shadow-sm mb-4">
+                <CardHeader className="py-2 px-4">
+                  <CardTitle className="text-sm flex items-center">
+                    <Calculator className="h-4 w-4 mr-2" />
+                    Resumo da venda
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 text-muted-foreground mr-1" />
+                      <span className="text-muted-foreground">Total de itens:</span>
+                    </div>
+                    <span className="font-semibold">{fields.length}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Lista de itens */}
               {fields.map((field, index) => (
-                <div key={field.id} className="space-y-4 p-4 border rounded-md relative">
+                <div 
+                  key={field.id} 
+                  className="space-y-4 p-5 border border-primary/20 rounded-md relative mb-4 shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in-50 slide-in-from-bottom-5"
+                >
+                  <div className="absolute -top-3 left-3 bg-background px-2 text-xs font-medium text-muted-foreground">
+                    Item {index + 1}
+                  </div>
+                  
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => fields.length > 1 && remove(index)}
-                    className="absolute top-2 right-2 h-8 w-8 text-muted-foreground"
+                    className="absolute top-2 right-2 h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive-foreground transition-colors duration-200"
                     disabled={fields.length <= 1}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -516,7 +550,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                               field.onChange(serviceId);
                               handleServiceChange(index, serviceId);
                             }}
-                            value={field.value.toString()}
+                            value={field.value ? field.value.toString() : "0"}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -545,7 +579,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                           <FormLabel>Tipo de Serviço</FormLabel>
                           <Select 
                             onValueChange={(value) => field.onChange(parseInt(value))}
-                            value={field.value.toString()}
+                            value={field.value ? field.value.toString() : "0"}
                           >
                             <FormControl>
                               <SelectTrigger>
