@@ -411,9 +411,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       setIsSubmitting(true);
       
       // Formato ISO para data que será corretamente processado pelo servidor
+      // Também converte o formato de número brasileiro (com vírgula) para o formato com ponto
       const formattedData = {
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
+        totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
       };
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
@@ -510,9 +512,9 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         items: values.items.map(item => ({
           ...item,
           serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
-          // Garante que todos os itens tenham valores válidos
-          price: item.price || "0",
-          totalPrice: item.totalPrice || "0",
+          // Garante que todos os itens tenham valores válidos e converte formato brasileiro para ponto decimal
+          price: item.price ? item.price.replace(',', '.') : "0",
+          totalPrice: item.totalPrice ? item.totalPrice.replace(',', '.') : "0",
           quantity: item.quantity || 1,
           status: item.status || "pending"
         }))
@@ -1269,8 +1271,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         serviceId: item.serviceId,
                         serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
                         quantity: item.quantity || 1,
-                        price: item.price || "0",
-                        totalPrice: item.totalPrice || "0",
+                        price: item.price ? item.price.replace(',', '.') : "0",
+                        totalPrice: item.totalPrice ? item.totalPrice.replace(',', '.') : "0",
                         status: "pending",
                         notes: item.notes || ""
                       }))
