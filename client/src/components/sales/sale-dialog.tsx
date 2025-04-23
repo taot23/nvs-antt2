@@ -1184,6 +1184,41 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     })
                     .then(data => {
                       console.log("Venda salva com sucesso:", data);
+                      
+                      // SOLUÇÃO ESPECIAL: Verificar se o valor total foi salvo corretamente
+                      // Se não foi, vamos atualizá-lo usando a rota especial
+                      if (data && data.id && 
+                          (data.totalAmount === "0" || data.totalAmount === "0.00" || !data.totalAmount) && 
+                          saleData.totalAmount && saleData.totalAmount !== "0" && saleData.totalAmount !== "0.00") {
+                        
+                        console.log(`Valor total da venda não foi salvo corretamente. Atualizando usando rota especial...`);
+                        console.log(`Valor atual: ${data.totalAmount}, Valor esperado: ${saleData.totalAmount}`);
+                        
+                        // Chamar API especial para atualizar o valor total
+                        fetch(`/api/sales/${data.id}/update-total`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({ totalAmount: saleData.totalAmount }),
+                        })
+                          .then(response => {
+                            if (!response.ok) {
+                              console.error("Erro ao atualizar valor total:", response.statusText);
+                              return;
+                            }
+                            return response.json();
+                          })
+                          .then(updatedSale => {
+                            console.log("Valor total atualizado com sucesso:", updatedSale);
+                            // Atualizar o cache para refletir o novo valor
+                            queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+                          })
+                          .catch(error => {
+                            console.error("Erro ao atualizar valor total:", error);
+                          });
+                      }
+                      
                       toast({
                         title: "Venda criada",
                         description: "Venda criada com sucesso",

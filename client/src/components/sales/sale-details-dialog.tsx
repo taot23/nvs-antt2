@@ -299,7 +299,26 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                         </div>
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Valor Total</dt>
-                          <dd className="font-medium">R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}</dd>
+                          <dd className="font-medium text-lg text-primary">
+                            {(() => {
+                              try {
+                                // Manipulador de visualização segura do valor total
+                                const totalAmount = sale.totalAmount || "0";
+                                
+                                // Verificar se o valor é numérico
+                                if (isNaN(parseFloat(totalAmount))) {
+                                  console.log("Valor não numérico:", totalAmount);
+                                  return "R$ 0,00";
+                                }
+                                
+                                // Formatar para exibir como moeda brasileira
+                                return `R$ ${parseFloat(totalAmount).toFixed(2).replace('.', ',')}`;
+                              } catch (error) {
+                                console.error("Erro ao formatar valor total:", error, sale.totalAmount);
+                                return `R$ ${sale.totalAmount || "0,00"}`;
+                              }
+                            })()}
+                          </dd>
                         </div>
                       </dl>
                     </CardContent>
@@ -389,7 +408,24 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                       <div className="flex justify-between items-center">
                         <span className="font-medium">Valor Total</span>
                         <span className="text-lg font-bold">
-                          R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+                          {(() => {
+                            try {
+                              // Manipulador de visualização segura do valor total
+                              const totalAmount = sale.totalAmount || "0";
+                              
+                              // Verificar se o valor é numérico
+                              if (isNaN(parseFloat(totalAmount))) {
+                                console.log("Valor não numérico:", totalAmount);
+                                return "R$ 0,00";
+                              }
+                              
+                              // Formatar para exibir como moeda brasileira
+                              return `R$ ${parseFloat(totalAmount).toFixed(2).replace('.', ',')}`;
+                            } catch (error) {
+                              console.error("Erro ao formatar valor total:", error, sale.totalAmount);
+                              return `R$ ${sale.totalAmount || "0,00"}`;
+                            }
+                          })()}
                         </span>
                       </div>
                     </CardContent>

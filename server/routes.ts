@@ -1304,6 +1304,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota especial para atualizar apenas o valor total da venda - solução de emergência
+  app.post("/api/sales/:id/update-total", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se o usuário tem permissão para atualizar vendas
+      if (!["admin", "supervisor", "operacional", "financeiro", "vendedor"].includes(req.user?.role || "")) {
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      // Obter o novo valor total
+      const { totalAmount } = req.body;
+      if (!totalAmount) {
+        return res.status(400).json({ error: "Valor total não informado" });
+      }
+      
+      // Formatar o valor para garantir que esteja no formato correto
+      const formattedTotal = typeof totalAmount === 'string' 
+        ? totalAmount.replace(',', '.') 
+        : String(totalAmount);
+      
+      console.log(`### ATUALIZANDO VALOR TOTAL DA VENDA #${id} para ${formattedTotal} ###`);
+      
+      // Usar SQL puro para atualizar diretamente o banco de dados
+      const { pool } = await import('./db');
+      
+      // Executar a atualização direta
+      const updateResult = await pool.query(
+        'UPDATE sales SET total_amount = $1, updated_at = $2 WHERE id = $3 RETURNING *',
+        [formattedTotal, new Date(), id]
+      );
+      
+      if (updateResult.rows.length === 0) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      console.log("Venda após atualização do valor total:", updateResult.rows[0]);
+      
+      // Retornar a venda atualizada
+      res.json(updateResult.rows[0]);
+    } catch (error) {
+      console.error("Erro ao atualizar valor total da venda:", error);
+      res.status(500).json({ error: "Erro ao atualizar valor total da venda" });
+    }
+  });
+  
   // Rota para atualizar uma venda
   app.patch("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
