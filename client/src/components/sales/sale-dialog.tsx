@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog } from "lucide-react";
+import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save } from "lucide-react";
 import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -1170,10 +1170,53 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              
+              {/* Botão de submit normal */}
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                onClick={() => {
+                  console.log("Clique no botão de submit detectado");
+                  // Nenhuma ação específica aqui, o evento onSubmit do form será acionado naturalmente
+                }}
+              >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {sale ? "Atualizar" : "Criar"} Venda
               </Button>
+              
+              {/* Botão alternativo para criação de vendas (aparece apenas em modo criação) */}
+              {!sale && (
+                <Button
+                  type="button"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log("Botão alternativo clicado");
+                    console.log("Valores do formulário:", form.getValues());
+                    console.log("Formulário válido?", form.formState.isValid);
+                    console.log("Erros do formulário:", form.formState.errors);
+                    
+                    // Tenta validar o formulário manualmente
+                    form.trigger().then((isValid) => {
+                      console.log("Formulário validado:", isValid);
+                      if (isValid) {
+                        const values = form.getValues();
+                        onSubmit(values);
+                      } else {
+                        console.log("Erros após trigger:", form.formState.errors);
+                        toast({
+                          title: "Formulário inválido",
+                          description: "Verifique os campos obrigatórios",
+                          variant: "destructive",
+                        });
+                      }
+                    });
+                  }}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar Venda (Alternativo)
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </Form>
