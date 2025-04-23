@@ -59,9 +59,12 @@ export function SaleResendDialog({ open, onOpenChange, sale }: SaleResendDialogP
   const { toast } = useToast();
   const [notes, setNotes] = useState("");
   
+  console.log("SaleResendDialog renderizado com open:", open, "e sale:", sale?.id);
+  
   // Limpar observações quando o diálogo é aberto com uma nova venda
   useEffect(() => {
     if (open && sale) {
+      console.log("useEffect - Limpando observações para venda:", sale.id);
       setNotes("");
     }
   }, [open, sale?.id]);

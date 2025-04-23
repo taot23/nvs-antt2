@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -299,18 +300,11 @@ export default function SalesPage() {
   // Mutation para reenviar venda corrigida
   const resendSaleMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/sales/${id}/resend`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
+      console.log("Iniciando mutation para reenviar diretamente venda:", id);
+      // Usar apiRequest ao invés de fetch diretamente
+      const response = await apiRequest("POST", `/api/sales/${id}/resend`, {
+        notes: "Venda corrigida e reenviada via botão rápido"
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao reenviar venda corrigida");
-      }
       
       return await response.json();
     },
@@ -480,12 +474,17 @@ export default function SalesPage() {
   
   // Handler para reenviar venda corrigida
   const handleResendSale = (sale: Sale) => {
+    console.log("handleResendSale chamado para venda:", sale.id, "- Perfil:", user?.role);
+    
     // Para perfil vendedor, abrir o diálogo de reenvio com observações
     if (user?.role === "vendedor" || user?.role === "admin") {
+      console.log("Abrindo diálogo de reenvio para venda:", sale.id);
       setSelectedSale(sale);
       setResendDialogOpen(true);
+      console.log("Estado do diálogo após setResendDialogOpen:", true);
     } else {
       // Para outros perfis, manter o comportamento anterior
+      console.log("Chamando mutation direta para reenvio (perfil não vendedor)");
       resendSaleMutation.mutate(sale.id);
     }
   };
@@ -1351,11 +1350,16 @@ export default function SalesPage() {
       />
       
       {/* Diálogo de reenvio de venda corrigida para vendedores */}
-      <SaleResendDialog
-        open={resendDialogOpen}
-        onOpenChange={setResendDialogOpen}
-        sale={selectedSale}
-      />
+      {resendDialogOpen && selectedSale && (
+        <SaleResendDialog
+          open={resendDialogOpen}
+          onOpenChange={(open) => {
+            console.log("Dialog onOpenChange chamado com:", open);
+            setResendDialogOpen(open);
+          }}
+          sale={selectedSale}
+        />
+      )}
     </div>
   );
 }
