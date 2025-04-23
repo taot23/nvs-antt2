@@ -774,24 +774,110 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
               />
 
               {/* Serviços */}
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <FormLabel className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Serviços
                   </FormLabel>
+                </div>
+                
+                {/* Busca de serviços e adição por busca dinâmica */}
+                <div className="flex flex-col md:flex-row gap-4 items-end mb-4">
+                  <div className="flex-1">
+                    <FormLabel className="text-xs mb-1.5 block">Buscar Serviço</FormLabel>
+                    <div className="relative">
+                      <Popover
+                        open={showServicePopover}
+                        onOpenChange={(open) => {
+                          setShowServicePopover(open);
+                          if (!open && selectedServiceId === 0) {
+                            setServiceSearchTerm("");
+                          }
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <div className="relative w-full">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Digite o nome do serviço"
+                              value={serviceSearchTerm}
+                              onChange={(e) => {
+                                setServiceSearchTerm(e.target.value);
+                                setShowServicePopover(true);
+                              }}
+                              className="pl-9 pr-4"
+                              onClick={() => setShowServicePopover(true)}
+                            />
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Buscar serviço"
+                              value={serviceSearchTerm}
+                              onValueChange={(value) => {
+                                setServiceSearchTerm(value);
+                              }}
+                              className="border-none focus:ring-0"
+                            />
+                            <CommandList>
+                              <CommandEmpty className="py-6 text-center">
+                                Nenhum serviço encontrado
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {filteredServices.map((service: any) => (
+                                  <CommandItem
+                                    key={service.id}
+                                    value={service.name}
+                                    onSelect={() => {
+                                      setSelectedServiceId(service.id);
+                                      setServiceSearchTerm(service.name);
+                                      setShowServicePopover(false);
+                                    }}
+                                    className="py-2"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{service.name}</span>
+                                      <span className="text-xs text-muted-foreground">{service.description || ""}</span>
+                                    </div>
+                                    {selectedServiceId === service.id && (
+                                      <Check className="ml-auto h-4 w-4 flex-shrink-0" />
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  {/* Quantidade */}
+                  <div className="w-24 md:w-32">
+                    <FormLabel className="text-xs mb-1.5 block">Quantidade</FormLabel>
+                    <Input 
+                      type="number" 
+                      min="1" 
+                      step="1" 
+                      value={selectedServiceQuantity}
+                      onChange={(e) => setSelectedServiceQuantity(parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  
+                  {/* Botão Incluir */}
                   <Button 
                     type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={addEmptyItem}
-                    className="h-8"
+                    onClick={addServiceItem}
+                    className="h-10"
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Adicionar Serviço
+                    Incluir
                   </Button>
                 </div>
 
+                {/* Lista de itens adicionados */}
                 <div className="space-y-4 py-2">
                   {fields.map((field, index) => (
                     <div 
@@ -813,41 +899,25 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     
-                      {/* Serviço */}
-                      <div className="md:col-span-4">
+                      {/* Serviço - agora apenas mostra o nome do serviço selecionado */}
+                      <div className="md:col-span-6">
                         <FormField
                           control={form.control}
                           name={`items.${index}.serviceId`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Serviço</FormLabel>
-                              <Select 
-                                onValueChange={(value) => {
-                                  const serviceId = parseInt(value);
-                                  field.onChange(serviceId);
-                                }}
-                                value={field.value ? field.value.toString() : "0"}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {services.map((service: any) => (
-                                    <SelectItem key={service.id} value={service.id.toString()}>
-                                      {service.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                          render={({ field }) => {
+                            const selectedService = services.find((s: any) => s.id === field.value);
+                            return (
+                              <FormItem>
+                                <FormLabel className="text-xs">Serviço</FormLabel>
+                                <div className="h-10 p-2 flex items-center border rounded-md bg-muted/20">
+                                  {selectedService ? selectedService.name : "Selecione um serviço"}
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
                         />
                       </div>
-                      
-
                       
                       {/* Quantidade */}
                       <div className="md:col-span-2">
@@ -872,10 +942,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         />
                       </div>
                       
-
-                      
-                      {/* Observações do Item - linha inteira abaixo */}
-                      <div className="md:col-span-12">
+                      {/* Observações do Item */}
+                      <div className="md:col-span-10">
                         <FormField
                           control={form.control}
                           name={`items.${index}.notes`}
