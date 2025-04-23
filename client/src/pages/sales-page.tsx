@@ -22,6 +22,7 @@ import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
 import ReenviarDialog from "@/components/sales/reenviar-dialog";
+import VendaReenviarButton from "@/components/sales/venda-reenviar-button";
 
 // Tipos
 type Sale = {
@@ -472,27 +473,10 @@ export default function SalesPage() {
     markAsPaidMutation.mutate(sale.id);
   };
   
-  // Handler para reenviar venda corrigida
-  const handleResendSale = (sale: Sale) => {
-    console.log("⭐ handleResendSale chamado para venda:", sale.id, "- Perfil:", user?.role);
-    
-    // Para perfil vendedor, abrir o diálogo de reenvio com observações
-    if (user?.role === "vendedor" || user?.role === "admin") {
-      console.log("⭐ Abrindo diálogo de reenvio para venda:", sale.id);
-      
-      // Primeiro definir a venda selecionada
-      setSelectedSale(sale);
-      
-      // Depois abrir o diálogo
-      setTimeout(() => {
-        console.log("⭐ Abrindo diálogo de reenvio com setTimeout");
-        setResendDialogOpen(true);
-      }, 100);
-    } else {
-      // Para outros perfis, manter o comportamento anterior
-      console.log("⭐ Chamando mutation direta para reenvio (perfil não vendedor)");
-      resendSaleMutation.mutate(sale.id);
-    }
+  // Mutation para reenvio direto (usado por usuários não vendedores)
+  const handleDirectResend = (saleId: number) => {
+    console.log("Chamando mutation direta para reenvio (perfil não vendedor)");
+    resendSaleMutation.mutate(saleId);
   };
   
   // Handler para limpar todas as vendas
@@ -829,17 +813,8 @@ export default function SalesPage() {
                   )}
                   
                   {/* Botão para vendedor reenviar venda corrigida */}
-                  {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && 
-                    sale.status === "returned" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2 flex-grow text-success hover:text-success hover:bg-success/10"
-                      onClick={() => handleResendSale(sale)}
-                    >
-                      <SendHorizontal className="h-3.5 w-3.5 mr-1" />
-                      Reenviar Corrigida
-                    </Button>
+                  {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                    <VendaReenviarButton sale={sale} iconOnly={false} />
                   )}
                   
                   {/* Botão para financeiro marcar como paga */}
@@ -1188,18 +1163,9 @@ export default function SalesPage() {
                           </Button>
                         )}
                         
-                        {/* Permissão para vendedor reenviar venda corrigida */}
-                        {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && 
-                          sale.status === "returned" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleResendSale(sale)}
-                            className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                            title="Reenviar venda corrigida"
-                          >
-                            <SendHorizontal className="h-4 w-4" />
-                          </Button>
+                        {/* Novo botão de reenvio para vendedor */}
+                        {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                          <VendaReenviarButton sale={sale} iconOnly={true} />
                         )}
                         
                         {/* Permissão para marcar como paga (financeiro/admin) */}
