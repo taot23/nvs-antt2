@@ -1372,13 +1372,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Permissão negada" });
       }
       
-      // Não permitir atualizar vendas que já estão em execução ou concluídas, a menos que seja admin
-      if (req.user?.role !== "admin" && 
-          (sale.status === "in_progress" || sale.status === "completed")) {
-        return res.status(400).json({ 
-          error: "Não é possível atualizar", 
-          message: "Esta venda não pode ser atualizada pois já está em execução ou concluída."
-        });
+      // Lógica de permissão para edição baseada no status e no perfil
+      if (req.user?.role !== "admin") {
+        // Vendedor só pode editar vendas pendentes ou devolvidas para ele
+        if (req.user?.role === "vendedor") {
+          if (sale.status !== "pending" && sale.status !== "returned") {
+            return res.status(400).json({ 
+              error: "Não é possível atualizar", 
+              message: "Vendedor só pode atualizar vendas pendentes ou devolvidas."
+            });
+          }
+        }
+        // Operacional pode editar vendas pendentes e em andamento, mas não concluídas
+        else if (req.user?.role === "operacional") {
+          if (sale.status === "completed" || sale.status === "canceled") {
+            return res.status(400).json({ 
+              error: "Não é possível atualizar", 
+              message: "Operacional não pode modificar vendas concluídas ou canceladas."
+            });
+          }
+        }
+        // Outros perfis (supervisor, financeiro) não podem editar vendas concluídas
+        else if (sale.status === "completed") {
+          return res.status(400).json({ 
+            error: "Não é possível atualizar", 
+            message: "Esta venda não pode ser atualizada pois já está concluída."
+          });
+        }
       }
       
       // Validação dos dados para atualização
@@ -1621,6 +1641,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao devolver venda:", error);
       res.status(500).json({ error: "Erro ao devolver venda" });
+    }
+  });
+
+  // Rota para reenviar uma venda corrigida (de vendedor para operacional)
+  app.post("/api/sales/:id/resend", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar permissão: apenas o vendedor da venda ou admin pode reenviar
+      if (req.user?.role !== "admin" && sale.sellerId !== req.user!.id) {
+        return res.status(403).json({ 
+          error: "Permissão negada", 
+          message: "Apenas o vendedor responsável ou administradores podem reenviar a venda."
+        });
+      }
+      
+      // Verificar se a venda está no status devolvida
+      if (sale.status !== "returned") {
+        return res.status(400).json({ 
+          error: "Não é possível reenviar", 
+          message: "Só é possível reenviar vendas que foram devolvidas para correção."
+        });
+      }
+      
+      // Obter mensagem de correção (opcional)
+      const { notes } = req.body;
+      const notesMessage = notes || "Venda corrigida e reenviada para operacional";
+      
+      // Atualizar status para pendente novamente
+      const updatedSale = await storage.updateSale(id, { 
+        status: "pending",
+        returnReason: null,
+        notes: sale.notes ? `${sale.notes}\n\nCorreção: ${notesMessage}` : notesMessage
+      });
+      
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Registrar no histórico de status
+      await storage.createSalesStatusHistory({
+        saleId: id,
+        fromStatus: "returned",
+        toStatus: "pending",
+        userId: req.user!.id,
+        notes: notesMessage
+      });
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao reenviar venda:", error);
+      res.status(500).json({ error: "Erro ao reenviar venda" });
     }
   });
 

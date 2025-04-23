@@ -289,6 +289,40 @@ export default function SalesPage() {
     },
   });
   
+  // Mutation para reenviar venda corrigida
+  const resendSaleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/sales/${id}/resend`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao reenviar venda corrigida");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      toast({
+        title: "Venda reenviada",
+        description: "A venda corrigida foi reenviada com sucesso para o setor operacional",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao reenviar venda",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Mutation para marcar como paga
   const markAsPaidMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -378,6 +412,11 @@ export default function SalesPage() {
   
   const handleMarkAsPaid = (sale: Sale) => {
     markAsPaidMutation.mutate(sale.id);
+  };
+  
+  // Handler para reenviar venda corrigida
+  const handleResendSale = (sale: Sale) => {
+    resendSaleMutation.mutate(sale.id);
   };
   
   // Handler para limpar todas as vendas
@@ -697,6 +736,20 @@ export default function SalesPage() {
                     >
                       <AlertTriangle className="h-3.5 w-3.5 mr-1" />
                       Devolver
+                    </Button>
+                  )}
+                  
+                  {/* Botão para vendedor reenviar venda corrigida */}
+                  {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && 
+                    sale.status === "returned" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 flex-grow text-success hover:text-success hover:bg-success/10"
+                      onClick={() => handleResendSale(sale)}
+                    >
+                      <SendHorizontal className="h-3.5 w-3.5 mr-1" />
+                      Reenviar Corrigida
                     </Button>
                   )}
                   
