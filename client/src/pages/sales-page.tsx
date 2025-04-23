@@ -21,6 +21,7 @@ import SaleDialog from "@/components/sales/sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
+import SaleHistoryDialog from "@/components/sales/sale-history-dialog";
 import ReenviaButton from "@/components/sales/reenvia-button";
 
 // Tipos
@@ -94,6 +95,7 @@ export default function SalesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clearSalesDialogOpen, setClearSalesDialogOpen] = useState(false); // Estado para diálogo de limpar vendas
   const [operationDialogOpen, setOperationDialogOpen] = useState(false); // Estado para diálogo de operação de vendas
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false); // Estado para diálogo de histórico de vendas
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
@@ -471,6 +473,12 @@ export default function SalesPage() {
     markAsPaidMutation.mutate(sale.id);
   };
   
+  // Handler para visualizar histórico de status da venda
+  const handleViewHistory = (sale: Sale) => {
+    setSelectedSale(sale);
+    setHistoryDialogOpen(true);
+  };
+  
   // Mutation para reenvio direto (usado por usuários não vendedores)
   const handleDirectResend = (saleId: number) => {
     console.log("Chamando mutation direta para reenvio (perfil não vendedor)");
@@ -753,6 +761,16 @@ export default function SalesPage() {
                   >
                     <Eye className="h-3.5 w-3.5 mr-1" />
                     Detalhes
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2 flex-grow"
+                    onClick={() => handleViewHistory(sale)}
+                  >
+                    <History className="h-3.5 w-3.5 mr-1" />
+                    Histórico
                   </Button>
                   
                   {/* Botões de ação com base no status e permissões */}
