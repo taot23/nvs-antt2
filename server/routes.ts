@@ -1135,7 +1135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdSale = await storage.createSale(validatedSaleData);
       console.log("Venda criada inicialmente:", createdSale);
       
-      // Depois de criar a venda, atualizar manualmente o valor total
+          // Depois de criar a venda, atualizar manualmente o valor total
+      // ATENÇÃO: Este código é extremamente importante para o funcionamento do sistema
       if (userData.totalAmount) {
         try {
           // Formatar o valor total (substituir vírgula por ponto)
@@ -1143,33 +1144,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? userData.totalAmount.replace(',', '.') 
             : String(userData.totalAmount);
             
-          console.log(`Atualizando valor total para: ${totalAmountStr}`);
+          console.log(`⚠️⚠️⚠️ Atualizando valor total para: ${totalAmountStr}`);
           
-          // Atualização direta no banco usando SQL puro
+          // USAR SQL NATIVO - é a única forma que funciona corretamente
           const { pool } = await import('./db');
-          await pool.query(
-            'UPDATE sales SET total_amount = $1 WHERE id = $2',
-            [totalAmountStr, createdSale.id]
-          );
           
-          // Verificar se a atualização funcionou
-          const checkResult = await pool.query(
-            'SELECT id, total_amount FROM sales WHERE id = $1',
-            [createdSale.id]
-          );
+          // ⚠️ ATENÇÃO: Usando sentença SQL completa para garantir que o valor total seja definido
+          const updateQuery = `
+            UPDATE sales 
+            SET total_amount = '${totalAmountStr}', updated_at = NOW() 
+            WHERE id = ${createdSale.id}
+          `;
+          
+          console.log("Executando query SQL:", updateQuery);
+          await pool.query(updateQuery);
+          
+          // Verificar o resultado da atualização
+          const checkResult = await pool.query(`SELECT * FROM sales WHERE id = ${createdSale.id}`);
           
           if (checkResult.rows.length > 0) {
-            console.log("Venda após atualização do valor total:", checkResult.rows[0]);
-            // Atualizar o objeto da venda para refletir o novo valor
+            console.log("Venda após atualização SQL direta:", checkResult.rows[0]);
+            
+            // IMPORTANTE: Atualizar o objeto da venda para refletir o novo valor
             createdSale.totalAmount = totalAmountStr;
           } else {
-            console.error("Erro: Venda não encontrada após atualização do valor total");
+            console.error("⚠️ ERRO CRÍTICO: Venda não encontrada após atualização");
           }
         } catch (updateError) {
-          console.error("Erro ao atualizar valor total:", updateError);
+          console.error("⚠️ ERRO AO ATUALIZAR VALOR TOTAL:", updateError);
         }
       } else {
-        console.log("Nenhum valor total fornecido para esta venda.");
+        console.log("⚠️ Nenhum valor total fornecido para esta venda.");
       }
       
       // Se tiver itens, criar os itens da venda
