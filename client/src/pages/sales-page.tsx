@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
@@ -769,7 +769,7 @@ export default function SalesPage() {
                     className="h-8 px-2 flex-grow"
                     onClick={() => handleViewHistory(sale)}
                   >
-                    <History className="h-3.5 w-3.5 mr-1" />
+                    <ClipboardList className="h-3.5 w-3.5 mr-1" />
                     Histórico
                   </Button>
                   
@@ -1124,6 +1124,16 @@ export default function SalesPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewHistory(sale)}
+                          className="h-8 w-8"
+                          title="Ver histórico de status"
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                        </Button>
+                        
                         {/* Permissão para editar (admin) */}
                         {user?.role === "admin" && (
                           <Button
@@ -1334,6 +1344,13 @@ export default function SalesPage() {
       <SaleOperationDialog
         open={operationDialogOpen}
         onClose={() => setOperationDialogOpen(false)}
+        saleId={selectedSale?.id}
+      />
+      
+      {/* Diálogo de histórico de vendas */}
+      <SaleHistoryDialog
+        open={historyDialogOpen}
+        onClose={() => setHistoryDialogOpen(false)}
         saleId={selectedSale?.id}
       />
       
