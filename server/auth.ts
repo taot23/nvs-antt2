@@ -26,6 +26,15 @@ async function comparePasswords(supplied: string, stored: string) {
     // Verificar se a senha armazenada tem o formato correto
     if (!stored || !stored.includes(".")) {
       console.error("Formato de senha inválido:", stored);
+      
+      // Caso especial para senhas antigas que não tem salt
+      // Se a senha fornecida for exatamente igual à senha armazenada, permitir o login
+      // Isso é para permitir login de usuários antigos enquanto migramos para o novo formato
+      if (supplied === stored) {
+        console.log("Login com senha antiga permitido. Considere atualizar a senha para o novo formato");
+        return true;
+      }
+      
       return false;
     }
     
@@ -109,14 +118,27 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) return next(err);
+    // Log para diagnóstico
+    console.log("Tentativa de login para usuário:", req.body.username);
+    
+    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
+      if (err) {
+        console.error("Erro de autenticação:", err);
+        return next(err);
+      }
       if (!user) {
+        console.log("Login falhou para usuário:", req.body.username);
         return res.status(401).send("Credenciais inválidas");
       }
+      
+      console.log("Login bem-sucedido para usuário:", req.body.username);
+      
       req.login(user, (err) => {
         if (err) return next(err);
-        res.status(200).json(user);
+        
+        // Esconder a senha antes de enviar para o cliente
+        const { password, ...userWithoutPassword } = user;
+        res.status(200).json(userWithoutPassword);
       });
     })(req, res, next);
   });
@@ -130,6 +152,9 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+    
+    // Esconder a senha antes de enviar para o cliente
+    const { password, ...userWithoutPassword } = req.user!;
+    res.json(userWithoutPassword);
   });
 }

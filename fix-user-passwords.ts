@@ -46,6 +46,10 @@ async function fixUserPasswords() {
     await updateUserPassword("teste");
     await updateUserPassword("operacional");
     await updateUserPassword("supervisor");
+    await updateUserPassword("vendedor");
+    await updateUserPassword("financeiro");
+    await updateUserPassword("usuario");
+    await updateUserPassword("admin");
     
     console.log("Processo concluído!");
   } catch (error) {

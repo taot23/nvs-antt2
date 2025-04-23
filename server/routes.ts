@@ -398,6 +398,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Se estiver mudando a senha, fazer hash dela
+      if (userData.password) {
+        userData.password = await hashPassword(userData.password);
+      }
+      
       // Atualizar usuário
       const updatedUser = await storage.updateUser(id, userData);
       if (!updatedUser) {
@@ -573,6 +578,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota especial para redefinir senha de usuário
+  app.post("/api/reset-password", isAuthenticated, async (req, res) => {
+    try {
+      // Verificar o perfil do usuário logado - apenas admins podem redefinir senhas
+      const currentUser = req.user;
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem redefinir senhas." });
+      }
+      
+      const { username, newPassword } = req.body;
+      
+      if (!username || !newPassword) {
+        return res.status(400).json({ error: "Nome de usuário e nova senha são obrigatórios" });
+      }
+      
+      // Buscar usuário pelo nome de usuário
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+      
+      // Hash a nova senha
+      const hashedPassword = await hashPassword(newPassword);
+      
+      // Atualizar a senha do usuário
+      const updatedUser = await storage.updateUser(user.id, { password: hashedPassword });
+      if (!updatedUser) {
+        return res.status(500).json({ error: "Falha ao atualizar senha do usuário" });
+      }
+      
+      res.json({ message: "Senha redefinida com sucesso" });
+    } catch (error) {
+      console.error("Erro ao redefinir senha:", error);
+      res.status(500).json({ error: "Erro ao redefinir senha" });
+    }
+  });
+  
   // ========== Rotas para gerenciamento de formas de pagamento ==========
   
   app.get("/api/payment-methods", isAuthenticated, async (req, res) => {
