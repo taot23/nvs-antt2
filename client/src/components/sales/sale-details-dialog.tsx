@@ -194,7 +194,11 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
           {sale && (
             <DialogDescription>
               OS: <strong>{sale.orderNumber}</strong> | 
-              Data: <strong>{sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : "Data não especificada"}</strong>
+              Data: <strong>{
+                sale.date && new Date(sale.date).getFullYear() > 1970 
+                  ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) 
+                  : format(new Date(), 'dd/MM/yyyy', { locale: ptBR })
+              }</strong>
             </DialogDescription>
           )}
         </DialogHeader>
