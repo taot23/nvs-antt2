@@ -1497,6 +1497,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await pool.query('DELETE FROM sales RETURNING *');
       console.log(`${result.rowCount} vendas foram excluídas`);
       
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
       return res.status(200).json({ 
         message: "Todas as vendas foram excluídas com sucesso",
         count: result.rowCount
@@ -1529,6 +1532,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!success) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
       
       res.status(204).end();
     } catch (error) {
