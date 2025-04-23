@@ -89,10 +89,18 @@ export default function SalesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   
   // Queries e Mutations
+  // Para o perfil vendedor, carregamos apenas suas próprias vendas
   const { data: sales = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/sales"],
+    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all"],
     queryFn: async () => {
-      const response = await fetch("/api/sales");
+      // Vendedor só pode ver suas próprias vendas
+      let url = "/api/sales";
+      if (user?.role === "vendedor") {
+        console.log("Carregando vendas específicas para o vendedor:", user.id);
+        url = `/api/sales?sellerId=${user.id}`;
+      }
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Erro ao carregar vendas");
       }
