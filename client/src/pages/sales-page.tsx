@@ -82,6 +82,7 @@ export default function SalesPage() {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCreateVendaDialog, setShowCreateVendaDialog] = useState(false); // Estado específico para criar venda
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -291,18 +292,13 @@ export default function SalesPage() {
   // Handlers
   const handleOpenCreateDialog = () => {
     console.log("Botão Nova Venda clicado");
-    // Primeiro limpar o sale selecionado
+    // Limpar a venda selecionada e abrir o diálogo de criação
     setSelectedSale(null);
-    // Forçar abertura imediata do diálogo
-    setDialogOpen(true);
+    // Usar o novo estado específico
+    setShowCreateVendaDialog(true);
     
     // Logs para diagnóstico
-    console.log("Abrindo diálogo de nova venda");
-    
-    // Verificar se o estado foi atualizado
-    setTimeout(() => {
-      console.log("dialogOpen após timeout:", dialogOpen);
-    }, 100);
+    console.log("Abrindo diálogo de nova venda usando showCreateVendaDialog");
   };
   
   const handleEdit = (sale: Sale) => {
