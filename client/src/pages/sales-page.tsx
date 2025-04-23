@@ -21,7 +21,7 @@ import SaleDialog from "@/components/sales/sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
-import { SaleResendDialog } from "@/components/sales/sale-resend-dialog";
+import ReenviarVendaDialog from "@/components/sales/reenviar-venda-dialog";
 
 // Tipos
 type Sale = {
@@ -479,9 +479,13 @@ export default function SalesPage() {
     // Para perfil vendedor, abrir o diálogo de reenvio com observações
     if (user?.role === "vendedor" || user?.role === "admin") {
       console.log("Abrindo diálogo de reenvio para venda:", sale.id);
+      // Primeiro selecionar a venda
       setSelectedSale(sale);
-      setResendDialogOpen(true);
-      console.log("Estado do diálogo após setResendDialogOpen:", true);
+      // Depois abrir o diálogo
+      setTimeout(() => {
+        setResendDialogOpen(true);
+        console.log("Estado do diálogo após setTimeout:", true);
+      }, 50);
     } else {
       // Para outros perfis, manter o comportamento anterior
       console.log("Chamando mutation direta para reenvio (perfil não vendedor)");
@@ -1350,16 +1354,11 @@ export default function SalesPage() {
       />
       
       {/* Diálogo de reenvio de venda corrigida para vendedores */}
-      {resendDialogOpen && selectedSale && (
-        <SaleResendDialog
-          open={resendDialogOpen}
-          onOpenChange={(open) => {
-            console.log("Dialog onOpenChange chamado com:", open);
-            setResendDialogOpen(open);
-          }}
-          sale={selectedSale}
-        />
-      )}
+      <ReenviarVendaDialog
+        isOpen={resendDialogOpen}
+        onClose={() => setResendDialogOpen(false)}
+        venda={selectedSale}
+      />
     </div>
   );
 }
