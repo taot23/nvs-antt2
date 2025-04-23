@@ -455,9 +455,52 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   
   // Submit do formulário
   const onSubmit = (values: z.infer<typeof saleSchema>) => {
-    // Log para debug
-    console.log("Enviando venda com itens:", values.items);
-    saveMutation.mutate(values);
+    try {
+      // Logs detalhados para debug
+      console.log("Formulário validado com sucesso!");
+      console.log("Valores do formulário:", values);
+      console.log("Número de itens:", values.items.length);
+      console.log("Itens da venda:", JSON.stringify(values.items, null, 2));
+      
+      // Verificações adicionais antes de salvar
+      if (values.customerId <= 0) {
+        toast({
+          title: "Cliente não selecionado",
+          description: "Selecione um cliente válido",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (values.sellerId <= 0) {
+        toast({
+          title: "Vendedor não selecionado",
+          description: "Selecione um vendedor válido",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (values.items.length === 0) {
+        toast({
+          title: "Nenhum item adicionado",
+          description: "Adicione pelo menos um item à venda",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Chama a mutação para salvar a venda
+      console.log("Chamando saveMutation...");
+      saveMutation.mutate(values);
+    } catch (error) {
+      console.error("Erro ao enviar formulário:", error);
+      toast({
+        title: "Erro ao processar formulário",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
   };
 
   // Função para obter o nome do cliente pelo ID
