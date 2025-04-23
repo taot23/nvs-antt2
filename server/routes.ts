@@ -1003,11 +1003,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let sales = [];
       
+      // Verificar se existe um parâmetro sellerId na query
+      const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : null;
+      
       // Se for admin, supervisor, operacional ou financeiro, pode ver todas as vendas
+      // OU filtrar por vendedor específico se o sellerId for fornecido
       if (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
-        sales = await storage.getSales();
+        if (sellerId) {
+          console.log("Filtrando vendas por vendedor específico:", sellerId);
+          sales = await storage.getSalesBySellerAndStatus(sellerId, "");
+        } else {
+          console.log("Buscando todas as vendas - usuário tem permissão total");
+          sales = await storage.getSales();
+        }
       } else {
         // Se for vendedor, só vê as próprias vendas
+        console.log("Vendedor visualizando apenas suas vendas:", req.user!.id);
         sales = await storage.getSalesBySellerAndStatus(req.user!.id, "");
       }
       
