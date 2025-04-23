@@ -1187,7 +1187,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: "Venda criada"
       });
       
-      // Buscar a venda atualizada com o valor total calculado
+      // Se o valor total foi fornecido pelo usuário, vamos garantir que ele seja usado
+      if (userData.totalAmount) {
+        try {
+          // Tratar possíveis formatos de valor (vírgula para ponto)
+          const totalAmountStr = typeof userData.totalAmount === 'string' 
+            ? userData.totalAmount.replace(',', '.') 
+            : String(userData.totalAmount);
+          
+          console.log(`Atualizando diretamente o valor total para: ${totalAmountStr}`);
+          
+          // Atualizar diretamente no banco, evitando qualquer recálculo
+          const { pool } = await import('./db');
+          await pool.query(
+            'UPDATE sales SET total_amount = $1, updated_at = $2 WHERE id = $3',
+            [totalAmountStr, new Date(), createdSale.id]
+          );
+          
+          // Atualizar o objeto a ser retornado para o cliente
+          createdSale.totalAmount = totalAmountStr;
+          console.log("Valor total atualizado com sucesso!");
+        } catch (error) {
+          console.error("Erro ao atualizar valor total:", error);
+        }
+      }
+      
+      // Buscar a venda atualizada com o valor total definido
       const updatedSale = await storage.getSale(createdSale.id);
       res.status(201).json(updatedSale);
     } catch (error) {

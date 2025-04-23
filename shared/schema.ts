@@ -142,7 +142,6 @@ export const saleItems = pgTable("sale_items", {
 // Schema para inserção de vendas
 export const insertSaleSchema = createInsertSchema(sales).omit({
   id: true,
-  totalAmount: true,
   createdAt: true,
   updatedAt: true,
 });
