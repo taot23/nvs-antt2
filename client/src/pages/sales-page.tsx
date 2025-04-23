@@ -21,8 +21,7 @@ import SaleDialog from "@/components/sales/sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
-import ReenviarDialog from "@/components/sales/reenviar-dialog";
-import VendaReenviarButton from "@/components/sales/venda-reenviar-button";
+import ReenviaButton from "@/components/sales/reenvia-button";
 
 // Tipos
 type Sale = {
@@ -95,7 +94,6 @@ export default function SalesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clearSalesDialogOpen, setClearSalesDialogOpen] = useState(false); // Estado para diálogo de limpar vendas
   const [operationDialogOpen, setOperationDialogOpen] = useState(false); // Estado para diálogo de operação de vendas
-  const [resendDialogOpen, setResendDialogOpen] = useState(false); // Estado para diálogo de reenvio de vendas
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
@@ -814,7 +812,7 @@ export default function SalesPage() {
                   
                   {/* Botão para vendedor reenviar venda corrigida */}
                   {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                    <VendaReenviarButton sale={sale} iconOnly={false} />
+                    <ReenviaButton sale={sale} />
                   )}
                   
                   {/* Botão para financeiro marcar como paga */}
@@ -1165,7 +1163,7 @@ export default function SalesPage() {
                         
                         {/* Novo botão de reenvio para vendedor */}
                         {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                          <VendaReenviarButton sale={sale} iconOnly={true} />
+                          <ReenviaButton sale={sale} />
                         )}
                         
                         {/* Permissão para marcar como paga (financeiro/admin) */}
@@ -1321,14 +1319,7 @@ export default function SalesPage() {
         saleId={selectedSale?.id}
       />
       
-      {/* Diálogo de reenvio de venda corrigida para vendedores */}
-      {selectedSale && (
-        <ReenviarDialog
-          open={resendDialogOpen}
-          setOpen={setResendDialogOpen}
-          sale={selectedSale}
-        />
-      )}
+      {/* O diálogo de reenvio está agora encapsulado no componente ReenviaButton */}
     </div>
   );
 }
