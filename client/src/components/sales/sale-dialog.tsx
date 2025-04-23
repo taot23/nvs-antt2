@@ -39,32 +39,14 @@ const saleSchema = z.object({
   }),
   customerId: z.coerce.number().min(1, "Cliente é obrigatório"),
   paymentMethodId: z.coerce.number().min(1, "Forma de pagamento é obrigatória"),
-  serviceTypeId: z.coerce.number().min(1, "Tipo de execução é obrigatório"),
+  serviceTypeId: z.coerce.number().min(1, "Tipo de serviço é obrigatório"),
   sellerId: z.coerce.number().min(1, "Vendedor é obrigatório"),
-  totalAmount: z.string().min(1, "Valor total é obrigatório"),
-  notes: z.string().optional().nullable(),
-  items: z.array(saleItemSchema).min(1, "Pelo menos um item é obrigatório"),
+  totalAmount: z.string().optional(),
+  notes: z.string().optional(),
+  items: z.array(saleItemSchema).min(1, "Adicione pelo menos um item à venda"),
 });
 
-type Sale = {
-  id: number;
-  orderNumber: string;
-  date: string;
-  customerId: number;
-  paymentMethodId: number;
-  sellerId: number;
-  totalAmount: string;
-  status: string;
-  executionStatus: string;
-  financialStatus: string;
-  notes: string | null;
-  returnReason: string | null;
-  responsibleOperationalId: number | null;
-  responsibleFinancialId: number | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
+// Tipo SaleItem para tipagem de itens da venda
 type SaleItem = {
   id?: number;
   serviceId: number;
@@ -103,7 +85,6 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
   
-
 
   // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
@@ -218,16 +199,17 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (customer) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      form.setValue("customerId", data.id);
-      setShowNewCustomerForm(false);
-      setNewCustomerName("");
-      setNewCustomerDocument("");
       toast({
         title: "Cliente criado",
         description: "Cliente criado com sucesso",
       });
+      
+      // Atualiza o formulário com o novo cliente
+      form.setValue("customerId", customer.id);
+      setCustomerSearchTerm(customer.name);
+      setShowNewCustomerForm(false);
     },
     onError: (error: Error) => {
       toast({
@@ -288,79 +270,38 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
       if (selectedCustomer) {
         setCustomerSearchTerm(selectedCustomer.name);
       }
-
+      
       const selectedSeller = users.find((u: any) => u.id === sale.sellerId);
       if (selectedSeller) {
         setSellerSearchTerm(selectedSeller.username);
       }
       
       formInitialized.current = true;
+      console.log("Formulário inicializado com dados da venda e itens");
     }
-  }, [sale, saleItems, form, customers, users]);
+  }, [sale, saleItems, customers, users, form]);
   
-  // Atualizamos o formulário quando o modal é aberto/fechado
-  useEffect(() => {
-    if (open) {
-      if (sale) {
-        // Aguarda os itens serem carregados via query
-        formInitialized.current = false;
-      } else {
-        // Nova venda
-        form.reset(defaultFormValues);
-        
-        // Define o vendedor atual como padrão para novas vendas
-        if (user) {
-          form.setValue("sellerId", user.id);
-          const currentUser = users.find((u: any) => u.id === user.id);
-          if (currentUser) {
-            setSellerSearchTerm(currentUser.username);
-          }
-        }
-        
-        formInitialized.current = true;
-      }
-    } else {
-      // Quando o modal é fechado, reiniciamos os estados
-      setCustomerSearchTerm("");
-      setSellerSearchTerm("");
-      setShowNewCustomerForm(false);
-      setNewCustomerName("");
-      setNewCustomerDocument("");
-      formInitialized.current = false;
-    }
-  }, [open, sale?.id, form, user, users]);
-  
-  // Adiciona um item em branco ao formulário
-  const addEmptyItem = () => {
-    // Obtém o serviceTypeId do formulário (mesmo que não esteja definido ainda)
-    // O tipo de execução é validado no envio do formulário, não na adição do item
-    const serviceTypeId = form.getValues().serviceTypeId;
-    
-    append({
-      serviceId: 0,
-      serviceTypeId: serviceTypeId, // Mesmo que seja 0, será validado no envio do formulário
-      quantity: 1,
-      notes: "",
-      price: "0",
-      totalPrice: "0",
-      status: "pending"
-    });
-  };
-  
-  // Adiciona um item com o serviço selecionado
-  const addServiceItem = () => {
+  // Função para adicionar um item à venda
+  const handleAddItem = () => {
+    // Validação básica
     if (selectedServiceId <= 0) {
       toast({
         title: "Serviço não selecionado",
-        description: "Selecione um serviço para adicionar",
+        description: "Selecione um serviço válido para adicionar",
         variant: "destructive",
       });
       return;
     }
     
-    // Obtém o serviceTypeId do formulário (mesmo que não esteja definido ainda)
-    // O tipo de execução é validado no envio do formulário, não na adição do item
-    const serviceTypeId = form.getValues().serviceTypeId;
+    const serviceTypeId = form.getValues("serviceTypeId");
+    if (!serviceTypeId || serviceTypeId <= 0) {
+      toast({
+        title: "Tipo de serviço não selecionado",
+        description: "Selecione um tipo de execução válido antes de adicionar itens",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Adiciona o preço ao item
     const selectedService = services.find((s: any) => s.id === selectedServiceId);
@@ -774,32 +715,42 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       <Input 
                         value={newCustomerDocument} 
                         onChange={(e) => setNewCustomerDocument(e.target.value)} 
-                        placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                        placeholder="CPF ou CNPJ sem pontuação"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2 mt-4">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowNewCustomerForm(false)}>
+                  <div className="flex justify-end mt-4 gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setShowNewCustomerForm(false)}
+                    >
                       Cancelar
                     </Button>
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      onClick={handleCreateCustomer} 
-                      disabled={!newCustomerName || !newCustomerDocument}
+                    <Button
+                      type="button"
+                      onClick={handleCreateCustomer}
+                      disabled={createCustomerMutation.isPending}
                     >
-                      Salvar Cliente
+                      {createCustomerMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Criando...
+                        </>
+                      ) : (
+                        "Criar Cliente"
+                      )}
                     </Button>
                   </div>
                 </div>
               )}
-
+              
               {/* Vendedor */}
               <FormField
                 control={form.control}
                 name="sellerId"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel className="flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Vendedor
@@ -808,11 +759,9 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       <Popover
                         open={showSellerPopover}
                         onOpenChange={(open) => {
-                          if (user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'financeiro' || user?.role === 'operacional') {
-                            setShowSellerPopover(open);
-                            if (!open && !field.value) {
-                              setSellerSearchTerm("");
-                            }
+                          setShowSellerPopover(open);
+                          if (!open && !field.value) {
+                            setSellerSearchTerm("");
                           }
                         }}
                       >
@@ -824,17 +773,10 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                               value={sellerSearchTerm}
                               onChange={(e) => {
                                 setSellerSearchTerm(e.target.value);
-                                if (user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'financeiro' || user?.role === 'operacional') {
-                                  setShowSellerPopover(true);
-                                }
+                                setShowSellerPopover(true);
                               }}
                               className="pl-9 pr-10"
-                              disabled={user?.role !== 'admin' && user?.role !== 'supervisor' && user?.role !== 'financeiro' && user?.role !== 'operacional'}
-                              onClick={() => {
-                                if (user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'financeiro' || user?.role === 'operacional') {
-                                  setShowSellerPopover(true);
-                                }
-                              }}
+                              onClick={() => setShowSellerPopover(true)}
                             />
                             {field.value > 0 && (
                               <Badge variant="outline" className="absolute right-3 top-2 bg-primary/10 text-xs">
@@ -846,18 +788,14 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
                           <Command>
                             <CommandInput 
-                              placeholder="Buscar vendedor por nome"
+                              placeholder="Buscar vendedor"
                               value={sellerSearchTerm}
-                              onValueChange={(value) => {
-                                setSellerSearchTerm(value);
-                              }}
+                              onValueChange={(value) => setSellerSearchTerm(value)}
                               className="border-none focus:ring-0"
                             />
                             <CommandList>
                               <CommandEmpty className="py-6 text-center">
-                                <div className="space-y-2">
-                                  <p className="text-sm">Nenhum vendedor encontrado</p>
-                                </div>
+                                Nenhum vendedor encontrado
                               </CommandEmpty>
                               <CommandGroup>
                                 {filteredSellers.map((seller: any) => (
@@ -869,11 +807,10 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                                       setSellerSearchTerm(seller.username);
                                       setShowSellerPopover(false);
                                     }}
-                                    className="py-2"
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium">{seller.username}</span>
-                                      <Badge variant="outline" className="text-xs">
+                                    <div className="flex items-center">
+                                      <span>{seller.username}</span>
+                                      <Badge variant="secondary" className="ml-2 text-xs">
                                         {seller.role}
                                       </Badge>
                                     </div>
@@ -892,298 +829,87 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                   </FormItem>
                 )}
               />
-
-              {/* Serviços */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <FormLabel className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Serviços
-                  </FormLabel>
-                </div>
-                
-                {/* Busca de serviços e adição por busca dinâmica */}
-                <div className="flex flex-col md:flex-row gap-4 items-end mb-4">
-                  <div className="flex-1">
-                    <FormLabel className="text-xs mb-1.5 block">Buscar Serviço</FormLabel>
-                    <div className="relative">
-                      <Popover
-                        open={showServicePopover}
-                        onOpenChange={(open) => {
-                          setShowServicePopover(open);
-                          if (!open && selectedServiceId === 0) {
-                            setServiceSearchTerm("");
-                          }
-                        }}
-                      >
-                        <PopoverTrigger asChild>
-                          <div className="relative w-full">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="Digite o nome do serviço"
-                              value={serviceSearchTerm}
-                              onChange={(e) => {
-                                setServiceSearchTerm(e.target.value);
-                                setShowServicePopover(true);
-                              }}
-                              className="pl-9 pr-4"
-                              onClick={() => setShowServicePopover(true)}
-                            />
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
-                          <Command>
-                            <CommandInput 
-                              placeholder="Buscar serviço"
-                              value={serviceSearchTerm}
-                              onValueChange={(value) => {
-                                setServiceSearchTerm(value);
-                              }}
-                              className="border-none focus:ring-0"
-                            />
-                            <CommandList>
-                              <CommandEmpty className="py-6 text-center">
-                                Nenhum serviço encontrado
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {filteredServices.map((service: any) => (
-                                  <CommandItem
-                                    key={service.id}
-                                    value={service.name}
-                                    onSelect={() => {
-                                      setSelectedServiceId(service.id);
-                                      setServiceSearchTerm(service.name);
-                                      setShowServicePopover(false);
-                                    }}
-                                    className="py-2"
-                                  >
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{service.name}</span>
-                                      <span className="text-xs text-muted-foreground">{service.description || ""}</span>
-                                    </div>
-                                    {selectedServiceId === service.id && (
-                                      <Check className="ml-auto h-4 w-4 flex-shrink-0" />
-                                    )}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                  
-                  {/* Quantidade */}
-                  <div className="w-24 md:w-32">
-                    <FormLabel className="text-xs mb-1.5 block">Quantidade</FormLabel>
-                    <Input 
-                      type="number" 
-                      min="1" 
-                      step="1" 
-                      value={selectedServiceQuantity}
-                      onChange={(e) => setSelectedServiceQuantity(parseInt(e.target.value) || 1)}
-                    />
-                  </div>
-                  
-                  {/* Botão Incluir */}
-                  <Button 
-                    type="button" 
-                    onClick={addServiceItem}
-                    className="h-10"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Incluir
-                  </Button>
-                </div>
-
-                {/* Lista de itens adicionados */}
-                <div className="space-y-4 py-2">
-                  {fields.map((field, index) => (
-                    <div 
-                      key={field.id} 
-                      className="grid grid-cols-1 md:grid-cols-12 gap-4 p-3 border rounded-md relative bg-background"
-                    >
-                      <div className="absolute -top-3 left-3 px-2 bg-background text-xs font-medium">
-                        Item {index + 1}
-                      </div>
-                      
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => fields.length > 1 && remove(index)}
-                        className="absolute top-2 right-2 h-6 w-6 text-destructive hover:text-destructive-foreground hover:bg-destructive/10"
-                        disabled={fields.length <= 1}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    
-                      {/* Serviço - agora apenas mostra o nome do serviço selecionado */}
-                      <div className="md:col-span-6">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.serviceId`}
-                          render={({ field }) => {
-                            const selectedService = services.find((s: any) => s.id === field.value);
-                            return (
-                              <FormItem>
-                                <FormLabel className="text-xs">Serviço</FormLabel>
-                                <div className="h-10 p-2 flex items-center border rounded-md bg-muted/20">
-                                  {selectedService ? selectedService.name : "Selecione um serviço"}
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-                      </div>
-                      
-                      {/* Quantidade */}
-                      <div className="md:col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Quantidade</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="1" 
-                                  step="1" 
-                                  {...field} 
-                                  onChange={e => field.onChange(parseInt(e.target.value) || 1)}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      {/* Observações do Item */}
-                      <div className="md:col-span-10">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.notes`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Observações do Item</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Detalhes específicos deste item" {...field} value={field.value || ""} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Forma de Pagamento e Tipo de Execução */}
-              <div className="flex flex-col md:flex-row gap-6">
-                {/* Forma de Pagamento */}
-                <FormField
-                  control={form.control}
-                  name="paymentMethodId"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormLabel className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        Forma de Pagamento
-                      </FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(parseInt(value))}
-                        value={field.value ? field.value.toString() : "0"}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {paymentMethods.map((paymentMethod: any) => (
-                            <SelectItem key={paymentMethod.id} value={paymentMethod.id.toString()}>
-                              {paymentMethod.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Tipo de Execução */}
-                <FormField
-                  control={form.control}
-                  name="serviceTypeId"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormLabel className="flex items-center gap-2">
-                        <Cog className="h-4 w-4" />
-                        Tipo de Execução
-                      </FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(parseInt(value))}
-                        value={field.value ? field.value.toString() : "0"}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {serviceTypes.map((type: any) => (
-                            <SelectItem key={type.id} value={type.id.toString()}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Valor Total (digitado pelo vendedor) */}
-                <FormField
-                  control={form.control}
-                  name="totalAmount"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormLabel className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Valor Total
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="0,00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Observações */}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Forma de Pagamento */}
               <FormField
                 control={form.control}
-                name="notes"
+                name="paymentMethodId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <AlignLeft className="h-4 w-4" />
-                      Observações
+                      <CreditCard className="h-4 w-4" />
+                      Forma de Pagamento
+                    </FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value ? field.value.toString() : "0"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {paymentMethods.map((paymentMethod: any) => (
+                          <SelectItem key={paymentMethod.id} value={paymentMethod.id.toString()}>
+                            {paymentMethod.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Tipo de Execução */}
+              <FormField
+                control={form.control}
+                name="serviceTypeId"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel className="flex items-center gap-2">
+                      <Cog className="h-4 w-4" />
+                      Tipo de Execução
+                    </FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value ? field.value.toString() : "0"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {serviceTypes.map((type: any) => (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Valor Total */}
+              <FormField
+                control={form.control}
+                name="totalAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Valor Total
                     </FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Observações gerais sobre a venda" 
-                        className="resize-none min-h-[80px]" 
-                        {...field}
-                        value={field.value || ""}
+                      <Input 
+                        placeholder="0,00" 
+                        {...field} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -1192,10 +918,185 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
               />
             </div>
             
-            <DialogFooter className="mt-6 flex gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
+            {/* Observações */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <AlignLeft className="h-4 w-4" />
+                    Observações
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Observações adicionais sobre a venda"
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Seção de Itens */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Itens da Venda</h3>
+              </div>
+              
+              {/* Busca de serviços e adição por busca dinâmica */}
+              <div className="flex flex-col md:flex-row gap-4 items-end mb-4">
+                <div className="flex-1">
+                  <FormLabel className="text-xs mb-1.5 block">Buscar Serviço</FormLabel>
+                  <div className="relative">
+                    <Popover
+                      open={showServicePopover}
+                      onOpenChange={(open) => {
+                        setShowServicePopover(open);
+                        if (!open && selectedServiceId === 0) {
+                          setServiceSearchTerm("");
+                        }
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <div className="relative w-full">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Digite o nome do serviço"
+                            value={serviceSearchTerm}
+                            onChange={(e) => {
+                              setServiceSearchTerm(e.target.value);
+                              setShowServicePopover(true);
+                            }}
+                            className="pl-9 pr-4"
+                            onClick={() => setShowServicePopover(true)}
+                          />
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Buscar serviço"
+                            value={serviceSearchTerm}
+                            onValueChange={(value) => {
+                              setServiceSearchTerm(value);
+                            }}
+                            className="border-none focus:ring-0"
+                          />
+                          <CommandList>
+                            <CommandEmpty className="py-6 text-center">
+                              Nenhum serviço encontrado
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {filteredServices.map((service: any) => (
+                                <CommandItem
+                                  key={service.id}
+                                  value={service.name}
+                                  onSelect={() => {
+                                    setSelectedServiceId(service.id);
+                                    setServiceSearchTerm(service.name);
+                                  }}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{service.name}</span>
+                                    <span className="text-xs text-muted-foreground">{service.description}</span>
+                                  </div>
+                                  {selectedServiceId === service.id && (
+                                    <Check className="ml-auto h-4 w-4 text-primary" />
+                                  )}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="w-24">
+                  <FormLabel className="text-xs mb-1.5 block">Quantidade</FormLabel>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={selectedServiceQuantity}
+                    onChange={(e) => setSelectedServiceQuantity(parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddItem}
+                  disabled={selectedServiceId === 0}
+                  size="sm"
+                  className="h-10"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Incluir
+                </Button>
+              </div>
+              
+              {/* Lista de itens adicionados */}
+              <div className="rounded-md border">
+                <div className="bg-muted py-2 px-4 text-sm font-medium grid grid-cols-12 gap-4">
+                  <div className="col-span-6">Serviço</div>
+                  <div className="col-span-2">Qtd</div>
+                  <div className="col-span-3">Valor</div>
+                  <div className="col-span-1"></div>
+                </div>
+                <div className="divide-y">
+                  {fields.length === 0 ? (
+                    <div className="py-4 px-4 text-center text-muted-foreground">
+                      Nenhum item adicionado à venda
+                    </div>
+                  ) : (
+                    fields.map((field, index) => {
+                      const serviceId = form.getValues(`items.${index}.serviceId`);
+                      const service = services.find((s: any) => s.id === serviceId);
+                      
+                      return (
+                        <div key={field.id} className="py-2 px-4 grid grid-cols-12 gap-4 items-center text-sm">
+                          <div className="col-span-6">
+                            {service ? service.name : "Serviço não encontrado"}
+                          </div>
+                          <div className="col-span-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <Input
+                              {...form.register(`items.${index}.totalPrice`)}
+                              placeholder="0,00"
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(index)}
+                              className="h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="mt-8 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => {
                   console.log("Botão Cancelar clicado");
                   onClose();
