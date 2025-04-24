@@ -867,6 +867,43 @@ export default function SaleOperationDialog({
             </Tabs>
             
             {/* Configuração do tipo de execução quando pendente, em andamento ou corrigida */}
+            {/* Botão para supervisor marcar venda como corrigida quando status é "returned" */}
+            {canPerformOperations && !isReturning && enrichedSale.status === "returned" && user?.role === "supervisor" && (
+              <Card className="mt-6 mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle>Marcar como Corrigida</CardTitle>
+                  <CardDescription>
+                    Marque esta venda como corrigida para continuar com o processamento
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">
+                    Ao marcar esta venda como corrigida, ela será considerada pronta para processamento pelo setor operacional. 
+                    Use esta função quando verificar que as correções necessárias foram implementadas.
+                  </p>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    className="w-full" 
+                    onClick={handleMarkAsCorrected}
+                    disabled={markAsCorrectedMutation.isPending}
+                  >
+                    {markAsCorrectedMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <FileCheck className="mr-2 h-4 w-4" />
+                        Marcar como Corrigida
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            )}
+            
             {canPerformOperations && !isReturning && (enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && (
               <Card className="mt-6 mb-4">
                 <CardHeader className="pb-3">
@@ -1007,6 +1044,19 @@ export default function SaleOperationDialog({
                       >
                         <AlertTriangle className="mr-2 h-4 w-4" />
                         Devolver para Vendedor
+                      </Button>
+                    )}
+                    
+                    {/* Botão para supervisores reenviarem vendas devolvidas */}
+                    {enrichedSale.status === "returned" && user?.role === "supervisor" && (
+                      <Button 
+                        type="button"
+                        variant="default"
+                        onClick={handleMarkAsCorrected}
+                        disabled={markAsCorrectedMutation.isPending}
+                      >
+                        <FileCheck className="mr-2 h-4 w-4" />
+                        {markAsCorrectedMutation.isPending ? "Processando..." : "Reenviar Venda Corrigida"}
                       </Button>
                     )}
                     
