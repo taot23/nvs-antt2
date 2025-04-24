@@ -299,7 +299,7 @@ export default function SaleOperationDialog({
   const handleMainAction = () => {
     if (!sale) return;
     
-    if (sale.status === "pending") {
+    if (sale.status === "pending" || sale.status === "corrected") {
       startExecutionMutation.mutate();
     } else if (sale.status === "in_progress") {
       completeExecutionMutation.mutate();

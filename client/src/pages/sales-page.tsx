@@ -790,11 +790,11 @@ export default function SalesPage() {
                   
                   {/* Botão para operacionais iniciarem execução */}
                   {(user?.role === "admin" || user?.role === "operacional") && 
-                    sale.status === "pending" && (
+                    (sale.status === "pending" || sale.status === "corrected") && (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-8 px-2 flex-grow"
+                      variant={sale.status === "corrected" ? "default" : "outline"}
+                      className={`h-8 px-2 flex-grow ${sale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}`}
                       onClick={() => handleStartExecution(sale)}
                     >
                       <CornerDownRight className="h-3.5 w-3.5 mr-1" />
@@ -962,6 +962,14 @@ export default function SalesPage() {
               onClick={() => setStatusFilter("returned")}
             >
               Devolvidas
+            </Button>
+            <Button 
+              variant={statusFilter === "corrected" ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setStatusFilter("corrected")}
+              className={statusFilter === "corrected" ? "" : "border-primary text-primary hover:bg-primary/10"}
+            >
+              Corrigidas
             </Button>
           </div>
           
