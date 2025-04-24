@@ -76,35 +76,9 @@ function getStatusVariant(status: string) {
   }
 }
 
-// Função para obter classes CSS para a linha da tabela
-function getStatusRowClass(status: string) {
-  // Garantir que sempre retornamos uma string válida
-  if (!status) return '';
-  
-  switch (status) {
-    case 'corrected': return 'status-row-corrected'; // Amarelo bem suave para "corrigido"
-    case 'completed': return 'status-row-completed'; // Verde bem suave para "concluído"
-    case 'in_progress': return 'status-row-in_progress'; // Laranja bem suave para "em andamento"
-    case 'returned': return 'status-row-returned'; // Vermelho bem suave para "devolvida"
-    default: return '';
-  }
-}
+// ABORDAGEM SIMPLIFICADA: Apenas estilos inline para máxima compatibilidade
 
-// Função para obter classes CSS para o card mobile
-function getStatusCardClass(status: string) {
-  // Garantir que sempre retornamos uma string válida
-  if (!status) return '';
-  
-  switch (status) {
-    case 'corrected': return 'status-card-corrected'; // Amarelo bem suave para "corrigido"
-    case 'completed': return 'status-card-completed'; // Verde bem suave para "concluído"
-    case 'in_progress': return 'status-card-in_progress'; // Laranja bem suave para "em andamento"
-    case 'returned': return 'status-card-returned'; // Vermelho bem suave para "devolvida"
-    default: return '';
-  }
-}
-
-// Função para obter estilos inline como backup
+// Uma única função clara para obter estilos inline diretamente
 function getStatusStyle(status: string) {
   if (!status) return {};
   
@@ -763,7 +737,7 @@ export default function SalesPage() {
               return (
                 <Card 
                   key={sale.id} 
-                  className={`overflow-hidden ${getStatusCardClass(sale.status)}`}
+                  className="overflow-hidden"
                   style={getStatusStyle(sale.status)}
                 >
                   <CardHeader className="pb-2">
@@ -1152,7 +1126,7 @@ export default function SalesPage() {
               ) : (
                 filteredSales.map((sale: Sale) => {
                   return (
-                    <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
+                    <TableRow key={sale.id}>
                       <TableCell 
                         className="font-medium" 
                         style={getStatusStyle(sale.status)}
