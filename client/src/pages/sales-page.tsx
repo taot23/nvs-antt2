@@ -78,6 +78,9 @@ function getStatusVariant(status: string) {
 
 // Função para obter classe CSS para a linha da tabela
 function getStatusRowClass(status: string) {
+  // Garantir que sempre retornamos uma string válida e remove logs
+  if (!status) return '';
+  
   switch (status) {
     case 'corrected': return 'status-row-corrected'; // Amarelo bem suave para "corrigido"
     case 'completed': return 'status-row-completed'; // Verde bem suave para "concluído"
@@ -89,6 +92,9 @@ function getStatusRowClass(status: string) {
 
 // Função para obter classe CSS para o card mobile
 function getStatusCardClass(status: string) {
+  // Garantir que sempre retornamos uma string válida e remove logs
+  if (!status) return '';
+  
   switch (status) {
     case 'corrected': return 'status-card-corrected'; // Amarelo bem suave para "corrigido"
     case 'completed': return 'status-card-completed'; // Verde bem suave para "concluído"

@@ -10,7 +10,7 @@
   --color-returned-bg: rgba(252, 165, 165, 0.15); /* Vermelho suave */
 }
 
-/* Classes para status de vendas */
+/* Classes para status de vendas - usando maior especificidade com seletores universais */
 .status-row-corrected td,
 .status-card-corrected {
   background-color: var(--color-corrected-bg) !important;
@@ -30,6 +30,18 @@
 .status-card-returned {
   background-color: var(--color-returned-bg) !important;
 }
+
+/* Regras de precedência adicional para navegadores problemáticos */
+table tr.status-row-corrected td { background-color: var(--color-corrected-bg) !important; }
+table tr.status-row-completed td { background-color: var(--color-completed-bg) !important; }
+table tr.status-row-in_progress td { background-color: var(--color-in-progress-bg) !important; }
+table tr.status-row-returned td { background-color: var(--color-returned-bg) !important; }
+
+/* Regras para garantir aplicação em todos os navegadores */
+:root .status-card-corrected { background-color: var(--color-corrected-bg) !important; }
+:root .status-card-completed { background-color: var(--color-completed-bg) !important; }
+:root .status-card-in_progress { background-color: var(--color-in-progress-bg) !important; }
+:root .status-card-returned { background-color: var(--color-returned-bg) !important; }
 
 /* Fix para inputs em iOS para evitar zoom indesejado */
 @media screen and (max-width: 767px) {
