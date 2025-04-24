@@ -975,11 +975,15 @@ export default function SaleOperationDialog({
                         onClick={handleMainAction}
                         disabled={
                           startExecutionMutation.isPending || 
-                          (showServiceProviderField && !selectedServiceProviderId)
+                          (showServiceProviderField && !selectedServiceProviderId) ||
+                          !selectedServiceTypeId
                         }
                         className={enrichedSale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
-                        title={showServiceProviderField && !selectedServiceProviderId ? 
-                          "É necessário selecionar um prestador parceiro para execução via SINDICATO" : ""}
+                        title={showServiceProviderField && !selectedServiceProviderId 
+                          ? "É necessário selecionar um prestador parceiro para execução via SINDICATO" 
+                          : !selectedServiceTypeId 
+                            ? "É necessário selecionar um tipo de execução"
+                            : ""}
                       >
                         <CornerDownRight className="mr-2 h-4 w-4" />
                         {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
