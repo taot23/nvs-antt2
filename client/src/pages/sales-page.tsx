@@ -82,6 +82,7 @@ function getStatusRowClass(status: string) {
     case 'corrected': return 'bg-yellow-50'; // Amarelo bem suave para "corrigido"
     case 'completed': return 'bg-green-50';  // Verde bem suave para "concluído"
     case 'in_progress': return 'bg-blue-50'; // Azul bem suave para "em andamento"
+    case 'returned': return 'bg-red-50';     // Vermelho bem suave para "devolvida"
     default: return '';
   }
 }
