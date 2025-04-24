@@ -1,19 +1,25 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Tipos de evento para o WebSocket
-export type WSEventType = 'sales_update' | 'user_update' | 'ping';
+export type WSEventType = 'sales_update' | 'user_update' | 'ping' | 'pong';
 
 // Interface para os eventos
 export interface WSEvent {
   type: WSEventType;
   payload?: any;
+  timestamp?: number;
 }
 
 export function useWebSocket() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<WSEvent | null>(null);
+  const [lastPingTime, setLastPingTime] = useState(0);
+  const [pingLatency, setPingLatency] = useState<number | null>(null);
+  
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const pingIntervalRef = useRef<number | null>(null);
+  const pongTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 10;
   

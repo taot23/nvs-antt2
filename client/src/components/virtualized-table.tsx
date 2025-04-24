@@ -102,6 +102,7 @@ interface VirtualizedTableProps {
   children?: React.ReactNode;
   rowHeight?: number;
   headerHeight?: number;
+  renderProgress?: number;
   ReenviaButton: React.ComponentType<{ sale: Sale }>;
   DevolveButton: React.ComponentType<{ sale: Sale }>;
 }
