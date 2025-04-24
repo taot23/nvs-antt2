@@ -563,7 +563,7 @@ export default function SaleOperationDialog({
                                 : enrichedSale.serviceTypeName || "Não definido"}
                             </span>
                           </div>
-                          {(enrichedSale.status === "pending" || enrichedSale.status === "corrected") && canPerformOperations && (
+                          {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && canPerformOperations && (
                             <Button 
                               variant="ghost" 
                               size="sm"
@@ -592,7 +592,7 @@ export default function SaleOperationDialog({
                                     : "Não selecionado"}
                               </span>
                             </div>
-                            {(enrichedSale.status === "pending" || enrichedSale.status === "corrected") && 
+                            {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && 
                              showServiceProviderField && 
                              canPerformOperations && (
                               <Button 
@@ -736,8 +736,8 @@ export default function SaleOperationDialog({
               </TabsContent>
             </Tabs>
             
-            {/* Configuração do tipo de execução quando pendente ou corrigida */}
-            {canPerformOperations && !isReturning && (enrichedSale.status === "pending" || enrichedSale.status === "corrected") && (
+            {/* Configuração do tipo de execução quando pendente, em andamento ou corrigida */}
+            {canPerformOperations && !isReturning && (enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && (
               <Card className="mt-6 mb-4">
                 <CardHeader className="pb-3">
                   <CardTitle>Configuração da Execução</CardTitle>
