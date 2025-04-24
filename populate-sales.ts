@@ -92,12 +92,5 @@ export async function populateSales() {
   }
 }
 
-// Para executar diretamente via node
-if (require.main === module) {
-  populateSales()
-    .then(() => process.exit(0))
-    .catch((error: any) => {
-      console.error("Erro:", error);
-      process.exit(1);
-    });
-}
+// Para execução direta via ESM
+// Não mantemos a verificação de execução direta, pois será sempre importado
