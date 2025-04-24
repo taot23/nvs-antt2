@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -422,6 +422,49 @@ export default function SalesPage() {
     }
   }, [lastEvent, queryClient, toast]);
   
+  // NOVA ABORDAGEM COM EFEITO DIRETO NO DOM
+  useLayoutEffect(() => {
+    // Função que aplica cores diretamente no DOM
+    const applyColorsToTable = () => {
+      console.log('Aplicando cores diretamente ao DOM...');
+      
+      // Para cada status, definimos cores específicas
+      const colorMap = {
+        'corrected': 'rgba(250, 240, 137, 0.15)',  // Amarelo suave
+        'completed': 'rgba(134, 239, 172, 0.15)',  // Verde suave
+        'in_progress': 'rgba(255, 159, 64, 0.15)', // Laranja suave
+        'returned': 'rgba(252, 165, 165, 0.15)'    // Vermelho suave
+      };
+      
+      // Para cada linha com data-status
+      document.querySelectorAll('tr[data-status]').forEach(row => {
+        const status = row.getAttribute('data-status');
+        if (status && status in colorMap) {
+          // Aplicar cor em todas as células da linha
+          row.querySelectorAll('td').forEach(cell => {
+            (cell as HTMLElement).style.backgroundColor = colorMap[status as keyof typeof colorMap];
+          });
+        }
+      });
+      
+      // Para cards no mobile
+      document.querySelectorAll('div[data-status]').forEach(card => {
+        const status = card.getAttribute('data-status');
+        if (status && status in colorMap) {
+          (card as HTMLElement).style.backgroundColor = colorMap[status as keyof typeof colorMap];
+        }
+      });
+    };
+    
+    // Aplicar cores imediatamente após a renderização
+    applyColorsToTable();
+    
+    // Também programar para aplicar um pouco depois (para lidar com possíveis delays)
+    const timerId = setTimeout(applyColorsToTable, 200);
+    
+    return () => clearTimeout(timerId);
+  }, [sales, statusFilter, searchTerm]);
+  
   // Função para forçar a atualização dos dados
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -763,6 +806,7 @@ export default function SalesPage() {
                 <Card 
                   key={sale.id} 
                   className="overflow-hidden"
+                  data-status={sale.status}
                   style={getStatusStyle(sale.status)}
                 >
                   <CardHeader className="pb-2">
@@ -1151,7 +1195,10 @@ export default function SalesPage() {
               ) : (
                 filteredSales.map((sale: Sale) => {
                   return (
-                    <TableRow key={sale.id}>
+                    <TableRow 
+                      key={sale.id}
+                      data-status={sale.status}
+                    >
                       <TableCell 
                         className="font-medium" 
                         style={getStatusStyle(sale.status)}
