@@ -1397,9 +1397,9 @@ export default function SalesPage() {
         <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">
             Exibindo{' '}
-            <strong>{filteredSales.length > 0 ? (page - 1) * limit + 1 : 0}</strong> a{' '}
-            <strong>{Math.min(page * limit, totalRecords)}</strong> de{' '}
-            <strong>{totalRecords}</strong> vendas
+            <strong>{salesData?.total ? (page - 1) * limit + 1 : 0}</strong> a{' '}
+            <strong>{Math.min(page * limit, salesData?.total || 0)}</strong> de{' '}
+            <strong>{salesData?.total || 0}</strong> vendas
           </p>
           
           <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
@@ -1411,7 +1411,6 @@ export default function SalesPage() {
               <SelectItem value="15">15 por página</SelectItem>
               <SelectItem value="25">25 por página</SelectItem>
               <SelectItem value="50">50 por página</SelectItem>
-              <SelectItem value="100">100 por página</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1437,9 +1436,10 @@ export default function SalesPage() {
           
           {/* Números das páginas */}
           <div className="flex items-center">
-            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+            {Array.from({ length: Math.min(5, salesData?.totalPages || 1) }).map((_, i) => {
               // Lógica para mostrar páginas ao redor da atual
               let pageNum = 1;
+              const totalPages = salesData?.totalPages || 1;
               
               if (totalPages <= 5) {
                 // Se temos 5 ou menos páginas, mostramos todas elas
@@ -1473,8 +1473,8 @@ export default function SalesPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages || isLoading}
+            onClick={() => setPage(p => Math.min(salesData?.totalPages || 1, p + 1))}
+            disabled={page === (salesData?.totalPages || 1) || isLoading}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -1482,8 +1482,8 @@ export default function SalesPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setPage(totalPages)}
-            disabled={page === totalPages || isLoading}
+            onClick={() => setPage(salesData?.totalPages || 1)}
+            disabled={page === (salesData?.totalPages || 1) || isLoading}
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>
