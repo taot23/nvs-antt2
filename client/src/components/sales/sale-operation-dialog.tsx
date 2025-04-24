@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft, FileCheck } from "lucide-react";
+import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft, FileCheck, Settings2, Users, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import {
