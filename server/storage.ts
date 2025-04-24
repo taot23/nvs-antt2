@@ -77,6 +77,22 @@ export interface IStorage {
   updateSale(id: number, sale: Partial<InsertSale>): Promise<Sale | undefined>;
   deleteSale(id: number): Promise<boolean>;
   
+  // Paginação de vendas
+  getSalesPaginated(options: {
+    page: number;
+    limit: number;
+    status?: string;
+    sellerId?: number;
+    searchTerm?: string;
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
+  }): Promise<{
+    data: Sale[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }>;
+  
   // Sale Items methods
   getSaleItems(saleId: number): Promise<SaleItem[]>;
   getSaleItem(id: number): Promise<SaleItem | undefined>;
