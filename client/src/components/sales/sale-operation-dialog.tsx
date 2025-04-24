@@ -920,7 +920,7 @@ export default function SaleOperationDialog({
               </Card>
             )}
             
-            {canPerformOperations && !isReturning && (enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && (
+            {canPerformOperations && !isReturning && (sale?.status === "pending" || sale?.status === "in_progress" || sale?.status === "corrected") && (
               <Card className="mt-6 mb-4">
                 <CardHeader className="pb-3">
                   <CardTitle>Configuração da Execução</CardTitle>
@@ -1083,7 +1083,7 @@ export default function SaleOperationDialog({
                     )}
                     
                     {/* Botão para ação principal baseada no status */}
-                    {(enrichedSale.status === "pending" || enrichedSale.status === "corrected") && (
+                    {(sale?.status === "pending" || sale?.status === "corrected") && (
                       <Button 
                         type="button" 
                         onClick={handleMainAction}
@@ -1092,7 +1092,7 @@ export default function SaleOperationDialog({
                           (showServiceProviderField && !selectedServiceProviderId) ||
                           !selectedServiceTypeId
                         }
-                        className={enrichedSale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
+                        className={sale?.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
                         title={showServiceProviderField && !selectedServiceProviderId 
                           ? "É necessário selecionar um prestador parceiro para execução via SINDICATO" 
                           : !selectedServiceTypeId 
@@ -1104,7 +1104,7 @@ export default function SaleOperationDialog({
                       </Button>
                     )}
                     
-                    {enrichedSale.status === "in_progress" && (
+                    {sale?.status === "in_progress" && (
                       <Button 
                         type="button" 
                         onClick={handleMainAction}
