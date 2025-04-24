@@ -215,16 +215,41 @@ export default function SalesPage() {
     }
   };
   
-  // Para o perfil vendedor, carregamos apenas suas próprias vendas
-  const { data: sales = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all"],
+  // Estados para paginação
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15); // Número de registros por página
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  
+  // Para o perfil vendedor, carregamos apenas suas próprias vendas, agora com paginação
+  const { data: salesData = { data: [], total: 0, page: 1, totalPages: 1 }, isLoading, error, refetch } = useQuery({
+    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all", page, limit, statusFilter, searchTerm, sortField, sortDirection],
     queryFn: async ({ queryKey }) => {
+      // Preparar a URL com os parâmetros de paginação e filtros
+      const baseUrl = "/api/sales";
+      const queryParams = new URLSearchParams();
+      
+      // Adicionar parâmetros de paginação
+      queryParams.append("page", page.toString());
+      queryParams.append("limit", limit.toString());
+      
+      // Adicionar parâmetros de ordenação
+      if (sortField) queryParams.append("sortField", sortField);
+      if (sortDirection) queryParams.append("sortDirection", sortDirection);
+      
+      // Adicionar filtros
+      if (statusFilter) queryParams.append("status", statusFilter);
+      if (searchTerm) queryParams.append("searchTerm", searchTerm);
+      
       // Vendedor só pode ver suas próprias vendas
-      let url = "/api/sales";
       if (user?.role === "vendedor") {
         console.log("Carregando vendas específicas para o vendedor:", user.id);
-        url = `/api/sales?sellerId=${user.id}`;
+        queryParams.append("sellerId", user.id.toString());
       }
+      
+      // Construir a URL final
+      const url = `${baseUrl}?${queryParams.toString()}`;
+      console.log("URL de consulta paginada:", url);
       
       // Dados críticos, não usamos cache local para vendas
       const response = await fetch(url, {
@@ -239,11 +264,20 @@ export default function SalesPage() {
       }
       
       const data = await response.json();
+      
+      // Atualizar estados da paginação
+      setTotalPages(data.totalPages);
+      setTotalRecords(data.total);
+      
+      // Retornar o objeto completo com dados e metadados
       return data;
     },
     staleTime: 30000, // 30 segundos, dados de vendas são mais críticos
     refetchOnWindowFocus: true, // Atualize quando o usuário volta para a janela
   });
+  
+  // Extrair sales do salesData para manter compatibilidade com o restante do código
+  const sales = salesData.data || [];
 
   // Os demais recursos podem usar uma abordagem otimizada com cache
   const { data: customers = [] } = useQuery({

@@ -574,6 +574,104 @@ export class DatabaseStorage implements IStorage {
       
     return !!deletedSale;
   }
+  
+  async getSalesPaginated(options: {
+    page: number;
+    limit: number;
+    status?: string;
+    sellerId?: number;
+    searchTerm?: string;
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
+  }): Promise<{
+    data: Sale[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    const { 
+      page = 1, 
+      limit = 10, 
+      status, 
+      sellerId, 
+      searchTerm, 
+      sortField = 'createdAt', 
+      sortDirection = 'desc' 
+    } = options;
+    
+    console.log(`Buscando vendas paginadas: página ${page}, limite ${limit}`);
+    
+    // Obter todas as vendas primeiro (depois otimizaremos isso com SQL direto)
+    let allSales = await db.select().from(sales);
+    let totalRecords = allSales.length;
+    
+    // Filtrar pelo status, se fornecido
+    if (status) {
+      allSales = allSales.filter(sale => sale.status === status);
+    }
+    
+    // Filtrar pelo vendedor, se fornecido
+    if (sellerId) {
+      allSales = allSales.filter(sale => sale.sellerId === sellerId);
+    }
+    
+    // Filtrar por termo de busca, se fornecido
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      allSales = allSales.filter(sale => {
+        // Buscar no número do pedido
+        return sale.orderNumber.toLowerCase().includes(term);
+        // Podemos expandir para outros campos no futuro
+      });
+    }
+    
+    // Obter o total após a filtragem
+    totalRecords = allSales.length;
+    
+    // Ordenar os resultados
+    allSales.sort((a, b) => {
+      // Verificar qual campo usar para ordenação
+      const fieldA = a[sortField as keyof Sale];
+      const fieldB = b[sortField as keyof Sale];
+      
+      // Comparar baseado no tipo de campo
+      if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+        return sortDirection === 'asc' 
+          ? fieldA.localeCompare(fieldB) 
+          : fieldB.localeCompare(fieldA);
+      } else if (fieldA instanceof Date && fieldB instanceof Date) {
+        return sortDirection === 'asc' 
+          ? fieldA.getTime() - fieldB.getTime() 
+          : fieldB.getTime() - fieldA.getTime();
+      } else if (typeof fieldA === 'number' && typeof fieldB === 'number') {
+        return sortDirection === 'asc' 
+          ? fieldA - fieldB 
+          : fieldB - fieldA;
+      }
+      
+      // Fallback para string
+      return sortDirection === 'asc' 
+        ? String(fieldA).localeCompare(String(fieldB)) 
+        : String(fieldB).localeCompare(String(fieldA));
+    });
+    
+    // Calcular paginação
+    const totalPages = Math.ceil(totalRecords / limit);
+    const start = (page - 1) * limit;
+    const end = page * limit;
+    
+    // Pegar apenas os registros da página atual
+    const paginatedResults = allSales.slice(start, end);
+    
+    console.log(`Retornando ${paginatedResults.length} vendas de um total de ${totalRecords}`);
+    
+    return {
+      data: paginatedResults,
+      total: totalRecords,
+      page,
+      totalPages
+    };
+  }
 
   // Implementação dos métodos de itens da venda
   async getSaleItems(saleId: number): Promise<SaleItem[]> {

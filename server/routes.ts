@@ -1004,8 +1004,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== Rotas para gerenciamento de vendas ==========
   
-  // Rota para listar todas as vendas (com base na permissão do usuário)
+  // Rota para listar todas as vendas (com base na permissão do usuário) - com suporte a paginação
   app.get("/api/sales", isAuthenticated, async (req, res) => {
+    try {
+      // Parâmetros de paginação e filtros opcionais
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const status = req.query.status as string || undefined;
+      const searchTerm = req.query.searchTerm as string || undefined;
+      const sortField = req.query.sortField as string || 'createdAt';
+      const sortDirection = req.query.sortDirection as 'asc' | 'desc' || 'desc';
+      
+      // Verificar se existe um parâmetro sellerId na query
+      const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
+      
+      let result;
+      
+      // Se for admin, supervisor, operacional ou financeiro, pode ver todas as vendas
+      // OU filtrar por vendedor específico se o sellerId for fornecido
+      if (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
+        console.log(`Buscando vendas paginadas (página ${page}, limite ${limit})`);
+        result = await storage.getSalesPaginated({
+          page,
+          limit,
+          status,
+          sellerId,
+          searchTerm,
+          sortField,
+          sortDirection
+        });
+      } else {
+        // Se for vendedor, só vê as próprias vendas
+        console.log(`Vendedor visualizando apenas suas vendas (página ${page}, limite ${limit}):`, req.user!.id);
+        result = await storage.getSalesPaginated({
+          page,
+          limit,
+          status,
+          sellerId: req.user!.id, // Força o filtro pelo ID do vendedor
+          searchTerm,
+          sortField,
+          sortDirection
+        });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao buscar vendas:", error);
+      res.status(500).json({ error: "Erro ao buscar vendas" });
+    }
+  });
+  
+  // Rota para obter todas as vendas sem paginação (para casos específicos)
+  app.get("/api/sales/all", isAuthenticated, async (req, res) => {
     try {
       let sales = [];
       
@@ -1030,8 +1080,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(sales);
     } catch (error) {
-      console.error("Erro ao buscar vendas:", error);
-      res.status(500).json({ error: "Erro ao buscar vendas" });
+      console.error("Erro ao buscar todas as vendas:", error);
+      res.status(500).json({ error: "Erro ao buscar todas as vendas" });
     }
   });
 
