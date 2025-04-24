@@ -295,27 +295,26 @@ export default function SalesPage() {
   // Mutation para iniciar execução
   const startExecutionMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/sales/${id}/start-execution`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
+      // Ao invés de chamar diretamente a API, vamos abrir o diálogo de operação
+      // para garantir que o usuário pode selecionar o tipo de execução e prestador parceiro
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao iniciar execução da venda");
+      // Selecionar a venda atual
+      const sale = sales.find((sale: Sale) => sale.id === id);
+      if (!sale) {
+        throw new Error("Venda não encontrada");
       }
       
-      return await response.json();
+      // Definir como selecionada e abrir diálogo de operação
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+      
+      // Retornar um resultado vazio - o diálogo se encarregará do restante
+      return { success: true };
     },
     onSuccess: () => {
+      // Apenas invalidar a consulta - não mostrar mensagem de sucesso
+      // pois o processo será concluído no diálogo de operação
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      toast({
-        title: "Execução iniciada",
-        description: "A execução da venda foi iniciada com sucesso",
-      });
     },
     onError: (error: Error) => {
       toast({
@@ -329,27 +328,26 @@ export default function SalesPage() {
   // Mutation para completar execução
   const completeExecutionMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/sales/${id}/complete-execution`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
+      // Ao invés de chamar diretamente a API, vamos abrir o diálogo de operação
+      // para garantir que o usuário tenha acesso a todas as opções
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao concluir execução da venda");
+      // Selecionar a venda atual
+      const sale = sales.find((sale: Sale) => sale.id === id);
+      if (!sale) {
+        throw new Error("Venda não encontrada");
       }
       
-      return await response.json();
+      // Definir como selecionada e abrir diálogo de operação
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+      
+      // Retornar um resultado vazio - o diálogo se encarregará do restante
+      return { success: true };
     },
     onSuccess: () => {
+      // Apenas invalidar a consulta - não mostrar mensagem de sucesso
+      // pois o processo será concluído no diálogo de operação
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      toast({
-        title: "Execução concluída",
-        description: "A execução da venda foi concluída com sucesso",
-      });
     },
     onError: (error: Error) => {
       toast({
