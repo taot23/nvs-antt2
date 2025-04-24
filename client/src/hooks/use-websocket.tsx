@@ -55,6 +55,23 @@ export function useWebSocket() {
           const data: WSEvent = JSON.parse(event.data);
           console.log('Evento WebSocket recebido:', data);
           
+          // Lidar com mensagens pong (resposta aos pings)
+          if (data.type === 'pong') {
+            // Se temos um pong timeout pendente, limpe-o
+            if (pongTimeoutRef.current) {
+              clearTimeout(pongTimeoutRef.current);
+              pongTimeoutRef.current = null;
+            }
+            
+            // Calcular latência se temos um timestamp de ping
+            if (lastPingTime > 0) {
+              const now = performance.now();
+              const latency = now - lastPingTime;
+              setPingLatency(latency);
+              console.log(`Latência WebSocket: ${latency.toFixed(2)}ms`);
+            }
+          }
+          
           // Se for uma atualização de venda, atualizar os dados
           if (data.type === 'sales_update') {
             console.log('Recebida atualização de vendas via WebSocket');
@@ -137,14 +154,50 @@ export function useWebSocket() {
   useEffect(() => {
     const ws = createWebSocketConnection();
     
+    // Configurar ping periódico para manter a conexão viva
+    pingIntervalRef.current = window.setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('Enviando ping para verificar conexão WebSocket...');
+        
+        // Armazenar o tempo para calcular latência quando o pong voltar
+        setLastPingTime(performance.now());
+        
+        // Enviar o ping com timestamp
+        ws.send(JSON.stringify({
+          type: 'ping',
+          timestamp: Date.now()
+        }));
+        
+        // Definir um timeout para caso não recebamos o pong dentro de um tempo razoável
+        // isso indica uma conexão quebrada mesmo que o socket pareça aberto
+        pongTimeoutRef.current = window.setTimeout(() => {
+          console.warn('Timeout de pong atingido! A conexão parece estar quebrada.');
+          if (ws.readyState === WebSocket.OPEN) {
+            console.log('Fechando conexão para forçar reconexão...');
+            ws.close();
+          }
+        }, 5000); // 5 segundos para receber o pong
+      }
+    }, 30000); // ping a cada 30 segundos
+    
     // Limpar ao desmontar
     return () => {
       console.log('Componente desmontado, fechando conexão WebSocket');
       
-      // Limpar timeout de reconexão
+      // Limpar todos os timers
       if (reconnectTimeoutRef.current) {
         window.clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
+      }
+      
+      if (pingIntervalRef.current) {
+        window.clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
+      
+      if (pongTimeoutRef.current) {
+        window.clearTimeout(pongTimeoutRef.current);
+        pongTimeoutRef.current = null;
       }
       
       // Fechar websocket
@@ -179,5 +232,12 @@ export function useWebSocket() {
     }
   }, [socket, createWebSocketConnection]);
   
-  return { isConnected, lastEvent, sendMessage, reconnect };
+  return { 
+    isConnected, 
+    lastEvent, 
+    sendMessage, 
+    reconnect,
+    pingLatency, // Latência da conexão (ms)
+    lastPingTime // Último momento em que um ping foi enviado
+  };
 }

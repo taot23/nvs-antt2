@@ -3,12 +3,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { log } from './vite';
 
 // Tipos de eventos para o WebSocket
-export type WSEventType = 'sales_update' | 'user_update' | 'ping';
+export type WSEventType = 'sales_update' | 'user_update' | 'ping' | 'pong';
 
 // Interface para os eventos
 export interface WSEvent {
   type: WSEventType;
   payload?: any;
+  timestamp?: number;
 }
 
 // Armazenar as conexões ativas
@@ -39,7 +40,12 @@ export function setupWebsocket(httpServer: HttpServer) {
         
         // Processar diferentes tipos de eventos
         if (event.type === 'ping') {
-          ws.send(JSON.stringify({ type: 'ping', payload: { timestamp: Date.now() } }));
+          // Responder com pong (não ping) para que o cliente possa calcular a latência
+          ws.send(JSON.stringify({ 
+            type: 'pong', 
+            payload: { message: 'Pong resposta ao ping' },
+            timestamp: Date.now() 
+          }));
         }
       } catch (error) {
         log(`Erro ao processar mensagem: ${error}`, 'websocket');
@@ -58,7 +64,13 @@ export function setupWebsocket(httpServer: HttpServer) {
     // Verificar periodicamente se a conexão ainda está ativa
     const interval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'ping', payload: { timestamp: Date.now() } }));
+        // Agora enviamos "ping" para que o cliente responda com "pong"
+        // Assim a verificação de integridade é bidirecional
+        ws.send(JSON.stringify({ 
+          type: 'ping', 
+          payload: { message: 'Ping periódico do servidor' },
+          timestamp: Date.now() 
+        }));
       } else {
         clearInterval(interval);
       }
