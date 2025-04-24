@@ -76,24 +76,52 @@ function getStatusVariant(status: string) {
   }
 }
 
-// ABORDAGEM SIMPLIFICADA: Apenas estilos inline para máxima compatibilidade
+// Função para obter classes CSS para a linha da tabela
+function getStatusRowClass(status: string) {
+  // Garantir que sempre retornamos uma string válida
+  if (!status) return '';
+  
+  switch (status) {
+    case 'corrected': return 'status-row-corrected'; // Amarelo bem suave para "corrigido"
+    case 'completed': return 'status-row-completed'; // Verde bem suave para "concluído"
+    case 'in_progress': return 'status-row-in_progress'; // Laranja bem suave para "em andamento"
+    case 'returned': return 'status-row-returned'; // Vermelho bem suave para "devolvida"
+    default: return '';
+  }
+}
 
-// Uma única função clara para obter estilos inline diretamente
+// Função para obter classes CSS para o card mobile
+function getStatusCardClass(status: string) {
+  // Garantir que sempre retornamos uma string válida
+  if (!status) return '';
+  
+  switch (status) {
+    case 'corrected': return 'status-card-corrected'; // Amarelo bem suave para "corrigido"
+    case 'completed': return 'status-card-completed'; // Verde bem suave para "concluído"
+    case 'in_progress': return 'status-card-in_progress'; // Laranja bem suave para "em andamento"
+    case 'returned': return 'status-card-returned'; // Vermelho bem suave para "devolvida"
+    default: return '';
+  }
+}
+
+// Função para obter estilos inline como backup - usando valores diretos para maior consistência
 function getStatusStyle(status: string) {
   if (!status) return {};
   
-  switch (status) {
-    case 'corrected': 
-      return { backgroundColor: 'rgba(250, 240, 137, 0.15)' }; // Amarelo suave
-    case 'completed': 
-      return { backgroundColor: 'rgba(134, 239, 172, 0.15)' }; // Verde suave
-    case 'in_progress': 
-      return { backgroundColor: 'rgba(251, 191, 36, 0.15)' }; // Laranja suave
-    case 'returned': 
-      return { backgroundColor: 'rgba(252, 165, 165, 0.15)' }; // Vermelho suave
-    default: 
-      return {};
+  // Definindo cores diretamente aqui (combinando com o CSS) para evitar inconsistências
+  const COLORS = {
+    corrected: 'rgba(250, 240, 137, 0.15)',  // Amarelo suave
+    completed: 'rgba(134, 239, 172, 0.15)',  // Verde suave
+    in_progress: 'rgba(251, 191, 36, 0.15)', // Laranja suave (atualizado)
+    returned: 'rgba(252, 165, 165, 0.15)'    // Vermelho suave
+  };
+  
+  // Verificar se status é válido e retornar a cor correspondente ou objeto vazio
+  if (status in COLORS) {
+    return { backgroundColor: COLORS[status as keyof typeof COLORS] };
   }
+  
+  return {};
 }
 
 // Componente principal
@@ -737,7 +765,7 @@ export default function SalesPage() {
               return (
                 <Card 
                   key={sale.id} 
-                  className="overflow-hidden"
+                  className={`overflow-hidden ${getStatusCardClass(sale.status)}`}
                   style={getStatusStyle(sale.status)}
                 >
                   <CardHeader className="pb-2">
@@ -1126,7 +1154,7 @@ export default function SalesPage() {
               ) : (
                 filteredSales.map((sale: Sale) => {
                   return (
-                    <TableRow key={sale.id}>
+                    <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
                       <TableCell 
                         className="font-medium" 
                         style={getStatusStyle(sale.status)}
