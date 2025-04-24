@@ -108,7 +108,7 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Histórico da Venda</DialogTitle>
           <DialogDescription>
@@ -122,7 +122,7 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-grow pr-4 my-4 max-h-[60vh]">
+          <ScrollArea className="flex-grow pr-4 my-4 max-h-[70vh]">
             <div className="space-y-6">
               {history.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
