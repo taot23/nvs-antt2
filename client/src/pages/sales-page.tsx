@@ -462,7 +462,7 @@ export default function SalesPage() {
   // Efeito para escutar atualizações via WebSocket
   useEffect(() => {
     if (lastEvent?.type === 'sales_update') {
-      console.log('Recebida atualização de vendas via WebSocket');
+      console.log('Recebida atualização de vendas via WebSocket (lastEvent)');
       
       // Atualizar automaticamente os dados
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
@@ -474,6 +474,31 @@ export default function SalesPage() {
       });
     }
   }, [lastEvent, queryClient, toast]);
+  
+  // Adicionar ouvinte para o evento personalizado de sales-update
+  useEffect(() => {
+    // Função para lidar com o evento personalizado
+    const handleSalesUpdateEvent = (event: Event) => {
+      console.log('Recebido evento personalizado sales-update');
+      
+      // Atualizar os dados
+      refetch();
+      
+      // Mostrar notificação
+      toast({
+        title: "Atualização de vendas",
+        description: "As vendas foram atualizadas via evento personalizado",
+      });
+    };
+    
+    // Adicionar o ouvinte de eventos
+    window.addEventListener('sales-update', handleSalesUpdateEvent);
+    
+    // Remover o ouvinte quando o componente for desmontado
+    return () => {
+      window.removeEventListener('sales-update', handleSalesUpdateEvent);
+    };
+  }, [refetch, toast]);
   
   // NOVA ABORDAGEM COM EFEITO DIRETO NO DOM
   useLayoutEffect(() => {
