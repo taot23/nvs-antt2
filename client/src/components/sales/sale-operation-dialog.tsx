@@ -434,8 +434,9 @@ export default function SaleOperationDialog({
         ) : (
           <>
             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4">
+              <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="summary">Resumo</TabsTrigger>
+                <TabsTrigger value="execution">Execução</TabsTrigger>
                 <TabsTrigger value="items">Itens</TabsTrigger>
                 <TabsTrigger value="history">Histórico</TabsTrigger>
               </TabsList>
@@ -531,6 +532,103 @@ export default function SaleOperationDialog({
                             <p className="text-sm p-2 bg-muted rounded">
                               {enrichedSale.notes || "Nenhuma observação registrada"}
                             </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Tab de Execução */}
+              <TabsContent value="execution">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle>Detalhes da Execução</CardTitle>
+                    <CardDescription>
+                      Informações sobre como o serviço será executado
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6">
+                      {/* Tipo de Execução */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium">Tipo de Execução</h3>
+                        <div className="bg-muted p-3 rounded-md flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CornerDownRight className="h-5 w-5 text-primary" />
+                            <span className="font-medium">
+                              {selectedServiceTypeId 
+                                ? serviceTypes.find((t: any) => t.id === selectedServiceTypeId)?.name
+                                : enrichedSale.serviceTypeName || "Não definido"}
+                            </span>
+                          </div>
+                          {(enrichedSale.status === "pending" || enrichedSale.status === "corrected") && canPerformOperations && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setActiveTab("summary")}
+                              className="text-xs"
+                            >
+                              <Settings2 className="h-3 w-3 mr-1" />
+                              Alterar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Prestador Parceiro (se for SINDICATO) */}
+                      {(showServiceProviderField || enrichedSale.serviceProviderId) && (
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-medium">Prestador de Serviço Parceiro</h3>
+                          <div className="bg-muted p-3 rounded-md flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-5 w-5 text-primary" />
+                              <span className="font-medium">
+                                {selectedServiceProviderId
+                                  ? serviceProviders.find((p: any) => p.id === selectedServiceProviderId)?.name
+                                  : enrichedSale.serviceProviderId
+                                    ? serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"
+                                    : "Não selecionado"}
+                              </span>
+                            </div>
+                            {(enrichedSale.status === "pending" || enrichedSale.status === "corrected") && 
+                             showServiceProviderField && 
+                             canPerformOperations && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setActiveTab("summary")}
+                                className="text-xs"
+                              >
+                                <Settings2 className="h-3 w-3 mr-1" />
+                                Alterar
+                              </Button>
+                            )}
+                          </div>
+                          {showServiceProviderField && !selectedServiceProviderId && (
+                            <p className="text-xs text-destructive">
+                              * É necessário selecionar um prestador parceiro para execução via SINDICATO
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Status atual */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium">Status Atual</h3>
+                        <div className="bg-muted p-3 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getStatusVariant(enrichedSale.status) as any} className="ml-0">
+                              {getStatusLabel(enrichedSale.status)}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {enrichedSale.status === "pending" && "Aguardando início da execução"}
+                              {enrichedSale.status === "in_progress" && "Em processamento pelo operacional"}
+                              {enrichedSale.status === "completed" && "Execução finalizada, aguardando financeiro"}
+                              {enrichedSale.status === "returned" && "Devolvida para correção pelo vendedor"}
+                              {enrichedSale.status === "corrected" && "Corrigida pelo vendedor, aguardando nova análise"}
+                            </span>
                           </div>
                         </div>
                       </div>
