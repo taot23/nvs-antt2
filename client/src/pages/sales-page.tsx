@@ -1477,8 +1477,10 @@ export default function SalesPage() {
                             </Button>
                           )}
                           
-                          {/* Novo botão de reenvio para vendedor */}
-                          {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                          {/* Botão de reenvio para vendedor, supervisor ou admin */}
+                          {(user?.role === "admin" || 
+                            user?.role === "supervisor" || 
+                            (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
                             <ReenviaButton sale={sale} />
                           )}
                           
