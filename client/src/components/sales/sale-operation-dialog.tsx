@@ -93,7 +93,16 @@ export default function SaleOperationDialog({
       if (!response.ok) {
         throw new Error("Erro ao carregar venda");
       }
-      return response.json();
+      const saleData = await response.json();
+      
+      // Adicionar logs para debug - verifica se a OS 12 tem o status correto
+      if(saleData?.orderNumber === "12") {
+        console.log("ENCONTRADA OS 12:", saleData);
+        console.log("Status da OS 12:", saleData.status);
+        console.log("Perfil do usuário atual:", user?.role);
+      }
+      
+      return saleData;
     },
     enabled: !!saleId && open,
   });
@@ -868,7 +877,14 @@ export default function SaleOperationDialog({
             
             {/* Configuração do tipo de execução quando pendente, em andamento ou corrigida */}
             {/* Botão para supervisor marcar venda como corrigida quando status é "returned" */}
-            {canPerformOperations && !isReturning && enrichedSale.status === "returned" && user?.role === "supervisor" && (
+            {console.log("OS 12 - Condição para exibir Card:", {
+              canPerformOperations,
+              isReturning,
+              status: enrichedSale?.status,
+              userRole: user?.role,
+              showCard: canPerformOperations && !isReturning && enrichedSale?.status === "returned" && user?.role === "supervisor"
+            })}
+            {canPerformOperations && !isReturning && enrichedSale?.status === "returned" && user?.role === "supervisor" && (
               <Card className="mt-6 mb-4">
                 <CardHeader className="pb-3">
                   <CardTitle>Marcar como Corrigida</CardTitle>
@@ -1048,7 +1064,12 @@ export default function SaleOperationDialog({
                     )}
                     
                     {/* Botão para supervisores reenviarem vendas devolvidas */}
-                    {enrichedSale.status === "returned" && user?.role === "supervisor" && (
+                    {console.log("OS 12 - Condição para exibir Botão:", {
+                      status: enrichedSale?.status,
+                      userRole: user?.role,
+                      showButton: enrichedSale?.status === "returned" && user?.role === "supervisor"
+                    })}
+                    {enrichedSale?.status === "returned" && user?.role === "supervisor" && (
                       <Button 
                         type="button"
                         variant="default"
