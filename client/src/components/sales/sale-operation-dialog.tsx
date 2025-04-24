@@ -193,12 +193,21 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
+      // Se o tipo de serviço for SINDICATO, o prestador parceiro é obrigatório
+      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
+      if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
+        throw new Error("É necessário selecionar um prestador parceiro para execução via SINDICATO");
+      }
+      
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          serviceTypeId: selectedServiceTypeId,
+          serviceProviderId: selectedServiceProviderId
+        }),
       });
       
       if (!response.ok) {
