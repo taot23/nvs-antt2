@@ -30,7 +30,7 @@ import SaleHistoryDialog from "@/components/sales/sale-history-dialog";
 import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
-import VirtualizedTable from "@/components/virtualized-table";
+import PaginatedSalesTable from "@/components/paginated-sales-table";
 
 // Tipos
 type Sale = {
