@@ -106,16 +106,32 @@ function getStatusCardClass(status: string) {
 
 // ABORDAGEM FINAL: Função para aplicar estilos inline diretamente
 function getStatusStyle(status: string) {
-  // CORES USANDO RGB PARA MÁXIMA COMPATIBILIDADE
+  // CORES MAIS INTENSAS USANDO RGB PARA MÁXIMA COMPATIBILIDADE
   switch (status) {
     case 'corrected': 
-      return { backgroundColor: 'rgba(250, 240, 137, 0.15)', border: '1px solid rgba(250, 240, 137, 0.3)' }; // Amarelo suave
+      return { 
+        backgroundColor: 'rgba(250, 240, 137, 0.3)', 
+        border: '2px solid rgba(250, 240, 137, 0.6)',
+        borderLeft: '5px solid rgba(250, 240, 137, 0.8)'
+      }; // Amarelo mais intenso
     case 'completed': 
-      return { backgroundColor: 'rgba(134, 239, 172, 0.15)', border: '1px solid rgba(134, 239, 172, 0.3)' }; // Verde suave
+      return { 
+        backgroundColor: 'rgba(134, 239, 172, 0.3)', 
+        border: '2px solid rgba(134, 239, 172, 0.6)',
+        borderLeft: '5px solid rgba(134, 239, 172, 0.8)'
+      }; // Verde mais intenso
     case 'in_progress': 
-      return { backgroundColor: 'rgba(255, 159, 64, 0.15)', border: '1px solid rgba(255, 159, 64, 0.3)' }; // Laranja claro
+      return { 
+        backgroundColor: 'rgba(255, 159, 64, 0.3)', 
+        border: '2px solid rgba(255, 159, 64, 0.6)',
+        borderLeft: '5px solid rgba(255, 159, 64, 0.8)'
+      }; // Laranja mais intenso
     case 'returned': 
-      return { backgroundColor: 'rgba(252, 165, 165, 0.15)', border: '1px solid rgba(252, 165, 165, 0.3)' }; // Vermelho suave
+      return { 
+        backgroundColor: 'rgba(252, 165, 165, 0.3)', 
+        border: '2px solid rgba(252, 165, 165, 0.6)',
+        borderLeft: '5px solid rgba(252, 165, 165, 0.8)'
+      }; // Vermelho mais intenso
     default: 
       return {};
   }
@@ -428,30 +444,49 @@ export default function SalesPage() {
     const applyColorsToTable = () => {
       console.log('Aplicando cores diretamente ao DOM...');
       
-      // Para cada status, definimos cores específicas
+      // Para cada status, definimos cores específicas com cores mais intensas
       const colorMap = {
-        'corrected': 'rgba(250, 240, 137, 0.15)',  // Amarelo suave
-        'completed': 'rgba(134, 239, 172, 0.15)',  // Verde suave
-        'in_progress': 'rgba(255, 159, 64, 0.15)', // Laranja suave
-        'returned': 'rgba(252, 165, 165, 0.15)'    // Vermelho suave
+        'corrected': 'rgba(250, 240, 137, 0.25)',  // Amarelo mais visível
+        'completed': 'rgba(134, 239, 172, 0.25)',  // Verde mais visível
+        'in_progress': 'rgba(255, 159, 64, 0.3)',  // Laranja mais visível
+        'returned': 'rgba(252, 165, 165, 0.25)'    // Vermelho mais visível
       };
       
       // Para cada linha com data-status
-      document.querySelectorAll('tr[data-status]').forEach(row => {
+      const rowsWithStatus = document.querySelectorAll('tr[data-status]');
+      console.log(`Encontradas ${rowsWithStatus.length} linhas com atributo data-status`);
+      
+      rowsWithStatus.forEach(row => {
         const status = row.getAttribute('data-status');
+        console.log(`Processando linha com status: ${status}`);
+        
         if (status && status in colorMap) {
           // Aplicar cor em todas as células da linha
-          row.querySelectorAll('td').forEach(cell => {
+          const cells = row.querySelectorAll('td');
+          console.log(`Aplicando cor ${colorMap[status as keyof typeof colorMap]} em ${cells.length} células`);
+          
+          cells.forEach(cell => {
             (cell as HTMLElement).style.backgroundColor = colorMap[status as keyof typeof colorMap];
+            // Garantir que a cor seja aplicada com !important
+            (cell as HTMLElement).setAttribute('style', 
+              `background-color: ${colorMap[status as keyof typeof colorMap]} !important`);
           });
         }
       });
       
       // Para cards no mobile
-      document.querySelectorAll('div[data-status]').forEach(card => {
+      const cardsWithStatus = document.querySelectorAll('div[data-status]');
+      console.log(`Encontrados ${cardsWithStatus.length} cards com atributo data-status`);
+      
+      cardsWithStatus.forEach(card => {
         const status = card.getAttribute('data-status');
+        console.log(`Processando card com status: ${status}`);
+        
         if (status && status in colorMap) {
-          (card as HTMLElement).style.backgroundColor = colorMap[status as keyof typeof colorMap];
+          console.log(`Aplicando cor ${colorMap[status as keyof typeof colorMap]} ao card`);
+          // Aplicar diretamente no elemento com !important
+          (card as HTMLElement).setAttribute('style', 
+            `background-color: ${colorMap[status as keyof typeof colorMap]} !important`);
         }
       });
     };
@@ -459,10 +494,31 @@ export default function SalesPage() {
     // Aplicar cores imediatamente após a renderização
     applyColorsToTable();
     
-    // Também programar para aplicar um pouco depois (para lidar com possíveis delays)
-    const timerId = setTimeout(applyColorsToTable, 200);
+    // Programar várias tentativas com intervalos diferentes para garantir a aplicação
+    const timerIds: ReturnType<typeof setTimeout>[] = [];
+    // Tentar após 100ms, 300ms, 500ms, 1s e 2s para maior cobertura de cenários
+    [100, 300, 500, 1000, 2000].forEach(delay => {
+      const timerId = setTimeout(applyColorsToTable, delay);
+      timerIds.push(timerId);
+    });
     
-    return () => clearTimeout(timerId);
+    // Também adicionar observador de mutação para recolorir quando o DOM for modificado
+    const observer = new MutationObserver((mutations) => {
+      console.log('DOM modificado, reaplicando cores...');
+      applyColorsToTable();
+    });
+    
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true 
+    });
+    
+    return () => {
+      // Limpar todos os timers
+      timerIds.forEach(id => clearTimeout(id));
+      // Desconectar o observer
+      observer.disconnect();
+    };
   }, [sales, statusFilter, searchTerm]);
   
   // Função para forçar a atualização dos dados
