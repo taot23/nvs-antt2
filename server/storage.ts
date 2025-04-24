@@ -665,8 +665,35 @@ export class DatabaseStorage implements IStorage {
 
   // Implementação dos métodos de histórico de status
   async getSalesStatusHistory(saleId: number): Promise<SalesStatusHistory[]> {
-    const allHistory = await db.select().from(salesStatusHistory);
-    return allHistory.filter(record => record.saleId === saleId);
+    try {
+      // Buscar o histórico da venda específica (filtro diretamente no SQL)
+      const history = await db
+        .select()
+        .from(salesStatusHistory)
+        .where(eq(salesStatusHistory.saleId, saleId));
+      
+      // Recuperar os usuários relacionados a cada entrada
+      const result = [];
+      
+      for (const entry of history) {
+        // Buscar informações do usuário
+        const user = await this.getUser(entry.userId);
+        
+        // Adicionar ao resultado com o nome do usuário
+        result.push({
+          ...entry,
+          userName: user ? user.username : `Usuário #${entry.userId}`
+        });
+      }
+      
+      // Ordenar por data de criação (mais recente primeiro)
+      return result.sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    } catch (error) {
+      console.error("Erro ao buscar histórico:", error);
+      return []; // Retorna array vazio em caso de erro
+    }
   }
 
   async createSalesStatusHistory(historyData: InsertSalesStatusHistory): Promise<SalesStatusHistory> {

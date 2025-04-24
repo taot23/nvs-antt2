@@ -50,9 +50,16 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
     queryKey: ['/api/sales', saleId, 'history'],
     queryFn: async () => {
       if (!saleId) return [];
+      console.log(`Tentando carregar histórico da venda #${saleId}`);
       const response = await fetch(`/api/sales/${saleId}/history`);
-      if (!response.ok) throw new Error('Erro ao carregar histórico');
-      return response.json();
+      console.log(`Resposta do histórico: status=${response.status}`);
+      if (!response.ok) {
+        console.error('Erro ao carregar histórico:', response.statusText);
+        throw new Error('Erro ao carregar histórico');
+      }
+      const data = await response.json();
+      console.log('Histórico carregado com sucesso:', data);
+      return data;
     },
     enabled: !!saleId && open,
   });
