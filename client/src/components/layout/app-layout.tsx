@@ -75,15 +75,20 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex justify-end p-2 bg-background/90 backdrop-blur-sm shadow-sm border-b sticky top-0 z-10">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Badge 
-                  variant={getRoleBadgeVariant() as any}
-                  className="flex items-center py-1.5 px-3 cursor-pointer hover:opacity-90 transition-opacity"
+                <Button 
+                  variant="ghost"
+                  className="h-auto p-0 hover:bg-transparent"
                 >
-                  {getUserRoleIcon()}
-                  <span className="font-medium">
-                    {user.username} ({user.role})
-                  </span>
-                </Badge>
+                  <Badge 
+                    variant={getRoleBadgeVariant() as any}
+                    className="flex items-center py-1.5 px-3 hover:opacity-90 transition-opacity"
+                  >
+                    {getUserRoleIcon()}
+                    <span className="font-medium">
+                      {user.username} ({user.role})
+                    </span>
+                  </Badge>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem 
