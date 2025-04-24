@@ -16,12 +16,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
 import { useDebounce } from "@/hooks/useDebounce";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { debounce } from "lodash-es";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { DateRange } from "react-day-picker";
 import SaleDialog from "@/components/sales/sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
@@ -31,6 +32,7 @@ import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
+import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
 type Sale = {
@@ -176,6 +178,7 @@ export default function SalesPage() {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false); // Estado para diálogo de histórico de vendas
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined); // Estado para filtro de intervalo de datas
   
   // Configuração para staleTime e gcTime globais para reduzir chamadas de API
   const staleTime = 5 * 60 * 1000; // 5 minutos 
