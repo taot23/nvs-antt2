@@ -113,6 +113,8 @@ export const sales = pgTable("sales", {
   customerId: integer("customer_id").notNull().references(() => customers.id), // Cliente
   paymentMethodId: integer("payment_method_id").notNull().references(() => paymentMethods.id), // Forma de pagamento
   sellerId: integer("seller_id").notNull().references(() => users.id), // Vendedor responsável
+  serviceTypeId: integer("service_type_id").references(() => serviceTypes.id), // Tipo de execução do serviço
+  serviceProviderId: integer("service_provider_id").references(() => serviceProviders.id), // Prestador de serviço parceiro (para SINDICATO)
   totalAmount: numeric("total_amount").notNull().default("0"), // Valor total
   status: text("status").notNull().default("pending"), // Status: pending, in_progress, returned, completed, canceled
   executionStatus: text("execution_status").default("waiting"), // Status de execução: waiting, in_progress, completed

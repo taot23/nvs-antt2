@@ -1574,8 +1574,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Iniciar execução da venda
-      const updatedSale = await storage.markSaleInProgress(id, req.user!.id);
+      // Extrair informações do corpo da requisição
+      const { serviceTypeId, serviceProviderId } = req.body;
+      
+      // Validar tipo de serviço se fornecido
+      if (serviceTypeId !== undefined) {
+        const serviceTypeIdNum = parseInt(serviceTypeId);
+        if (isNaN(serviceTypeIdNum)) {
+          return res.status(400).json({ error: "ID do tipo de serviço inválido" });
+        }
+        
+        // Verificar se o tipo de serviço existe
+        const serviceType = await storage.getServiceType(serviceTypeIdNum);
+        if (!serviceType) {
+          return res.status(400).json({ error: "Tipo de serviço não encontrado" });
+        }
+        
+        // Se o tipo de serviço for SINDICATO, é obrigatório informar o prestador parceiro
+        if (serviceType.name === "SINDICATO" && !serviceProviderId) {
+          return res.status(400).json({ 
+            error: "Prestador parceiro obrigatório", 
+            message: "Para execução via SINDICATO, é necessário informar o prestador parceiro"
+          });
+        }
+      }
+      
+      // Validar prestador de serviço se fornecido
+      if (serviceProviderId !== undefined) {
+        const serviceProviderIdNum = parseInt(serviceProviderId);
+        if (isNaN(serviceProviderIdNum)) {
+          return res.status(400).json({ error: "ID do prestador de serviço inválido" });
+        }
+        
+        // Verificar se o prestador de serviço existe
+        const serviceProvider = await storage.getServiceProvider(serviceProviderIdNum);
+        if (!serviceProvider) {
+          return res.status(400).json({ error: "Prestador de serviço não encontrado" });
+        }
+        
+        if (!serviceProvider.active) {
+          return res.status(400).json({ 
+            error: "Prestador inativo", 
+            message: "O prestador de serviço selecionado está inativo"
+          });
+        }
+      }
+      
+      // Iniciar execução da venda com os possíveis novos valores
+      const updatedSale = await storage.markSaleInProgress(
+        id, 
+        req.user!.id,
+        serviceTypeId ? parseInt(serviceTypeId) : undefined,
+        serviceProviderId ? parseInt(serviceProviderId) : undefined
+      );
+      
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }

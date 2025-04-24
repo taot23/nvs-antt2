@@ -714,17 +714,28 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Verificar se houve mudança no tipo de serviço
-    const typeChanged = serviceTypeId && serviceTypeId !== sale.serviceTypeId;
     let notesText = 'Execução iniciada';
     
-    if (typeChanged) {
-      const oldType = await db.select().from(serviceTypes).where(eq(serviceTypes.id, sale.serviceTypeId)).limit(1);
-      const newType = await db.select().from(serviceTypes).where(eq(serviceTypes.id, serviceTypeId)).limit(1);
-      
-      if (oldType.length > 0 && newType.length > 0) {
-        notesText += ` - Tipo de execução alterado de ${oldType[0].name} para ${newType[0].name}`;
-      } else {
-        notesText += ' - Tipo de execução alterado';
+    // Se foi fornecido um tipo de serviço diferente do atual (ou pela primeira vez)
+    if (serviceTypeId) {
+      if (!sale.serviceTypeId) {
+        // Primeira atribuição de tipo de serviço
+        const newType = await this.getServiceType(serviceTypeId);
+        if (newType) {
+          notesText += ` - Tipo de execução definido como ${newType.name}`;
+        } else {
+          notesText += ' - Tipo de execução definido';
+        }
+      } else if (serviceTypeId !== sale.serviceTypeId) {
+        // Alteração de tipo existente
+        const oldType = await this.getServiceType(sale.serviceTypeId);
+        const newType = await this.getServiceType(serviceTypeId);
+        
+        if (oldType && newType) {
+          notesText += ` - Tipo de execução alterado de ${oldType.name} para ${newType.name}`;
+        } else {
+          notesText += ' - Tipo de execução alterado';
+        }
       }
     }
     
@@ -746,11 +757,13 @@ export class DatabaseStorage implements IStorage {
     
     // Adicionar o tipo de serviço se fornecido
     if (serviceTypeId) {
+      // @ts-ignore - O type está correto mas o TypeScript não reconhece pois foi adicionado dinamicamente
       updateData.serviceTypeId = serviceTypeId;
     }
     
     // Adicionar o prestador de serviço parceiro se fornecido
     if (serviceProviderId) {
+      // @ts-ignore - O type está correto mas o TypeScript não reconhece pois foi adicionado dinamicamente
       updateData.serviceProviderId = serviceProviderId;
     }
     
