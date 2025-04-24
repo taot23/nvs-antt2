@@ -1029,6 +1029,25 @@ export default function SalesPage() {
                       <ReenviaButton sale={sale} />
                     )}
                     
+                    {/* Botão para operacional/admin devolver venda corrigida */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      sale.status === "corrected" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow text-amber-500 border-amber-200 hover:bg-amber-50"
+                        onClick={() => {
+                          // Abrir um diálogo semelhante ao DevolveButton, 
+                          // mas vamos usar o diálogo de retorno existente com o componente já pronto
+                          setSelectedSale(sale);
+                          setReturnDialogOpen(true);
+                        }}
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                        Devolver
+                      </Button>
+                    )}
+                    
                     {/* Botão para financeiro marcar como paga */}
                     {(user?.role === "admin" || user?.role === "financeiro") && 
                       sale.status === "completed" && 

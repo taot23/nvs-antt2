@@ -1823,10 +1823,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar se a venda está no status correto para ser devolvida
-      if (sale.status !== "pending" && sale.status !== "in_progress") {
+      if (sale.status !== "pending" && sale.status !== "in_progress" && sale.status !== "corrected") {
         return res.status(400).json({ 
           error: "Não é possível devolver a venda", 
-          message: "Só é possível devolver vendas que estão pendentes ou em andamento."
+          message: "Só é possível devolver vendas que estão pendentes, em andamento ou corrigidas aguardando operacional."
         });
       }
       
