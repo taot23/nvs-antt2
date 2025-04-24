@@ -27,6 +27,15 @@ import { ptBR } from "date-fns/locale";
 import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft, FileCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { FormControl } from "@/components/ui/form";
 
 // Função para obter a descrição do status
 function getStatusLabel(status: string) {
@@ -71,6 +80,9 @@ export default function SaleOperationDialog({
   const [returnReason, setReturnReason] = useState("");
   const [activeTab, setActiveTab] = useState("summary");
   const [isReturning, setIsReturning] = useState(false);
+  const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<number | null>(null);
+  const [selectedServiceProviderId, setSelectedServiceProviderId] = useState<number | null>(null);
+  const [showServiceProviderField, setShowServiceProviderField] = useState(false);
 
   // Query para obter os detalhes da venda
   const { data: sale, isLoading: saleLoading } = useQuery({
@@ -161,6 +173,19 @@ export default function SaleOperationDialog({
       return response.json();
     },
     enabled: open,
+  });
+  
+  // Query para obter os prestadores de serviço
+  const { data: serviceProviders = [] } = useQuery({
+    queryKey: ["/api/service-providers"],
+    queryFn: async () => {
+      const response = await fetch("/api/service-providers");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar prestadores de serviço");
+      }
+      return response.json();
+    },
+    enabled: open && showServiceProviderField,
   });
 
   // Mutation para iniciar a execução da venda
@@ -320,12 +345,52 @@ export default function SaleOperationDialog({
     returnToSellerMutation.mutate();
   };
 
-  // Limpar o estado do motivo de devolução quando o diálogo for fechado
+  // Efeito para inicializar o tipo de serviço quando a venda for carregada
+  useEffect(() => {
+    if (sale && serviceTypes.length > 0) {
+      setSelectedServiceTypeId(sale.serviceTypeId);
+      
+      // Verificar se o tipo de serviço é SINDICATO
+      const serviceType = serviceTypes.find((type: any) => type.id === sale.serviceTypeId);
+      if (serviceType && serviceType.name === "SINDICATO") {
+        setShowServiceProviderField(true);
+        setSelectedServiceProviderId(sale.serviceProviderId || null);
+      } else {
+        setShowServiceProviderField(false);
+        setSelectedServiceProviderId(null);
+      }
+    }
+  }, [sale, serviceTypes]);
+
+  // Manipulador para alterar o tipo de serviço
+  const handleServiceTypeChange = (typeId: string) => {
+    const id = parseInt(typeId);
+    setSelectedServiceTypeId(id);
+    
+    // Verificar se o novo tipo selecionado é SINDICATO
+    const serviceType = serviceTypes.find((type: any) => type.id === id);
+    if (serviceType && serviceType.name === "SINDICATO") {
+      setShowServiceProviderField(true);
+    } else {
+      setShowServiceProviderField(false);
+      setSelectedServiceProviderId(null);
+    }
+  };
+
+  // Manipulador para alterar o prestador de serviço
+  const handleServiceProviderChange = (providerId: string) => {
+    setSelectedServiceProviderId(parseInt(providerId));
+  };
+  
+  // Limpar o estado quando o diálogo for fechado
   useEffect(() => {
     if (!open) {
       setReturnReason("");
       setIsReturning(false);
       setActiveTab("summary");
+      setSelectedServiceTypeId(null);
+      setSelectedServiceProviderId(null);
+      setShowServiceProviderField(false);
     }
   }, [open]);
 
