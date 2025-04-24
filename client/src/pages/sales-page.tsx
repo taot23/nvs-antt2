@@ -104,7 +104,7 @@ function getStatusStyle(status: string) {
       color = 'rgba(134, 239, 172, 0.15)';  // Verde bem suave
       break;
     case 'in_progress': 
-      color = 'rgba(147, 197, 253, 0.15)'; // Azul bem suave
+      color = 'rgba(251, 191, 36, 0.15)'; // Laranja bem suave
       break;
     case 'returned': 
       color = 'rgba(252, 165, 165, 0.15)';  // Vermelho bem suave
