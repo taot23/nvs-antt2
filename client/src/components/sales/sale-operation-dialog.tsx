@@ -619,6 +619,67 @@ export default function SaleOperationDialog({
                 </Card>
               </TabsContent>
             </Tabs>
+            
+            {/* Configuração do tipo de execução quando pendente ou corrigida */}
+            {canPerformOperations && !isReturning && (enrichedSale.status === "pending" || enrichedSale.status === "corrected") && (
+              <Card className="mt-6 mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle>Configuração da Execução</CardTitle>
+                  <CardDescription>
+                    Defina como a venda será executada
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <div>
+                    <Label htmlFor="service-type" className="text-sm font-medium mb-2 block">
+                      Tipo de Execução
+                    </Label>
+                    <Select 
+                      value={selectedServiceTypeId?.toString() || ''} 
+                      onValueChange={handleServiceTypeChange}
+                    >
+                      <SelectTrigger id="service-type">
+                        <SelectValue placeholder="Selecione o tipo de execução" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceTypes.map((type: any) => (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Mostrar campo para selecionar prestador de serviço quando for SINDICATO */}
+                  {showServiceProviderField && (
+                    <div>
+                      <Label htmlFor="service-provider" className="text-sm font-medium mb-2 block">
+                        Prestador de Serviço Parceiro
+                      </Label>
+                      <Select 
+                        value={selectedServiceProviderId?.toString() || ''} 
+                        onValueChange={handleServiceProviderChange}
+                      >
+                        <SelectTrigger id="service-provider">
+                          <SelectValue placeholder="Selecione o prestador parceiro" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {serviceProviders
+                            .filter((provider: any) => provider.active)
+                            .map((provider: any) => (
+                              <SelectItem key={provider.id} value={provider.id.toString()}>
+                                {provider.name}
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {isReturning ? (
               <div className="mt-6 space-y-4">
@@ -680,8 +741,13 @@ export default function SaleOperationDialog({
                       <Button 
                         type="button" 
                         onClick={handleMainAction}
-                        disabled={startExecutionMutation.isPending}
+                        disabled={
+                          startExecutionMutation.isPending || 
+                          (showServiceProviderField && !selectedServiceProviderId)
+                        }
                         className={enrichedSale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
+                        title={showServiceProviderField && !selectedServiceProviderId ? 
+                          "É necessário selecionar um prestador parceiro para execução via SINDICATO" : ""}
                       >
                         <CornerDownRight className="mr-2 h-4 w-4" />
                         {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
