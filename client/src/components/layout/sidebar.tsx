@@ -32,13 +32,28 @@ type MenuItem = {
 
 export function Sidebar() {
   const isMobile = useIsMobile();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpandedState] = useState(() => {
+    // Ler o estado do localStorage na montagem inicial (apenas desktop)
+    if (typeof window !== 'undefined' && !isMobile) {
+      const saved = localStorage.getItem('sidebar-expanded');
+      // Se não houver valor salvo ainda, expandir por padrão
+      return saved !== null ? saved === 'true' : true;
+    }
+    return false;
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logoutMutation, user } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   
-  // Atualizar o estado expandido apenas quando mudar entre mobile e desktop
-  // não mais auto-expandindo no desktop para preservar o estado de preferência do usuário
+  // Função que atualiza o estado e salva no localStorage
+  const setExpanded = (value: boolean) => {
+    setExpandedState(value);
+    if (typeof window !== 'undefined' && !isMobile) {
+      localStorage.setItem('sidebar-expanded', value.toString());
+    }
+  };
+  
+  // Atualizar o estado apenas quando mudar entre mobile e desktop
   useEffect(() => {
     // Log para debug
     console.log("Sidebar - Mudou dispositivo:", isMobile ? "Mobile" : "Desktop");
@@ -47,18 +62,15 @@ export function Sidebar() {
     if (isMobile) {
       setMobileMenuOpen(false);
     }
-    
-    // Expansão inicial apenas na primeira renderização (quando o componente é montado)
-    // Usamos uma verificação de ref para garantir que isso só aconteça uma vez
   }, [isMobile]);
   
-  // Efeito executado apenas uma vez na montagem do componente
+  // Efeito adicional que monitora mudanças de rota
   useEffect(() => {
-    // Em desktop (md ou maior), expandir a barra lateral por padrão apenas na primeira carga
-    if (!isMobile) {
-      setExpanded(true);
+    // Quando mudar de rota, fechar o menu mobile
+    if (isMobile) {
+      setMobileMenuOpen(false);
     }
-  }, []);
+  }, [location, isMobile]);
   
   const toggleSidebar = () => {
     if (isMobile) {
