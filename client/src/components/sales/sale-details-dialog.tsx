@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, AlertTriangle, Receipt, BadgeCheck, Clock, FileSpreadsheet, ArrowDownToLine } from "lucide-react";
+import { Loader2, AlertTriangle, Receipt, BadgeCheck, Clock, FileSpreadsheet, ArrowDownToLine, FileCheck } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -23,6 +23,7 @@ function getStatusLabel(status: string) {
     case 'completed': return 'Concluída';
     case 'canceled': return 'Cancelada';
     case 'paid': return 'Pago';
+    case 'corrected': return 'Corrigida Aguardando Operacional';
     default: return status;
   }
 }
@@ -36,6 +37,7 @@ function getStatusVariant(status: string) {
     case 'completed': return 'success';
     case 'canceled': return 'outline';
     case 'paid': return 'success';
+    case 'corrected': return 'primary';
     default: return 'default';
   }
 }
