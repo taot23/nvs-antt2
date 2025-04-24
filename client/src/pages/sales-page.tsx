@@ -159,6 +159,7 @@ export default function SalesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Estados
+  const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -677,8 +678,22 @@ export default function SalesPage() {
     setClearSalesDialogOpen(false);
   };
   
+  // Função para aplicar debounce na pesquisa
+  const debouncedSearchTerm = useDebounce(internalSearchTerm, 300);
+  
+  // Efeito para atualizar o termo de pesquisa após o debounce
+  useEffect(() => {
+    setSearchTerm(debouncedSearchTerm);
+  }, [debouncedSearchTerm]);
+  
+  // Função para atualizar o termo de pesquisa interno (sem delay)
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInternalSearchTerm(e.target.value);
+  };
+  
   const clearSearch = () => {
     setSearchTerm("");
+    setInternalSearchTerm("");
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
@@ -836,8 +851,8 @@ export default function SalesPage() {
               type="search"
               placeholder="Buscar venda..."
               className="pl-8 pr-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={internalSearchTerm}
+              onChange={handleSearch}
             />
             {searchTerm && (
               <Button
@@ -1129,8 +1144,8 @@ export default function SalesPage() {
             type="search"
             placeholder="Buscar venda..."
             className="pl-8 pr-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={internalSearchTerm}
+            onChange={handleSearch}
           />
           {searchTerm && (
             <Button
