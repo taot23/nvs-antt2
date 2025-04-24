@@ -583,6 +583,8 @@ export class DatabaseStorage implements IStorage {
     searchTerm?: string;
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
+    startDate?: string;
+    endDate?: string;
   }): Promise<{
     data: Sale[];
     total: number;
@@ -596,10 +598,12 @@ export class DatabaseStorage implements IStorage {
       sellerId, 
       searchTerm, 
       sortField = 'createdAt', 
-      sortDirection = 'desc' 
+      sortDirection = 'desc',
+      startDate,
+      endDate
     } = options;
     
-    console.log(`Buscando vendas paginadas: página ${page}, limite ${limit}`);
+    console.log(`Buscando vendas paginadas: página ${page}, limite ${limit}, intervalo de datas: ${startDate || 'não definido'} a ${endDate || 'não definido'}`);
     
     // Obter todas as vendas primeiro (depois otimizaremos isso com SQL direto)
     let allSales = await db.select().from(sales);
@@ -613,6 +617,28 @@ export class DatabaseStorage implements IStorage {
     // Filtrar pelo vendedor, se fornecido
     if (sellerId) {
       allSales = allSales.filter(sale => sale.sellerId === sellerId);
+    }
+    
+    // Filtrar por intervalo de datas, se fornecido
+    if (startDate || endDate) {
+      allSales = allSales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        
+        // Verificar data inicial
+        if (startDate) {
+          const start = new Date(startDate);
+          if (saleDate < start) return false;
+        }
+        
+        // Verificar data final
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999); // Definir para o final do dia
+          if (saleDate > end) return false;
+        }
+        
+        return true;
+      });
     }
     
     // Filtrar por termo de busca, se fornecido

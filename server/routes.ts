@@ -1014,6 +1014,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchTerm = req.query.searchTerm as string || undefined;
       const sortField = req.query.sortField as string || 'createdAt';
       const sortDirection = req.query.sortDirection as 'asc' | 'desc' || 'desc';
+      const startDate = req.query.startDate as string || undefined;
+      const endDate = req.query.endDate as string || undefined;
       
       // Verificar se existe um parâmetro sellerId na query
       const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
@@ -1031,7 +1033,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sellerId,
           searchTerm,
           sortField,
-          sortDirection
+          sortDirection,
+          startDate,
+          endDate
         });
       } else {
         // Se for vendedor, só vê as próprias vendas
@@ -1043,7 +1047,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sellerId: req.user!.id, // Força o filtro pelo ID do vendedor
           searchTerm,
           sortField,
-          sortDirection
+          sortDirection,
+          startDate,
+          endDate
         });
       }
       
