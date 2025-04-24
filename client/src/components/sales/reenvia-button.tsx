@@ -53,6 +53,19 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
   const { user } = useAuth();
 
   console.log('ReenviaButton - sale:', sale?.id, 'status:', sale?.status, 'open:', open, 'userRole:', user?.role);
+  
+  // Log detalhado para depuração
+  console.log('DEPURAÇÃO ReenviaButton:', {
+    isReturned: sale?.status === 'returned',
+    isAdmin: user?.role === 'admin',
+    isSupervisor: user?.role === 'supervisor',
+    isOwner: user?.role === 'vendedor' && sale?.sellerId === user?.id,
+    shouldShow: sale?.status === 'returned' && (
+      user?.role === 'admin' || 
+      user?.role === 'supervisor' || 
+      (user?.role === 'vendedor' && sale?.sellerId === user?.id)
+    )
+  });
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
@@ -92,11 +105,18 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
   };
 
   // Não mostrar o botão se a venda não estiver em status "returned"
-  // Verificar permissões: administrador, vendedor responsável ou supervisor
-  if (sale.status !== 'returned' || 
-      (user?.role !== 'admin' && 
-       user?.role !== 'supervisor' && 
-       !(user?.role === 'vendedor' && sale.sellerId === user?.id))) {
+  // Verificar permissões: administrador, supervisor ou vendedor responsável
+  console.log("VERIFICANDO RENDERIZAÇÃO, venda:", sale.id, "status:", sale.status, "role:", user?.role);
+  
+  // Verificação simplificada para depuração
+  if (sale.status !== 'returned') {
+    console.log("Botão não mostrado: venda não está com status 'returned'");
+    return null;
+  }
+  
+  // Verificação de permissão
+  if (user?.role !== 'admin' && user?.role !== 'supervisor' && !(user?.role === 'vendedor' && sale.sellerId === user?.id)) {
+    console.log("Botão não mostrado: sem permissão. Role:", user?.role, "Vendedor id:", sale.sellerId);
     return null;
   }
 

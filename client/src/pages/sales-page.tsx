@@ -1020,8 +1020,9 @@ export default function SalesPage() {
                     )}
                     
                     {/* Botão para vendedor reenviar venda corrigida */}
-                    {/* O botão de reenvio agora gerencia suas próprias permissões */}
+                    {/* Botão para reenviar venda corrigida com logs de depuração */}
                     <ReenviaButton sale={sale} />
+                    {/* Log feito no componente */}
                     
                     {/* Botão para financeiro marcar como paga */}
                     {(user?.role === "admin" || user?.role === "financeiro") && 
