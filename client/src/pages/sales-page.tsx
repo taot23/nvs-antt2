@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -1254,28 +1255,64 @@ export default function SalesPage() {
                     <TableRow 
                       key={sale.id}
                       data-status={sale.status}
+                      className={cn(
+                        sale.status === "completed" && "bg-green-100 border-green-300 border",
+                        sale.status === "in_progress" && "bg-orange-100 border-orange-300 border",
+                        sale.status === "returned" && "bg-red-100 border-red-300 border",
+                        sale.status === "corrected" && "bg-yellow-100 border-yellow-300 border",
+                      )}
                     >
                       <TableCell 
-                        className="font-medium" 
-                        style={getStatusStyle(sale.status)}
+                        className={cn(
+                          "font-medium",
+                          sale.status === "completed" && "bg-green-100 border-l-4 border-l-green-500",
+                          sale.status === "in_progress" && "bg-orange-100 border-l-4 border-l-orange-500",
+                          sale.status === "returned" && "bg-red-100 border-l-4 border-l-red-500",
+                          sale.status === "corrected" && "bg-yellow-100 border-l-4 border-l-yellow-500",
+                        )}
                       >
                         {sale.orderNumber}
                       </TableCell>
-                      <TableCell style={getStatusStyle(sale.status)}>
+                      <TableCell className={cn(
+                          sale.status === "completed" && "bg-green-100",
+                          sale.status === "in_progress" && "bg-orange-100",
+                          sale.status === "returned" && "bg-red-100",
+                          sale.status === "corrected" && "bg-yellow-100",
+                        )}>
                         {sale.date ? 
                           format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
                           format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
-                      <TableCell style={getStatusStyle(sale.status)}>
+                      <TableCell className={cn(
+                          sale.status === "completed" && "bg-green-100",
+                          sale.status === "in_progress" && "bg-orange-100",
+                          sale.status === "returned" && "bg-red-100",
+                          sale.status === "corrected" && "bg-yellow-100",
+                        )}>
                         {sale.customerName}
                       </TableCell>
-                      <TableCell style={getStatusStyle(sale.status)}>
+                      <TableCell className={cn(
+                          sale.status === "completed" && "bg-green-100",
+                          sale.status === "in_progress" && "bg-orange-100",
+                          sale.status === "returned" && "bg-red-100",
+                          sale.status === "corrected" && "bg-yellow-100",
+                        )}>
                         {sale.sellerName}
                       </TableCell>
-                      <TableCell style={getStatusStyle(sale.status)}>
+                      <TableCell className={cn(
+                          sale.status === "completed" && "bg-green-100",
+                          sale.status === "in_progress" && "bg-orange-100",
+                          sale.status === "returned" && "bg-red-100",
+                          sale.status === "corrected" && "bg-yellow-100",
+                        )}>
                         R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
                       </TableCell>
-                      <TableCell style={getStatusStyle(sale.status)}>
+                      <TableCell className={cn(
+                          sale.status === "completed" && "bg-green-100",
+                          sale.status === "in_progress" && "bg-orange-100",
+                          sale.status === "returned" && "bg-red-100",
+                          sale.status === "corrected" && "bg-yellow-100",
+                        )}>
                         <div className="flex flex-col gap-1">
                           <Badge variant={getStatusVariant(sale.status) as any}>
                             {getStatusLabel(sale.status)}
@@ -1287,7 +1324,13 @@ export default function SalesPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right" style={getStatusStyle(sale.status)}>
+                      <TableCell className={cn(
+                          "text-right",
+                          sale.status === "completed" && "bg-green-100",
+                          sale.status === "in_progress" && "bg-orange-100",
+                          sale.status === "returned" && "bg-red-100",
+                          sale.status === "corrected" && "bg-yellow-100",
+                        )}>
                         <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"

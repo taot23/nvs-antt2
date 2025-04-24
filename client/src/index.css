@@ -3,58 +3,125 @@
 @tailwind utilities;
 
 :root {
-  /* Definição das cores de status como variáveis CSS */
-  --color-corrected-bg: rgba(250, 240, 137, 0.15); /* Amarelo suave */
-  --color-completed-bg: rgba(134, 239, 172, 0.15); /* Verde suave */
-  --color-in-progress-bg: rgba(251, 191, 36, 0.15); /* Laranja suave */
-  --color-returned-bg: rgba(252, 165, 165, 0.15); /* Vermelho suave */
+  /* Definição das cores de status como variáveis CSS - VALORES INTENSIFICADOS */
+  --color-corrected-bg: rgba(250, 240, 137, 0.35); /* Amarelo intenso */
+  --color-completed-bg: rgba(134, 239, 172, 0.35); /* Verde intenso */
+  --color-in-progress-bg: rgba(255, 159, 64, 0.4); /* Laranja intenso */
+  --color-returned-bg: rgba(252, 165, 165, 0.35); /* Vermelho intenso */
 }
 
-/* SOLUÇÃO FINAL - ABORDAGEM DIRETA: Sobrescrever estilos do Tailwind */
+/* SOLUÇÃO FINAL 2.0 - ABORDAGEM DIRETA COM BORDAS E CORES INTENSAS */
 
-/* DEFINIÇÃO DE ESTILOS DE CÉLULAS POR STATUS - ESTAS REGRAS SOBREPÕEM TUDO */
+/* DEFINIÇÃO DE ESTILOS DE CÉLULAS POR STATUS COM BORDAS DESTACADAS */
 table tbody tr.status-row-corrected td { 
-    background-color: rgba(250, 240, 137, 0.15) !important; 
+    background-color: var(--color-corrected-bg) !important;
+    border: 1px solid rgba(250, 240, 137, 0.6) !important;
 }
+table tbody tr.status-row-corrected td:first-child { 
+    border-left: 5px solid rgba(234, 220, 0, 0.8) !important;
+}
+
 table tbody tr.status-row-completed td { 
-    background-color: rgba(134, 239, 172, 0.15) !important; 
+    background-color: var(--color-completed-bg) !important;
+    border: 1px solid rgba(134, 239, 172, 0.6) !important;
 }
+table tbody tr.status-row-completed td:first-child { 
+    border-left: 5px solid rgba(74, 222, 128, 0.8) !important;
+}
+
 table tbody tr.status-row-in_progress td { 
-    background-color: rgba(255, 159, 64, 0.15) !important; 
+    background-color: var(--color-in-progress-bg) !important;
+    border: 1px solid rgba(255, 159, 64, 0.6) !important;
 }
+table tbody tr.status-row-in_progress td:first-child { 
+    border-left: 5px solid rgba(255, 128, 0, 0.8) !important;
+}
+
 table tbody tr.status-row-returned td { 
-    background-color: rgba(252, 165, 165, 0.15) !important; 
+    background-color: var(--color-returned-bg) !important;
+    border: 1px solid rgba(252, 165, 165, 0.6) !important;
+}
+table tbody tr.status-row-returned td:first-child { 
+    border-left: 5px solid rgba(239, 68, 68, 0.8) !important;
 }
 
 /* REGRAS ESPECÍFICAS PARA CARD MOBILE - USANDO TODAS AS CLASSES DISPONÍVEIS */
 div[class*="overflow"].status-card-corrected { 
-    background-color: rgba(250, 240, 137, 0.15) !important; 
+    background-color: var(--color-corrected-bg) !important; 
+    border: 2px solid rgba(250, 240, 137, 0.6) !important;
+    border-left: 5px solid rgba(234, 220, 0, 0.8) !important;
 }
 div[class*="overflow"].status-card-completed { 
-    background-color: rgba(134, 239, 172, 0.15) !important; 
+    background-color: var(--color-completed-bg) !important; 
+    border: 2px solid rgba(134, 239, 172, 0.6) !important;
+    border-left: 5px solid rgba(74, 222, 128, 0.8) !important;
 }
 div[class*="overflow"].status-card-in_progress { 
-    background-color: rgba(255, 159, 64, 0.15) !important; 
+    background-color: var(--color-in-progress-bg) !important; 
+    border: 2px solid rgba(255, 159, 64, 0.6) !important;
+    border-left: 5px solid rgba(255, 128, 0, 0.8) !important;
 }
 div[class*="overflow"].status-card-returned { 
-    background-color: rgba(252, 165, 165, 0.15) !important; 
+    background-color: var(--color-returned-bg) !important; 
+    border: 2px solid rgba(252, 165, 165, 0.6) !important;
+    border-left: 5px solid rgba(239, 68, 68, 0.8) !important;
 }
 
-/* Reforço adicional para sobrescrever regras potencialmente conflitantes */
-@media screen {
-    /* Para garantir que sobrescreva regras em qualquer mídia */
-    table tbody tr.status-row-corrected td { 
-        background-color: rgba(250, 240, 137, 0.15) !important; 
-    }
-    table tbody tr.status-row-completed td { 
-        background-color: rgba(134, 239, 172, 0.15) !important; 
-    }
-    table tbody tr.status-row-in_progress td { 
-        background-color: rgba(255, 159, 64, 0.15) !important; 
-    }
-    table tbody tr.status-row-returned td { 
-        background-color: rgba(252, 165, 165, 0.15) !important; 
-    }
+/* Regras adicionais para garantir aplicação direta nos elementos com data-status */
+tr[data-status="corrected"] td {
+    background-color: var(--color-corrected-bg) !important;
+    border: 1px solid rgba(250, 240, 137, 0.6) !important;
+}
+tr[data-status="corrected"] td:first-child {
+    border-left: 5px solid rgba(234, 220, 0, 0.8) !important;
+}
+
+tr[data-status="completed"] td {
+    background-color: var(--color-completed-bg) !important;
+    border: 1px solid rgba(134, 239, 172, 0.6) !important;
+}
+tr[data-status="completed"] td:first-child {
+    border-left: 5px solid rgba(74, 222, 128, 0.8) !important;
+}
+
+tr[data-status="in_progress"] td {
+    background-color: var(--color-in-progress-bg) !important;
+    border: 1px solid rgba(255, 159, 64, 0.6) !important;
+}
+tr[data-status="in_progress"] td:first-child {
+    border-left: 5px solid rgba(255, 128, 0, 0.8) !important;
+}
+
+tr[data-status="returned"] td {
+    background-color: var(--color-returned-bg) !important;
+    border: 1px solid rgba(252, 165, 165, 0.6) !important;
+}
+tr[data-status="returned"] td:first-child {
+    border-left: 5px solid rgba(239, 68, 68, 0.8) !important;
+}
+
+div[data-status="corrected"] {
+    background-color: var(--color-corrected-bg) !important;
+    border: 2px solid rgba(250, 240, 137, 0.6) !important;
+    border-left: 5px solid rgba(234, 220, 0, 0.8) !important;
+}
+
+div[data-status="completed"] {
+    background-color: var(--color-completed-bg) !important;
+    border: 2px solid rgba(134, 239, 172, 0.6) !important;
+    border-left: 5px solid rgba(74, 222, 128, 0.8) !important;
+}
+
+div[data-status="in_progress"] {
+    background-color: var(--color-in-progress-bg) !important;
+    border: 2px solid rgba(255, 159, 64, 0.6) !important;
+    border-left: 5px solid rgba(255, 128, 0, 0.8) !important;
+}
+
+div[data-status="returned"] {
+    background-color: var(--color-returned-bg) !important;
+    border: 2px solid rgba(252, 165, 165, 0.6) !important;
+    border-left: 5px solid rgba(239, 68, 68, 0.8) !important;
 }
 
 /* Fix para inputs em iOS para evitar zoom indesejado */
