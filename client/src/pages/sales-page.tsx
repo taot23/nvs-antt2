@@ -24,6 +24,7 @@ import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
 import SaleHistoryDialog from "@/components/sales/sale-history-dialog";
 import ReenviaButton from "@/components/sales/reenvia-button";
+import DevolveButton from "@/components/sales/devolve-button";
 
 // Tipos
 type Sale = {
@@ -1482,6 +1483,12 @@ export default function SalesPage() {
                             user?.role === "supervisor" || 
                             (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
                             <ReenviaButton sale={sale} />
+                          )}
+                          
+                          {/* Botão de devolução para vendas com status "corrected" (apenas admin e operacional) */}
+                          {(user?.role === "admin" || user?.role === "operacional") && 
+                            sale.status === "corrected" && (
+                            <DevolveButton sale={sale} />
                           )}
                           
                           {/* Permissão para marcar como paga (financeiro/admin) */}
