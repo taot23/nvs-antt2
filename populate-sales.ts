@@ -38,12 +38,12 @@ async function createSale(
   // Adicionar um item de serviço para cada venda
   const serviceId = Math.floor(Math.random() * 4) + 1; // Serviços de 1 a 4
   await db.insert(saleItems).values({
-    sale_id: sale.id,
-    service_id: serviceId,
-    service_type_id: Math.floor(Math.random() * 2) + 1, // Tipos de 1 a 2
+    saleId: sale.id,
+    serviceId: serviceId,
+    serviceTypeId: Math.floor(Math.random() * 2) + 1, // Tipos de 1 a 2
     quantity: 1,
     price: "100",
-    total_price: "100",
+    totalPrice: "100",
   });
 
   console.log(`Venda #${sale.orderNumber} criada com ID ${sale.id} para vendedor ${sellerId}`);
@@ -86,9 +86,9 @@ export async function populateSales() {
     
     console.log("População concluída com sucesso!");
     return { success: true, message: "30 vendas criadas com sucesso" };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao popular vendas:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: error.message || String(error) };
   }
 }
 
@@ -96,7 +96,7 @@ export async function populateSales() {
 if (require.main === module) {
   populateSales()
     .then(() => process.exit(0))
-    .catch((error) => {
+    .catch((error: any) => {
       console.error("Erro:", error);
       process.exit(1);
     });
