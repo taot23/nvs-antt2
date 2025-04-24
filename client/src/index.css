@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Classes personalizadas para status de vendas */
+.status-corrected, tr.status-corrected td, .status-corrected-card {
+  background-color: rgba(250, 240, 137, 0.2) !important; /* Amarelo suave */
+}
+
+.status-completed, tr.status-completed td, .status-completed-card {
+  background-color: rgba(134, 239, 172, 0.2) !important; /* Verde suave */
+}
+
+.status-in_progress, tr.status-in_progress td, .status-in_progress-card {
+  background-color: rgba(147, 197, 253, 0.2) !important; /* Azul suave */
+}
+
+.status-returned, tr.status-returned td, .status-returned-card {
+  background-color: rgba(252, 165, 165, 0.2) !important; /* Vermelho suave */
+}
+
 /* Fix para inputs em iOS para evitar zoom indesejado */
 @media screen and (max-width: 767px) {
   input, select, textarea {

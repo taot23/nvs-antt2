@@ -81,10 +81,10 @@ function getStatusRowClass(status: string) {
   console.log("Aplicando cor para status:", status);
   const result = (() => {
     switch (status) {
-      case 'corrected': return 'bg-yellow-50'; // Amarelo bem suave para "corrigido"
-      case 'completed': return 'bg-green-50';  // Verde bem suave para "concluído"
-      case 'in_progress': return 'bg-blue-50'; // Azul bem suave para "em andamento"
-      case 'returned': return 'bg-red-50';     // Vermelho bem suave para "devolvida"
+      case 'corrected': return 'status-corrected'; // Amarelo bem suave para "corrigido"
+      case 'completed': return 'status-completed';  // Verde bem suave para "concluído"
+      case 'in_progress': return 'status-in_progress'; // Azul bem suave para "em andamento"
+      case 'returned': return 'status-returned';     // Vermelho bem suave para "devolvida"
       default: return '';
     }
   })();
@@ -730,7 +730,7 @@ export default function SalesPage() {
             </div>
           ) : (
             filteredSales.map((sale: Sale) => (
-              <Card key={sale.id} className={`overflow-hidden ${getStatusRowClass(sale.status)}`}>
+              <Card key={sale.id} className={`overflow-hidden ${getStatusRowClass(sale.status)}-card`}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <div>
@@ -1115,7 +1115,7 @@ export default function SalesPage() {
                 </TableRow>
               ) : (
                 filteredSales.map((sale: Sale) => (
-                  <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
+                  <TableRow key={sale.id} className={`${getStatusRowClass(sale.status)}`}>
                     <TableCell className="font-medium">
                       {sale.orderNumber}
                     </TableCell>
