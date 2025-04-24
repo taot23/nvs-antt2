@@ -227,7 +227,7 @@ export default function SalesPage() {
   
   // Para o perfil vendedor, carregamos apenas suas próprias vendas, agora com paginação
   const { data: salesData = { data: [], total: 0, page: 1, totalPages: 1 }, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all", page, limit, statusFilter, searchTerm, sortField, sortDirection],
+    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all", page, limit, statusFilter, searchTerm, sortField, sortDirection, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async ({ queryKey }) => {
       // Preparar a URL com os parâmetros de paginação e filtros
       const baseUrl = "/api/sales";
@@ -244,6 +244,14 @@ export default function SalesPage() {
       // Adicionar filtros
       if (statusFilter) queryParams.append("status", statusFilter);
       if (searchTerm) queryParams.append("searchTerm", searchTerm);
+      
+      // Adicionar filtros de intervalo de datas
+      if (dateRange?.from) {
+        queryParams.append("startDate", dateRange.from.toISOString().split('T')[0]);
+      }
+      if (dateRange?.to) {
+        queryParams.append("endDate", dateRange.to.toISOString().split('T')[0]);
+      }
       
       // Vendedor só pode ver suas próprias vendas
       if (user?.role === "vendedor") {
@@ -992,6 +1000,13 @@ export default function SalesPage() {
             )}
           </div>
           
+          {/* Filtro por intervalo de datas (versão mobile) */}
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            className="w-full"
+          />
+          
           <div className="flex gap-2 overflow-x-auto pb-2">
             <Button 
               variant={!statusFilter ? "default" : "outline"} 
@@ -1286,7 +1301,16 @@ export default function SalesPage() {
         </div>
         
         <div className="flex gap-3">
-          <div className="flex gap-1">
+          {/* Filtro por intervalo de datas */}
+          <div className="flex-shrink-0">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          </div>
+          
+          {/* Filtros de status */}
+          <div className="flex gap-1 flex-wrap">
             <Button 
               variant={!statusFilter ? "default" : "outline"} 
               size="sm" 
