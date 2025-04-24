@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Clock, AlertTriangle, CheckCircle2, CornerDownRight, ArrowUpRight, MessageSquare, SendHorizontal } from 'lucide-react';
+import { Loader2, Clock, AlertTriangle, CheckCircle2, CornerDownRight, ArrowUpRight, MessageSquare, SendHorizontal, FileCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -67,6 +67,7 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
       case 'returned': return 'destructive';
       case 'completed': return 'success';
       case 'canceled': return 'outline';
+      case 'corrected': return 'primary';
       default: return 'default';
     }
   }
@@ -79,6 +80,7 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
       case 'returned': return 'Devolvida';
       case 'completed': return 'Concluída';
       case 'canceled': return 'Cancelada';
+      case 'corrected': return 'Corrigida Aguardando Operacional';
       default: return status;
     }
   }
@@ -90,11 +92,13 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
     if (toStatus === 'returned') return <AlertTriangle className="h-5 w-5 text-red-500" />;
     if (toStatus === 'completed') return <CheckCircle2 className="h-5 w-5 text-green-500" />;
     if (toStatus === 'canceled') return <ArrowUpRight className="h-5 w-5 text-gray-500" />;
+    if (toStatus === 'corrected') return <FileCheck className="h-5 w-5 text-indigo-500" />;
     
     // Para novos registros
     if (fromStatus === '' && toStatus === '') return <MessageSquare className="h-5 w-5 text-purple-500" />;
     
     // Para reenvios
+    if (fromStatus === 'returned' && toStatus === 'corrected') return <FileCheck className="h-5 w-5 text-indigo-500" />;
     if (fromStatus === 'returned' && toStatus === 'pending') return <SendHorizontal className="h-5 w-5 text-blue-500" />;
     
     return <MessageSquare className="h-5 w-5" />;

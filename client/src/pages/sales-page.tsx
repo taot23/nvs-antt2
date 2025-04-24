@@ -58,6 +58,7 @@ function getStatusLabel(status: string) {
     case 'returned': return 'Devolvida';
     case 'completed': return 'Concluída';
     case 'canceled': return 'Cancelada';
+    case 'corrected': return 'Corrigida Aguardando Operacional';
     default: return status;
   }
 }
@@ -70,6 +71,7 @@ function getStatusVariant(status: string) {
     case 'returned': return 'destructive';
     case 'completed': return 'success';
     case 'canceled': return 'outline';
+    case 'corrected': return 'primary';
     default: return 'default';
   }
 }
