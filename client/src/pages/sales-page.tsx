@@ -736,9 +736,8 @@ export default function SalesPage() {
             </div>
           ) : (
             filteredSales.map((sale: Sale) => {
-              const bgStyle = getStatusStyle(sale.status);
               return (
-                <Card key={sale.id} className="overflow-hidden" style={bgStyle}>
+                <Card key={sale.id} className={`overflow-hidden ${getStatusCardClass(sale.status)}`}>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <div>
@@ -1124,23 +1123,22 @@ export default function SalesPage() {
                 </TableRow>
               ) : (
                 filteredSales.map((sale: Sale) => {
-                  const bgStyle = getStatusStyle(sale.status);
                   return (
-                    <TableRow key={sale.id}>
-                      <TableCell style={bgStyle} className="font-medium">
+                    <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
+                      <TableCell className="font-medium">
                         {sale.orderNumber}
                       </TableCell>
-                      <TableCell style={bgStyle}>
+                      <TableCell>
                         {sale.date ? 
                           format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
                           format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
-                      <TableCell style={bgStyle}>{sale.customerName}</TableCell>
-                      <TableCell style={bgStyle}>{sale.sellerName}</TableCell>
-                      <TableCell style={bgStyle}>
+                      <TableCell>{sale.customerName}</TableCell>
+                      <TableCell>{sale.sellerName}</TableCell>
+                      <TableCell>
                         R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
                       </TableCell>
-                      <TableCell style={bgStyle}>
+                      <TableCell>
                         <div className="flex flex-col gap-1">
                           <Badge variant={getStatusVariant(sale.status) as any}>
                             {getStatusLabel(sale.status)}
@@ -1152,7 +1150,7 @@ export default function SalesPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell style={bgStyle} className="text-right">
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
