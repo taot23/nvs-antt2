@@ -76,9 +76,9 @@ function getStatusVariant(status: string) {
   }
 }
 
-// Função para obter classe CSS para a linha da tabela
+// Função para obter classes CSS para a linha da tabela
 function getStatusRowClass(status: string) {
-  // Garantir que sempre retornamos uma string válida e remove logs
+  // Garantir que sempre retornamos uma string válida
   if (!status) return '';
   
   switch (status) {
@@ -90,9 +90,9 @@ function getStatusRowClass(status: string) {
   }
 }
 
-// Função para obter classe CSS para o card mobile
+// Função para obter classes CSS para o card mobile
 function getStatusCardClass(status: string) {
-  // Garantir que sempre retornamos uma string válida e remove logs
+  // Garantir que sempre retornamos uma string válida
   if (!status) return '';
   
   switch (status) {
@@ -101,6 +101,24 @@ function getStatusCardClass(status: string) {
     case 'in_progress': return 'status-card-in_progress'; // Laranja bem suave para "em andamento"
     case 'returned': return 'status-card-returned'; // Vermelho bem suave para "devolvida"
     default: return '';
+  }
+}
+
+// Função para obter estilos inline como backup
+function getStatusStyle(status: string) {
+  if (!status) return {};
+  
+  switch (status) {
+    case 'corrected': 
+      return { backgroundColor: 'rgba(250, 240, 137, 0.15)' }; // Amarelo suave
+    case 'completed': 
+      return { backgroundColor: 'rgba(134, 239, 172, 0.15)' }; // Verde suave
+    case 'in_progress': 
+      return { backgroundColor: 'rgba(251, 191, 36, 0.15)' }; // Laranja suave
+    case 'returned': 
+      return { backgroundColor: 'rgba(252, 165, 165, 0.15)' }; // Vermelho suave
+    default: 
+      return {};
   }
 }
 
@@ -743,7 +761,11 @@ export default function SalesPage() {
           ) : (
             filteredSales.map((sale: Sale) => {
               return (
-                <Card key={sale.id} className={`overflow-hidden ${getStatusCardClass(sale.status)}`}>
+                <Card 
+                  key={sale.id} 
+                  className={`overflow-hidden ${getStatusCardClass(sale.status)}`}
+                  style={getStatusStyle(sale.status)}
+                >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <div>
@@ -1131,17 +1153,24 @@ export default function SalesPage() {
                 filteredSales.map((sale: Sale) => {
                   return (
                     <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
-                      <TableCell className="font-medium">
+                      <TableCell 
+                        className="font-medium" 
+                        style={getStatusStyle(sale.status)}
+                      >
                         {sale.orderNumber}
                       </TableCell>
-                      <TableCell>
+                      <TableCell style={getStatusStyle(sale.status)}>
                         {sale.date ? 
                           format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
                           format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
-                      <TableCell>{sale.customerName}</TableCell>
-                      <TableCell>{sale.sellerName}</TableCell>
-                      <TableCell>
+                      <TableCell style={getStatusStyle(sale.status)}>
+                        {sale.customerName}
+                      </TableCell>
+                      <TableCell style={getStatusStyle(sale.status)}>
+                        {sale.sellerName}
+                      </TableCell>
+                      <TableCell style={getStatusStyle(sale.status)}>
                         R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
                       </TableCell>
                       <TableCell>
