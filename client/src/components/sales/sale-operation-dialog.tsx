@@ -338,8 +338,8 @@ export default function SaleOperationDialog({
     serviceName: services.find((s: any) => s.id === item.serviceId)?.name || `Serviço #${item.serviceId}`,
   }));
 
-  // Verificar se o usuário é operacional e pode executar ações
-  const canPerformOperations = user?.role === "admin" || user?.role === "operacional";
+  // Verificar se o usuário tem permissão para executar ações operacionais
+  const canPerformOperations = user?.role === "admin" || user?.role === "operacional" || user?.role === "supervisor";
 
   // Mutation para atualizar o tipo de execução quando a venda está em andamento
   const updateExecutionTypeMutation = useMutation({
