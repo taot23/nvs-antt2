@@ -747,6 +747,10 @@ export default function SalesPage() {
   // Usuário atual e log simples
   console.log("Renderizando SalesPage para usuário:", user?.role);
   
+  // Verificar se há vendas devolvidas para debug
+  const returnedSales = enrichedSales.filter((sale: Sale) => sale.status === "returned");
+  console.log("Vendas com status 'returned':", returnedSales.length, returnedSales.map((s: Sale) => s.id));
+  
   // Filtrar e ordenar vendas
   const filteredSales = enrichedSales
     .filter((sale: Sale) => {
@@ -1019,10 +1023,10 @@ export default function SalesPage() {
                       </Button>
                     )}
                     
-                    {/* Botão para vendedor reenviar venda corrigida */}
-                    {/* Botão para reenviar venda corrigida com logs de depuração */}
-                    <ReenviaButton sale={sale} />
-                    {/* Log feito no componente */}
+                    {/* Botão para vendedor/supervisor reenviar venda corrigida */}
+                    {sale.status === 'returned' && (
+                      <ReenviaButton sale={sale} />
+                    )}
                     
                     {/* Botão para financeiro marcar como paga */}
                     {(user?.role === "admin" || user?.role === "financeiro") && 

@@ -46,6 +46,7 @@ interface ReenviaButtonProps {
   sale: Sale;
 }
 
+// Componente que renderiza um botão para reenviar vendas devolvidas
 export default function ReenviaButton({ sale }: ReenviaButtonProps) {
   const [open, setOpen] = useState(false);
   const [observacoes, setObservacoes] = useState('');
@@ -54,8 +55,13 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
 
   console.log('ReenviaButton - sale:', sale?.id, 'status:', sale?.status, 'open:', open, 'userRole:', user?.role);
   
-  // Log detalhado para depuração
-  console.log('DEPURAÇÃO ReenviaButton:', {
+  // Log mais detalhado para depuração
+  console.log('DEPURAÇÃO COMPLETA ReenviaButton:', {
+    id: sale?.id,
+    status: sale?.status,
+    userRole: user?.role,
+    sellerId: sale?.sellerId,
+    userId: user?.id,
     isReturned: sale?.status === 'returned',
     isAdmin: user?.role === 'admin',
     isSupervisor: user?.role === 'supervisor',
