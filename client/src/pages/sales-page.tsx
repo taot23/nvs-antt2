@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -934,55 +935,10 @@ export default function SalesPage() {
   // Usuário atual e log simples
   console.log("Renderizando SalesPage para usuário:", user?.role);
   
-  // Verificar se há vendas devolvidas para debug
-  const returnedSales = enrichedSales.filter((sale: Sale) => sale.status === "returned");
-  console.log("Vendas com status 'returned':", returnedSales.length, returnedSales.map((s: Sale) => s.id));
-  
-  // Filtrar e ordenar vendas
-  const filteredSales = enrichedSales
-    .filter((sale: Sale) => {
-      // Filtro por status
-      if (statusFilter && sale.status !== statusFilter) {
-        return false;
-      }
-      
-      // Filtro por termo de busca
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        !searchTerm ||
-        sale.orderNumber.toLowerCase().includes(searchLower) ||
-        sale.customerName?.toLowerCase().includes(searchLower) ||
-        sale.sellerName?.toLowerCase().includes(searchLower) ||
-        getStatusLabel(sale.status).toLowerCase().includes(searchLower)
-      );
-    })
-    .sort((a: Sale, b: Sale) => {
-      // Ordenação
-      const factor = sortDirection === 'asc' ? 1 : -1;
-      
-      switch (sortField) {
-        case 'orderNumber':
-          // Verifica se ambos são números para fazer ordenação numérica
-          if (!isNaN(Number(a.orderNumber)) && !isNaN(Number(b.orderNumber))) {
-            return (Number(a.orderNumber) - Number(b.orderNumber)) * factor;
-          } else {
-            // Fallback para comparação de texto se não forem números
-            return a.orderNumber.localeCompare(b.orderNumber) * factor;
-          }
-        case 'date':
-          return (new Date(a.date).getTime() - new Date(b.date).getTime()) * factor;
-        case 'customerName':
-          return (a.customerName?.localeCompare(b.customerName || '') || 0) * factor;
-        case 'sellerName':
-          return (a.sellerName?.localeCompare(b.sellerName || '') || 0) * factor;
-        case 'totalAmount':
-          return (parseFloat(a.totalAmount) - parseFloat(b.totalAmount)) * factor;
-        case 'status':
-          return a.status.localeCompare(b.status) * factor;
-        default:
-          return 0;
-      }
-    });
+  // A filtragem e ordenação agora é feita no servidor através da API paginada
+  // Os parâmetros: statusFilter, searchTerm, sortField e sortDirection
+  // são enviados diretamente para o servidor através dos parâmetros de query
+  const filteredSales = enrichedSales;
   
   // Renderização para dispositivos móveis
   if (isMobile) {
@@ -1435,6 +1391,104 @@ export default function SalesPage() {
         ReenviaButton={ReenviaButton}
         DevolveButton={DevolveButton}
       />
+      
+      {/* Controles de paginação */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            Exibindo{' '}
+            <strong>{filteredSales.length > 0 ? (page - 1) * limit + 1 : 0}</strong> a{' '}
+            <strong>{Math.min(page * limit, totalRecords)}</strong> de{' '}
+            <strong>{totalRecords}</strong> vendas
+          </p>
+          
+          <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Por página" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 por página</SelectItem>
+              <SelectItem value="15">15 por página</SelectItem>
+              <SelectItem value="25">25 por página</SelectItem>
+              <SelectItem value="50">50 por página</SelectItem>
+              <SelectItem value="100">100 por página</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPage(1)}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          {/* Números das páginas */}
+          <div className="flex items-center">
+            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+              // Lógica para mostrar páginas ao redor da atual
+              let pageNum = 1;
+              
+              if (totalPages <= 5) {
+                // Se temos 5 ou menos páginas, mostramos todas elas
+                pageNum = i + 1;
+              } else if (page <= 3) {
+                // Se estamos nas primeiras 3 páginas, mostramos 1-5
+                pageNum = i + 1;
+              } else if (page >= totalPages - 2) {
+                // Se estamos nas últimas 3 páginas, mostramos as últimas 5
+                pageNum = totalPages - 4 + i;
+              } else {
+                // Caso contrário, mostramos 2 antes e 2 depois da atual
+                pageNum = page - 2 + i;
+              }
+              
+              return (
+                <Button
+                  key={pageNum}
+                  variant={page === pageNum ? "default" : "outline"}
+                  size="icon"
+                  className="w-9 h-9"
+                  onClick={() => setPage(pageNum)}
+                  disabled={isLoading}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages || isLoading}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPage(totalPages)}
+            disabled={page === totalPages || isLoading}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
       
       {/* Diálogo apenas para edição de vendas existentes */}
       {dialogOpen && (
