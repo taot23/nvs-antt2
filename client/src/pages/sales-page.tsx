@@ -36,6 +36,10 @@ type Sale = {
   paymentMethodName?: string; // Preenchido pelo frontend
   sellerId: number;
   sellerName?: string; // Preenchido pelo frontend
+  serviceTypeId?: number | null; // Tipo de execução do serviço
+  serviceTypeName?: string | null; // Nome do tipo de execução (preenchido pelo frontend)
+  serviceProviderId?: number | null; // Prestador parceiro (para SINDICATO)
+  serviceProviderName?: string | null; // Nome do prestador (preenchido pelo frontend)
   totalAmount: string;
   status: string;
   executionStatus: string;
@@ -216,17 +220,44 @@ export default function SalesPage() {
     }
   });
   
+  // Carregar tipos de serviço e prestadores de serviço
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ["/api/service-types"],
+    queryFn: async () => {
+      const response = await fetch("/api/service-types");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar tipos de serviço");
+      }
+      return response.json();
+    }
+  });
+  
+  const { data: serviceProviders = [] } = useQuery({
+    queryKey: ["/api/service-providers"],
+    queryFn: async () => {
+      const response = await fetch("/api/service-providers");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar prestadores de serviço");
+      }
+      return response.json();
+    }
+  });
+  
   // Preparar dados enriquecidos
   const enrichedSales = sales.map((sale: Sale) => {
     const customer = customers.find((c: any) => c.id === sale.customerId);
     const seller = users.find((u: any) => u.id === sale.sellerId);
     const paymentMethod = paymentMethods.find((p: any) => p.id === sale.paymentMethodId);
+    const serviceType = serviceTypes.find((t: any) => t.id === sale.serviceTypeId);
+    const serviceProvider = serviceProviders.find((p: any) => p.id === sale.serviceProviderId);
     
     return {
       ...sale,
       customerName: customer?.name || `Cliente #${sale.customerId}`,
       sellerName: seller?.username || `Vendedor #${sale.sellerId}`,
-      paymentMethodName: paymentMethod?.name || `Forma de Pagamento #${sale.paymentMethodId}`
+      paymentMethodName: paymentMethod?.name || `Forma de Pagamento #${sale.paymentMethodId}`,
+      serviceTypeName: serviceType?.name || null,
+      serviceProviderName: serviceProvider?.name || null
     };
   });
   
