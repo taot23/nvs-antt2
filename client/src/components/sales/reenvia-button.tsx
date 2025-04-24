@@ -192,6 +192,7 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
               />
               <p className="text-xs text-muted-foreground">
                 Informe quais correções foram realizadas nesta venda antes de reenviá-la ao operacional.
+                Estas informações serão registradas no histórico completo da venda.
               </p>
             </div>
           </div>

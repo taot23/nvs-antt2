@@ -18,6 +18,8 @@ import {
 import { ZodError } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -1936,11 +1938,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const notesMessage = notes || "Venda corrigida e reenviada para operacional";
       
+      // Importar função format para formatação de datas
+      const { format } = require("date-fns");
+      const { ptBR } = require("date-fns/locale");
+      
+      // Formatar o histórico de correções
+      let notesWithHistory = notesMessage;
+      if (sale.notes) {
+        if (sale.notes.includes('Histórico de correções:')) {
+          // Já existe um histórico, vamos adicionar a nova correção
+          notesWithHistory = `${sale.notes}\n\n[${format(new Date(), 'dd/MM/yyyy HH:mm')}] ${notesMessage}`;
+        } else {
+          // Ainda não há histórico formatado, vamos criá-lo
+          notesWithHistory = `${sale.notes}\n\n==== Histórico de correções: ====\n[${format(new Date(), 'dd/MM/yyyy HH:mm')}] ${notesMessage}`;
+        }
+      } else {
+        // Primeira correção
+        notesWithHistory = `==== Histórico de correções: ====\n[${format(new Date(), 'dd/MM/yyyy HH:mm')}] ${notesMessage}`;
+      }
+      
       // Atualizar status para "corrigida aguardando operacional"
       const updatedSale = await storage.updateSale(id, { 
         status: "corrected",
         returnReason: null,
-        notes: sale.notes ? `${sale.notes}\n\nCorreção: ${notesMessage}` : notesMessage
+        notes: notesWithHistory
       });
       
       if (!updatedSale) {

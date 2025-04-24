@@ -112,7 +112,7 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
         <DialogHeader>
           <DialogTitle>Histórico da Venda</DialogTitle>
           <DialogDescription>
-            Acompanhe todo o histórico de status e transições da venda
+            Acompanhe todo o histórico de status, correções e transições da venda
             {sale && <span className="font-medium"> #{sale.orderNumber}</span>}
           </DialogDescription>
         </DialogHeader>
