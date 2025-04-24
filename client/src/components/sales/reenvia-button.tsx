@@ -17,6 +17,7 @@ import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/use-auth';
 
 // Definindo a tipagem para a venda
 interface Sale {
@@ -49,8 +50,9 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
   const [open, setOpen] = useState(false);
   const [observacoes, setObservacoes] = useState('');
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  console.log('ReenviaButton - sale:', sale?.id, 'open:', open);
+  console.log('ReenviaButton - sale:', sale?.id, 'status:', sale?.status, 'open:', open, 'userRole:', user?.role);
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
@@ -90,7 +92,11 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
   };
 
   // Não mostrar o botão se a venda não estiver em status "returned"
-  if (sale.status !== 'returned') {
+  // Verificar permissões: administrador, vendedor responsável ou supervisor
+  if (sale.status !== 'returned' || 
+      (user?.role !== 'admin' && 
+       user?.role !== 'supervisor' && 
+       !(user?.role === 'vendedor' && sale.sellerId === user?.id))) {
     return null;
   }
 

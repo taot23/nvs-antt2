@@ -625,7 +625,7 @@ export default function SalesPage() {
   
   const handleStartExecution = (sale: Sale) => {
     // Novo fluxo: abrir tela de tratativa ao invés de executar diretamente
-    if (user?.role === "operacional" || user?.role === "admin") {
+    if (user?.role === "operacional" || user?.role === "admin" || user?.role === "supervisor") {
       setSelectedSale(sale);
       setOperationDialogOpen(true);
     } else {
@@ -636,7 +636,7 @@ export default function SalesPage() {
   
   const handleCompleteExecution = (sale: Sale) => {
     // Novo fluxo: abrir tela de tratativa para vendas em andamento também
-    if (user?.role === "operacional" || user?.role === "admin") {
+    if (user?.role === "operacional" || user?.role === "admin" || user?.role === "supervisor") {
       setSelectedSale(sale);
       setOperationDialogOpen(true);
     } else {
@@ -1020,9 +1020,8 @@ export default function SalesPage() {
                     )}
                     
                     {/* Botão para vendedor reenviar venda corrigida */}
-                    {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                      <ReenviaButton sale={sale} />
-                    )}
+                    {/* O botão de reenvio agora gerencia suas próprias permissões */}
+                    <ReenviaButton sale={sale} />
                     
                     {/* Botão para financeiro marcar como paga */}
                     {(user?.role === "admin" || user?.role === "financeiro") && 
