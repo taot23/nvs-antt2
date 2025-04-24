@@ -123,14 +123,18 @@ export default function SaleOperationDialog({
 
   // Query para obter o histórico de status
   const { data: statusHistory = [], isLoading: historyLoading } = useQuery({
-    queryKey: ["/api/sales", saleId, "status-history"],
+    queryKey: ["/api/sales", saleId, "history"],
     queryFn: async () => {
       if (!saleId) return [];
+      console.log(`[SaleOperationDialog] Carregando histórico da venda #${saleId}`);
       const response = await fetch(`/api/sales/${saleId}/history`);
       if (!response.ok) {
+        console.error(`[SaleOperationDialog] Erro ao carregar histórico: ${response.status}`);
         throw new Error("Erro ao carregar histórico de status");
       }
-      return response.json();
+      const data = await response.json();
+      console.log(`[SaleOperationDialog] Histórico carregado: ${data.length} registros`);
+      return data;
     },
     enabled: !!saleId && open,
   });

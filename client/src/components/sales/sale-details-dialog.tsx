@@ -83,14 +83,18 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
   
   // Consulta para obter o histórico de status da venda
   const { data: statusHistory = [], isLoading: isLoadingHistory } = useQuery({
-    queryKey: ["/api/sales", saleId, "status-history"],
+    queryKey: ["/api/sales", saleId, "history"],
     queryFn: async () => {
       if (!saleId) return [];
-      const response = await fetch(`/api/sales/${saleId}/status-history`);
+      console.log(`[SaleDetailsDialog] Carregando histórico da venda #${saleId}`);
+      const response = await fetch(`/api/sales/${saleId}/history`);
       if (!response.ok) {
+        console.error(`[SaleDetailsDialog] Erro ao carregar histórico: ${response.status}`);
         throw new Error("Erro ao carregar histórico da venda");
       }
-      return response.json();
+      const data = await response.json();
+      console.log(`[SaleDetailsDialog] Histórico carregado: ${data.length} registros`);
+      return data;
     },
     enabled: !!saleId
   });
