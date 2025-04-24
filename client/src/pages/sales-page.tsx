@@ -174,9 +174,9 @@ export default function SalesPage() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
-  // Configuração para staleTime e cacheTIme globais para reduzir chamadas de API
+  // Configuração para staleTime e gcTime globais para reduzir chamadas de API
   const staleTime = 5 * 60 * 1000; // 5 minutos 
-  const cacheTime = 30 * 60 * 1000; // 30 minutos
+  const gcTime = 30 * 60 * 1000; // 30 minutos (gcTime substitui cacheTime na v5 do TanStack Query)
   const localStorageCacheTime = 60 * 60 * 1000; // 1 hora para cache do localStorage
   
   // Função para obter dados do cache local

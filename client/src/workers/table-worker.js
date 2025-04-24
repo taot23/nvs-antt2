@@ -1,172 +1,162 @@
-/**
- * Web Worker para processamento pesado de dados da tabela
- * 
- * Responsável por:
- * - Ordenação de dados
- * - Filtragem de dados
- * - Busca de dados
- */
+// Arquivo de Web Worker para processamento de dados da tabela
+// Este worker executa operações pesadas fora da thread principal
 
-// Identificador de inicialização do worker
-self.postMessage({ type: 'init', status: 'ready' });
-
-/**
- * Ordena um array de objetos por um campo específico
- * 
- * @param {Array} array Array a ser ordenado
- * @param {string} field Campo pelo qual ordenar
- * @param {string} direction Direção da ordenação ('asc' ou 'desc')
- * @returns {Array} Array ordenado
- */
-function sortArrayByField(array, field, direction) {
-  return [...array].sort((a, b) => {
-    let valueA = a[field];
-    let valueB = b[field];
+// Função para processar e otimizar dados
+function processTableData(data, options) {
+  const { sortField, sortDirection, searchTerm, statusFilter } = options;
+  
+  console.log('Worker: Iniciando processamento de dados para tabela');
+  const startTime = performance.now();
+  
+  // Primeiro filtrar os dados
+  let filteredData = data;
+  
+  // Aplicar filtro de status se existir
+  if (statusFilter) {
+    console.log(`Worker: Aplicando filtro de status: ${statusFilter}`);
+    filteredData = filteredData.filter(item => item.status === statusFilter);
+  }
+  
+  // Aplicar filtro de busca se existir
+  if (searchTerm) {
+    console.log(`Worker: Aplicando termo de busca: ${searchTerm}`);
+    const searchLower = searchTerm.toLowerCase();
+    filteredData = filteredData.filter(item => 
+      (item.orderNumber && item.orderNumber.toLowerCase().includes(searchLower)) ||
+      (item.customerName && item.customerName.toLowerCase().includes(searchLower)) ||
+      (item.sellerName && item.sellerName.toLowerCase().includes(searchLower))
+    );
+  }
+  
+  // Ordenar os dados
+  console.log(`Worker: Ordenando por ${sortField} em ordem ${sortDirection}`);
+  
+  // Ordenação com cache de valores para melhorar performance
+  const valueCache = new Map();
+  
+  const getValue = (item, field) => {
+    const cacheKey = `${item.id}-${field}`;
+    if (valueCache.has(cacheKey)) {
+      return valueCache.get(cacheKey);
+    }
     
-    // Para valores numéricos armazenados como string (ex: totalAmount)
+    let value;
+    
+    // Tratamento especial para campos específicos
     if (field === 'totalAmount') {
-      valueA = parseFloat(valueA);
-      valueB = parseFloat(valueB);
+      value = parseFloat(item[field] || '0');
+    } else if (field === 'date') {
+      value = item[field] ? new Date(item[field]).getTime() : new Date(item.createdAt).getTime();
+    } else {
+      value = item[field];
     }
     
-    // Para datas
-    if (field === 'date' || field === 'createdAt' || field === 'updatedAt') {
-      valueA = new Date(valueA || 0).getTime();
-      valueB = new Date(valueB || 0).getTime();
+    valueCache.set(cacheKey, value);
+    return value;
+  };
+  
+  filteredData.sort((a, b) => {
+    const aValue = getValue(a, sortField);
+    const bValue = getValue(b, sortField);
+    
+    // Se os valores são iguais, ordenar pelo ID
+    if (aValue === bValue) {
+      return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
     }
     
-    if (direction === 'asc') {
-      return valueA > valueB ? 1 : -1;
+    // Ordenação específica para diferentes tipos de dados
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     }
-    return valueA < valueB ? 1 : -1;
+    
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    }
+    
+    // Fallback para outros tipos de dados
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
-}
-
-/**
- * Filtra um array de objetos com base em uma consulta de texto
- * 
- * @param {Array} array Array a ser filtrado
- * @param {string} query Texto de busca
- * @param {Array} searchFields Campos onde buscar
- * @returns {Array} Array filtrado
- */
-function filterArrayByQuery(array, query, searchFields) {
-  if (!query) return array;
   
-  const normalizedQuery = query.toLowerCase();
-  
-  return array.filter(item => {
-    return searchFields.some(field => {
-      const value = item[field];
-      if (value === null || value === undefined) return false;
-      return String(value).toLowerCase().includes(normalizedQuery);
-    });
+  // Pré-calcular propriedades para cada linha para evitar recálculos no frontend
+  const optimizedData = filteredData.map(item => {
+    // Formatações e cálculos comuns
+    const formattedAmount = `R$ ${parseFloat(item.totalAmount || 0).toFixed(2).replace('.', ',')}`;
+    
+    // Pré-calcular classes CSS baseadas no status
+    const statusClasses = {
+      row: getStatusClassName(item.status, 'row'),
+      cell: getStatusClassName(item.status, 'cell'),
+      firstCell: getStatusClassName(item.status, 'firstCell')
+    };
+    
+    return {
+      ...item,
+      formattedAmount,
+      statusClasses,
+      optimized: true
+    };
   });
+  
+  const endTime = performance.now();
+  console.log(`Worker: Processamento concluído em ${(endTime - startTime).toFixed(2)}ms. Geradas ${optimizedData.length} linhas otimizadas.`);
+  
+  return {
+    data: optimizedData,
+    count: optimizedData.length,
+    processingTime: endTime - startTime
+  };
 }
 
-/**
- * Filtra um array de objetos com base em um status específico
- * 
- * @param {Array} array Array a ser filtrado
- * @param {string} status Status a ser filtrado
- * @returns {Array} Array filtrado
- */
-function filterArrayByStatus(array, status) {
-  if (!status || status === 'all') return array;
-  return array.filter(item => item.status === status);
+// Função auxiliar para gerar classes CSS com base no status
+function getStatusClassName(status, type) {
+  const baseClasses = {
+    completed: {
+      row: "bg-green-100 border-green-300 border",
+      cell: "bg-green-100",
+      firstCell: "bg-green-100 border-l-4 border-l-green-500 font-medium"
+    },
+    in_progress: {
+      row: "bg-orange-100 border-orange-300 border",
+      cell: "bg-orange-100",
+      firstCell: "bg-orange-100 border-l-4 border-l-orange-500 font-medium"
+    },
+    returned: {
+      row: "bg-red-100 border-red-300 border",
+      cell: "bg-red-100",
+      firstCell: "bg-red-100 border-l-4 border-l-red-500 font-medium"
+    },
+    corrected: {
+      row: "bg-yellow-100 border-yellow-300 border",
+      cell: "bg-yellow-100",
+      firstCell: "bg-yellow-100 border-l-4 border-l-yellow-500 font-medium"
+    },
+    pending: {
+      row: "",
+      cell: "",
+      firstCell: "font-medium"
+    }
+  };
+  
+  return baseClasses[status]?.[type] || baseClasses.pending[type] || "";
 }
 
-// Listener para mensagens do thread principal
+// Registrar listeners de eventos do worker
 self.addEventListener('message', (event) => {
-  const { action, data } = event.data;
+  const { action, data, options } = event.data;
   
-  try {
-    switch (action) {
-      case 'sort': {
-        const { items, field, direction } = data;
-        const startTime = performance.now();
-        const sortedData = sortArrayByField(items, field, direction);
-        const endTime = performance.now();
-        
-        self.postMessage({ 
-          type: 'sort', 
-          result: sortedData,
-          processingTime: endTime - startTime
-        });
-        break;
-      }
+  switch (action) {
+    case 'process':
+      const result = processTableData(data, options);
+      self.postMessage({ action: 'processed', result });
+      break;
       
-      case 'filter': {
-        const { items, query, searchFields } = data;
-        const startTime = performance.now();
-        const filteredData = filterArrayByQuery(items, query, searchFields);
-        const endTime = performance.now();
-        
-        self.postMessage({ 
-          type: 'filter', 
-          result: filteredData,
-          processingTime: endTime - startTime
-        });
-        break;
-      }
-      
-      case 'statusFilter': {
-        const { items, status } = data;
-        const startTime = performance.now();
-        const filteredData = filterArrayByStatus(items, status);
-        const endTime = performance.now();
-        
-        self.postMessage({ 
-          type: 'statusFilter', 
-          result: filteredData,
-          processingTime: endTime - startTime
-        });
-        break;
-      }
-      
-      case 'processData': {
-        const { items, filters } = data;
-        const startTime = performance.now();
-        
-        // Aplicar todos os filtros em sequência
-        let result = [...items];
-        
-        // 1. Filtrar por status se especificado
-        if (filters.status) {
-          result = filterArrayByStatus(result, filters.status);
-        }
-        
-        // 2. Filtrar por texto de busca se especificado
-        if (filters.query) {
-          result = filterArrayByQuery(result, filters.query, filters.searchFields || [
-            'orderNumber', 'customerName', 'sellerName'
-          ]);
-        }
-        
-        // 3. Ordenar por campo se especificado
-        if (filters.sortField) {
-          result = sortArrayByField(result, filters.sortField, filters.sortDirection || 'asc');
-        }
-        
-        const endTime = performance.now();
-        
-        self.postMessage({ 
-          type: 'processData', 
-          result,
-          processingTime: endTime - startTime,
-          totalItems: result.length
-        });
-        break;
-      }
-      
-      default:
-        self.postMessage({ type: 'error', message: `Ação desconhecida: ${action}` });
-    }
-  } catch (error) {
-    self.postMessage({ 
-      type: 'error', 
-      message: error.message || 'Erro desconhecido no worker',
-      stack: error.stack
-    });
+    default:
+      console.error(`Worker: Ação desconhecida: ${action}`);
+      self.postMessage({ action: 'error', error: `Ação desconhecida: ${action}` });
   }
 });
+
+// Enviar mensagem de inicialização
+self.postMessage({ action: 'initialized' });
