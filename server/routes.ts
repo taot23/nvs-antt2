@@ -2040,6 +2040,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // A verificação de autenticação já é feita pelo middleware isAuthenticated
       
       const history = await storage.getSalesStatusHistory(id);
+      console.log(`Retornando histórico da venda #${id}: ${history.length} registros`);
+      res.json(history);
+    } catch (error) {
+      console.error("Erro ao buscar histórico da venda:", error);
+    }
+  });
+  
+  // Rota de compatibilidade para a API antiga - redireciona para a nova rota
+  app.get("/api/sales/:id/status-history", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      console.log(`Recebida solicitação na rota legada /status-history para venda #${id}, redirecionando para /history`);
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      const history = await storage.getSalesStatusHistory(id);
       res.json(history);
     } catch (error) {
       console.error("Erro ao buscar histórico da venda:", error);
