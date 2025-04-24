@@ -742,7 +742,13 @@ export default function SalesPage() {
       
       switch (sortField) {
         case 'orderNumber':
-          return a.orderNumber.localeCompare(b.orderNumber) * factor;
+          // Verifica se ambos são números para fazer ordenação numérica
+          if (!isNaN(Number(a.orderNumber)) && !isNaN(Number(b.orderNumber))) {
+            return (Number(a.orderNumber) - Number(b.orderNumber)) * factor;
+          } else {
+            // Fallback para comparação de texto se não forem números
+            return a.orderNumber.localeCompare(b.orderNumber) * factor;
+          }
         case 'date':
           return (new Date(a.date).getTime() - new Date(b.date).getTime()) * factor;
         case 'customerName':
