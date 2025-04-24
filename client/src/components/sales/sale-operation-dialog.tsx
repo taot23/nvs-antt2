@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { clearHistoryCache } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,6 +84,14 @@ export default function SaleOperationDialog({
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<number | null>(null);
   const [selectedServiceProviderId, setSelectedServiceProviderId] = useState<number | null>(null);
   const [showServiceProviderField, setShowServiceProviderField] = useState(false);
+  
+  // Limpar o cache do histórico quando o diálogo é aberto
+  useEffect(() => {
+    if (open && saleId) {
+      clearHistoryCache(saleId);
+      console.log(`[SaleOperationDialog] Cache de histórico limpo para venda #${saleId}`);
+    }
+  }, [open, saleId]);
 
   // Query para obter os detalhes da venda
   const { data: sale, isLoading: saleLoading } = useQuery({

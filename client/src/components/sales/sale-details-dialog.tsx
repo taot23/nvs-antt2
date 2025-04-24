@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { clearHistoryCache } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, AlertTriangle, Receipt, BadgeCheck, Clock, FileSpreadsheet, ArrowDownToLine, FileCheck } from "lucide-react";
@@ -56,10 +57,8 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
   // Limpar o cache do histórico quando o diálogo é aberto
   useEffect(() => {
     if (open && saleId) {
-      import('@/lib/queryClient').then(({ clearHistoryCache }) => {
-        clearHistoryCache(saleId);
-        console.log(`[SaleDetailsDialog] Cache de histórico limpo para venda #${saleId}`);
-      });
+      clearHistoryCache(saleId);
+      console.log(`[SaleDetailsDialog] Cache de histórico limpo para venda #${saleId}`);
     }
   }, [open, saleId]);
   
