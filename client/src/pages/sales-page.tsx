@@ -1198,8 +1198,22 @@ export default function SalesPage() {
               Exportar Excel
             </Button>
             
-            {/* Botão de administração para limpar todas as vendas */}
-            {(user?.role === "admin" || user?.role === "operacional") && (
+            {/* Botões de administração */}
+            {(user?.role === "admin") && (
+              <>
+                <PopulateSalesButton />
+                <Button 
+                  variant="destructive" 
+                  onClick={handleClearAllSales}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Limpar Vendas
+                </Button>
+              </>
+            )}
+            
+            {/* Operacional pode limpar vendas mas não popular */}
+            {(user?.role === "operacional") && (
               <Button 
                 variant="destructive" 
                 onClick={handleClearAllSales}

@@ -59,7 +59,7 @@ export function PopulateSalesButton() {
             </DialogDescription>
           </DialogHeader>
           
-          <Alert>
+          <Alert variant="default">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Atenção</AlertTitle>
             <AlertDescription>
