@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect, memo, Suspense } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,30 @@ import {
   SortDesc
 } from "lucide-react";
 import type { Sale } from '@shared/schema';
+
+// Utilitário para memoização profunda de objetos
+// (ajuda a evitar re-renderizações desnecessárias)
+const createMemoizedFormatter = () => {
+  const cache = new Map();
+  
+  return (date: string | Date, pattern: string) => {
+    if (!date) return '';
+    const key = `${date}-${pattern}`;
+    if (cache.has(key)) return cache.get(key);
+    
+    const formatted = format(
+      typeof date === 'string' ? new Date(date) : date,
+      pattern,
+      { locale: ptBR }
+    );
+    
+    cache.set(key, formatted);
+    return formatted;
+  };
+};
+
+// Criar instância do formatador memoizado
+const memoizedFormat = createMemoizedFormatter();
 
 // Funções auxiliares
 const getStatusVariant = (status: string) => {
@@ -122,8 +146,171 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
     onSort(field);
   }, [onSort]);
 
+  // Cache estilizado para status para evitar cálculos repetitivos de classes
+  const statusStyleCache = useMemo(() => {
+    const cache: Record<string, any> = {};
+    const statuses = ['completed', 'in_progress', 'returned', 'corrected', 'pending'];
+    
+    statuses.forEach(status => {
+      cache[status] = {
+        row: cn(
+          "virtual-row",
+          status === "completed" && "bg-green-100 border-green-300 border",
+          status === "in_progress" && "bg-orange-100 border-orange-300 border",
+          status === "returned" && "bg-red-100 border-red-300 border",
+          status === "corrected" && "bg-yellow-100 border-yellow-300 border",
+        ),
+        firstCell: cn(
+          "font-medium",
+          status === "completed" && "bg-green-100 border-l-4 border-l-green-500",
+          status === "in_progress" && "bg-orange-100 border-l-4 border-l-orange-500",
+          status === "returned" && "bg-red-100 border-l-4 border-l-red-500",
+          status === "corrected" && "bg-yellow-100 border-l-4 border-l-yellow-500",
+        ),
+        cell: cn(
+          status === "completed" && "bg-green-100",
+          status === "in_progress" && "bg-orange-100",
+          status === "returned" && "bg-red-100",
+          status === "corrected" && "bg-yellow-100",
+        ),
+      };
+    });
+    
+    return cache;
+  }, []);
+  
+  // Componentes memoizados para melhorar a performance
+  
+  // Badge para status memoizado para evitar re-renderizações
+  const StatusBadge = memo(({ status }: { status: string }) => (
+    <Badge variant={getStatusVariant(status) as any}>
+      {getStatusLabel(status)}
+    </Badge>
+  ));
+  
+  // Badge para pagamento memoizado
+  const PaidBadge = memo(() => (
+    <Badge variant="outline" className="text-green-600 border-green-600">
+      Pago
+    </Badge>
+  ));
+  
+  // Memoização dos botões de ação para evitar re-renderizações
+  const ActionButtons = memo(({ sale }: { sale: Sale }) => (
+    <div className="flex justify-end gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onViewDetails(sale)}
+        className="h-8 w-8"
+        title="Ver detalhes"
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onViewHistory(sale)}
+        className="h-8 w-8"
+        title="Ver histórico de status"
+      >
+        <ClipboardList className="h-4 w-4" />
+      </Button>
+      
+      {user?.role === "admin" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(sale)}
+          className="h-8 w-8"
+          title="Editar"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      )}
+      
+      {(user?.role === "admin" || user?.role === "operacional") && 
+        (sale.status === "pending" || sale.status === "corrected") && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onStartExecution(sale)}
+          className="h-8 w-8"
+          title="Iniciar execução"
+        >
+          <CornerDownRight className="h-4 w-4" />
+        </Button>
+      )}
+      
+      {(user?.role === "admin" || user?.role === "operacional") && 
+        sale.status === "in_progress" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onCompleteExecution(sale)}
+          className="h-8 w-8"
+          title="Concluir execução"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+        </Button>
+      )}
+      
+      {/* Componentes personalizados para reenviar/devolver */}
+      <div className="inline-block">
+        <ReenviaButton sale={sale} />
+      </div>
+      
+      <div className="inline-block">
+        <DevolveButton sale={sale} />
+      </div>
+      
+      {user?.role === "financeiro" || user?.role === "admin" ? (
+        sale.status === "completed" && sale.financialStatus !== "paid" ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onMarkAsPaid(sale)}
+            className="h-8 w-8"
+            title="Marcar como pago"
+          >
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          </Button>
+        ) : null
+      ) : null}
+      
+      {user?.role === "admin" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDeleteClick(sale)}
+          className="h-8 w-8"
+          title="Excluir"
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      )}
+    </div>
+  ));
+  ActionButtons.displayName = 'ActionButtons';
+  
+  // Componente para exibir o tipo de serviço
+  const ServiceType = memo(({ sale }: { sale: Sale }) => (
+    <div className="flex items-center gap-1">
+      {sale.serviceTypeId ? (
+        <span className="text-xs font-medium inline-flex items-center">
+          <CornerDownRight className="h-3.5 w-3.5 mr-1 text-primary" />
+          {sale.serviceTypeName || "Tipo não identificado"}
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">Não definido</span>
+      )}
+    </div>
+  ));
+  ServiceType.displayName = 'ServiceType';
+  
   // Item de linha da tabela memoizado
-  const Row = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
+  const Row = memo(({ index, style }: { index: number; style: React.CSSProperties }) => {
     // Medição de performance para renderização de linhas
     const startTime = performance.now();
     if (lastRenderTime.current === 0) {
@@ -148,107 +335,55 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
     if (progress > renderProgress && progress % 10 === 0) {
       setRenderProgress(progress);
     }
+    
+    // Obter os estilos pré-calculados do cache
+    const styles = statusStyleCache[sale.status] || statusStyleCache['pending'];
+    
+    // Formatar valores com memoização
+    const formattedDate = memoizedFormat(
+      sale.date || sale.createdAt, 
+      'dd/MM/yyyy'
+    );
+    
+    const formattedAmount = useMemo(() => {
+      return `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`;
+    }, [sale.totalAmount]);
 
     return (
       <TableRow 
         key={sale.id}
         data-status={sale.status}
-        style={style}
-        className={cn(
-          "virtual-row",
-          sale.status === "completed" && "bg-green-100 border-green-300 border",
-          sale.status === "in_progress" && "bg-orange-100 border-orange-300 border",
-          sale.status === "returned" && "bg-red-100 border-red-300 border",
-          sale.status === "corrected" && "bg-yellow-100 border-yellow-300 border",
-        )}
+        style={{...style, willChange: 'transform, opacity'}}
+        className={styles.row}
       >
-        <TableCell 
-          className={cn(
-            "font-medium",
-            sale.status === "completed" && "bg-green-100 border-l-4 border-l-green-500",
-            sale.status === "in_progress" && "bg-orange-100 border-l-4 border-l-orange-500",
-            sale.status === "returned" && "bg-red-100 border-l-4 border-l-red-500",
-            sale.status === "corrected" && "bg-yellow-100 border-l-4 border-l-yellow-500",
-          )}
-        >
+        <TableCell className={styles.firstCell}>
           {sale.orderNumber}
         </TableCell>
-        <TableCell className={cn(
-            sale.status === "completed" && "bg-green-100",
-            sale.status === "in_progress" && "bg-orange-100",
-            sale.status === "returned" && "bg-red-100",
-            sale.status === "corrected" && "bg-yellow-100",
-          )}>
-          {format(sale.date ? new Date(sale.date) : new Date(sale.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
+        <TableCell className={styles.cell}>
+          {formattedDate}
         </TableCell>
-        <TableCell className={cn(
-            sale.status === "completed" && "bg-green-100",
-            sale.status === "in_progress" && "bg-orange-100",
-            sale.status === "returned" && "bg-red-100",
-            sale.status === "corrected" && "bg-yellow-100",
-          )}>
+        <TableCell className={styles.cell}>
           {sale.customerName}
         </TableCell>
-        <TableCell className={cn(
-            sale.status === "completed" && "bg-green-100",
-            sale.status === "in_progress" && "bg-orange-100",
-            sale.status === "returned" && "bg-red-100",
-            sale.status === "corrected" && "bg-yellow-100",
-          )}>
+        <TableCell className={styles.cell}>
           {sale.sellerName}
         </TableCell>
-        <TableCell className={cn(
-            sale.status === "completed" && "bg-green-100",
-            sale.status === "in_progress" && "bg-orange-100",
-            sale.status === "returned" && "bg-red-100",
-            sale.status === "corrected" && "bg-yellow-100",
-          )}>
-          R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+        <TableCell className={styles.cell}>
+          {formattedAmount}
         </TableCell>
-        <TableCell className={cn(
-            sale.status === "completed" && "bg-green-100",
-            sale.status === "in_progress" && "bg-orange-100",
-            sale.status === "returned" && "bg-red-100",
-            sale.status === "corrected" && "bg-yellow-100",
-          )}>
+        <TableCell className={styles.cell}>
           <div className="flex flex-col gap-1">
-            <Badge variant={getStatusVariant(sale.status) as any}>
-              {getStatusLabel(sale.status)}
-            </Badge>
-            {sale.financialStatus === 'paid' && (
-              <Badge variant="outline" className="text-green-600 border-green-600">
-                Pago
-              </Badge>
-            )}
+            <StatusBadge status={sale.status} />
+            {sale.financialStatus === 'paid' && <PaidBadge />}
           </div>
         </TableCell>
         {/* Célula para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
         {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
-          <TableCell className={cn(
-              sale.status === "completed" && "bg-green-100",
-              sale.status === "in_progress" && "bg-orange-100",
-              sale.status === "returned" && "bg-red-100",
-              sale.status === "corrected" && "bg-yellow-100",
-            )}>
-            <div className="flex items-center gap-1">
-              {sale.serviceTypeId ? (
-                <span className="text-xs font-medium inline-flex items-center">
-                  <CornerDownRight className="h-3.5 w-3.5 mr-1 text-primary" />
-                  {sale.serviceTypeName || "Tipo não identificado"}
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">Não definido</span>
-              )}
-            </div>
+          <TableCell className={styles.cell}>
+            <ServiceType sale={sale} />
           </TableCell>
         )}
-        <TableCell className={cn(
-            "text-right",
-            sale.status === "completed" && "bg-green-100",
-            sale.status === "in_progress" && "bg-orange-100",
-            sale.status === "returned" && "bg-red-100",
-            sale.status === "corrected" && "bg-yellow-100",
-          )}>
+        <TableCell className={cn("text-right", styles.cell)}>
           <div className="flex justify-end gap-1">
             <Button
               variant="ghost"

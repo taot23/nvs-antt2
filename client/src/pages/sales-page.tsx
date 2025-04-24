@@ -174,11 +174,49 @@ export default function SalesPage() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   
-  // Queries e Mutations
+  // Configuração para staleTime e cacheTIme globais para reduzir chamadas de API
+  const staleTime = 5 * 60 * 1000; // 5 minutos 
+  const cacheTime = 30 * 60 * 1000; // 30 minutos
+  const localStorageCacheTime = 60 * 60 * 1000; // 1 hora para cache do localStorage
+  
+  // Função para obter dados do cache local
+  const getFromLocalCache = (key: string) => {
+    try {
+      const cachedData = localStorage.getItem(`cache_${key}`);
+      if (cachedData) {
+        const { data, timestamp } = JSON.parse(cachedData);
+        const isExpired = Date.now() - timestamp > localStorageCacheTime;
+        
+        if (!isExpired) {
+          console.log(`Usando dados em cache para ${key}`);
+          return data;
+        } else {
+          console.log(`Cache expirado para ${key}`);
+          localStorage.removeItem(`cache_${key}`);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao ler cache:', error);
+    }
+    return null;
+  };
+  
+  // Função para salvar dados no cache local
+  const saveToLocalCache = (key: string, data: any) => {
+    try {
+      localStorage.setItem(`cache_${key}`, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Erro ao salvar cache:', error);
+    }
+  };
+  
   // Para o perfil vendedor, carregamos apenas suas próprias vendas
   const { data: sales = [], isLoading, error, refetch } = useQuery({
     queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all"],
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
       // Vendedor só pode ver suas próprias vendas
       let url = "/api/sales";
       if (user?.role === "vendedor") {
@@ -186,68 +224,135 @@ export default function SalesPage() {
         url = `/api/sales?sellerId=${user.id}`;
       }
       
-      const response = await fetch(url);
+      // Dados críticos, não usamos cache local para vendas
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        }
+      });
+      
       if (!response.ok) {
         throw new Error("Erro ao carregar vendas");
       }
-      return response.json();
-    }
+      
+      const data = await response.json();
+      return data;
+    },
+    staleTime: 30000, // 30 segundos, dados de vendas são mais críticos
+    refetchOnWindowFocus: true, // Atualize quando o usuário volta para a janela
   });
 
+  // Os demais recursos podem usar uma abordagem otimizada com cache
   const { data: customers = [] } = useQuery({
     queryKey: ["/api/customers"],
     queryFn: async () => {
+      // Verificar se temos dados em cache
+      const cachedData = getFromLocalCache('customers');
+      if (cachedData) return cachedData;
+      
       const response = await fetch("/api/customers");
       if (!response.ok) {
         throw new Error("Erro ao carregar clientes");
       }
-      return response.json();
-    }
+      const data = await response.json();
+      
+      // Salvar no cache
+      saveToLocalCache('customers', data);
+      return data;
+    },
+    staleTime,
+    cacheTime,
+    refetchOnWindowFocus: false,
   });
 
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
+      // Verificar se temos dados em cache
+      const cachedData = getFromLocalCache('users');
+      if (cachedData) return cachedData;
+      
       const response = await fetch("/api/users");
       if (!response.ok) {
         throw new Error("Erro ao carregar usuários");
       }
-      return response.json();
-    }
+      const data = await response.json();
+      
+      // Salvar no cache
+      saveToLocalCache('users', data);
+      return data;
+    },
+    staleTime,
+    cacheTime,
+    refetchOnWindowFocus: false,
   });
 
   const { data: paymentMethods = [] } = useQuery({
     queryKey: ["/api/payment-methods"],
     queryFn: async () => {
+      // Verificar se temos dados em cache
+      const cachedData = getFromLocalCache('payment-methods');
+      if (cachedData) return cachedData;
+      
       const response = await fetch("/api/payment-methods");
       if (!response.ok) {
         throw new Error("Erro ao carregar formas de pagamento");
       }
-      return response.json();
-    }
+      const data = await response.json();
+      
+      // Salvar no cache
+      saveToLocalCache('payment-methods', data);
+      return data;
+    },
+    staleTime,
+    cacheTime,
+    refetchOnWindowFocus: false,
   });
   
-  // Carregar tipos de serviço e prestadores de serviço
+  // Carregar tipos de serviço e prestadores de serviço com cache
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["/api/service-types"],
     queryFn: async () => {
+      // Verificar se temos dados em cache
+      const cachedData = getFromLocalCache('service-types');
+      if (cachedData) return cachedData;
+      
       const response = await fetch("/api/service-types");
       if (!response.ok) {
         throw new Error("Erro ao carregar tipos de serviço");
       }
-      return response.json();
-    }
+      const data = await response.json();
+      
+      // Salvar no cache
+      saveToLocalCache('service-types', data);
+      return data;
+    },
+    staleTime,
+    cacheTime,
+    refetchOnWindowFocus: false,
   });
   
   const { data: serviceProviders = [] } = useQuery({
     queryKey: ["/api/service-providers"],
     queryFn: async () => {
+      // Verificar se temos dados em cache
+      const cachedData = getFromLocalCache('service-providers');
+      if (cachedData) return cachedData;
+      
       const response = await fetch("/api/service-providers");
       if (!response.ok) {
         throw new Error("Erro ao carregar prestadores de serviço");
       }
-      return response.json();
-    }
+      const data = await response.json();
+      
+      // Salvar no cache
+      saveToLocalCache('service-providers', data);
+      return data;
+    },
+    staleTime,
+    cacheTime,
+    refetchOnWindowFocus: false,
   });
   
   // Preparar dados enriquecidos
