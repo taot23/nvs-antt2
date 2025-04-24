@@ -1,8 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Sidebar } from './sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 import { 
   User, 
   ShieldCheck, 
@@ -11,6 +13,12 @@ import {
   DollarSign, 
   Users 
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -18,7 +26,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
   
   // Função para obter o ícone correto com base no perfil do usuário
   const getUserRoleIcon = () => {
@@ -62,18 +70,31 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
       
       <div className="flex flex-col flex-1">
-        {/* Indicador de usuário logado */}
+        {/* Indicador de usuário logado com menu dropdown */}
         {user && (
           <div className="flex justify-end p-2 bg-background/90 backdrop-blur-sm shadow-sm border-b sticky top-0 z-10">
-            <Badge 
-              variant={getRoleBadgeVariant() as any}
-              className="flex items-center py-1.5 px-3"
-            >
-              {getUserRoleIcon()}
-              <span className="font-medium">
-                {user.username} ({user.role})
-              </span>
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Badge 
+                  variant={getRoleBadgeVariant() as any}
+                  className="flex items-center py-1.5 px-3 cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  {getUserRoleIcon()}
+                  <span className="font-medium">
+                    {user.username} ({user.role})
+                  </span>
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  className="cursor-pointer flex items-center text-destructive focus:text-destructive" 
+                  onClick={() => logoutMutation.mutate()}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair do Sistema</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
         
