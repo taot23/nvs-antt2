@@ -92,6 +92,18 @@ function getStatusRowClass(status: string) {
   return result;
 }
 
+// Função para obter estilo CSS em linha baseado no status
+function getStatusStyle(status: string) {
+  console.log("Aplicando estilo inline para status:", status);
+  switch (status) {
+    case 'corrected': return { backgroundColor: 'rgba(250, 240, 137, 0.2)' }; // Amarelo bem suave
+    case 'completed': return { backgroundColor: 'rgba(134, 239, 172, 0.2)' };  // Verde bem suave
+    case 'in_progress': return { backgroundColor: 'rgba(147, 197, 253, 0.2)' }; // Azul bem suave
+    case 'returned': return { backgroundColor: 'rgba(252, 165, 165, 0.2)' };     // Vermelho bem suave
+    default: return {};
+  }
+}
+
 // Componente principal
 export default function SalesPage() {
   const { user } = useAuth();
@@ -730,7 +742,7 @@ export default function SalesPage() {
             </div>
           ) : (
             filteredSales.map((sale: Sale) => (
-              <Card key={sale.id} className={`overflow-hidden ${getStatusRowClass(sale.status)}-card`}>
+              <Card key={sale.id} className={`overflow-hidden ${getStatusRowClass(sale.status)}-card`} style={getStatusStyle(sale.status)}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <div>
@@ -1115,7 +1127,11 @@ export default function SalesPage() {
                 </TableRow>
               ) : (
                 filteredSales.map((sale: Sale) => (
-                  <TableRow key={sale.id} className={`${getStatusRowClass(sale.status)}`}>
+                  <TableRow 
+                    key={sale.id} 
+                    className={`${getStatusRowClass(sale.status)}`}
+                    style={getStatusStyle(sale.status)}
+                  >
                     <TableCell className="font-medium">
                       {sale.orderNumber}
                     </TableCell>
