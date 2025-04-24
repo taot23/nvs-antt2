@@ -95,13 +95,25 @@ function getStatusRowClass(status: string) {
 // Função para obter estilo CSS em linha baseado no status
 function getStatusStyle(status: string) {
   console.log("Aplicando estilo inline para status:", status);
+  let color = '';
   switch (status) {
-    case 'corrected': return { backgroundColor: 'rgba(250, 240, 137, 0.2)' }; // Amarelo bem suave
-    case 'completed': return { backgroundColor: 'rgba(134, 239, 172, 0.2)' };  // Verde bem suave
-    case 'in_progress': return { backgroundColor: 'rgba(147, 197, 253, 0.2)' }; // Azul bem suave
-    case 'returned': return { backgroundColor: 'rgba(252, 165, 165, 0.2)' };     // Vermelho bem suave
-    default: return {};
+    case 'corrected': 
+      color = 'rgba(250, 240, 137, 0.15)'; // Amarelo bem suave
+      break;
+    case 'completed': 
+      color = 'rgba(134, 239, 172, 0.15)';  // Verde bem suave
+      break;
+    case 'in_progress': 
+      color = 'rgba(147, 197, 253, 0.15)'; // Azul bem suave
+      break;
+    case 'returned': 
+      color = 'rgba(252, 165, 165, 0.15)';  // Vermelho bem suave
+      break;
+    default: 
+      return {};
   }
+  console.log(`Aplicando cor de fundo: ${color} para status: ${status}`);
+  return { backgroundColor: color };
 }
 
 // Componente principal
@@ -741,161 +753,164 @@ export default function SalesPage() {
                 : "Nenhuma venda cadastrada ainda"}
             </div>
           ) : (
-            filteredSales.map((sale: Sale) => (
-              <Card key={sale.id} className={`overflow-hidden ${getStatusRowClass(sale.status)}-card`} style={getStatusStyle(sale.status)}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base flex items-center">
-                        OS: {sale.orderNumber}
-                      </CardTitle>
-                      <CardDescription>
-                        {format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
-                      </CardDescription>
+            filteredSales.map((sale: Sale) => {
+              const bgStyle = getStatusStyle(sale.status);
+              return (
+                <Card key={sale.id} className="overflow-hidden" style={bgStyle}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base flex items-center">
+                          OS: {sale.orderNumber}
+                        </CardTitle>
+                        <CardDescription>
+                          {format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
+                        </CardDescription>
+                      </div>
+                      <Badge variant={getStatusVariant(sale.status) as any}>
+                        {getStatusLabel(sale.status)}
+                      </Badge>
                     </div>
-                    <Badge variant={getStatusVariant(sale.status) as any}>
-                      {getStatusLabel(sale.status)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="p-4 pt-0 pb-2 grid gap-1">
-                  <div className="text-sm">
-                    <span className="text-muted-foreground text-xs">Cliente:</span>{" "}
-                    {sale.customerName}
-                  </div>
+                  </CardHeader>
                   
-                  <div className="text-sm">
-                    <span className="text-muted-foreground text-xs">Vendedor:</span>{" "}
-                    {sale.sellerName}
-                  </div>
-                  
-                  <div className="text-sm">
-                    <span className="text-muted-foreground text-xs">Valor:</span>{" "}
-                    <span className="font-semibold">
-                      R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                    </span>
-                  </div>
-                  
-                  {sale.returnReason && (
-                    <div className="text-sm mt-1 text-destructive">
-                      <span className="text-xs font-semibold">Motivo da devolução:</span>{" "}
-                      {sale.returnReason}
+                  <CardContent className="p-4 pt-0 pb-2 grid gap-1">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Cliente:</span>{" "}
+                      {sale.customerName}
                     </div>
-                  )}
-                </CardContent>
-                
-                <CardFooter className="p-2 pt-0 flex flex-wrap gap-1">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="h-8 px-2 flex-grow"
-                    onClick={() => handleViewDetails(sale)}
-                  >
-                    <Eye className="h-3.5 w-3.5 mr-1" />
-                    Detalhes
-                  </Button>
+                    
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Vendedor:</span>{" "}
+                      {sale.sellerName}
+                    </div>
+                    
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Valor:</span>{" "}
+                      <span className="font-semibold">
+                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    
+                    {sale.returnReason && (
+                      <div className="text-sm mt-1 text-destructive">
+                        <span className="text-xs font-semibold">Motivo da devolução:</span>{" "}
+                        {sale.returnReason}
+                      </div>
+                    )}
+                  </CardContent>
                   
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 px-2 flex-grow"
-                    onClick={() => handleViewHistory(sale)}
-                  >
-                    <ClipboardList className="h-3.5 w-3.5 mr-1" />
-                    Histórico
-                  </Button>
-                  
-                  {/* Botões de ação com base no status e permissões */}
-                  {user?.role === "admin" && (
+                  <CardFooter className="p-2 pt-0 flex flex-wrap gap-1">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-8 px-2 flex-grow"
+                      onClick={() => handleViewDetails(sale)}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      Detalhes
+                    </Button>
+                    
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-8 px-2 flex-grow"
-                      onClick={() => handleEdit(sale)}
+                      onClick={() => handleViewHistory(sale)}
                     >
-                      <Edit className="h-3.5 w-3.5 mr-1" />
-                      Editar
+                      <ClipboardList className="h-3.5 w-3.5 mr-1" />
+                      Histórico
                     </Button>
-                  )}
-                  
-                  {/* Botão para operacionais iniciarem execução */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    (sale.status === "pending" || sale.status === "corrected") && (
-                    <Button
-                      size="sm"
-                      variant={sale.status === "corrected" ? "default" : "outline"}
-                      className={`h-8 px-2 flex-grow ${sale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}`}
-                      onClick={() => handleStartExecution(sale)}
-                    >
-                      <CornerDownRight className="h-3.5 w-3.5 mr-1" />
-                      Iniciar
-                    </Button>
-                  )}
-                  
-                  {/* Botão para operacionais concluírem execução */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    sale.status === "in_progress" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2 flex-grow"
-                      onClick={() => handleCompleteExecution(sale)}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                      Concluir
-                    </Button>
-                  )}
-                  
-                  {/* Botão para operacionais devolverem a venda */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    (sale.status === "pending" || sale.status === "in_progress") && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2 flex-grow text-destructive border-destructive hover:bg-destructive/10"
-                      onClick={() => handleReturnClick(sale)}
-                    >
-                      <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                      Devolver
-                    </Button>
-                  )}
-                  
-                  {/* Botão para vendedor reenviar venda corrigida */}
-                  {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                    <ReenviaButton sale={sale} />
-                  )}
-                  
-                  {/* Botão para financeiro marcar como paga */}
-                  {(user?.role === "admin" || user?.role === "financeiro") && 
-                    sale.status === "completed" && 
-                    sale.financialStatus !== "paid" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-8 px-2 flex-grow"
-                      onClick={() => handleMarkAsPaid(sale)}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                      Confirmar Pagamento
-                    </Button>
-                  )}
-                  
-                  {/* Botão de exclusão (apenas admin) */}
-                  {user?.role === "admin" && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="h-8 px-2 flex-grow"
-                      onClick={() => handleDeleteClick(sale)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      Excluir
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            ))
+                    
+                    {/* Botões de ação com base no status e permissões */}
+                    {user?.role === "admin" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleEdit(sale)}
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1" />
+                        Editar
+                      </Button>
+                    )}
+                    
+                    {/* Botão para operacionais iniciarem execução */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      (sale.status === "pending" || sale.status === "corrected") && (
+                      <Button
+                        size="sm"
+                        variant={sale.status === "corrected" ? "default" : "outline"}
+                        className={`h-8 px-2 flex-grow ${sale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}`}
+                        onClick={() => handleStartExecution(sale)}
+                      >
+                        <CornerDownRight className="h-3.5 w-3.5 mr-1" />
+                        Iniciar
+                      </Button>
+                    )}
+                    
+                    {/* Botão para operacionais concluírem execução */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      sale.status === "in_progress" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleCompleteExecution(sale)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Concluir
+                      </Button>
+                    )}
+                    
+                    {/* Botão para operacionais devolverem a venda */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      (sale.status === "pending" || sale.status === "in_progress") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow text-destructive border-destructive hover:bg-destructive/10"
+                        onClick={() => handleReturnClick(sale)}
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                        Devolver
+                      </Button>
+                    )}
+                    
+                    {/* Botão para vendedor reenviar venda corrigida */}
+                    {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                      <ReenviaButton sale={sale} />
+                    )}
+                    
+                    {/* Botão para financeiro marcar como paga */}
+                    {(user?.role === "admin" || user?.role === "financeiro") && 
+                      sale.status === "completed" && 
+                      sale.financialStatus !== "paid" && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleMarkAsPaid(sale)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Confirmar Pagamento
+                      </Button>
+                    )}
+                    
+                    {/* Botão de exclusão (apenas admin) */}
+                    {user?.role === "admin" && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleDeleteClick(sale)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Excluir
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              );
+            })
           )}
         </div>
       </div>
@@ -1126,150 +1141,149 @@ export default function SalesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSales.map((sale: Sale) => (
-                  <TableRow 
-                    key={sale.id} 
-                    className={`${getStatusRowClass(sale.status)}`}
-                    style={getStatusStyle(sale.status)}
-                  >
-                    <TableCell className="font-medium">
-                      {sale.orderNumber}
-                    </TableCell>
-                    <TableCell>
-                      {sale.date ? 
-                        format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
-                        format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>{sale.customerName}</TableCell>
-                    <TableCell>{sale.sellerName}</TableCell>
-                    <TableCell>
-                      R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge variant={getStatusVariant(sale.status) as any}>
-                          {getStatusLabel(sale.status)}
-                        </Badge>
-                        {sale.financialStatus === 'paid' && (
-                          <Badge variant="outline" className="text-green-600 border-green-600">
-                            Pago
+                filteredSales.map((sale: Sale) => {
+                  const bgStyle = getStatusStyle(sale.status);
+                  return (
+                    <TableRow key={sale.id}>
+                      <TableCell style={bgStyle} className="font-medium">
+                        {sale.orderNumber}
+                      </TableCell>
+                      <TableCell style={bgStyle}>
+                        {sale.date ? 
+                          format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
+                          format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
+                      </TableCell>
+                      <TableCell style={bgStyle}>{sale.customerName}</TableCell>
+                      <TableCell style={bgStyle}>{sale.sellerName}</TableCell>
+                      <TableCell style={bgStyle}>
+                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+                      </TableCell>
+                      <TableCell style={bgStyle}>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={getStatusVariant(sale.status) as any}>
+                            {getStatusLabel(sale.status)}
                           </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewDetails(sale)}
-                          className="h-8 w-8"
-                          title="Ver detalhes"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewHistory(sale)}
-                          className="h-8 w-8"
-                          title="Ver histórico de status"
-                        >
-                          <ClipboardList className="h-4 w-4" />
-                        </Button>
-                        
-                        {/* Permissão para editar (admin) */}
-                        {user?.role === "admin" && (
+                          {sale.financialStatus === 'paid' && (
+                            <Badge variant="outline" className="text-green-600 border-green-600">
+                              Pago
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell style={bgStyle} className="text-right">
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEdit(sale)}
+                            onClick={() => handleViewDetails(sale)}
                             className="h-8 w-8"
-                            title="Editar"
+                            title="Ver detalhes"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        )}
-                        
-                        {/* Permissão para iniciar execução (operacional/admin) */}
-                        {(user?.role === "admin" || user?.role === "operacional") && 
-                          (sale.status === "pending" || sale.status === "corrected") && (
+                          
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleStartExecution(sale)}
+                            onClick={() => handleViewHistory(sale)}
                             className="h-8 w-8"
-                            title="Iniciar execução"
+                            title="Ver histórico de status"
                           >
-                            <CornerDownRight className="h-4 w-4" />
+                            <ClipboardList className="h-4 w-4" />
                           </Button>
-                        )}
-                        
-                        {/* Permissão para concluir execução (operacional/admin) */}
-                        {(user?.role === "admin" || user?.role === "operacional") && 
-                          sale.status === "in_progress" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleCompleteExecution(sale)}
-                            className="h-8 w-8"
-                            title="Concluir execução"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        
-                        {/* Permissão para devolver a venda (operacional/admin) */}
-                        {(user?.role === "admin" || user?.role === "operacional") && 
-                          (sale.status === "pending" || sale.status === "in_progress") && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleReturnClick(sale)}
-                            className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                            title="Devolver para correção"
-                          >
-                            <AlertTriangle className="h-4 w-4" />
-                          </Button>
-                        )}
-                        
-                        {/* Novo botão de reenvio para vendedor */}
-                        {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                          <ReenviaButton sale={sale} />
-                        )}
-                        
-                        {/* Permissão para marcar como paga (financeiro/admin) */}
-                        {(user?.role === "admin" || user?.role === "financeiro") && 
-                          sale.status === "completed" && 
-                          sale.financialStatus !== "paid" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleMarkAsPaid(sale)}
-                            className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
-                            title="Confirmar pagamento"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        
-                        {/* Permissão para excluir (apenas admin) */}
-                        {user?.role === "admin" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(sale)}
-                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          
+                          {/* Permissão para editar (admin) */}
+                          {user?.role === "admin" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(sale)}
+                              className="h-8 w-8"
+                              title="Editar"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Permissão para iniciar execução (operacional/admin) */}
+                          {(user?.role === "admin" || user?.role === "operacional") && 
+                            (sale.status === "pending" || sale.status === "corrected") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleStartExecution(sale)}
+                              className="h-8 w-8"
+                              title="Iniciar execução"
+                            >
+                              <CornerDownRight className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Permissão para concluir execução (operacional/admin) */}
+                          {(user?.role === "admin" || user?.role === "operacional") && 
+                            sale.status === "in_progress" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCompleteExecution(sale)}
+                              className="h-8 w-8"
+                              title="Concluir execução"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Permissão para devolver a venda (operacional/admin) */}
+                          {(user?.role === "admin" || user?.role === "operacional") && 
+                            (sale.status === "pending" || sale.status === "in_progress") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleReturnClick(sale)}
+                              className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                              title="Devolver para correção"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Novo botão de reenvio para vendedor */}
+                          {(user?.role === "admin" || (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                            <ReenviaButton sale={sale} />
+                          )}
+                          
+                          {/* Permissão para marcar como paga (financeiro/admin) */}
+                          {(user?.role === "admin" || user?.role === "financeiro") && 
+                            sale.status === "completed" && 
+                            sale.financialStatus !== "paid" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleMarkAsPaid(sale)}
+                              className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
+                              title="Confirmar pagamento"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Permissão para excluir (apenas admin) */}
+                          {user?.role === "admin" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(sale)}
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
