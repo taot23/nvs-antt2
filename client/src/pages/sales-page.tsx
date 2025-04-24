@@ -581,6 +581,9 @@ export default function SalesPage() {
     doc.save("vendas.pdf");
   };
   
+  // Logging para debug
+  console.log("Renderizando SalesPage com usuário:", user?.role, "- Aplicando cores de fundo por status");
+  
   // Filtrar e ordenar vendas
   const filteredSales = enrichedSales
     .filter((sale: Sale) => {
