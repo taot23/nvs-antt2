@@ -2036,11 +2036,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
-      // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode ver
-      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
-          sale.sellerId !== req.user!.id) {
-        return res.status(403).json({ error: "Permissão negada" });
-      }
+      // Todos os usuários autenticados podem ver o histórico de qualquer venda
+      // A verificação de autenticação já é feita pelo middleware isAuthenticated
       
       const history = await storage.getSalesStatusHistory(id);
       res.json(history);
