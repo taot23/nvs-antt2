@@ -25,6 +25,7 @@ import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
 import SaleHistoryDialog from "@/components/sales/sale-history-dialog";
 import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
+import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 
 // Tipos
 type Sale = {
