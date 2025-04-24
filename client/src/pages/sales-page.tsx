@@ -104,24 +104,21 @@ function getStatusCardClass(status: string) {
   }
 }
 
-// Função para obter estilos inline como backup - usando valores diretos para maior consistência
+// ABORDAGEM FINAL: Função para aplicar estilos inline diretamente
 function getStatusStyle(status: string) {
-  if (!status) return {};
-  
-  // Definindo cores diretamente aqui (combinando com o CSS) para evitar inconsistências
-  const COLORS = {
-    corrected: 'rgba(250, 240, 137, 0.15)',  // Amarelo suave
-    completed: 'rgba(134, 239, 172, 0.15)',  // Verde suave
-    in_progress: 'rgba(255, 159, 64, 0.15)', // CORRIGIDO: LARANJA SUAVE (mais visível)
-    returned: 'rgba(252, 165, 165, 0.15)'    // Vermelho suave
-  };
-  
-  // Verificar se status é válido e retornar a cor correspondente ou objeto vazio
-  if (status in COLORS) {
-    return { backgroundColor: COLORS[status as keyof typeof COLORS] };
+  // CORES USANDO RGB PARA MÁXIMA COMPATIBILIDADE
+  switch (status) {
+    case 'corrected': 
+      return { backgroundColor: 'rgba(250, 240, 137, 0.15)', border: '1px solid rgba(250, 240, 137, 0.3)' }; // Amarelo suave
+    case 'completed': 
+      return { backgroundColor: 'rgba(134, 239, 172, 0.15)', border: '1px solid rgba(134, 239, 172, 0.3)' }; // Verde suave
+    case 'in_progress': 
+      return { backgroundColor: 'rgba(255, 159, 64, 0.15)', border: '1px solid rgba(255, 159, 64, 0.3)' }; // Laranja claro
+    case 'returned': 
+      return { backgroundColor: 'rgba(252, 165, 165, 0.15)', border: '1px solid rgba(252, 165, 165, 0.3)' }; // Vermelho suave
+    default: 
+      return {};
   }
-  
-  return {};
 }
 
 // Componente principal
@@ -765,7 +762,7 @@ export default function SalesPage() {
               return (
                 <Card 
                   key={sale.id} 
-                  className={`overflow-hidden ${getStatusCardClass(sale.status)}`}
+                  className="overflow-hidden"
                   style={getStatusStyle(sale.status)}
                 >
                   <CardHeader className="pb-2">
@@ -1154,7 +1151,7 @@ export default function SalesPage() {
               ) : (
                 filteredSales.map((sale: Sale) => {
                   return (
-                    <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
+                    <TableRow key={sale.id}>
                       <TableCell 
                         className="font-medium" 
                         style={getStatusStyle(sale.status)}
@@ -1175,7 +1172,7 @@ export default function SalesPage() {
                       <TableCell style={getStatusStyle(sale.status)}>
                         R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
                       </TableCell>
-                      <TableCell>
+                      <TableCell style={getStatusStyle(sale.status)}>
                         <div className="flex flex-col gap-1">
                           <Badge variant={getStatusVariant(sale.status) as any}>
                             {getStatusLabel(sale.status)}
@@ -1187,7 +1184,7 @@ export default function SalesPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" style={getStatusStyle(sale.status)}>
                         <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
