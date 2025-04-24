@@ -386,6 +386,13 @@ export default function SaleOperationDialog({
 
   // Verificar se o usuário tem permissão para executar ações operacionais
   const canPerformOperations = user?.role === "admin" || user?.role === "operacional" || user?.role === "supervisor";
+  
+  console.log("Permissões do usuário:", {
+    username: user?.username,
+    role: user?.role,
+    canPerformOperations,
+    dialogSaleId: saleId
+  });
 
   // Mutation para atualizar o tipo de execução quando a venda está em andamento
   const updateExecutionTypeMutation = useMutation({
@@ -884,7 +891,13 @@ export default function SaleOperationDialog({
               userRole: user?.role,
               showCard: canPerformOperations && !isReturning && enrichedSale?.status === "returned" && user?.role === "supervisor"
             })}
-            {canPerformOperations && !isReturning && sale?.status === "returned" && user?.role === "supervisor" && (
+            {console.log("LOG CARD SUPERVISOR:", {
+              status: sale?.status,
+              userRole: user?.role,
+              isReturning,
+              canPerformOperations
+            })}
+            {sale?.status === "returned" && user?.role === "supervisor" && !isReturning && (
               <Card className="mt-6 mb-4">
                 <CardHeader className="pb-3">
                   <CardTitle>Marcar como Corrigida</CardTitle>
@@ -1065,10 +1078,14 @@ export default function SaleOperationDialog({
                     
                     {/* Botão para supervisores reenviarem vendas devolvidas */}
                     {console.log("OS 12 - Condição para exibir Botão:", {
-                      status: sale?.status,
+                      saleId: saleId,
+                      saleStatus: sale?.status,
                       enrichedStatus: enrichedSale?.status,
                       userRole: user?.role,
-                      showButton: sale?.status === "returned" && user?.role === "supervisor"
+                      userName: user?.username,
+                      userId: user?.id,
+                      showButton: sale?.status === "returned" && user?.role === "supervisor",
+                      canPerformOperations: canPerformOperations
                     })}
                     {sale?.status === "returned" && user?.role === "supervisor" && (
                       <Button 
