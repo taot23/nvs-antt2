@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft, FileCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -36,6 +36,7 @@ function getStatusLabel(status: string) {
     case 'returned': return 'Devolvida';
     case 'completed': return 'Concluída';
     case 'canceled': return 'Cancelada';
+    case 'corrected': return 'Corrigida Aguardando Operacional';
     default: return status;
   }
 }
@@ -48,6 +49,7 @@ function getStatusVariant(status: string) {
     case 'returned': return 'destructive';
     case 'completed': return 'success';
     case 'canceled': return 'outline';
+    case 'corrected': return 'primary';
     default: return 'default';
   }
 }
@@ -512,6 +514,7 @@ export default function SaleOperationDialog({
                               {record.toStatus === "in_progress" && <CornerDownRight className="h-4 w-4 text-secondary" />}
                               {record.toStatus === "completed" && <CheckCircle2 className="h-4 w-4 text-success" />}
                               {record.toStatus === "returned" && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                              {record.toStatus === "corrected" && <FileCheck className="h-4 w-4 text-primary" />}
                             </div>
                             <div className="bg-muted p-3 rounded">
                               <div className="flex justify-between items-start mb-1">
@@ -599,11 +602,12 @@ export default function SaleOperationDialog({
                     )}
                     
                     {/* Botão para ação principal baseada no status */}
-                    {enrichedSale.status === "pending" && (
+                    {(enrichedSale.status === "pending" || enrichedSale.status === "corrected") && (
                       <Button 
                         type="button" 
                         onClick={handleMainAction}
                         disabled={startExecutionMutation.isPending}
+                        className={enrichedSale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
                       >
                         <CornerDownRight className="mr-2 h-4 w-4" />
                         {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
