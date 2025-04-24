@@ -90,7 +90,12 @@ export interface IStorage {
   
   // Special Sale operations
   returnSaleToSeller(saleId: number, userId: number, reason: string): Promise<Sale | undefined>;
-  markSaleInProgress(saleId: number, operationalId: number): Promise<Sale | undefined>;
+  markSaleInProgress(
+    saleId: number, 
+    operationalId: number, 
+    serviceTypeId?: number, 
+    serviceProviderId?: number
+  ): Promise<Sale | undefined>;
   completeSaleExecution(saleId: number, operationalId: number): Promise<Sale | undefined>;
   markSaleAsPaid(saleId: number, financialId: number): Promise<Sale | undefined>;
   
@@ -696,11 +701,31 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async markSaleInProgress(saleId: number, operationalId: number): Promise<Sale | undefined> {
+  async markSaleInProgress(
+    saleId: number, 
+    operationalId: number, 
+    serviceTypeId?: number, 
+    serviceProviderId?: number
+  ): Promise<Sale | undefined> {
     const sale = await this.getSale(saleId);
     
     if (!sale) {
       return undefined;
+    }
+    
+    // Verificar se houve mudança no tipo de serviço
+    const typeChanged = serviceTypeId && serviceTypeId !== sale.serviceTypeId;
+    let notesText = 'Execução iniciada';
+    
+    if (typeChanged) {
+      const oldType = await db.select().from(serviceTypes).where(eq(serviceTypes.id, sale.serviceTypeId)).limit(1);
+      const newType = await db.select().from(serviceTypes).where(eq(serviceTypes.id, serviceTypeId)).limit(1);
+      
+      if (oldType.length > 0 && newType.length > 0) {
+        notesText += ` - Tipo de execução alterado de ${oldType[0].name} para ${newType[0].name}`;
+      } else {
+        notesText += ' - Tipo de execução alterado';
+      }
     }
     
     // Registrar no histórico
@@ -709,15 +734,28 @@ export class DatabaseStorage implements IStorage {
       fromStatus: sale.status,
       toStatus: 'in_progress',
       userId: operationalId,
-      notes: 'Execução iniciada'
+      notes: notesText
     });
     
-    // Atualizar status da venda
-    return await this.updateSale(saleId, {
+    // Preparar dados para atualização
+    const updateData: Partial<InsertSale> = {
       status: 'in_progress',
       executionStatus: 'in_progress',
       responsibleOperationalId: operationalId
-    });
+    };
+    
+    // Adicionar o tipo de serviço se fornecido
+    if (serviceTypeId) {
+      updateData.serviceTypeId = serviceTypeId;
+    }
+    
+    // Adicionar o prestador de serviço parceiro se fornecido
+    if (serviceProviderId) {
+      updateData.serviceProviderId = serviceProviderId;
+    }
+    
+    // Atualizar status da venda
+    return await this.updateSale(saleId, updateData);
   }
 
   async completeSaleExecution(saleId: number, operationalId: number): Promise<Sale | undefined> {
