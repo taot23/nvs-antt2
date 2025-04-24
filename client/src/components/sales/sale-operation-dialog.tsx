@@ -193,10 +193,25 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
+      // Validação obrigatória: tipo de serviço precisa ser selecionado
+      if (!selectedServiceTypeId) {
+        throw new Error("É necessário selecionar um tipo de execução");
+      }
+      
       // Se o tipo de serviço for SINDICATO, o prestador parceiro é obrigatório
       const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
       if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
         throw new Error("É necessário selecionar um prestador parceiro para execução via SINDICATO");
+      }
+      
+      // Preparar dados para envio
+      const requestData: any = {
+        serviceTypeId: selectedServiceTypeId,
+      };
+      
+      // Adicionar prestador parceiro apenas se selecionado
+      if (selectedServiceProviderId) {
+        requestData.serviceProviderId = selectedServiceProviderId;
       }
       
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
@@ -204,10 +219,7 @@ export default function SaleOperationDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          serviceTypeId: selectedServiceTypeId,
-          serviceProviderId: selectedServiceProviderId
-        }),
+        body: JSON.stringify(requestData),
       });
       
       if (!response.ok) {
@@ -334,10 +346,25 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
+      // Validação obrigatória: tipo de serviço precisa ser selecionado
+      if (!selectedServiceTypeId) {
+        throw new Error("É necessário selecionar um tipo de execução");
+      }
+      
       // Se o tipo de serviço for SINDICATO, o prestador parceiro é obrigatório
       const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
       if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
         throw new Error("É necessário selecionar um prestador parceiro para execução via SINDICATO");
+      }
+      
+      // Preparar dados para envio
+      const requestData: any = {
+        serviceTypeId: selectedServiceTypeId,
+      };
+      
+      // Adicionar prestador parceiro apenas se selecionado
+      if (selectedServiceProviderId) {
+        requestData.serviceProviderId = selectedServiceProviderId;
       }
       
       const response = await fetch(`/api/sales/${saleId}/update-execution-type`, {
@@ -345,10 +372,7 @@ export default function SaleOperationDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          serviceTypeId: selectedServiceTypeId,
-          serviceProviderId: selectedServiceProviderId
-        }),
+        body: JSON.stringify(requestData),
       });
       
       if (!response.ok) {
