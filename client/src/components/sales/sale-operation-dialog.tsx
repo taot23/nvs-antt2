@@ -468,8 +468,26 @@ export default function SaleOperationDialog({
                           </div>
                           <div className="flex justify-between items-center py-1 border-b border-border/60">
                             <span className="text-sm font-medium">Tipo de Serviço:</span>
-                            <span className="text-sm">{enrichedSale.serviceTypeName}</span>
+                            <span className="text-sm">
+                              {selectedServiceTypeId 
+                                ? serviceTypes.find((t: any) => t.id === selectedServiceTypeId)?.name
+                                : enrichedSale.serviceTypeName || "Não definido"}
+                            </span>
                           </div>
+                          {/* Se o tipo de serviço for SINDICATO, mostrar prestador parceiro */}
+                          {(showServiceProviderField || sale.serviceProviderId) && (
+                            <div className="flex justify-between items-center py-1 border-b border-border/60">
+                              <span className="text-sm font-medium">Prestador Parceiro:</span>
+                              <span className="text-sm">
+                                {selectedServiceProviderId
+                                  ? serviceProviders.find((p: any) => p.id === selectedServiceProviderId)?.name
+                                  : sale.serviceProviderId
+                                    ? serviceProviders.find((p: any) => p.id === sale.serviceProviderId)?.name || "Não identificado"
+                                    : "Não selecionado"}
+                              </span>
+                            </div>
+                          )}
+                        
                           <div className="flex justify-between items-center py-1 border-b border-border/60">
                             <span className="text-sm font-medium">Vendedor:</span>
                             <span className="text-sm">{enrichedSale.sellerName}</span>
