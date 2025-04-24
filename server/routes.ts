@@ -1567,10 +1567,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar se a venda está no status correto para iniciar execução
-      if (sale.status !== "pending") {
+      if (sale.status !== "pending" && sale.status !== "corrected") {
         return res.status(400).json({ 
           error: "Não é possível iniciar execução", 
-          message: "Só é possível iniciar a execução de vendas com status pendente."
+          message: "Só é possível iniciar a execução de vendas com status pendente ou corrigidas."
         });
       }
       
@@ -1712,9 +1712,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const notesMessage = notes || "Venda corrigida e reenviada para operacional";
       
-      // Atualizar status para pendente novamente
+      // Atualizar status para "corrigida aguardando operacional"
       const updatedSale = await storage.updateSale(id, { 
-        status: "pending",
+        status: "corrected",
         returnReason: null,
         notes: sale.notes ? `${sale.notes}\n\nCorreção: ${notesMessage}` : notesMessage
       });
@@ -1727,7 +1727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createSalesStatusHistory({
         saleId: id,
         fromStatus: "returned",
-        toStatus: "pending",
+        toStatus: "corrected",
         userId: req.user!.id,
         notes: notesMessage
       });

@@ -1151,7 +1151,7 @@ export default function SalesPage() {
                         
                         {/* Permissão para iniciar execução (operacional/admin) */}
                         {(user?.role === "admin" || user?.role === "operacional") && 
-                          sale.status === "pending" && (
+                          (sale.status === "pending" || sale.status === "corrected") && (
                           <Button
                             variant="ghost"
                             size="icon"
