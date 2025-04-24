@@ -112,7 +112,7 @@ function getStatusStyle(status: string) {
   const COLORS = {
     corrected: 'rgba(250, 240, 137, 0.15)',  // Amarelo suave
     completed: 'rgba(134, 239, 172, 0.15)',  // Verde suave
-    in_progress: 'rgba(251, 191, 36, 0.15)', // Laranja suave (atualizado)
+    in_progress: 'rgba(255, 159, 64, 0.15)', // CORRIGIDO: LARANJA SUAVE (mais visível)
     returned: 'rgba(252, 165, 165, 0.15)'    // Vermelho suave
   };
   
