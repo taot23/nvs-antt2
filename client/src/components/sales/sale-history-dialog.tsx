@@ -122,7 +122,7 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-grow pr-4 my-4 max-h-[70vh]">
+          <ScrollArea className="flex-grow pr-4 my-4 max-h-[70vh] overflow-auto">
             <div className="space-y-6">
               {history.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -192,7 +192,9 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
                         {entry.notes && (
                           <div className="mt-2 p-3 bg-muted rounded-md text-sm">
                             <p className="font-medium mb-1">Observações:</p>
-                            <p>{entry.notes}</p>
+                            <div className="whitespace-pre-wrap break-words">
+                              {entry.notes}
+                            </div>
                           </div>
                         )}
                       </div>
