@@ -1279,9 +1279,7 @@ export default function SalesPage() {
                           sale.status === "returned" && "bg-red-100",
                           sale.status === "corrected" && "bg-yellow-100",
                         )}>
-                        {sale.date ? 
-                          format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 
-                          format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
+                        {format(sale.date ? new Date(sale.date) : new Date(sale.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell className={cn(
                           sale.status === "completed" && "bg-green-100",
