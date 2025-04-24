@@ -1527,6 +1527,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: "Erro ao limpar vendas" });
     }
   });
+  
+  // Rota para popular o banco com 30 vendas (apenas admin)
+  app.post("/api/populate-sales", isAuthenticated, async (req, res) => {
+    try {
+      // Verificar se o usuário é administrador
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ 
+          error: "Permissão negada", 
+          message: "Apenas administradores podem executar esta operação"
+        });
+      }
+      
+      const { populateSales } = await import("../populate-sales");
+      const result = await populateSales();
+      
+      // Notificar todos os clientes sobre a atualização das vendas
+      notifySalesUpdate();
+      
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Erro ao popular vendas:", error);
+      return res.status(500).json({ error: "Erro ao popular vendas", details: error.message });
+    }
+  });
 
   // Rota para excluir uma venda
   app.delete("/api/sales/:id", isAuthenticated, async (req, res) => {
