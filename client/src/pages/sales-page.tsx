@@ -156,6 +156,8 @@ export default function SalesPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   const { lastEvent, isConnected, reconnect } = useWebSocket();
+  // Monitoramento de performance
+  const performanceMonitor = usePerformanceMonitor();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Estados
@@ -1376,8 +1378,7 @@ export default function SalesPage() {
       </div>
       
       {/* Tabela Virtualizada */}
-      {/* Ativando monitoramento de performance na página */}
-      {usePerformanceMonitor('SalesPage')}
+      {/* Monitoramento de performance ativado no hook */}
       
       <VirtualizedTable
         data={filteredSales}

@@ -133,7 +133,7 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
   DevolveButton,
 }) => {
   // Monitor de performance
-  usePerformanceMonitor('VirtualizedTable');
+  const performanceMonitor = usePerformanceMonitor();
 
   // Estado para acompanhar o progresso de renderização
   const [renderProgress, setRenderProgress] = useState(0);
