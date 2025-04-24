@@ -1938,23 +1938,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const notesMessage = notes || "Venda corrigida e reenviada para operacional";
       
-      // Importar função format para formatação de datas
-      const { format } = require("date-fns");
-      const { ptBR } = require("date-fns/locale");
+      // Função para formatar a data atual
+      const dataAtual = format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR });
       
       // Formatar o histórico de correções
       let notesWithHistory = notesMessage;
       if (sale.notes) {
         if (sale.notes.includes('Histórico de correções:')) {
           // Já existe um histórico, vamos adicionar a nova correção
-          notesWithHistory = `${sale.notes}\n\n[${format(new Date(), 'dd/MM/yyyy HH:mm')}] ${notesMessage}`;
+          notesWithHistory = `${sale.notes}\n\n[${dataAtual}] ${notesMessage}`;
         } else {
           // Ainda não há histórico formatado, vamos criá-lo
-          notesWithHistory = `${sale.notes}\n\n==== Histórico de correções: ====\n[${format(new Date(), 'dd/MM/yyyy HH:mm')}] ${notesMessage}`;
+          notesWithHistory = `${sale.notes}\n\n==== Histórico de correções: ====\n[${dataAtual}] ${notesMessage}`;
         }
       } else {
         // Primeira correção
-        notesWithHistory = `==== Histórico de correções: ====\n[${format(new Date(), 'dd/MM/yyyy HH:mm')}] ${notesMessage}`;
+        notesWithHistory = `==== Histórico de correções: ====\n[${dataAtual}] ${notesMessage}`;
       }
       
       // Atualizar status para "corrigida aguardando operacional"
