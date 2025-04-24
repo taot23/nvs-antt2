@@ -1367,18 +1367,23 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Tabela Virtualizada */}
-      {/* Monitoramento de performance ativado no hook */}
-      
-      <VirtualizedTable
+      {/* Tabela Paginada - Nova implementação mais eficiente */}
+      <PaginatedSalesTable
         data={filteredSales}
         isLoading={isLoading}
         error={error as Error}
-        searchTerm={searchTerm}
-        statusFilter={statusFilter}
         sortField={sortField}
         sortDirection={sortDirection}
         onSort={toggleSort}
+        currentPage={page}
+        totalPages={totalPages}
+        pageSize={limit}
+        totalItems={salesData?.total || 0}
+        onPageChange={(newPage) => setPage(newPage)}
+        onPageSizeChange={(newSize) => {
+          setLimit(newSize);
+          setPage(1); // Voltar para a primeira página ao alterar o tamanho
+        }}
         onViewDetails={handleViewDetails}
         onViewHistory={handleViewHistory}
         onEdit={handleEdit}
@@ -1391,104 +1396,6 @@ export default function SalesPage() {
         ReenviaButton={ReenviaButton}
         DevolveButton={DevolveButton}
       />
-      
-      {/* Controles de paginação */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
-        <div className="flex items-center gap-2">
-          <p className="text-sm text-muted-foreground">
-            Exibindo{' '}
-            <strong>{salesData?.total ? (page - 1) * limit + 1 : 0}</strong> a{' '}
-            <strong>{Math.min(page * limit, salesData?.total || 0)}</strong> de{' '}
-            <strong>{salesData?.total || 0}</strong> vendas
-          </p>
-          
-          <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Por página" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="15">15 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPage(1)}
-            disabled={page === 1 || isLoading}
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1 || isLoading}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          {/* Números das páginas */}
-          <div className="flex items-center">
-            {Array.from({ length: Math.min(5, salesData?.totalPages || 1) }).map((_, i) => {
-              // Lógica para mostrar páginas ao redor da atual
-              let pageNum = 1;
-              const totalPages = salesData?.totalPages || 1;
-              
-              if (totalPages <= 5) {
-                // Se temos 5 ou menos páginas, mostramos todas elas
-                pageNum = i + 1;
-              } else if (page <= 3) {
-                // Se estamos nas primeiras 3 páginas, mostramos 1-5
-                pageNum = i + 1;
-              } else if (page >= totalPages - 2) {
-                // Se estamos nas últimas 3 páginas, mostramos as últimas 5
-                pageNum = totalPages - 4 + i;
-              } else {
-                // Caso contrário, mostramos 2 antes e 2 depois da atual
-                pageNum = page - 2 + i;
-              }
-              
-              return (
-                <Button
-                  key={pageNum}
-                  variant={page === pageNum ? "default" : "outline"}
-                  size="icon"
-                  className="w-9 h-9"
-                  onClick={() => setPage(pageNum)}
-                  disabled={isLoading}
-                >
-                  {pageNum}
-                </Button>
-              );
-            })}
-          </div>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPage(p => Math.min(salesData?.totalPages || 1, p + 1))}
-            disabled={page === (salesData?.totalPages || 1) || isLoading}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPage(salesData?.totalPages || 1)}
-            disabled={page === (salesData?.totalPages || 1) || isLoading}
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
       
       {/* Diálogo apenas para edição de vendas existentes */}
       {dialogOpen && (
