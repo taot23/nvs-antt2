@@ -721,7 +721,7 @@ export default function SalesPage() {
             </div>
           ) : (
             filteredSales.map((sale: Sale) => (
-              <Card key={sale.id} className="overflow-hidden">
+              <Card key={sale.id} className={`overflow-hidden ${getStatusRowClass(sale.status)}`}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <div>
@@ -1106,7 +1106,7 @@ export default function SalesPage() {
                 </TableRow>
               ) : (
                 filteredSales.map((sale: Sale) => (
-                  <TableRow key={sale.id}>
+                  <TableRow key={sale.id} className={getStatusRowClass(sale.status)}>
                     <TableCell className="font-medium">
                       {sale.orderNumber}
                     </TableCell>
