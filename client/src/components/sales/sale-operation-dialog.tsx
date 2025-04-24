@@ -388,7 +388,18 @@ export default function SaleOperationDialog({
   
   // Manipulador para atualizar o tipo de execução
   const handleUpdateExecutionType = () => {
-    if (sale && sale.status === "in_progress") {
+    if (sale) {
+      // Verificação adicional de segurança: garantir que o prestador é selecionado se for SINDICATO
+      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
+      if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
+        toast({
+          title: "Prestador parceiro obrigatório",
+          description: "Para execução via SINDICATO, selecione um prestador parceiro",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       updateExecutionTypeMutation.mutate();
     }
   };
