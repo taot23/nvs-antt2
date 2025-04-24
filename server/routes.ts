@@ -12,7 +12,8 @@ import {
   insertServiceProviderSchema,
   insertSaleSchema,
   insertSaleItemSchema,
-  insertSalesStatusHistorySchema
+  insertSalesStatusHistorySchema,
+  InsertSale
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { scrypt, randomBytes } from "crypto";
@@ -1550,6 +1551,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir venda:", error);
       res.status(500).json({ error: "Erro ao excluir venda" });
+    }
+  });
+
+  // Rota para atualizar o tipo de execução quando a venda estiver em andamento
+  app.post("/api/sales/:id/update-execution-type", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está no status correto para atualizar tipo de execução
+      if (sale.status !== "in_progress") {
+        return res.status(400).json({ 
+          error: "Não é possível atualizar tipo de execução", 
+          message: "Só é possível atualizar o tipo de execução de vendas com status em andamento."
+        });
+      }
+      
+      // Extrair informações do corpo da requisição
+      const { serviceTypeId, serviceProviderId } = req.body;
+      
+      // Validar tipo de serviço se fornecido
+      if (serviceTypeId !== undefined) {
+        const serviceTypeIdNum = parseInt(serviceTypeId);
+        if (isNaN(serviceTypeIdNum)) {
+          return res.status(400).json({ error: "ID do tipo de serviço inválido" });
+        }
+        
+        // Verificar se o tipo de serviço existe
+        const serviceType = await storage.getServiceType(serviceTypeIdNum);
+        if (!serviceType) {
+          return res.status(400).json({ error: "Tipo de serviço não encontrado" });
+        }
+        
+        // Se o tipo de serviço for SINDICATO, é obrigatório informar o prestador parceiro
+        if (serviceType.name === "SINDICATO" && !serviceProviderId) {
+          return res.status(400).json({ 
+            error: "Prestador parceiro obrigatório", 
+            message: "Para execução via SINDICATO, é necessário informar o prestador parceiro"
+          });
+        }
+      }
+      
+      // Validar prestador de serviço se fornecido
+      if (serviceProviderId !== undefined) {
+        const serviceProviderIdNum = parseInt(serviceProviderId);
+        if (isNaN(serviceProviderIdNum)) {
+          return res.status(400).json({ error: "ID do prestador de serviço inválido" });
+        }
+        
+        // Verificar se o prestador de serviço existe
+        const serviceProvider = await storage.getServiceProvider(serviceProviderIdNum);
+        if (!serviceProvider) {
+          return res.status(400).json({ error: "Prestador de serviço não encontrado" });
+        }
+        
+        if (!serviceProvider.active) {
+          return res.status(400).json({ 
+            error: "Prestador inativo", 
+            message: "O prestador de serviço selecionado está inativo"
+          });
+        }
+      }
+      
+      // Preparar dados para atualização
+      const updateData: Partial<InsertSale> = {};
+      
+      // Adicionar o tipo de serviço se fornecido
+      if (serviceTypeId) {
+        // @ts-ignore - O type está correto mas o TypeScript não reconhece pois foi adicionado dinamicamente
+        updateData.serviceTypeId = parseInt(serviceTypeId);
+      }
+      
+      // Adicionar o prestador de serviço parceiro se fornecido
+      if (serviceProviderId) {
+        // @ts-ignore - O type está correto mas o TypeScript não reconhece pois foi adicionado dinamicamente
+        updateData.serviceProviderId = parseInt(serviceProviderId);
+      }
+      
+      // Atualizar a venda
+      const updatedSale = await storage.updateSale(id, updateData);
+      
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Registrar no histórico a atualização do tipo de execução
+      let notesText = "Atualização do tipo de execução";
+      if (serviceTypeId) {
+        const serviceType = await storage.getServiceType(parseInt(serviceTypeId));
+        if (serviceType) {
+          notesText += ` para ${serviceType.name}`;
+        }
+      }
+      
+      await storage.createSalesStatusHistory({
+        saleId: id,
+        fromStatus: sale.status,
+        toStatus: sale.status, // Mantém o mesmo status
+        userId: req.user!.id,
+        notes: notesText
+      });
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao atualizar tipo de execução da venda:", error);
+      res.status(500).json({ error: "Erro ao atualizar tipo de execução da venda" });
     }
   });
 

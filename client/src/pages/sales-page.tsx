@@ -1230,6 +1230,10 @@ export default function SalesPage() {
                     )}
                   </div>
                 </TableHead>
+                {/* Coluna para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
+                {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
+                  <TableHead>Tipo de Execução</TableHead>
+                )}
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -1237,19 +1241,28 @@ export default function SalesPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center h-24">
+                  <TableCell 
+                    colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
+                    className="text-center h-24"
+                  >
                     Carregando vendas...
                   </TableCell>
                 </TableRow>
               ) : error ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center h-24 text-destructive">
+                  <TableCell 
+                    colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
+                    className="text-center h-24 text-destructive"
+                  >
                     Erro ao carregar vendas
                   </TableCell>
                 </TableRow>
               ) : filteredSales.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center h-24">
+                  <TableCell 
+                    colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
+                    className="text-center h-24"
+                  >
                     {searchTerm || statusFilter
                       ? "Nenhuma venda encontrada para sua busca" 
                       : "Nenhuma venda cadastrada ainda"}
@@ -1328,6 +1341,26 @@ export default function SalesPage() {
                           )}
                         </div>
                       </TableCell>
+                      {/* Célula para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
+                      {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
+                        <TableCell className={cn(
+                            sale.status === "completed" && "bg-green-100",
+                            sale.status === "in_progress" && "bg-orange-100",
+                            sale.status === "returned" && "bg-red-100",
+                            sale.status === "corrected" && "bg-yellow-100",
+                          )}>
+                          <div className="flex items-center gap-1">
+                            {sale.serviceTypeId ? (
+                              <span className="text-xs font-medium inline-flex items-center">
+                                <CornerDownRight className="h-3.5 w-3.5 mr-1 text-primary" />
+                                {sale.serviceTypeName || "Tipo não identificado"}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Não definido</span>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                       <TableCell className={cn(
                           "text-right",
                           sale.status === "completed" && "bg-green-100",

@@ -329,6 +329,52 @@ export default function SaleOperationDialog({
   // Verificar se o usuário é operacional e pode executar ações
   const canPerformOperations = user?.role === "admin" || user?.role === "operacional";
 
+  // Mutation para atualizar o tipo de execução quando a venda está em andamento
+  const updateExecutionTypeMutation = useMutation({
+    mutationFn: async () => {
+      if (!saleId) throw new Error("ID da venda não fornecido");
+      
+      // Se o tipo de serviço for SINDICATO, o prestador parceiro é obrigatório
+      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
+      if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
+        throw new Error("É necessário selecionar um prestador parceiro para execução via SINDICATO");
+      }
+      
+      const response = await fetch(`/api/sales/${saleId}/update-execution-type`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          serviceTypeId: selectedServiceTypeId,
+          serviceProviderId: selectedServiceProviderId
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao atualizar tipo de execução");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
+      toast({
+        title: "Tipo de execução atualizado",
+        description: "O tipo de execução da venda foi atualizado com sucesso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar tipo de execução",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Manipulador para ações baseadas no status da venda
   const handleMainAction = () => {
     if (!sale) return;
@@ -337,6 +383,13 @@ export default function SaleOperationDialog({
       startExecutionMutation.mutate();
     } else if (sale.status === "in_progress") {
       completeExecutionMutation.mutate();
+    }
+  };
+  
+  // Manipulador para atualizar o tipo de execução
+  const handleUpdateExecutionType = () => {
+    if (sale && sale.status === "in_progress") {
+      updateExecutionTypeMutation.mutate();
     }
   };
 
@@ -797,6 +850,31 @@ export default function SaleOperationDialog({
                     </div>
                   )}
                 </CardContent>
+                {sale?.status === "in_progress" && (
+                  <CardFooter>
+                    <Button
+                      type="button"
+                      onClick={handleUpdateExecutionType}
+                      disabled={
+                        updateExecutionTypeMutation.isPending || 
+                        (showServiceProviderField && !selectedServiceProviderId)
+                      }
+                      className="w-full"
+                    >
+                      {updateExecutionTypeMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Atualizando...
+                        </>
+                      ) : (
+                        <>
+                          <Settings2 className="mr-2 h-4 w-4" />
+                          Atualizar Tipo de Execução
+                        </>
+                      )}
+                    </Button>
+                  </CardFooter>
+                )}
               </Card>
             )}
 
