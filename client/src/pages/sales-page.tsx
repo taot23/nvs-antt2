@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
+import { useDebounce } from "@/hooks/useDebounce";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { debounce } from "lodash-es";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -26,6 +29,7 @@ import SaleHistoryDialog from "@/components/sales/sale-history-dialog";
 import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
+import VirtualizedTable from "@/components/virtualized-table";
 
 // Tipos
 type Sale = {
@@ -1226,342 +1230,31 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Tabela */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableCaption>
-              {filteredSales.length === 0
-                ? "Nenhuma venda encontrada"
-                : `Total de ${filteredSales.length} vendas${searchTerm || statusFilter ? " encontradas" : ""}`}
-            </TableCaption>
-            
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px] cursor-pointer" onClick={() => toggleSort('orderNumber')}>
-                  <div className="flex items-center">
-                    Nº OS
-                    {sortField === 'orderNumber' && (
-                      sortDirection === 'asc' 
-                        ? <SortAsc className="ml-1 h-4 w-4" /> 
-                        : <SortDesc className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => toggleSort('date')}>
-                  <div className="flex items-center">
-                    Data
-                    {sortField === 'date' && (
-                      sortDirection === 'asc' 
-                        ? <SortAsc className="ml-1 h-4 w-4" /> 
-                        : <SortDesc className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => toggleSort('customerName')}>
-                  <div className="flex items-center">
-                    Cliente
-                    {sortField === 'customerName' && (
-                      sortDirection === 'asc' 
-                        ? <SortAsc className="ml-1 h-4 w-4" /> 
-                        : <SortDesc className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => toggleSort('sellerName')}>
-                  <div className="flex items-center">
-                    Vendedor
-                    {sortField === 'sellerName' && (
-                      sortDirection === 'asc' 
-                        ? <SortAsc className="ml-1 h-4 w-4" /> 
-                        : <SortDesc className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => toggleSort('totalAmount')}>
-                  <div className="flex items-center">
-                    Valor Total
-                    {sortField === 'totalAmount' && (
-                      sortDirection === 'asc' 
-                        ? <SortAsc className="ml-1 h-4 w-4" /> 
-                        : <SortDesc className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => toggleSort('status')}>
-                  <div className="flex items-center">
-                    Status
-                    {sortField === 'status' && (
-                      sortDirection === 'asc' 
-                        ? <SortAsc className="ml-1 h-4 w-4" /> 
-                        : <SortDesc className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-                {/* Coluna para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
-                {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
-                  <TableHead>Tipo de Execução</TableHead>
-                )}
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell 
-                    colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
-                    className="text-center h-24"
-                  >
-                    Carregando vendas...
-                  </TableCell>
-                </TableRow>
-              ) : error ? (
-                <TableRow>
-                  <TableCell 
-                    colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
-                    className="text-center h-24 text-destructive"
-                  >
-                    Erro ao carregar vendas
-                  </TableCell>
-                </TableRow>
-              ) : filteredSales.length === 0 ? (
-                <TableRow>
-                  <TableCell 
-                    colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
-                    className="text-center h-24"
-                  >
-                    {searchTerm || statusFilter
-                      ? "Nenhuma venda encontrada para sua busca" 
-                      : "Nenhuma venda cadastrada ainda"}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredSales.map((sale: Sale) => {
-                  return (
-                    <TableRow 
-                      key={sale.id}
-                      data-status={sale.status}
-                      className={cn(
-                        sale.status === "completed" && "bg-green-100 border-green-300 border",
-                        sale.status === "in_progress" && "bg-orange-100 border-orange-300 border",
-                        sale.status === "returned" && "bg-red-100 border-red-300 border",
-                        sale.status === "corrected" && "bg-yellow-100 border-yellow-300 border",
-                      )}
-                    >
-                      <TableCell 
-                        className={cn(
-                          "font-medium",
-                          sale.status === "completed" && "bg-green-100 border-l-4 border-l-green-500",
-                          sale.status === "in_progress" && "bg-orange-100 border-l-4 border-l-orange-500",
-                          sale.status === "returned" && "bg-red-100 border-l-4 border-l-red-500",
-                          sale.status === "corrected" && "bg-yellow-100 border-l-4 border-l-yellow-500",
-                        )}
-                      >
-                        {sale.orderNumber}
-                      </TableCell>
-                      <TableCell className={cn(
-                          sale.status === "completed" && "bg-green-100",
-                          sale.status === "in_progress" && "bg-orange-100",
-                          sale.status === "returned" && "bg-red-100",
-                          sale.status === "corrected" && "bg-yellow-100",
-                        )}>
-                        {format(sale.date ? new Date(sale.date) : new Date(sale.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className={cn(
-                          sale.status === "completed" && "bg-green-100",
-                          sale.status === "in_progress" && "bg-orange-100",
-                          sale.status === "returned" && "bg-red-100",
-                          sale.status === "corrected" && "bg-yellow-100",
-                        )}>
-                        {sale.customerName}
-                      </TableCell>
-                      <TableCell className={cn(
-                          sale.status === "completed" && "bg-green-100",
-                          sale.status === "in_progress" && "bg-orange-100",
-                          sale.status === "returned" && "bg-red-100",
-                          sale.status === "corrected" && "bg-yellow-100",
-                        )}>
-                        {sale.sellerName}
-                      </TableCell>
-                      <TableCell className={cn(
-                          sale.status === "completed" && "bg-green-100",
-                          sale.status === "in_progress" && "bg-orange-100",
-                          sale.status === "returned" && "bg-red-100",
-                          sale.status === "corrected" && "bg-yellow-100",
-                        )}>
-                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                      </TableCell>
-                      <TableCell className={cn(
-                          sale.status === "completed" && "bg-green-100",
-                          sale.status === "in_progress" && "bg-orange-100",
-                          sale.status === "returned" && "bg-red-100",
-                          sale.status === "corrected" && "bg-yellow-100",
-                        )}>
-                        <div className="flex flex-col gap-1">
-                          <Badge variant={getStatusVariant(sale.status) as any}>
-                            {getStatusLabel(sale.status)}
-                          </Badge>
-                          {sale.financialStatus === 'paid' && (
-                            <Badge variant="outline" className="text-green-600 border-green-600">
-                              Pago
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      {/* Célula para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
-                      {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
-                        <TableCell className={cn(
-                            sale.status === "completed" && "bg-green-100",
-                            sale.status === "in_progress" && "bg-orange-100",
-                            sale.status === "returned" && "bg-red-100",
-                            sale.status === "corrected" && "bg-yellow-100",
-                          )}>
-                          <div className="flex items-center gap-1">
-                            {sale.serviceTypeId ? (
-                              <span className="text-xs font-medium inline-flex items-center">
-                                <CornerDownRight className="h-3.5 w-3.5 mr-1 text-primary" />
-                                {sale.serviceTypeName || "Tipo não identificado"}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Não definido</span>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
-                      <TableCell className={cn(
-                          "text-right",
-                          sale.status === "completed" && "bg-green-100",
-                          sale.status === "in_progress" && "bg-orange-100",
-                          sale.status === "returned" && "bg-red-100",
-                          sale.status === "corrected" && "bg-yellow-100",
-                        )}>
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewDetails(sale)}
-                            className="h-8 w-8"
-                            title="Ver detalhes"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewHistory(sale)}
-                            className="h-8 w-8"
-                            title="Ver histórico de status"
-                          >
-                            <ClipboardList className="h-4 w-4" />
-                          </Button>
-                          
-                          {/* Permissão para editar (admin) */}
-                          {user?.role === "admin" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(sale)}
-                              className="h-8 w-8"
-                              title="Editar"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          {/* Permissão para iniciar execução (operacional/admin) */}
-                          {(user?.role === "admin" || user?.role === "operacional") && 
-                            (sale.status === "pending" || sale.status === "corrected") && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleStartExecution(sale)}
-                              className="h-8 w-8"
-                              title="Iniciar execução"
-                            >
-                              <CornerDownRight className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          {/* Permissão para concluir execução (operacional/admin) */}
-                          {(user?.role === "admin" || user?.role === "operacional") && 
-                            sale.status === "in_progress" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleCompleteExecution(sale)}
-                              className="h-8 w-8"
-                              title="Concluir execução"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          {/* Permissão para devolver a venda (operacional/admin) */}
-                          {(user?.role === "admin" || user?.role === "operacional") && 
-                            (sale.status === "pending" || sale.status === "in_progress") && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReturnClick(sale)}
-                              className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                              title="Devolver para correção"
-                            >
-                              <AlertTriangle className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          {/* Botão de reenvio para vendedor, supervisor ou admin */}
-                          {(user?.role === "admin" || 
-                            user?.role === "supervisor" || 
-                            (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                            <ReenviaButton sale={sale} />
-                          )}
-                          
-                          {/* Botão de devolução para vendas com status "corrected" (apenas admin e operacional) */}
-                          {(user?.role === "admin" || user?.role === "operacional") && 
-                            sale.status === "corrected" && (
-                            <DevolveButton sale={sale} />
-                          )}
-                          
-                          {/* Permissão para marcar como paga (financeiro/admin) */}
-                          {(user?.role === "admin" || user?.role === "financeiro") && 
-                            sale.status === "completed" && 
-                            sale.financialStatus !== "paid" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleMarkAsPaid(sale)}
-                              className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
-                              title="Confirmar pagamento"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          {/* Permissão para excluir (apenas admin) */}
-                          {user?.role === "admin" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(sale)}
-                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Tabela Virtualizada */}
+      {/* Ativando monitoramento de performance na página */}
+      {usePerformanceMonitor('SalesPage')}
+      
+      <VirtualizedTable
+        data={filteredSales}
+        isLoading={isLoading}
+        error={error as Error}
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        onViewDetails={handleViewDetails}
+        onViewHistory={handleViewHistory}
+        onEdit={handleEdit}
+        onStartExecution={handleStartExecution}
+        onCompleteExecution={handleCompleteExecution}
+        onReturnClick={handleReturnClick}
+        onMarkAsPaid={handleMarkAsPaid}
+        onDeleteClick={handleDeleteClick}
+        user={user}
+        ReenviaButton={ReenviaButton}
+        DevolveButton={DevolveButton}
+      />
       
       {/* Diálogo apenas para edição de vendas existentes */}
       {dialogOpen && (
