@@ -283,6 +283,43 @@ export default function SaleOperationDialog({
     },
   });
 
+  // Mutation para marcar uma venda como corrigida (supervisor)
+  const markAsCorrectedMutation = useMutation({
+    mutationFn: async () => {
+      if (!saleId) throw new Error("ID da venda não fornecido");
+      
+      const response = await fetch(`/api/sales/${saleId}/mark-as-corrected`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao marcar venda como corrigida");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
+      toast({
+        title: "Venda marcada como corrigida",
+        description: "A venda foi marcada como corrigida e está disponível para o operacional",
+      });
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao marcar venda como corrigida",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
   // Mutation para devolver a venda para o vendedor
   const returnToSellerMutation = useMutation({
     mutationFn: async () => {
@@ -440,6 +477,11 @@ export default function SaleOperationDialog({
     }
     
     returnToSellerMutation.mutate();
+  };
+  
+  // Manipulador para marcar a venda como corrigida (supervisor)
+  const handleMarkAsCorrected = () => {
+    markAsCorrectedMutation.mutate();
   };
 
   // Efeito para inicializar o tipo de serviço quando a venda for carregada

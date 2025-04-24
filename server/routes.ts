@@ -1839,6 +1839,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para marcar uma venda devolvida como corrigida (supervisor)
+  app.post("/api/sales/:id/mark-as-corrected", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está no status 'returned'
+      if (sale.status !== "returned") {
+        return res.status(400).json({ 
+          error: "Status inválido", 
+          message: "Apenas vendas que foram devolvidas podem ser marcadas como corrigidas"
+        });
+      }
+      
+      // Atualizar o status para 'corrected'
+      const updatedSale = await storage.updateSale(id, {
+        status: "corrected",
+      });
+      
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Registrar no histórico de status
+      await storage.createSalesStatusHistory({
+        saleId: id,
+        userId: req.user!.id,
+        fromStatus: "returned",
+        toStatus: "corrected",
+        notes: "Venda marcada como corrigida pelo supervisor"
+      });
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao marcar venda como corrigida:", error);
+      res.status(500).json({ error: "Erro ao marcar venda como corrigida" });
+    }
+  });
+
   // Rota para reenviar uma venda corrigida (de vendedor para operacional)
   app.post("/api/sales/:id/resend", isAuthenticated, async (req, res) => {
     try {
@@ -1852,11 +1902,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
-      // Verificar permissão: apenas o vendedor da venda ou admin pode reenviar
-      if (req.user?.role !== "admin" && sale.sellerId !== req.user!.id) {
+      // Verificar permissão: vendedor responsável, admin ou supervisor podem reenviar
+      if (req.user?.role !== "admin" && req.user?.role !== "supervisor" && sale.sellerId !== req.user!.id) {
         return res.status(403).json({ 
           error: "Permissão negada", 
-          message: "Apenas o vendedor responsável ou administradores podem reenviar a venda."
+          message: "Apenas o vendedor responsável, administradores ou supervisores podem reenviar a venda."
         });
       }
       
