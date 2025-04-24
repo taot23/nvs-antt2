@@ -12,9 +12,20 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // Adicionar cabeçalhos anti-cache
+  const headers = new Headers({
+    'Pragma': 'no-cache',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+  });
+  
+  // Adicionar Content-Type se houver dados
+  if (data) {
+    headers.append('Content-Type', 'application/json');
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,8 +40,26 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    console.log(`[QueryClient] Buscando dados de: ${queryKey[0]}`);
+    
+    // Construir URL, se tiver um ID e subpath
+    let url = queryKey[0] as string;
+    if (queryKey.length > 1 && queryKey[1] !== undefined) {
+      url = `${url}/${queryKey[1]}`;
+      if (queryKey.length > 2 && queryKey[2] !== undefined) {
+        url = `${url}/${queryKey[2]}`;
+      }
+    }
+    
+    // Adicionar cabeçalhos anti-cache
+    const headers = new Headers({
+      'Pragma': 'no-cache',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    
+    const res = await fetch(url, {
       credentials: "include",
+      headers: headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -38,20 +67,23 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    console.log(`[QueryClient] Dados recebidos de ${url}:`, Array.isArray(data) ? `${data.length} itens` : 'objeto único');
+    return data;
   };
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchInterval: 60000, // Refresca a cada 60 segundos
+      refetchOnWindowFocus: true, // Refresca quando o usuário volta para a janela
+      staleTime: 30000, // Dados ficam stale após 30 segundos
+      retry: 1, // Tenta mais uma vez se falhar
+      refetchOnMount: true, // Refresca sempre que um componente é montado
     },
     mutations: {
-      retry: false,
+      retry: 1,
     },
   },
 });
@@ -63,14 +95,30 @@ type CurrentUser = {
   role: string | null;
 };
 
+// Função auxiliar para limpar o cache específico do histórico
+export function clearHistoryCache(saleId?: number) {
+  console.log(`Limpando cache de histórico para venda ${saleId || 'todas'}`);
+  
+  if (saleId) {
+    // Limpar cache específico para uma venda
+    queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "history"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "status-history"] });
+  } else {
+    // Limpar todos os caches relacionados a vendas
+    queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+  }
+}
+
 // Disponibilizar o queryClient e o usuário atual globalmente para que o WebSocket possa acessá-los
 declare global {
   interface Window {
     queryClient: typeof queryClient;
     currentUser?: CurrentUser;
+    clearHistoryCache?: typeof clearHistoryCache;
   }
 }
 
 if (typeof window !== 'undefined') {
   window.queryClient = queryClient;
+  window.clearHistoryCache = clearHistoryCache;
 }

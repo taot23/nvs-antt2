@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -52,6 +52,16 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("geral");
+  
+  // Limpar o cache do histórico quando o diálogo é aberto
+  useEffect(() => {
+    if (open && saleId) {
+      import('@/lib/queryClient').then(({ clearHistoryCache }) => {
+        clearHistoryCache(saleId);
+        console.log(`[SaleDetailsDialog] Cache de histórico limpo para venda #${saleId}`);
+      });
+    }
+  }, [open, saleId]);
   
   // Consulta para obter os detalhes da venda
   const { data: sale, isLoading: isLoadingSale } = useQuery({
