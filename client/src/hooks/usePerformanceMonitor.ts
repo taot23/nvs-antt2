@@ -1,53 +1,78 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
- * Hook para monitorar a performance de um componente
- * 
- * @param componentName Nome do componente a ser monitorado
+ * Hook para monitorar a performance da renderização
  */
-export function usePerformanceMonitor(componentName: string) {
-  useEffect(() => {
-    const startTime = performance.now();
-    console.log(`[Performance] ${componentName} inicializando`);
+export function usePerformanceMonitor() {
+  const [renderRate, setRenderRate] = useState(0);
+  const [memoryUsage, setMemoryUsage] = useState({ usedJSHeapSize: 0, totalJSHeapSize: 0 });
+  const [cpuUsage, setCpuUsage] = useState(0);
+  
+  const frameCountRef = useRef(0);
+  const lastTimeRef = useRef(performance.now());
+  const animationFrameRef = useRef<number | null>(null);
+  
+  // Função para atualizar as métricas de performance
+  const updateMetrics = () => {
+    frameCountRef.current += 1;
+    const now = performance.now();
+    const elapsed = now - lastTimeRef.current;
     
-    // Monitorar métricas de performance
-    let observer: PerformanceObserver | null = null;
-    
-    if (window.PerformanceObserver) {
-      observer = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        entries.forEach((entry) => {
-          console.log(`[Performance] ${componentName}: ${entry.name} - ${entry.duration.toFixed(2)}ms`);
-        });
-      });
+    // Calcular a taxa de renderização a cada 1 segundo
+    if (elapsed >= 1000) {
+      const fps = Math.round((frameCountRef.current * 1000) / elapsed);
+      setRenderRate(fps);
       
-      observer.observe({ entryTypes: ['measure'] });
+      // Resetar contadores
+      frameCountRef.current = 0;
+      lastTimeRef.current = now;
+      
+      // Obter métricas de memória se disponíveis
+      if (window.performance && 'memory' in window.performance) {
+        // TypeScript não reconhece a propriedade memory por padrão
+        const performance = window.performance as any;
+        if (performance.memory) {
+          setMemoryUsage({
+            usedJSHeapSize: Math.round(performance.memory.usedJSHeapSize / (1024 * 1024)),
+            totalJSHeapSize: Math.round(performance.memory.totalJSHeapSize / (1024 * 1024))
+          });
+        }
+      }
+      
+      // Em navegadores modernos, podemos usar a API reportingObserver
+      // para métricas mais detalhadas (não implementado aqui por compatibilidade)
+      console.log(`[Performance] Taxa de renderização: ${fps} fps`);
     }
     
+    // Agendar a próxima atualização
+    animationFrameRef.current = requestAnimationFrame(updateMetrics);
+  };
+  
+  // Iniciar o monitoramento quando o componente montar
+  useEffect(() => {
+    // Iniciar o loop de monitoramento
+    animationFrameRef.current = requestAnimationFrame(updateMetrics);
+    
+    // Limpar quando o componente desmontar
     return () => {
-      const endTime = performance.now();
-      console.log(`[Performance] ${componentName} mount-unmount: ${(endTime - startTime).toFixed(2)}ms`);
-      
-      if (observer) {
-        observer.disconnect();
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [componentName]);
-}
-
-/**
- * Função para medir o tempo de execução de uma função
- * 
- * @param name Nome da medição
- * @param fn Função a ser executada e medida
- * @returns Resultado da função
- */
-export function measurePerformance<T>(name: string, fn: () => T): T {
-  const startTime = performance.now();
-  try {
-    return fn();
-  } finally {
-    const endTime = performance.now();
-    console.log(`[Performance] ${name}: ${(endTime - startTime).toFixed(2)}ms`);
-  }
+  }, []);
+  
+  // Monitorar a taxa de renderização em linhas por segundo
+  const monitorTableRendering = (itemCount: number, startTime: number) => {
+    const elapsed = performance.now() - startTime;
+    const itemsPerSecond = (itemCount / elapsed) * 1000;
+    console.log(`[Performance] Taxa de renderização: ${itemsPerSecond.toFixed(2)} linhas/s`);
+    return itemsPerSecond;
+  };
+  
+  return {
+    renderRate,
+    memoryUsage,
+    cpuUsage,
+    monitorTableRendering
+  };
 }

@@ -262,7 +262,7 @@ export default function SalesPage() {
       return data;
     },
     staleTime,
-    cacheTime,
+    gcTime,
     refetchOnWindowFocus: false,
   });
 
