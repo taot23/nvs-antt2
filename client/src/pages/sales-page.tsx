@@ -76,44 +76,26 @@ function getStatusVariant(status: string) {
   }
 }
 
-// Função para obter a classe de fundo da linha baseada no status
+// Função para obter classe CSS para a linha da tabela
 function getStatusRowClass(status: string) {
-  console.log("Aplicando cor para status:", status);
-  const result = (() => {
-    switch (status) {
-      case 'corrected': return 'status-corrected'; // Amarelo bem suave para "corrigido"
-      case 'completed': return 'status-completed';  // Verde bem suave para "concluído"
-      case 'in_progress': return 'status-in_progress'; // Azul bem suave para "em andamento"
-      case 'returned': return 'status-returned';     // Vermelho bem suave para "devolvida"
-      default: return '';
-    }
-  })();
-  console.log(`Status: ${status} => Classe CSS: ${result}`);
-  return result;
+  switch (status) {
+    case 'corrected': return 'status-row-corrected'; // Amarelo bem suave para "corrigido"
+    case 'completed': return 'status-row-completed'; // Verde bem suave para "concluído"
+    case 'in_progress': return 'status-row-in_progress'; // Laranja bem suave para "em andamento"
+    case 'returned': return 'status-row-returned'; // Vermelho bem suave para "devolvida"
+    default: return '';
+  }
 }
 
-// Função para obter estilo CSS em linha baseado no status
-function getStatusStyle(status: string) {
-  console.log("Aplicando estilo inline para status:", status);
-  let color = '';
+// Função para obter classe CSS para o card mobile
+function getStatusCardClass(status: string) {
   switch (status) {
-    case 'corrected': 
-      color = 'rgba(250, 240, 137, 0.15)'; // Amarelo bem suave
-      break;
-    case 'completed': 
-      color = 'rgba(134, 239, 172, 0.15)';  // Verde bem suave
-      break;
-    case 'in_progress': 
-      color = 'rgba(251, 191, 36, 0.15)'; // Laranja bem suave
-      break;
-    case 'returned': 
-      color = 'rgba(252, 165, 165, 0.15)';  // Vermelho bem suave
-      break;
-    default: 
-      return {};
+    case 'corrected': return 'status-card-corrected'; // Amarelo bem suave para "corrigido"
+    case 'completed': return 'status-card-completed'; // Verde bem suave para "concluído"
+    case 'in_progress': return 'status-card-in_progress'; // Laranja bem suave para "em andamento"
+    case 'returned': return 'status-card-returned'; // Vermelho bem suave para "devolvida"
+    default: return '';
   }
-  console.log(`Aplicando cor de fundo: ${color} para status: ${status}`);
-  return { backgroundColor: color };
 }
 
 // Componente principal
