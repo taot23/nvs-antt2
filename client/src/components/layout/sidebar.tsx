@@ -37,11 +37,9 @@ export function Sidebar() {
   const { logoutMutation, user } = useAuth();
   const [location] = useLocation();
   
-  // Atualizar o estado expandido quando mudar entre mobile e desktop
+  // Atualizar o estado expandido apenas quando mudar entre mobile e desktop
+  // não mais auto-expandindo no desktop para preservar o estado de preferência do usuário
   useEffect(() => {
-    // Em desktop (md ou maior), expandir a barra lateral por padrão
-    setExpanded(!isMobile);
-    
     // Log para debug
     console.log("Sidebar - Mudou dispositivo:", isMobile ? "Mobile" : "Desktop");
     
@@ -49,7 +47,18 @@ export function Sidebar() {
     if (isMobile) {
       setMobileMenuOpen(false);
     }
+    
+    // Expansão inicial apenas na primeira renderização (quando o componente é montado)
+    // Usamos uma verificação de ref para garantir que isso só aconteça uma vez
   }, [isMobile]);
+  
+  // Efeito executado apenas uma vez na montagem do componente
+  useEffect(() => {
+    // Em desktop (md ou maior), expandir a barra lateral por padrão apenas na primeira carga
+    if (!isMobile) {
+      setExpanded(true);
+    }
+  }, []);
   
   const toggleSidebar = () => {
     if (isMobile) {
