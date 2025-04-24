@@ -52,14 +52,17 @@ export function useWebSocket() {
           // Se for uma atualização de venda, atualizar os dados
           if (data.type === 'sales_update') {
             console.log('Recebida atualização de vendas via WebSocket');
-            // Precisamos invalidar a consulta de vendas para recarregar os dados
-            const queryClient = window.queryClient;
-            if (queryClient) {
-              // Invalidar todas as consultas de vendas, incluindo as específicas para vendedores
+            
+            // Use importação dinâmica para acessar o queryClient do módulo diretamente
+            // em vez de confiar na propriedade window.queryClient que pode não estar disponível
+            import('../lib/queryClient').then(({ queryClient }) => {
+              console.log('Invalidando consultas de vendas após atualização via WebSocket');
+              
+              // Invalidar todas as consultas de vendas
               queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
               
-              // Também invalidar consulta específica para vendedores (se houver)
-              try {
+              // Também invalidar consultas específicas para vendedores (se houver)
+              if (typeof window !== 'undefined' && window.currentUser) {
                 const user = window.currentUser;
                 if (user && user.role === 'vendedor') {
                   console.log('Invalidando consulta específica para o vendedor:', user.id);
@@ -67,10 +70,16 @@ export function useWebSocket() {
                     queryKey: ['/api/sales', user.id]
                   });
                 }
-              } catch (err) {
-                console.error('Erro ao acessar usuário atual:', err);
               }
-            }
+              
+              // Disparar um evento personalizado para notificar outros componentes
+              const salesUpdateEvent = new CustomEvent('sales-update', {
+                detail: { timestamp: new Date().getTime() }
+              });
+              window.dispatchEvent(salesUpdateEvent);
+            }).catch(err => {
+              console.error('Erro ao importar queryClient:', err);
+            });
           }
           
           setLastEvent(data);
