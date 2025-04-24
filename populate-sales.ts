@@ -16,6 +16,7 @@ async function createSale(
     .insert(sales)
     .values({
       orderNumber,
+      date: new Date(), // Adicionando data atual
       customerId,
       sellerId,
       paymentMethodId,
