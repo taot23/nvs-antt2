@@ -1050,6 +1050,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Permissão negada" });
       }
       
+      // Adicionando log para depuração
+      console.log(`Usuário ${req.user?.username} (${req.user?.role}) acessando venda #${id} com status: ${sale.status}`);
+      
       res.json(sale);
     } catch (error) {
       console.error("Erro ao buscar venda:", error);

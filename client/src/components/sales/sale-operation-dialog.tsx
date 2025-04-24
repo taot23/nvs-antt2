@@ -884,7 +884,7 @@ export default function SaleOperationDialog({
               userRole: user?.role,
               showCard: canPerformOperations && !isReturning && enrichedSale?.status === "returned" && user?.role === "supervisor"
             })}
-            {canPerformOperations && !isReturning && enrichedSale?.status === "returned" && user?.role === "supervisor" && (
+            {canPerformOperations && !isReturning && sale?.status === "returned" && user?.role === "supervisor" && (
               <Card className="mt-6 mb-4">
                 <CardHeader className="pb-3">
                   <CardTitle>Marcar como Corrigida</CardTitle>
@@ -1052,7 +1052,7 @@ export default function SaleOperationDialog({
                     </Button>
                     
                     {/* Botão para devolver */}
-                    {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress") && (
+                    {(sale?.status === "pending" || sale?.status === "in_progress") && (
                       <Button 
                         type="button" 
                         variant="destructive" 
@@ -1065,11 +1065,12 @@ export default function SaleOperationDialog({
                     
                     {/* Botão para supervisores reenviarem vendas devolvidas */}
                     {console.log("OS 12 - Condição para exibir Botão:", {
-                      status: enrichedSale?.status,
+                      status: sale?.status,
+                      enrichedStatus: enrichedSale?.status,
                       userRole: user?.role,
-                      showButton: enrichedSale?.status === "returned" && user?.role === "supervisor"
+                      showButton: sale?.status === "returned" && user?.role === "supervisor"
                     })}
-                    {enrichedSale?.status === "returned" && user?.role === "supervisor" && (
+                    {sale?.status === "returned" && user?.role === "supervisor" && (
                       <Button 
                         type="button"
                         variant="default"
