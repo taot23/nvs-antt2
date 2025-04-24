@@ -475,14 +475,14 @@ export default function SaleOperationDialog({
                             </span>
                           </div>
                           {/* Se o tipo de serviço for SINDICATO, mostrar prestador parceiro */}
-                          {(showServiceProviderField || sale.serviceProviderId) && (
+                          {(showServiceProviderField || enrichedSale.serviceProviderId) && (
                             <div className="flex justify-between items-center py-1 border-b border-border/60">
                               <span className="text-sm font-medium">Prestador Parceiro:</span>
                               <span className="text-sm">
                                 {selectedServiceProviderId
                                   ? serviceProviders.find((p: any) => p.id === selectedServiceProviderId)?.name
-                                  : sale.serviceProviderId
-                                    ? serviceProviders.find((p: any) => p.id === sale.serviceProviderId)?.name || "Não identificado"
+                                  : enrichedSale.serviceProviderId
+                                    ? serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"
                                     : "Não selecionado"}
                               </span>
                             </div>
@@ -672,9 +672,12 @@ export default function SaleOperationDialog({
                   {/* Mostrar campo para selecionar prestador de serviço quando for SINDICATO */}
                   {showServiceProviderField && (
                     <div>
-                      <Label htmlFor="service-provider" className="text-sm font-medium mb-2 block">
-                        Prestador de Serviço Parceiro
-                      </Label>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="service-provider" className="text-sm font-medium">
+                          Prestador de Serviço Parceiro
+                        </Label>
+                        <span className="text-xs text-primary">* Obrigatório para SINDICATO</span>
+                      </div>
                       <Select 
                         value={selectedServiceProviderId?.toString() || ''} 
                         onValueChange={handleServiceProviderChange}
