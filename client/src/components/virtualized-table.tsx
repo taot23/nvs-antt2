@@ -136,7 +136,17 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
   const performanceMonitor = usePerformanceMonitor();
 
   // Estado para acompanhar o progresso de renderização
+  // Usando useRef em vez de useState para evitar re-renderizações desnecessárias
+  const renderProgressRef = useRef(0);
   const [renderProgress, setRenderProgress] = useState(0);
+  
+  // Atualizações de progresso otimizadas com throttle
+  const updateProgress = useCallback((value: number) => {
+    if (value > renderProgressRef.current && (value % 25 === 0 || value === 100)) {
+      renderProgressRef.current = value;
+      setRenderProgress(value);
+    }
+  }, []);
   
   // Referências para medição de performance
   const lastRenderTime = useRef(0);
@@ -310,32 +320,32 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
   ));
   ServiceType.displayName = 'ServiceType';
   
-  // Item de linha da tabela memoizado
+  // Item de linha da tabela memoizado com otimizações
   const Row = memo(({ index, style }: { index: number; style: React.CSSProperties }) => {
-    // Medição de performance para renderização de linhas
+    // Medição de performance para renderização de linhas apenas em desenvolvimento
     const startTime = performance.now();
-    if (lastRenderTime.current === 0) {
-      lastRenderTime.current = startTime;
-    }
-    
-    renderCount.current++;
-    
-    // Taxa de renderização (linhas por segundo)
-    if (renderCount.current % 10 === 0) {
-      const elapsed = startTime - lastRenderTime.current;
-      const rate = (renderCount.current / elapsed) * 1000;
-      console.log(`[Performance] Taxa de renderização: ${rate.toFixed(2)} linhas/s`);
-      lastRenderTime.current = startTime;
+    if (process.env.NODE_ENV === 'development') {
+      if (lastRenderTime.current === 0) {
+        lastRenderTime.current = startTime;
+      }
+      
+      renderCount.current++;
+      
+      // Taxa de renderização com intervalo maior (a cada 20 linhas em vez de 10)
+      if (renderCount.current % 20 === 0) {
+        const elapsed = startTime - lastRenderTime.current;
+        const rate = (renderCount.current / elapsed) * 1000;
+        console.log(`[Performance] Taxa de renderização: ${rate.toFixed(2)} linhas/s`);
+        lastRenderTime.current = startTime;
+      }
     }
 
     const sale = data[index];
     if (!sale) return null;
 
-    // Atualiza o progresso da renderização
+    // Atualiza o progresso da renderização com a função otimizada
     const progress = Math.round((index / data.length) * 100);
-    if (progress > renderProgress && progress % 10 === 0) {
-      setRenderProgress(progress);
-    }
+    updateProgress(progress);
     
     // Obter os estilos pré-calculados do cache
     const styles = statusStyleCache[sale.status] || statusStyleCache['pending'];
@@ -505,11 +515,20 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
         </TableCell>
       </TableRow>
     );
-  }, [data, renderProgress, user, onViewDetails, onViewHistory, onEdit, onStartExecution, 
-      onCompleteExecution, onReturnClick, onMarkAsPaid, onDeleteClick, ReenviaButton, DevolveButton]);
+  }, [data, updateProgress, user, onViewDetails, onViewHistory, onEdit, onStartExecution, 
+      onCompleteExecution, onReturnClick, onMarkAsPaid, onDeleteClick, statusStyleCache, ReenviaButton, DevolveButton]);
 
-  // Item de linha memoizado para evitar re-renderizações desnecessárias
-  const MemoizedRow = useMemo(() => React.memo(Row), [Row]);
+  // Item de linha memoizado com função de comparação customizada
+  // que verifica apenas as propriedades essenciais para renderização
+  const propsAreEqual = useCallback((prevProps: any, nextProps: any) => {
+    return (
+      prevProps.index === nextProps.index &&
+      prevProps.style.top === nextProps.style.top
+    );
+  }, []);
+  
+  // Usar o callback de comparação para minimizar re-renderizações
+  const MemoizedRow = useMemo(() => React.memo(Row, propsAreEqual), [Row, propsAreEqual]);
   
   // Renderização do componente de tabela
   return (
@@ -524,9 +543,10 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
             ) : (
               `Total de ${data.length} vendas${searchTerm || statusFilter ? " encontradas" : ""}`
             )}
-            {renderProgress > 0 && renderProgress < 100 && !isLoading && (
+            {/* Mostrar o indicador de progresso apenas quando realmente necessário */}
+            {renderProgress > 0 && renderProgress < 75 && !isLoading && (
               <span className="block text-xs text-muted-foreground">
-                Renderizando: {renderProgress}% concluído
+                Carregando...
               </span>
             )}
           </TableCaption>
@@ -654,9 +674,14 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
                           itemCount={data.length}
                           itemSize={rowHeight}
                           width={width}
-                          overscanCount={5}
+                          overscanCount={3} 
                           className="will-change-transform"
-                          style={{ overflowX: 'hidden' }}
+                          style={{ 
+                            overflowX: 'hidden',
+                            contain: 'strict',
+                            willChange: 'transform',
+                          }}
+                          initialScrollOffset={0}
                         >
                           {MemoizedRow}
                         </List>
@@ -678,6 +703,19 @@ const styles = `
   .virtual-row {
     will-change: transform;
     contain: content;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  .ReactVirtualized__List {
+    contain: strict;
+    will-change: transform;
+    transform: translateZ(0);
+  }
+  
+  .ReactVirtualized__Grid__innerScrollContainer {
+    will-change: transform;
+    transform: translateZ(0);
   }
   
   @media (max-width: 768px) {
