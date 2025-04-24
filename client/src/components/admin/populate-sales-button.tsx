@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function PopulateSalesButton() {
@@ -41,13 +40,17 @@ export function PopulateSalesButton() {
   return (
     <>
       <Button 
-        variant="default" 
+        variant="outline" 
         size="sm" 
         onClick={() => setShowConfirmDialog(true)} 
         disabled={isLoading}
+        className="bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300"
       >
-        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Popular Vendas Teste
+        {isLoading ? 
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+          <Database className="mr-2 h-4 w-4 text-green-600" />
+        }
+        <span className="text-green-600">Popular Vendas</span>
       </Button>
 
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -63,8 +66,9 @@ export function PopulateSalesButton() {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Atenção</AlertTitle>
             <AlertDescription>
-              Esta ação irá criar 30 novas vendas no sistema com status variados.
-              Utilize apenas em ambiente de desenvolvimento ou testes.
+              Esta ação irá criar 30 novas vendas de teste no sistema, distribuídas entre
+              diferentes usuários e com status variados (pendentes, em progresso, concluídas e devolvidas).
+              <div className="mt-2 font-semibold text-amber-600">Utilize apenas em ambiente de desenvolvimento ou testes.</div>
             </AlertDescription>
           </Alert>
           
@@ -76,8 +80,12 @@ export function PopulateSalesButton() {
               variant="default" 
               onClick={handlePopulate} 
               disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700"
             >
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isLoading ? 
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                <Database className="mr-2 h-4 w-4" />
+              }
               Confirmar
             </Button>
           </DialogFooter>
