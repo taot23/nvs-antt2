@@ -78,13 +78,18 @@ function getStatusVariant(status: string) {
 
 // Função para obter a classe de fundo da linha baseada no status
 function getStatusRowClass(status: string) {
-  switch (status) {
-    case 'corrected': return 'bg-yellow-50'; // Amarelo bem suave para "corrigido"
-    case 'completed': return 'bg-green-50';  // Verde bem suave para "concluído"
-    case 'in_progress': return 'bg-blue-50'; // Azul bem suave para "em andamento"
-    case 'returned': return 'bg-red-50';     // Vermelho bem suave para "devolvida"
-    default: return '';
-  }
+  console.log("Aplicando cor para status:", status);
+  const result = (() => {
+    switch (status) {
+      case 'corrected': return 'bg-yellow-50'; // Amarelo bem suave para "corrigido"
+      case 'completed': return 'bg-green-50';  // Verde bem suave para "concluído"
+      case 'in_progress': return 'bg-blue-50'; // Azul bem suave para "em andamento"
+      case 'returned': return 'bg-red-50';     // Vermelho bem suave para "devolvida"
+      default: return '';
+    }
+  })();
+  console.log(`Status: ${status} => Classe CSS: ${result}`);
+  return result;
 }
 
 // Componente principal
