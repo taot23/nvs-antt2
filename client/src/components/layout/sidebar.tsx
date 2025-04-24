@@ -200,7 +200,16 @@ export function Sidebar() {
                   <Link 
                     key={item.path} 
                     href={item.path}
-                    onClick={isMobile ? toggleSidebar : undefined}
+                    onClick={() => {
+                      // Em mobile, sempre fecha o menu
+                      if (isMobile) {
+                        setMobileMenuOpen(false);
+                      } 
+                      // Em desktop, recolhe a sidebar se estiver expandida
+                      else if (expanded) {
+                        setExpanded(false);
+                      }
+                    }}
                   >
                     <Button
                       variant="ghost"
@@ -223,7 +232,13 @@ export function Sidebar() {
                 <TooltipProvider key={item.path} delayDuration={100}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link href={item.path}>
+                      <Link 
+                        href={item.path}
+                        onClick={() => {
+                          // Ao clicar no item da sidebar recolhida em desktop
+                          // não vamos expandir, apenas vamos para a nova página
+                        }}
+                      >
                         <Button
                           variant="ghost"
                           size="icon"
