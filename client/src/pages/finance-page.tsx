@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Search, DollarSign, BarChart4, Download, FileText, ChevronDown } from "lucide-react";
+import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -17,18 +17,42 @@ import FinanceSalesTable from "@/components/finance/finance-sales-table";
 import FinanceTransactionDialog from "@/components/finance/finance-transaction-dialog";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function FinancePage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const isMobile = useIsMobile();
+  const { lastEvent, isConnected, reconnect } = useWebSocket();
+  
+  // Estados para paginação
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10); // Número de registros por página
+  const [sortField, setSortField] = useState('id');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Verificar as permissões do usuário
   const canPerformFinancialOperations = user?.role === "admin" || user?.role === "financeiro";
+  
+  // Função para alternar ordenação
+  const toggleSort = (field: string) => {
+    if (sortField === field) {
+      // Se já estiver ordenando por este campo, inverte a direção
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Se for um novo campo, ordena ascendente por padrão
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   // Buscar dados da venda selecionada para exibir informações
   const { data: selectedSale } = useQuery({
