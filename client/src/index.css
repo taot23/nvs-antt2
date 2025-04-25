@@ -267,6 +267,54 @@ div[data-status="returned"] {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Estilos para a versão ultra básica de lista */
+.barebone-wrapper {
+  padding: 0;
+  margin: 0;
+  background-color: #ffffff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.barebone-list {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  will-change: scroll-position;
+  min-height: 200px;
+}
+
+.barebone-list li {
+  position: relative;
+  border-left-width: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.barebone-list li:active {
+  opacity: 0.7;
+}
+
+/* Garantia de rolagem nativa */
+@media (max-width: 640px) {
+  .barebone-wrapper {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .barebone-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .mobile-basic-list {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 200px);
+  }
+}
+
 /* Fix para iOS Safari */
 input,
 button,

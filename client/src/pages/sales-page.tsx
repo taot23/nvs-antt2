@@ -35,6 +35,7 @@ import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
 import SwiperSalesCards from "@/components/swiper-sales-cards";
 import UltraSimpleMobileCards from "@/components/ultra-simple-mobile-cards";
+import BareBonesMobileList from "@/components/bare-bones-mobile-list";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -67,92 +68,8 @@ type Sale = {
 type SortField = 'orderNumber' | 'date' | 'customerName' | 'sellerName' | 'totalAmount' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-// Função para obter a descrição do status
-function getStatusLabel(status: string) {
-  switch (status) {
-    case 'pending': return 'Pendente';
-    case 'in_progress': return 'Em Andamento';
-    case 'returned': return 'Devolvida';
-    case 'completed': return 'Concluída';
-    case 'canceled': return 'Cancelada';
-    case 'corrected': return 'Corrigida Aguardando Operacional';
-    default: return status;
-  }
-}
-
-// Função para obter a cor do status
-function getStatusVariant(status: string) {
-  switch (status) {
-    case 'pending': return 'warning';
-    case 'in_progress': return 'secondary';
-    case 'returned': return 'destructive';
-    case 'completed': return 'success';
-    case 'canceled': return 'outline';
-    case 'corrected': return 'primary';
-    default: return 'default';
-  }
-}
-
-// Função para obter classes CSS para a linha da tabela
-function getStatusRowClass(status: string) {
-  // Garantir que sempre retornamos uma string válida
-  if (!status) return '';
-  
-  switch (status) {
-    case 'corrected': return 'status-row-corrected'; // Amarelo bem suave para "corrigido"
-    case 'completed': return 'status-row-completed'; // Verde bem suave para "concluído"
-    case 'in_progress': return 'status-row-in_progress'; // Laranja bem suave para "em andamento"
-    case 'returned': return 'status-row-returned'; // Vermelho bem suave para "devolvida"
-    default: return '';
-  }
-}
-
-// Função para obter classes CSS para o card mobile
-function getStatusCardClass(status: string) {
-  // Garantir que sempre retornamos uma string válida
-  if (!status) return '';
-  
-  switch (status) {
-    case 'corrected': return 'status-card-corrected'; // Amarelo bem suave para "corrigido"
-    case 'completed': return 'status-card-completed'; // Verde bem suave para "concluído"
-    case 'in_progress': return 'status-card-in_progress'; // Laranja bem suave para "em andamento"
-    case 'returned': return 'status-card-returned'; // Vermelho bem suave para "devolvida"
-    default: return '';
-  }
-}
-
-// ABORDAGEM FINAL: Função para aplicar estilos inline diretamente
-function getStatusStyle(status: string) {
-  // CORES MAIS INTENSAS USANDO RGB PARA MÁXIMA COMPATIBILIDADE
-  switch (status) {
-    case 'corrected': 
-      return { 
-        backgroundColor: 'rgba(250, 240, 137, 0.3)', 
-        border: '2px solid rgba(250, 240, 137, 0.6)',
-        borderLeft: '5px solid rgba(250, 240, 137, 0.8)'
-      }; // Amarelo mais intenso
-    case 'completed': 
-      return { 
-        backgroundColor: 'rgba(134, 239, 172, 0.3)', 
-        border: '2px solid rgba(134, 239, 172, 0.6)',
-        borderLeft: '5px solid rgba(134, 239, 172, 0.8)'
-      }; // Verde mais intenso
-    case 'in_progress': 
-      return { 
-        backgroundColor: 'rgba(255, 159, 64, 0.3)', 
-        border: '2px solid rgba(255, 159, 64, 0.6)',
-        borderLeft: '5px solid rgba(255, 159, 64, 0.8)'
-      }; // Laranja mais intenso
-    case 'returned': 
-      return { 
-        backgroundColor: 'rgba(252, 165, 165, 0.3)', 
-        border: '2px solid rgba(252, 165, 165, 0.6)',
-        borderLeft: '5px solid rgba(252, 165, 165, 0.8)'
-      }; // Vermelho mais intenso
-    default: 
-      return {};
-  }
-}
+// Funções de utilidade para status importadas do arquivo separado
+import { getStatusLabel, getStatusVariant, getStatusRowClass, getStatusCardClass, getStatusStyle } from "@/lib/status-utils";
 
 // Componente principal
 export default function SalesPage() {
