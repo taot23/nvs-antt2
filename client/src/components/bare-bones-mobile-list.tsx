@@ -1,12 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { getStatusLabel, getStatusVariant, getStatusStyle } from "@/lib/status-utils";
-import { Eye, History, Edit, CornerDownRight, CheckCircle2, Banknote, Trash2, AlertTriangle, ArrowLeft } from "lucide-react";
+import React from 'react';
 
-// Tipo para venda
 type Sale = {
   id: number;
   orderNumber: string;
@@ -33,7 +26,6 @@ type Sale = {
   updatedAt: string;
 };
 
-// Interface para as props do componente
 interface BareBonesMobileListProps {
   data: Sale[];
   isLoading: boolean;
@@ -51,7 +43,11 @@ interface BareBonesMobileListProps {
   DevolveButton: React.ComponentType<{ sale: Sale }>;
 }
 
-const BareBonesMobileList: React.FC<BareBonesMobileListProps> = ({
+/**
+ * Componente ultra-simplificado para dispositivos móveis
+ * Projetado para ter compatibilidade máxima e desempenho com foco em usabilidade
+ */
+export default function BareBonesMobileList({
   data,
   isLoading,
   error,
@@ -65,234 +61,343 @@ const BareBonesMobileList: React.FC<BareBonesMobileListProps> = ({
   onDeleteClick,
   user,
   ReenviaButton,
-  DevolveButton,
-}) => {
-  const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Adicionar classes especiais ao body para melhorar rolagem em dispositivos móveis
-    document.body.classList.add('mobile-view-active');
-
-    // Limpar ao desmontar
-    return () => {
-      document.body.classList.remove('mobile-view-active');
-    };
-  }, []);
-
+  DevolveButton
+}: BareBonesMobileListProps) {
+  
   if (isLoading) {
     return (
-      <div className="p-4 text-center">
-        <p>Carregando...</p>
+      <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+        Carregando...
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 text-center text-red-500">
-        <p>Erro ao carregar dados: {error.message}</p>
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '20px', 
+        color: '#d32f2f',
+        backgroundColor: '#ffebee',
+        margin: '10px',
+        borderRadius: '4px'
+      }}>
+        Erro: {error.message}
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="p-4 text-center">
-        <p>Nenhuma venda encontrada.</p>
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '20px', 
+        color: '#666',
+        backgroundColor: '#f5f5f5',
+        margin: '10px',
+        borderRadius: '4px'
+      }}>
+        Nenhuma venda encontrada
       </div>
     );
   }
 
   return (
-    <div 
-      ref={listRef} 
-      className="bare-bones-container" 
-      style={{
-        overflowY: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain',
-        height: 'calc(100vh - 230px)',
-        maxHeight: 'calc(100vh - 230px)',
-        paddingBottom: '20px',
-        touchAction: 'pan-y',
-        position: 'relative',
-        zIndex: 1,
-        transform: 'translateZ(0)',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-      }}
-    >
-      {data.map((sale) => (
-        <div 
-          key={sale.id} 
-          className="bare-bones-card mb-4 overflow-hidden rounded-lg"
-          style={{
-            ...getStatusStyle(sale.status),
-            marginBottom: '16px'
-          }}
-        >
-          <div className="p-3 pb-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="text-base font-medium">
-                  OS: {sale.orderNumber}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
-                </div>
-              </div>
-              <Badge variant={getStatusVariant(sale.status) as any}>
-                {getStatusLabel(sale.status)}
-              </Badge>
-            </div>
-          </div>
-          
-          <div className="px-3 pb-2">
-            <div className="text-sm">
-              <span className="text-gray-500 text-xs">Cliente:</span>{" "}
-              {sale.customerName}
-            </div>
+    <div style={{ padding: '10px', maxWidth: '100%', overflowX: 'hidden' }}>
+      <h3 style={{ 
+        textAlign: 'center', 
+        margin: '10px 0', 
+        fontSize: '16px',
+        fontWeight: 'bold',
+        color: '#333'
+      }}>
+        Lista de Vendas
+      </h3>
+      
+      <table 
+        style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse',
+          fontSize: '14px',
+          tableLayout: 'fixed'
+        }}
+      >
+        <thead>
+          <tr style={{ backgroundColor: '#f5f5f5' }}>
+            <th style={{ 
+              padding: '8px', 
+              textAlign: 'left', 
+              borderBottom: '1px solid #ddd',
+              width: '30%'
+            }}>
+              OS
+            </th>
+            <th style={{ 
+              padding: '8px', 
+              textAlign: 'left', 
+              borderBottom: '1px solid #ddd',
+              width: '40%'
+            }}>
+              Cliente
+            </th>
+            <th style={{ 
+              padding: '8px', 
+              textAlign: 'right', 
+              borderBottom: '1px solid #ddd',
+              width: '30%'
+            }}>
+              Ações
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((sale) => {
+            // Determinar cor de fundo com base no status
+            let statusColor = '#fff';
+            switch(sale.status) {
+              case 'pending': statusColor = '#f8f8f8'; break;
+              case 'in_progress': statusColor = '#fff8e1'; break;
+              case 'completed': statusColor = '#e8f5e9'; break;
+              case 'returned': statusColor = '#ffebee'; break;
+              case 'corrected': statusColor = '#e1f5fe'; break;
+              default: statusColor = '#fff';
+            }
             
-            <div className="text-sm">
-              <span className="text-gray-500 text-xs">Vendedor:</span>{" "}
-              {sale.sellerName}
-            </div>
-            
-            <div className="text-sm">
-              <span className="text-gray-500 text-xs">Valor:</span>{" "}
-              <span className="font-semibold">
-                R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-              </span>
-            </div>
-            
-            {sale.returnReason && (
-              <div className="text-sm mt-1 text-red-500">
-                <span className="text-xs font-semibold">Motivo da devolução:</span>{" "}
-                {sale.returnReason}
-              </div>
-            )}
-          </div>
-          
-          <div className="p-2 border-t border-gray-100 flex flex-wrap gap-1">
-            {/* Botão Detalhes */}
-            <Button
-              size="sm"
-              variant="default"
-              className="h-8 px-2 flex-grow"
-              onClick={() => onViewDetails(sale)}
-            >
-              <Eye className="h-3.5 w-3.5 mr-1" />
-              Detalhes
-            </Button>
-            
-            {/* Botão Histórico */}
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2 flex-grow"
-              onClick={() => onViewHistory(sale)}
-            >
-              <History className="h-3.5 w-3.5 mr-1" />
-              Histórico
-            </Button>
-            
-            {/* Botão Editar (Apenas para vendedores e adm) */}
-            {(user?.role === "admin" || user?.role === "vendedor" || user?.role === "supervisor") && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 px-2 flex-grow"
-                onClick={() => onEdit(sale)}
-              >
-                <Edit className="h-3.5 w-3.5 mr-1" />
-                Editar
-              </Button>
-            )}
-            
-            {/* Botão para operacionais iniciarem execução */}
-            {(user?.role === "admin" || user?.role === "operacional") && 
-              (sale.status === "pending" || sale.status === "corrected") && (
-              <Button
-                size="sm"
-                variant={sale.status === "corrected" ? "default" : "outline"}
-                className={`h-8 px-2 flex-grow ${sale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}`}
-                onClick={() => onStartExecution(sale)}
-              >
-                <CornerDownRight className="h-3.5 w-3.5 mr-1" />
-                Iniciar
-              </Button>
-            )}
-            
-            {/* Botão para operacionais concluírem execução */}
-            {(user?.role === "admin" || user?.role === "operacional") && 
-              sale.status === "in_progress" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 px-2 flex-grow"
-                onClick={() => onCompleteExecution(sale)}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                Concluir
-              </Button>
-            )}
-            
-            {/* Botão para operacionais devolverem a venda */}
-            {(user?.role === "admin" || user?.role === "operacional") && 
-              (sale.status === "pending" || sale.status === "in_progress") && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 px-2 flex-grow text-destructive border-destructive hover:bg-destructive/10"
-                onClick={() => onReturnClick(sale)}
-              >
-                <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                Devolver
-              </Button>
-            )}
-            
-            {/* Botão para vendedor/supervisor reenviar venda corrigida */}
-            {sale.status === 'returned' && (
-              <ReenviaButton sale={sale} />
-            )}
-            
-            {/* Botão para operacional/admin devolver venda corrigida */}
-            {sale.status === "corrected" && (
-              <DevolveButton sale={sale} />
-            )}
-            
-            {/* Botão para financeiro marcar como paga */}
-            {(user?.role === "admin" || user?.role === "financeiro") && 
-              sale.status === "completed" && 
-              sale.financialStatus !== "paid" && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 px-2 flex-grow"
-                onClick={() => onMarkAsPaid(sale)}
-              >
-                <Banknote className="h-3.5 w-3.5 mr-1" />
-                Pago
-              </Button>
-            )}
-            
-            {/* Botão para excluir vendas (apenas admin ou supervisor) */}
-            {(user?.role === "admin" || user?.role === "supervisor") && (
-              <Button
-                size="sm"
-                variant="destructive"
-                className="h-8 px-2 flex-grow"
-                onClick={() => onDeleteClick(sale)}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Excluir
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
+            return (
+              <React.Fragment key={sale.id}>
+                <tr style={{ backgroundColor: statusColor }}>
+                  <td style={{ 
+                    padding: '8px', 
+                    borderBottom: '1px solid #ddd',
+                    fontWeight: 'bold'
+                  }}>
+                    {sale.orderNumber}
+                    <div style={{ 
+                      fontSize: '12px', 
+                      color: '#666',
+                      fontWeight: 'normal'
+                    }}>
+                      {formatStatus(sale.status)}
+                    </div>
+                  </td>
+                  <td style={{ 
+                    padding: '8px', 
+                    borderBottom: '1px solid #ddd'
+                  }}>
+                    <div style={{ fontSize: '14px' }}>
+                      {sale.customerName || `Cliente #${sale.customerId}`}
+                    </div>
+                    <div style={{ 
+                      fontSize: '12px', 
+                      color: '#666'
+                    }}>
+                      {formatCurrency(sale.totalAmount)}
+                    </div>
+                  </td>
+                  <td style={{ 
+                    padding: '8px', 
+                    borderBottom: '1px solid #ddd',
+                    textAlign: 'right'
+                  }}>
+                    <button 
+                      onClick={() => onViewDetails(sale)}
+                      style={{
+                        backgroundColor: '#2196f3',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        margin: '2px',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Detalhes
+                    </button>
+                  </td>
+                </tr>
+                <tr style={{ backgroundColor: statusColor }}>
+                  <td colSpan={3} style={{ 
+                    padding: '0 8px 8px',
+                    borderBottom: '1px solid #ddd'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap',
+                      gap: '5px',
+                      justifyContent: 'center'
+                    }}>
+                      {/* Primary Actions - Always Visible */}
+                      <button 
+                        onClick={() => onViewHistory(sale)}
+                        style={{
+                          backgroundColor: '#607d8b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          margin: '2px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Histórico
+                      </button>
+                      
+                      {/* Edit Button - For admin, vendedor, supervisor */}
+                      {(user?.role === "admin" || user?.role === "vendedor" || user?.role === "supervisor") && (
+                        <button 
+                          onClick={() => onEdit(sale)}
+                          style={{
+                            backgroundColor: '#9e9e9e',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            margin: '2px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Editar
+                        </button>
+                      )}
+                      
+                      {/* Start Execution Button - For admin, operacional */}
+                      {(user?.role === "admin" || user?.role === "operacional") && 
+                       (sale.status === "pending" || sale.status === "corrected") && (
+                        <button 
+                          onClick={() => onStartExecution(sale)}
+                          style={{
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            margin: '2px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Iniciar
+                        </button>
+                      )}
+                      
+                      {/* Complete Execution Button - For admin, operacional */}
+                      {(user?.role === "admin" || user?.role === "operacional") && 
+                       sale.status === "in_progress" && (
+                        <button 
+                          onClick={() => onCompleteExecution(sale)}
+                          style={{
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            margin: '2px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Concluir
+                        </button>
+                      )}
+                      
+                      {/* Return Button - For admin, operacional */}
+                      {(user?.role === "admin" || user?.role === "operacional") && 
+                       (sale.status === "pending" || sale.status === "in_progress") && (
+                        <button 
+                          onClick={() => onReturnClick(sale)}
+                          style={{
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            margin: '2px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Devolver
+                        </button>
+                      )}
+                      
+                      {/* Mark as Paid Button - For admin, financeiro */}
+                      {(user?.role === "admin" || user?.role === "financeiro") && 
+                       sale.status === "completed" && sale.financialStatus !== "paid" && (
+                        <button 
+                          onClick={() => onMarkAsPaid(sale)}
+                          style={{
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            margin: '2px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Pago
+                        </button>
+                      )}
+                      
+                      {/* Delete Button - For admin, supervisor */}
+                      {(user?.role === "admin" || user?.role === "supervisor") && (
+                        <button 
+                          onClick={() => onDeleteClick(sale)}
+                          style={{
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            margin: '2px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      )}
+                      
+                      {/* Custom Buttons */}
+                      <div style={{ display: 'inline-block' }}>
+                        <ReenviaButton sale={sale} />
+                      </div>
+                      <div style={{ display: 'inline-block' }}>
+                        <DevolveButton sale={sale} />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
-};
+}
 
-export default BareBonesMobileList;
+// Função auxiliar para formatar status
+function formatStatus(status: string): string {
+  switch(status) {
+    case 'pending': return 'Pendente';
+    case 'in_progress': return 'Em Andamento';
+    case 'completed': return 'Concluída';
+    case 'returned': return 'Devolvida';
+    case 'corrected': return 'Corrigida';
+    default: return status;
+  }
+}
+
+// Função auxiliar para formatar moeda
+function formatCurrency(value: string): string {
+  const numValue = parseFloat(value);
+  return numValue.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+}

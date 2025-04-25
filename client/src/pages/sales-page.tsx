@@ -33,7 +33,7 @@ import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
-import BasicMobileView from "@/components/basic-mobile-view";
+import BareBonesMobileList from "@/components/bare-bones-mobile-list";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1333,8 +1333,8 @@ export default function SalesPage() {
             </p>
           </div>
           
-          {/* Componente móvel básico e altamente otimizado para todos os dispositivos */}
-          <BasicMobileView
+          {/* Componente ultra simples para visualização móvel */}
+          <BareBonesMobileList
             data={enrichedSales}
             isLoading={isLoading}
             error={error as Error}
@@ -1347,7 +1347,8 @@ export default function SalesPage() {
             onMarkAsPaid={handleMarkAsPaid}
             onDeleteClick={handleDeleteClick}
             user={user}
-            onRefresh={refetch}
+            ReenviaButton={ReenviaButton}
+            DevolveButton={DevolveButton}
           />
         </div>
       ) : (
