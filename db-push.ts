@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { Pool, neonConfig } from '@neondatabase/serverless';
-import { services, serviceTypes, serviceProviders, sales, saleItems, salesStatusHistory } from './shared/schema';
+import { services, serviceTypes, serviceProviders, sales, saleItems, salesStatusHistory, costTypes } from './shared/schema';
 import ws from 'ws';
 
 // Configure o WebSocket para Neon
@@ -129,6 +129,22 @@ async function main() {
   `);
 
   console.log('Sales Status History table created successfully!');
+  
+  console.log('Creating cost_types table...');
+  
+  // Criar tabela cost_types
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cost_types (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  console.log('Cost Types table created successfully!');
   
   await pool.end();
 }
