@@ -41,6 +41,7 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 
 interface OperationalCostsProps {
@@ -112,6 +113,21 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
   
   // Verificar se é tipo SINDICATO
   const isSindicatoType = serviceType?.name?.toUpperCase() === "SINDICATO";
+  
+  // Buscar todos os prestadores de serviço para exibir os nomes na tabela
+  const { data: serviceProviders = [] } = useQuery({
+    queryKey: ['/api/service-providers'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/service-providers");
+      return res.json();
+    }
+  });
+  
+  // Função para obter o nome do prestador de serviço pelo ID
+  const getServiceProviderNameById = (id: number) => {
+    const provider = serviceProviders.find((p: any) => p.id === id);
+    return provider ? provider.name : `Prestador #${id}`;
+  };
   
   // Mutation para adicionar custo
   const addCostMutation = useMutation({
@@ -292,6 +308,7 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
                       {cost.serviceProviderId && (
                         <div className="mt-1 text-xs text-muted-foreground">
                           <p className="font-semibold">Prestador de Serviço:</p>
+                          <p className="text-sm">{getServiceProviderNameById(cost.serviceProviderId)}</p>
                           <Button 
                             variant="link" 
                             size="sm" 
@@ -299,7 +316,7 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
                             asChild
                           >
                             <a href={`/service-providers/${cost.serviceProviderId}`} target="_blank" rel="noopener noreferrer">
-                              Ver prestador #{cost.serviceProviderId}
+                              Ver detalhes
                             </a>
                           </Button>
                         </div>
