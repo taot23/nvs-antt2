@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Sale } from "@shared/schema";
 import SimpleSalesTable from "./simple-sales-table";
-import MobileSalesCards from "./mobile-sales-cards";
+import VirtualizedSalesCards from "./virtualized-sales-cards";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -19,7 +19,6 @@ import {
   ListFilter
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { setupMobileScrollFix } from "@/lib/mobile-scroll-fix";
 
 interface PaginatedSalesTableProps {
   data: Sale[];
@@ -98,17 +97,15 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   // Ref para controlar manipulações do DOM
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  // SOLUÇÃO FINAL - Usamos o script de correção dedicado para rolagem mobile
+  // Configuração básica para mobile
   useEffect(() => {
-    if (isMobile) {
-      // Aplicar script completo de correção
-      const cleanup = setupMobileScrollFix();
+    if (isMobile && scrollContainerRef.current) {
+      // Adiciona classes para otimizar a rolagem em dispositivos móveis
+      document.body.classList.add('mobile-scroll-fixed');
       
       return () => {
-        // Cleanup função retornada pelo script
-        if (typeof cleanup === 'function') {
-          cleanup();
-        }
+        // Limpa classes ao desmontar
+        document.body.classList.remove('mobile-scroll-fixed');
       };
     }
   }, [isMobile]);
@@ -121,7 +118,7 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
             ref={scrollContainerRef}
             className="mobile-scroll-container"
           >
-            <MobileSalesCards
+            <VirtualizedSalesCards
               data={data}
               isLoading={isLoading}
               error={error}
