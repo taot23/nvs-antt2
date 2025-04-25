@@ -14,6 +14,7 @@ import ServiceProvidersPage from "@/pages/service-providers-page";
 import SalesPage from "@/pages/sales-page";
 import MobileSalesPage from "@/pages/mobile-sales-page";
 import SaleDetailsPage from "@/pages/sale-details";
+import UltraSimpleMobilePage from "@/pages/ultra-simple-mobile";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -120,6 +121,15 @@ const ProtectedSaleDetails = () => {
   );
 };
 
+const ProtectedUltraSimpleMobile = () => {
+  console.log("Renderizando ProtectedUltraSimpleMobile");
+  return (
+    <ProtectedApp>
+      <UltraSimpleMobilePage />
+    </ProtectedApp>
+  );
+};
+
 function Router() {
   console.log("Renderizando Router");
   return (
@@ -135,6 +145,7 @@ function Router() {
       <ProtectedRoute path="/sales" component={ProtectedSales} />
       <ProtectedRoute path="/mobile-sales" component={ProtectedMobileSales} />
       <ProtectedRoute path="/sale-details" component={ProtectedSaleDetails} />
+      <ProtectedRoute path="/ultra-simple" component={ProtectedUltraSimpleMobile} />
       <Route component={NotFound} />
     </Switch>
   );

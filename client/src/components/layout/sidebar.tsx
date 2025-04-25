@@ -115,6 +115,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       label: 'Versão Móvel'
     },
     {
+      path: '/ultra-simple',
+      icon: <Smartphone className="h-5 w-5" />,
+      label: 'Ultra Simples HTML'
+    },
+    {
       path: '/customers',
       icon: <Users className="h-5 w-5" />,
       label: 'Clientes'
