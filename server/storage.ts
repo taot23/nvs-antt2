@@ -557,14 +557,21 @@ export class DatabaseStorage implements IStorage {
       try {
         console.log(`Criando ${installmentDates.length} parcelas para a venda ${createdSale.id}`);
         
-        // Garantir que temos um valor de parcela válido, nunca nulo
-        const installmentValue = createdSale.installmentValue || '0';
+        // Mesmo se haver mais de uma parcela, temos que calcular o valor das parcelas
+        // Vamos dividir o valor total pelo número de parcelas
+        const totalAmount = parseFloat(createdSale.totalAmount);
+        const numInstallments = createdSale.installments;
+        
+        // Calcular o valor de cada parcela (valor igual para todas as parcelas)
+        const installmentAmount = (totalAmount / numInstallments).toFixed(2);
+        
+        console.log(`PARCELAS: Total ${totalAmount} dividido em ${numInstallments} parcelas de ${installmentAmount}`);
         
         const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => ({
           saleId: createdSale.id,
           installmentNumber: index + 1,
           dueDate,
-          amount: installmentValue,
+          amount: installmentAmount,
           status: 'pending',
           notes: null
         }));
@@ -575,6 +582,29 @@ export class DatabaseStorage implements IStorage {
         }
       } catch (error) {
         console.error("Erro ao criar parcelas:", error);
+      }
+    } else if (createdSale.installments > 0) {
+      // Se for pelo menos uma parcela, precisamos criar pelo menos uma parcela
+      try {
+        console.log(`Criando parcela única para venda ${createdSale.id}`);
+        
+        // Para uma única parcela, o valor da parcela é o valor total
+        const today = new Date();
+        const formattedDate = today.toISOString().split('T')[0];
+        
+        const installmentsToCreate = [{
+          saleId: createdSale.id,
+          installmentNumber: 1,
+          dueDate: formattedDate,
+          amount: createdSale.totalAmount,
+          status: 'pending',
+          notes: null
+        }];
+        
+        await this.createSaleInstallments(installmentsToCreate);
+        console.log(`Parcela única criada com valor ${createdSale.totalAmount} e vencimento hoje`);
+      } catch (error) {
+        console.error("Erro ao criar parcela única:", error);
       }
     }
     
