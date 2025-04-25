@@ -19,7 +19,8 @@ import {
   CreditCard,
   Tags,
   HardHat,
-  ShoppingCart
+  ShoppingCart,
+  Smartphone
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -107,6 +108,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       icon: <ShoppingCart className="h-5 w-5" />,
       label: 'Vendas'
       // Sem roles = todos os perfis têm acesso
+    },
+    {
+      path: '/mobile-sales',
+      icon: <Smartphone className="h-5 w-5" />,
+      label: 'Versão Móvel'
     },
     {
       path: '/customers',
