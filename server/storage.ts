@@ -7,7 +7,8 @@ import {
   serviceProviders, type ServiceProvider, type InsertServiceProvider,
   sales, type Sale, type InsertSale,
   saleItems, type SaleItem, type InsertSaleItem,
-  salesStatusHistory, type SalesStatusHistory, type InsertSalesStatusHistory
+  salesStatusHistory, type SalesStatusHistory, type InsertSalesStatusHistory,
+  saleInstallments, type SaleInstallment, type InsertSaleInstallment
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -103,6 +104,14 @@ export interface IStorage {
   // Sales Status History methods
   getSalesStatusHistory(saleId: number): Promise<SalesStatusHistory[]>;
   createSalesStatusHistory(statusHistory: InsertSalesStatusHistory): Promise<SalesStatusHistory>;
+  
+  // Sale Installments methods
+  getSaleInstallments(saleId: number): Promise<SaleInstallment[]>;
+  getSaleInstallment(id: number): Promise<SaleInstallment | undefined>;
+  createSaleInstallment(installment: InsertSaleInstallment): Promise<SaleInstallment>;
+  createSaleInstallments(installments: InsertSaleInstallment[]): Promise<SaleInstallment[]>;
+  updateSaleInstallment(id: number, installment: Partial<InsertSaleInstallment>): Promise<SaleInstallment | undefined>;
+  deleteSaleInstallments(saleId: number): Promise<boolean>;
   
   // Special Sale operations
   returnSaleToSeller(saleId: number, userId: number, reason: string): Promise<Sale | undefined>;
