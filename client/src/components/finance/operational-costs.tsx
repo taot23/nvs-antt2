@@ -56,12 +56,13 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
   const [selectedCostId, setSelectedCostId] = useState<number | null>(null);
   
   // Form for adding new cost
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
       description: "",
       amount: "",
       date: new Date().toISOString().split("T")[0], // Today as default
-      notes: ""
+      notes: "",
+      serviceProviderId: ""
     }
   });
   
@@ -76,13 +77,62 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
     enabled: !!saleId,
   });
   
+  // Buscar detalhes da venda
+  const { data: sale, isLoading: isLoadingSale } = useQuery({
+    queryKey: ['/api/sales', saleId],
+    queryFn: async () => {
+      if (!saleId) return null;
+      const res = await apiRequest("GET", `/api/sales/${saleId}`);
+      return res.json();
+    },
+    enabled: !!saleId,
+  });
+  
+  // Buscar tipo de serviço
+  const { data: serviceType, isLoading: isLoadingServiceType } = useQuery({
+    queryKey: ['/api/service-types', sale?.serviceTypeId],
+    queryFn: async () => {
+      if (!sale?.serviceTypeId) return null;
+      const res = await apiRequest("GET", `/api/service-types/${sale.serviceTypeId}`);
+      return res.json();
+    },
+    enabled: !!sale?.serviceTypeId,
+  });
+  
+  // Buscar prestador de serviço se aplicável
+  const { data: serviceProvider, isLoading: isLoadingServiceProvider } = useQuery({
+    queryKey: ['/api/service-providers', sale?.serviceProviderId],
+    queryFn: async () => {
+      if (!sale?.serviceProviderId) return null;
+      const res = await apiRequest("GET", `/api/service-providers/${sale.serviceProviderId}`);
+      return res.json();
+    },
+    enabled: !!sale?.serviceProviderId,
+  });
+  
+  // Verificar se é tipo SINDICATO
+  const isSindicatoType = serviceType?.name?.toUpperCase() === "SINDICATO";
+  
   // Mutation para adicionar custo
   const addCostMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", `/api/sales/${saleId}/operational-costs`, {
+      // Preparar os dados para envio, adicionando informações de serviço
+      const costData = {
         ...data,
         amount: parseInputToNumber(data.amount)
-      });
+      };
+      
+      // Se for SINDICATO e tiver prestador de serviço, incluir o ID do prestador
+      if (isSindicatoType && serviceProvider) {
+        costData.serviceProviderId = serviceProvider.id;
+        
+        // Adicionar o tipo ao início da descrição se não estiver presente
+        if (!costData.description.toUpperCase().includes("SINDICATO")) {
+          costData.description = `SINDICATO - ${costData.description}`;
+        }
+      }
+      
+      const res = await apiRequest("POST", `/api/sales/${saleId}/operational-costs`, costData);
       return res.json();
     },
     onSuccess: () => {
@@ -217,17 +267,44 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
                   <TableHead>Descrição</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Valor</TableHead>
-                  <TableHead>Observações</TableHead>
+                  <TableHead>Detalhes</TableHead>
                   {canManage && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {costs.map((cost: any) => (
                   <TableRow key={cost.id}>
-                    <TableCell className="font-medium">{cost.description}</TableCell>
+                    <TableCell className="font-medium">
+                      {cost.description}
+                      {cost.serviceProviderId && (
+                        <div className="mt-1">
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                            SINDICATO
+                          </Badge>
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{formatDate(cost.date)}</TableCell>
                     <TableCell>{formatCurrency(cost.amount)}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{cost.notes || "-"}</TableCell>
+                    <TableCell className="max-w-[200px]">
+                      {cost.notes && <p className="truncate">{cost.notes}</p>}
+                      
+                      {cost.serviceProviderId && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          <p className="font-semibold">Prestador de Serviço:</p>
+                          <Button 
+                            variant="link" 
+                            size="sm" 
+                            className="h-auto p-0 text-xs"
+                            asChild
+                          >
+                            <a href={`/service-providers/${cost.serviceProviderId}`} target="_blank" rel="noopener noreferrer">
+                              Ver prestador #{cost.serviceProviderId}
+                            </a>
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
                     {canManage && (
                       <TableCell className="text-right">
                         <Button 
@@ -324,6 +401,44 @@ export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
                   {...register("notes")}
                 />
               </div>
+
+              {/* Campo extra para o caso de SINDICATO */}
+              {isSindicatoType && (
+                <div className="grid gap-2 border p-4 rounded-lg border-amber-200 bg-amber-50 mt-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                    <Label className="font-medium text-amber-700">
+                      Tipo de Execução: SINDICATO
+                    </Label>
+                  </div>
+                  
+                  {serviceProvider ? (
+                    <div className="mt-2">
+                      <Label htmlFor="serviceProvider" className="text-muted-foreground">Prestador de Serviço</Label>
+                      <div className="p-3 border rounded-md mt-1 bg-white">
+                        <p className="font-medium">{serviceProvider.name}</p>
+                        {serviceProvider.document && (
+                          <p className="text-sm text-muted-foreground">
+                            Documento: {serviceProvider.document}
+                          </p>
+                        )}
+                        <Input 
+                          type="hidden" 
+                          {...register("serviceProviderId")}
+                          value={serviceProvider.id}
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Este é o prestador de serviço associado a esta venda do tipo SINDICATO.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-amber-700">
+                      <p>Não há prestador de serviço associado a esta venda. Verifique com a equipe operacional.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <DialogFooter>

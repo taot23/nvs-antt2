@@ -2354,7 +2354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair dados do corpo da requisição
-      const { description, amount, date, notes } = req.body;
+      const { description, amount, date, notes, serviceProviderId } = req.body;
       
       // Validar dados
       if (!description) {
@@ -2365,15 +2365,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Valor inválido" });
       }
       
-      // Criar o custo operacional
-      const cost = await storage.createSaleOperationalCost({
+      // Obter o tipo de serviço associado à venda
+      let isSindicatoType = false;
+      if (sale.serviceTypeId) {
+        const serviceType = await storage.getServiceType(sale.serviceTypeId);
+        isSindicatoType = serviceType?.name?.toUpperCase() === "SINDICATO";
+      }
+      
+      // Preparar dados do custo
+      const costData: any = {
         saleId: id,
         description,
         amount: amount.toString(),
         date: date ? date : new Date().toISOString(),
         responsibleId: req.user!.id,
         notes: notes || null
-      });
+      };
+      
+      // Adicionar prestador de serviço se for SINDICATO
+      if (isSindicatoType && serviceProviderId) {
+        const serviceProviderIdNum = parseInt(serviceProviderId);
+        if (!isNaN(serviceProviderIdNum)) {
+          costData.serviceProviderId = serviceProviderIdNum;
+        }
+      }
+      
+      // Criar o custo operacional
+      const cost = await storage.createSaleOperationalCost(costData);
       
       // Emitir evento de atualização
       notifySalesUpdate();

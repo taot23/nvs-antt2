@@ -211,6 +211,7 @@ export const saleOperationalCosts = pgTable("sale_operational_costs", {
   amount: numeric("amount").notNull(), // Valor do custo
   date: date("date").notNull(), // Data do custo
   responsibleId: integer("responsible_id").notNull().references(() => users.id), // Responsável pelo registro
+  serviceProviderId: integer("service_provider_id").references(() => serviceProviders.id), // Prestador de serviço (para SINDICATO)
   notes: text("notes"), // Observações adicionais
   paymentReceiptUrl: text("payment_receipt_url"), // URL do comprovante de pagamento
   createdAt: timestamp("created_at").notNull().defaultNow(),
