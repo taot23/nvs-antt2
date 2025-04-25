@@ -203,7 +203,11 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                   <TableCell>{formatDate(installment.dueDate)}</TableCell>
                   <TableCell>{formatCurrency(installment.amount)}</TableCell>
                   <TableCell>
-                    <Badge variant={installment.status === 'paid' ? 'success' : 'warning'}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      installment.status === 'paid' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
                       {installment.status === 'paid' ? (
                         <>
                           <CheckCircle className="h-3 w-3 mr-1" />
@@ -215,7 +219,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                           Pendente
                         </>
                       )}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="text-right">
                     {installment.status === 'pending' && canManage && (

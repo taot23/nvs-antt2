@@ -6,11 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import SaleDialog from "@/components/sales/sale-dialog";
 import { Pencil, Search, DollarSign, BarChart4 } from "lucide-react";
-import { OperationalCosts } from "@/components/finance/operational-costs";
-import { PaymentConfirmation } from "@/components/finance/payment-confirmation";
 import FinanceSalesTable from "@/components/finance/finance-sales-table";
+import FinanceTransactionDialog from "@/components/finance/finance-transaction-dialog";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -153,24 +151,10 @@ export default function FinancePage() {
 
         {/* Diálogo de gestão financeira */}
         {selectedSaleId && (
-          <SaleDialog
+          <FinanceTransactionDialog
             open={!!selectedSaleId}
             onClose={handleCloseDialog}
             saleId={selectedSaleId}
-            readOnly={!canPerformFinancialOperations}
-            renderAdditionalContent={() => (
-              <div className="mt-6 space-y-6">
-                <PaymentConfirmation 
-                  saleId={selectedSaleId} 
-                  canManage={canPerformFinancialOperations}
-                />
-                
-                <OperationalCosts 
-                  saleId={selectedSaleId} 
-                  canManage={canPerformFinancialOperations}
-                />
-              </div>
-            )}
           />
         )}
       </div>

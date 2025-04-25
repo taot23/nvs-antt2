@@ -224,16 +224,21 @@ export default function FinanceTransactionDialog({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-4 mb-4 border-b">
           <div className="flex flex-col gap-1">
             <span className="text-sm text-muted-foreground">Status Financeiro</span>
-            <Badge 
-              variant={getStatusVariant(sale.financialStatus)}
-              className="inline-flex items-center text-base w-fit"
+            <span 
+              className={`inline-flex items-center px-3 py-1 rounded-full text-base font-medium w-fit ${
+                sale.financialStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                sale.financialStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                sale.financialStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                sale.financialStatus === 'paid' ? 'bg-purple-100 text-purple-800' :
+                'bg-gray-100 text-gray-800'
+              }`}
             >
               {sale.financialStatus === 'pending' && <AlertCircle className="h-4 w-4 mr-1" />}
               {sale.financialStatus === 'in_progress' && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               {sale.financialStatus === 'completed' && <CheckCircle className="h-4 w-4 mr-1" />}
               {sale.financialStatus === 'paid' && <DollarSign className="h-4 w-4 mr-1" />}
               {getStatusLabel(sale.financialStatus)}
-            </Badge>
+            </span>
           </div>
           
           {/* Botões de ação com base no status */}
@@ -361,9 +366,15 @@ export default function FinanceTransactionDialog({
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <Badge variant={getStatusVariant(sale.status)}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    sale.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                    sale.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 
+                    sale.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                    sale.status === 'returned' ? 'bg-red-100 text-red-800' : 
+                    'bg-gray-100 text-gray-800'
+                  }`}>
                     {getStatusLabel(sale.status)}
-                  </Badge>
+                  </span>
                   <span className="text-sm text-muted-foreground">
                     {sale.status === "pending" && "A venda está aguardando processamento operacional."}
                     {sale.status === "in_progress" && "A venda está sendo processada pela equipe operacional."}
@@ -401,6 +412,7 @@ export default function FinanceTransactionDialog({
             <Button
               onClick={handleCompleteProcess}
               disabled={!canComplete || completeFinancialProcessMutation.isPending}
+              variant="default"
               className="bg-blue-600 hover:bg-blue-700"
             >
               {completeFinancialProcessMutation.isPending ? (
