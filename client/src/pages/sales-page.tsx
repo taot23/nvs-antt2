@@ -936,14 +936,92 @@ export default function SalesPage() {
     }
   };
   
+  // Função para buscar todas as vendas com os filtros atuais (mas sem paginação)
+  const fetchAllFilteredSales = async () => {
+    try {
+      // Mostrar feedback visual
+      toast({
+        title: "Exportando vendas filtradas",
+        description: "Buscando todas as vendas com os filtros atuais...",
+      });
+      
+      // Configurar parâmetros para buscar todas as vendas com os filtros atuais
+      const queryParams = new URLSearchParams();
+      
+      // Vendedor só pode ver suas próprias vendas
+      if (user?.role === "vendedor") {
+        queryParams.append("sellerId", user.id.toString());
+      }
+      
+      // Aplicar os mesmos filtros que estão sendo usados na visualização atual
+      if (statusFilter) queryParams.append("status", statusFilter);
+      if (searchTerm) queryParams.append("searchTerm", searchTerm);
+      
+      // Adicionar filtros de intervalo de datas
+      if (dateRange?.from) {
+        queryParams.append("startDate", dateRange.from.toISOString().split('T')[0]);
+      }
+      if (dateRange?.to) {
+        queryParams.append("endDate", dateRange.to.toISOString().split('T')[0]);
+      }
+      
+      // Adicionar parâmetros de ordenação
+      if (sortField) queryParams.append("sortField", sortField);
+      if (sortDirection) queryParams.append("sortDirection", sortDirection);
+      
+      // Solicitar limite maior para obter todos os registros do filtro
+      queryParams.append("limit", "1000"); // Limitado a 1000 registros filtrados
+      
+      const url = `/api/sales?${queryParams.toString()}`;
+      console.log("Buscando todas as vendas filtradas:", url);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error("Erro ao carregar vendas filtradas");
+      }
+      
+      const data = await response.json();
+      
+      // Enriquecer os dados com nomes
+      return data.data.map((sale: Sale) => {
+        const customer = customers.find((c: any) => c.id === sale.customerId);
+        const seller = users.find((u: any) => u.id === sale.sellerId);
+        const paymentMethod = paymentMethods.find((p: any) => p.id === sale.paymentMethodId);
+        
+        return {
+          ...sale,
+          customerName: customer?.name || `Cliente #${sale.customerId}`,
+          sellerName: seller?.username || `Vendedor #${sale.sellerId}`,
+          paymentMethodName: paymentMethod?.name || `Forma de Pagamento #${sale.paymentMethodId}`,
+        };
+      });
+    } catch (error) {
+      console.error("Erro ao buscar vendas filtradas:", error);
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível carregar todas as vendas filtradas",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+  
   // Abrir diálogo para exportação Excel
   const openExcelExportDialog = () => {
     setExcelExportDialogOpen(true);
   };
 
-  // Exportação para Excel (apenas dados filtrados)
-  const exportFilteredToExcel = () => {
-    const exportData = filteredSales.map((sale: Sale) => ({
+  // Exportação para Excel (todos os dados com os filtros atuais)
+  const exportFilteredToExcel = async () => {
+    // Buscar todos os dados que correspondem aos filtros atuais
+    const allFilteredSales = await fetchAllFilteredSales();
+    
+    if (allFilteredSales.length === 0) {
+      return; // Mensagem de erro já mostrada em fetchAllFilteredSales
+    }
+    
+    const exportData = allFilteredSales.map((sale: Sale) => ({
       'Nº OS': sale.orderNumber,
       'Data': format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
       'Cliente': sale.customerName,
@@ -955,8 +1033,14 @@ export default function SalesPage() {
     
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas Filtradas");
     XLSX.writeFile(workbook, `vendas-filtradas-${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.xlsx`);
+    
+    toast({
+      title: "Exportação concluída",
+      description: `${allFilteredSales.length} vendas filtradas exportadas com sucesso`,
+    });
+    
     setExcelExportDialogOpen(false);
   };
 
@@ -1003,8 +1087,15 @@ export default function SalesPage() {
     setPdfExportDialogOpen(true);
   };
 
-  // Exportação para PDF (apenas dados filtrados)
-  const exportFilteredToPDF = () => {
+  // Exportação para PDF (todos os dados com os filtros atuais)
+  const exportFilteredToPDF = async () => {
+    // Buscar todos os dados que correspondem aos filtros atuais
+    const allFilteredSales = await fetchAllFilteredSales();
+    
+    if (allFilteredSales.length === 0) {
+      return; // Mensagem de erro já mostrada em fetchAllFilteredSales
+    }
+    
     const doc = new jsPDF();
     
     // Título
@@ -1017,15 +1108,44 @@ export default function SalesPage() {
     
     // Informação sobre os dados
     doc.setFontSize(11);
-    doc.text("Dados: Apenas vendas filtradas", 14, 38);
+    doc.text(`Total de vendas filtradas: ${allFilteredSales.length}`, 14, 38);
+    doc.text("Dados: Vendas com filtros aplicados", 14, 46);
     
     // Filtro aplicado
+    let startY = 54;
     if (statusFilter) {
-      doc.text(`Filtro: ${getStatusLabel(statusFilter)}`, 14, 46);
+      doc.text(`Filtro de status: ${getStatusLabel(statusFilter)}`, 14, startY);
+      startY += 8;
+    }
+    
+    // Filtro de datas
+    if (dateRange?.from || dateRange?.to) {
+      let dateFilterText = "Filtro de datas: ";
+      
+      if (dateRange?.from) {
+        dateFilterText += `De ${format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })}`;
+      } else {
+        dateFilterText += "Desde o início";
+      }
+      
+      if (dateRange?.to) {
+        dateFilterText += ` até ${format(dateRange.to, 'dd/MM/yyyy', { locale: ptBR })}`;
+      } else {
+        dateFilterText += " até hoje";
+      }
+      
+      doc.text(dateFilterText, 14, startY);
+      startY += 8;
+    }
+    
+    // Filtro de pesquisa
+    if (searchTerm) {
+      doc.text(`Termo pesquisado: "${searchTerm}"`, 14, startY);
+      startY += 8;
     }
     
     // Dados para a tabela
-    const tableData = filteredSales.map((sale: Sale) => [
+    const tableData = allFilteredSales.map((sale: Sale) => [
       sale.orderNumber,
       format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
       sale.customerName,
@@ -1036,7 +1156,7 @@ export default function SalesPage() {
     
     // Criar tabela
     autoTable(doc, {
-      startY: statusFilter ? 54 : 46,
+      startY: startY,
       head: [['Nº OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
       body: tableData,
       theme: 'striped',
@@ -1044,6 +1164,12 @@ export default function SalesPage() {
     });
     
     doc.save(`vendas-filtradas-${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.pdf`);
+    
+    toast({
+      title: "Exportação concluída",
+      description: `${allFilteredSales.length} vendas filtradas exportadas com sucesso`,
+    });
+    
     setPdfExportDialogOpen(false);
   };
 
@@ -1751,10 +1877,12 @@ export default function SalesPage() {
           <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:space-x-2 sm:flex-row">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={exportFilteredToPDF} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Exportar {filteredSales.length} vendas da aba atual
+              Vendas com filtros aplicados
+              {statusFilter && <span className="block text-xs mt-1">Status: {getStatusLabel(statusFilter)}</span>}
+              {searchTerm && <span className="block text-xs mt-1">Busca: "{searchTerm}"</span>}
             </AlertDialogAction>
             <AlertDialogAction onClick={exportAllToPDF} className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
-              Exportar todas as vendas
+              Todas as vendas (sem filtros)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1772,10 +1900,12 @@ export default function SalesPage() {
           <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:space-x-2 sm:flex-row">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={exportFilteredToExcel} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Exportar {filteredSales.length} vendas da aba atual
+              Vendas com filtros aplicados
+              {statusFilter && <span className="block text-xs mt-1">Status: {getStatusLabel(statusFilter)}</span>}
+              {searchTerm && <span className="block text-xs mt-1">Busca: "{searchTerm}"</span>}
             </AlertDialogAction>
             <AlertDialogAction onClick={exportAllToExcel} className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
-              Exportar todas as vendas
+              Todas as vendas (sem filtros)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
