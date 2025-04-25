@@ -206,6 +206,20 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     enabled: !!sale?.id
   });
   
+  // Consulta para obter as parcelas da venda ao editar
+  const { data: saleInstallments = [] } = useQuery({
+    queryKey: ["/api/sales", sale?.id, "installments"],
+    queryFn: async () => {
+      if (!sale?.id) return [];
+      const response = await fetch(`/api/sales/${sale.id}/installments`);
+      if (!response.ok) {
+        throw new Error("Erro ao carregar parcelas da venda");
+      }
+      return response.json();
+    },
+    enabled: !!sale?.id
+  });
+  
   // Mutation para criar novo cliente
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: { name: string; document: string }) => {
@@ -291,7 +305,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     }
   }, [form.watch("installments"), firstDueDate]);
   
-  // Efeito para atualizar o formulário quando os itens são carregados
+  // Efeito para atualizar o formulário quando os itens e parcelas são carregados
   useEffect(() => {
     if (sale && saleItems.length > 0 && !formInitialized.current) {
       form.reset({
@@ -326,10 +340,28 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         setSellerSearchTerm(selectedSeller.username);
       }
       
+      // Se temos um parcelamento, carregamos as datas de vencimento
+      if (sale.installments > 1 && saleInstallments.length > 0) {
+        // Ordenamos as parcelas por número da parcela
+        const sortedInstallments = [...saleInstallments].sort((a: any, b: any) => a.installmentNumber - b.installmentNumber);
+        
+        // A primeira parcela define a data inicial de vencimento
+        const firstInstallment = sortedInstallments.find((i: any) => i.installmentNumber === 1);
+        if (firstInstallment) {
+          setFirstDueDate(new Date(firstInstallment.dueDate));
+        }
+        
+        // Carregamos todas as datas de vencimento das parcelas existentes
+        const dates = sortedInstallments.map((installment: any) => new Date(installment.dueDate));
+        setInstallmentDates(dates);
+        
+        console.log("Parcelas carregadas:", sortedInstallments.length);
+      }
+      
       formInitialized.current = true;
       console.log("Formulário inicializado com dados da venda e itens");
     }
-  }, [sale, saleItems, customers, users, form]);
+  }, [sale, saleItems, saleInstallments, customers, users, form]);
   
   // Função para adicionar um item à venda
   const handleAddItem = () => {
@@ -1100,6 +1132,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         <TableHead>Parcela</TableHead>
                         <TableHead>Data de Vencimento</TableHead>
                         <TableHead>Valor</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1113,6 +1146,31 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                             <TableCell>{index + 1}ª parcela</TableCell>
                             <TableCell>{format(date, "dd/MM/yyyy")}</TableCell>
                             <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
+                            <TableCell>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <Calendar className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <CalendarComponent
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={(newDate) => {
+                                      if (newDate) {
+                                        // Atualiza apenas a data específica dessa parcela
+                                        const newDates = [...installmentDates];
+                                        newDates[index] = newDate;
+                                        setInstallmentDates(newDates);
+                                      }
+                                    }}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
