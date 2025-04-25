@@ -398,7 +398,7 @@ export default function FinanceTransactionDialog({
           <TabsContent value="costs" className="space-y-4">
             <OperationalCosts 
               saleId={saleId} 
-              canManage={sale.financialStatus === 'in_progress'} 
+              canManage={sale.financialStatus === 'in_progress' || sale.financialStatus === 'paid'} 
             />
           </TabsContent>
         </Tabs>
