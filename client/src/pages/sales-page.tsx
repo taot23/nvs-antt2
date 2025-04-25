@@ -37,6 +37,7 @@ import SwiperSalesCards from "@/components/swiper-sales-cards";
 import UltraSimpleMobileCards from "@/components/ultra-simple-mobile-cards";
 import BareBonesMobileList from "@/components/bare-bones-mobile-list";
 import PureNativeScrollList from "@/components/pure-native-scroll-list";
+import IframeScrollableList from "@/components/iframe-scrollable-list";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1326,7 +1327,7 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo - VERSÃO PURE NATIVE */}
+      {/* Interface adaptativa com base no dispositivo - VERSÃO IFRAME NATIVA */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
@@ -1335,13 +1336,13 @@ export default function SalesPage() {
         <div className="mobile-view-container">
           <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Versão ultra-otimizada para celulares - Scroll nativo puro
+              Versão extrema com iframe para dispositivos móveis
             </p>
           </div>
           
-          {/* Abordagem PureNative - HTML puro sem framework no scroll */}
-          <div className="mt-2 border-t border-border">
-            <PureNativeScrollList
+          {/* Abordagem com iframe para aproveitar a rolagem nativa do navegador */}
+          <div className="mt-2 border-t border-border iframe-container">
+            <IframeScrollableList
               data={filteredSales}
               isLoading={isLoading}
               error={error as Error}

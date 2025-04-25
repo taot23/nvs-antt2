@@ -689,3 +689,31 @@ body.swiper-scroll-locked {
     -webkit-backface-visibility: hidden !important;
   }
 }
+
+/* =============================================================== */
+/* CSS ESPECÍFICO PARA IFRAME SCROLLABLE LIST */
+/* =============================================================== */
+
+/* Contêiner para o iframe */
+.iframe-container {
+  width: 100% !important;
+  border: none !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  position: relative !important;
+  height: calc(100vh - 220px) !important;
+}
+
+/* Para iOS - maior altura para evitar problemas */
+@supports (-webkit-touch-callout: none) {
+  .iframe-container {
+    height: calc(100vh - 250px) !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Scroll no iframe */
+  .iframe-container iframe {
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
