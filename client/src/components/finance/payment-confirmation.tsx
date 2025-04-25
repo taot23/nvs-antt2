@@ -351,24 +351,41 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                 value={paymentDateStr}
                 onChange={(e) => {
                   setPaymentDateStr(e.target.value);
+                  
                   // Tentamos converter a data para um objeto Date apenas se tiver formato válido
-                  // Aceitamos formatos dd/mm/aaaa e aaaa-mm-dd
                   try {
                     // Se o formato for dd/mm/aaaa
                     if (/^\d{2}\/\d{2}\/\d{4}$/.test(e.target.value)) {
                       const [day, month, year] = e.target.value.split('/');
-                      setPaymentDate(new Date(`${year}-${month}-${day}`));
+                      const newDate = new Date(`${year}-${month}-${day}`);
+                      if (!isNaN(newDate.getTime())) {
+                        setPaymentDate(newDate);
+                      }
                     } 
                     // Se o formato for aaaa-mm-dd
                     else if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) {
-                      setPaymentDate(new Date(e.target.value));
+                      const newDate = new Date(e.target.value);
+                      if (!isNaN(newDate.getTime())) {
+                        setPaymentDate(newDate);
+                      }
+                    }
+                    // Se for uma data em formato livre com traços (dd-mm-aaaa)
+                    else if (/^\d{2}-\d{2}-\d{4}$/.test(e.target.value)) {
+                      const [day, month, year] = e.target.value.split('-');
+                      const newDate = new Date(`${year}-${month}-${day}`);
+                      if (!isNaN(newDate.getTime())) {
+                        setPaymentDate(newDate);
+                      }
                     }
                   } catch (error) {
                     // Se falhar, apenas mantém a string mas não atualiza o objeto Date
-                    console.log('Formato de data inválido');
+                    console.log('Formato de data inválido', error);
                   }
                 }}
               />
+              <p className="text-xs text-muted-foreground">
+                Digite a data no formato dd/mm/aaaa, dd-mm-aaaa ou aaaa-mm-dd
+              </p>
             </div>
             
             <div className="grid gap-2">

@@ -69,27 +69,7 @@ export default function FinancePage() {
     enabled: !!selectedSaleId,
   });
 
-  // Usado para exportação
-  const { data: allSales } = useQuery({
-    queryKey: ['/api/sales', 'all', getFinancialStatusForActiveTab()],
-    queryFn: async () => {
-      const url = new URL('/api/sales', window.location.origin);
-      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
-      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
-      if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
-      if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
-      // Buscar todos os registros sem paginação para exportação
-      url.searchParams.append('limit', '1000');
-      
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error('Erro ao carregar dados para exportação');
-      }
-      const data = await response.json();
-      return data.data || [];
-    },
-    enabled: false, // Só executar quando solicitado
-  });
+  // Removemos a consulta separada para exportação, agora buscamos os dados diretamente nas funções de exportação
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,12 +96,23 @@ export default function FinancePage() {
   // Exportar para Excel
   const exportToExcel = async () => {
     try {
-      // Forçar a busca dos dados para exportação
-      await queryClient.fetchQuery({ 
-        queryKey: ['/api/sales', 'all', getFinancialStatusForActiveTab()],
-      });
+      // Buscar os dados para exportação diretamente
+      const url = new URL('/api/sales', window.location.origin);
+      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
+      if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
+      if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
+      // Buscar todos os registros sem paginação para exportação
+      url.searchParams.append('limit', '1000');
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Erro ao carregar dados para exportação');
+      }
+      const result = await response.json();
+      const sales = result.data || [];
 
-      if (!allSales || allSales.length === 0) {
+      if (!sales || sales.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
           description: "Não há vendas para exportar com os filtros selecionados.",
@@ -131,7 +122,7 @@ export default function FinancePage() {
       }
 
       // Formatar os dados para exportação
-      const exportData = allSales.map((sale: any) => ({
+      const exportData = sales.map((sale: any) => ({
         'Número': sale.orderNumber,
         'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
         'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
@@ -166,12 +157,23 @@ export default function FinancePage() {
   // Exportar para PDF
   const exportToPDF = async () => {
     try {
-      // Forçar a busca dos dados para exportação
-      await queryClient.fetchQuery({ 
-        queryKey: ['/api/sales', 'all', getFinancialStatusForActiveTab()],
-      });
+      // Buscar os dados para exportação diretamente
+      const url = new URL('/api/sales', window.location.origin);
+      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
+      if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
+      if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
+      // Buscar todos os registros sem paginação para exportação
+      url.searchParams.append('limit', '1000');
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Erro ao carregar dados para exportação');
+      }
+      const result = await response.json();
+      const sales = result.data || [];
 
-      if (!allSales || allSales.length === 0) {
+      if (!sales || sales.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
           description: "Não há vendas para exportar com os filtros selecionados.",
@@ -192,7 +194,7 @@ export default function FinancePage() {
       doc.text(`Data de geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 38);
       
       // Preparar dados para a tabela
-      const tableData = allSales.map((sale: any) => [
+      const tableData = sales.map((sale: any) => [
         sale.orderNumber,
         sale.customerName || `Cliente #${sale.customerId}`,
         sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
