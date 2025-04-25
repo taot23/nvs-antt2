@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, numeric, timestamp, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -182,5 +182,28 @@ export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type Sale = typeof sales.$inferSelect;
 export type InsertSaleItem = z.infer<typeof insertSaleItemSchema>;
 export type SaleItem = typeof saleItems.$inferSelect;
+// Tabela de parcelas da venda
+export const saleInstallments = pgTable("sale_installments", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull().references(() => sales.id), // Venda relacionada
+  installmentNumber: integer("installment_number").notNull(), // Número da parcela (1, 2, 3...)
+  amount: numeric("amount").notNull(), // Valor da parcela
+  dueDate: date("due_date").notNull(), // Data de vencimento
+  status: text("status").notNull().default("pending"), // Status: pending, paid
+  paymentDate: date("payment_date"), // Data do pagamento
+  notes: text("notes"), // Observações
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de parcelas
+export const insertSaleInstallmentSchema = createInsertSchema(saleInstallments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertSalesStatusHistory = z.infer<typeof insertSalesStatusHistorySchema>;
 export type SalesStatusHistory = typeof salesStatusHistory.$inferSelect;
+export type InsertSaleInstallment = z.infer<typeof insertSaleInstallmentSchema>;
+export type SaleInstallment = typeof saleInstallments.$inferSelect;
