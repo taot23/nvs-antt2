@@ -1186,6 +1186,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...userData,
         // Usar a data processada
         date: saleDate,
+        // MODIFICADO: Forçar status e financialStatus para "pending" na criação da venda
+        status: "pending", 
+        financialStatus: "pending",
         // Se for admin, supervisor, operacional ou financeiro, pode especificar o vendedor
         // Caso contrário, o vendedor será o próprio usuário logado
         sellerId: (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && userData.sellerId) 
@@ -1305,23 +1308,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalStatus = "pending";
       
       if (createdSale.installments === 1) {
-        // Se for venda à vista, aprovar automaticamente e enviar para o financeiro
+        // MODIFICADO: Vendas à vista agora permanecem com status "pending"
+        // para aguardar o operacional iniciar o tratamento
         try {
-          console.log("Venda com parcela única (à vista) - alterando status para 'approved'");
+          console.log("Venda com parcela única (à vista) - mantendo status 'pending'");
           
-          // Atualizar o status para aprovado
-          await storage.updateSale(createdSale.id, { status: "approved" });
+          // Não alteramos mais o status para approved automaticamente
+          // O status permanece como "pending"
           
-          // Criar histórico de mudança para approved
-          await storage.createSalesStatusHistory({
-            saleId: createdSale.id,
-            fromStatus: "pending",
-            toStatus: "approved",
-            userId: req.user!.id,
-            notes: "Venda à vista aprovada automaticamente"
-          });
+          // Não criamos mais o histórico de mudança para approved
+          // O status continua como "pending"
           
-          finalStatus = "approved";
+          finalStatus = "pending";
           
           // Criar a parcela única com vencimento para hoje
           const installmentValue = createdSale.totalAmount;
