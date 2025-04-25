@@ -19,12 +19,21 @@ import { Sale } from "@shared/schema";
 
 // Import Swiper
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Virtual, Mousewheel, FreeMode } from 'swiper/modules';
+import { 
+  Virtual, 
+  Mousewheel, 
+  FreeMode, 
+  Pagination, 
+  EffectCards, 
+  A11y 
+} from 'swiper/modules';
 
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/virtual';
 import 'swiper/css/free-mode';
+import 'swiper/css/pagination';
+import 'swiper/css/effect-cards';
 
 interface SwiperSalesCardsProps {
   data: Sale[];

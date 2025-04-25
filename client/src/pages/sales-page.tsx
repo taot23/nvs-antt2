@@ -1408,23 +1408,36 @@ export default function SalesPage() {
       </div>
       
       {/* Interface adaptativa com base no dispositivo */}
-      {isMobile ? (
-        <SwiperSalesCards
-          data={filteredSales}
-          isLoading={isLoading}
-          error={error as Error}
-          onViewDetails={handleViewDetails}
-          onViewHistory={handleViewHistory}
-          onEdit={handleEdit}
-          onStartExecution={handleStartExecution}
-          onCompleteExecution={handleCompleteExecution}
-          onReturnClick={handleReturnClick}
-          onMarkAsPaid={handleMarkAsPaid}
-          onDeleteClick={handleDeleteClick}
-          user={user}
-          ReenviaButton={ReenviaButton}
-          DevolveButton={DevolveButton}
-        />
+      {/* MODO FORÇADO: Renderize SwiperSalesCards para QUALQUER dispositivo mobile */}
+      {isMobile || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+        ('ontouchstart' in window) || 
+        (navigator.maxTouchPoints > 0) || 
+        window.innerWidth < 768 ? (
+        <div className="mobile-view-container">
+          <div className="pb-3 pt-2">
+            <p className="text-xs text-muted-foreground text-center">
+              Deslize para cima/baixo para navegar entre as vendas
+            </p>
+          </div>
+          
+          <SwiperSalesCards
+            data={filteredSales}
+            isLoading={isLoading}
+            error={error as Error}
+            onViewDetails={handleViewDetails}
+            onViewHistory={handleViewHistory}
+            onEdit={handleEdit}
+            onStartExecution={handleStartExecution}
+            onCompleteExecution={handleCompleteExecution}
+            onReturnClick={handleReturnClick}
+            onMarkAsPaid={handleMarkAsPaid}
+            onDeleteClick={handleDeleteClick}
+            user={user}
+            ReenviaButton={ReenviaButton}
+            DevolveButton={DevolveButton}
+          />
+        </div>
       ) : (
         <PaginatedSalesTable
           data={filteredSales}
