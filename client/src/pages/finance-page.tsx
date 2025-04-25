@@ -1,21 +1,31 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Search, DollarSign, BarChart4 } from "lucide-react";
+import { Pencil, Search, DollarSign, BarChart4, Download, FileText, ChevronDown } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import FinanceSalesTable from "@/components/finance/finance-sales-table";
 import FinanceTransactionDialog from "@/components/finance/finance-transaction-dialog";
+import { DateRangePicker } from "@/components/date-range-picker";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function FinancePage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   // Verificar as permissões do usuário
   const canPerformFinancialOperations = user?.role === "admin" || user?.role === "financeiro";
@@ -35,9 +45,33 @@ export default function FinancePage() {
     enabled: !!selectedSaleId,
   });
 
+  // Usado para exportação
+  const { data: allSales } = useQuery({
+    queryKey: ['/api/sales', 'all', getFinancialStatusForActiveTab()],
+    queryFn: async () => {
+      const url = new URL('/api/sales', window.location.origin);
+      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
+      if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
+      if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
+      // Buscar todos os registros sem paginação para exportação
+      url.searchParams.append('limit', '1000');
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Erro ao carregar dados para exportação');
+      }
+      const data = await response.json();
+      return data.data || [];
+    },
+    enabled: false, // Só executar quando solicitado
+  });
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // O componente de tabela irá se encarregar de usar o searchTerm
+    // Atualiza as queries para refletir os novos termos de busca
+    queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
   const handleViewFinancials = (saleId: number) => {
@@ -48,9 +82,129 @@ export default function FinancePage() {
     setSelectedSaleId(null);
   };
 
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    // Atualiza as queries para refletir o novo intervalo de datas
+    queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
+  };
+
+  // Exportar para Excel
+  const exportToExcel = async () => {
+    try {
+      // Forçar a busca dos dados para exportação
+      await queryClient.fetchQuery({ 
+        queryKey: ['/api/sales', 'all', getFinancialStatusForActiveTab()],
+      });
+
+      if (!allSales || allSales.length === 0) {
+        toast({
+          title: "Nenhum dado para exportar",
+          description: "Não há vendas para exportar com os filtros selecionados.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Formatar os dados para exportação
+      const exportData = allSales.map((sale: any) => ({
+        'Número': sale.orderNumber,
+        'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
+        'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+        'Valor Total': parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        'Status Financeiro': getFinancialStatusLabel(sale.financialStatus),
+        'Criado em': format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+      }));
+
+      // Criar planilha e exportar
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Financeiro");
+      
+      // Exportar para o usuário
+      const fileName = `financeiro_${getFinancialStatusForActiveTab()}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados para Excel com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para Excel:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Exportar para PDF
+  const exportToPDF = async () => {
+    try {
+      // Forçar a busca dos dados para exportação
+      await queryClient.fetchQuery({ 
+        queryKey: ['/api/sales', 'all', getFinancialStatusForActiveTab()],
+      });
+
+      if (!allSales || allSales.length === 0) {
+        toast({
+          title: "Nenhum dado para exportar",
+          description: "Não há vendas para exportar com os filtros selecionados.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Configurar o documento PDF
+      const doc = new jsPDF();
+      doc.setFont("helvetica");
+      
+      // Título
+      doc.setFontSize(16);
+      doc.text("Relatório Financeiro", 14, 20);
+      doc.setFontSize(12);
+      doc.text(`Status: ${getFinancialStatusLabel(getFinancialStatusForActiveTab())}`, 14, 30);
+      doc.text(`Data de geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 38);
+      
+      // Preparar dados para a tabela
+      const tableData = allSales.map((sale: any) => [
+        sale.orderNumber,
+        sale.customerName || `Cliente #${sale.customerId}`,
+        sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+        parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        getFinancialStatusLabel(sale.financialStatus),
+      ]);
+      
+      // Criar tabela no PDF
+      autoTable(doc, {
+        head: [['Número', 'Cliente', 'Data', 'Valor Total', 'Status']],
+        body: tableData,
+        startY: 45,
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [60, 60, 60] },
+      });
+      
+      // Exportar para o usuário
+      const fileName = `financeiro_${getFinancialStatusForActiveTab()}_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados para PDF com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para PDF:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Obter o status financeiro correspondente à aba ativa
   // Estamos usando o financialStatus ao invés do status operacional da venda
-  const getFinancialStatusForActiveTab = (): string => {
+  function getFinancialStatusForActiveTab(): string {
     switch (activeTab) {
       case "pending":
         return "pending"; // Vendas aguardando pagamento têm financialStatus "pending"
@@ -63,7 +217,18 @@ export default function FinancePage() {
       default:
         return "pending";
     }
-  };
+  }
+
+  // Obter a descrição do status financeiro
+  function getFinancialStatusLabel(status: string): string {
+    switch (status) {
+      case 'pending': return 'Aguardando Pagamento';
+      case 'in_progress': return 'Em Execução';
+      case 'completed': return 'Executado';
+      case 'paid': return 'Pago';
+      default: return status;
+    }
+  }
 
   return (
     <div className="container py-6 max-w-7xl">
@@ -76,6 +241,43 @@ export default function FinancePage() {
             </p>
           </div>
           
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Filtro de datas */}
+            <DateRangePicker
+              value={dateRange}
+              onValueChange={handleDateRangeChange}
+              className="w-full sm:w-auto"
+              align="end"
+              placeholder="Selecione um período"
+            />
+            
+            {/* Exportação */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Escolha o formato</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={exportToExcel}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="flex-1"></div>
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
               placeholder="Buscar vendas por número, cliente..."
@@ -118,6 +320,7 @@ export default function FinancePage() {
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
               usesFinancialStatus={true}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -127,6 +330,7 @@ export default function FinancePage() {
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
               usesFinancialStatus={true}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -136,6 +340,7 @@ export default function FinancePage() {
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
               usesFinancialStatus={true}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -145,6 +350,7 @@ export default function FinancePage() {
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
               usesFinancialStatus={true}
+              dateRange={dateRange}
             />
           </TabsContent>
         </Tabs>

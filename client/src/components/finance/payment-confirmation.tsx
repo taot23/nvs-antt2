@@ -86,11 +86,18 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   // Mutation para confirmar pagamento
   const confirmPaymentMutation = useMutation({
     mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: Date, notes: string, paymentMethodId: string }) => {
+      // Buscar o método de pagamento selecionado para usar seu nome
+      const selectedMethod = paymentMethods.find(m => String(m.id) === paymentMethodId);
+      
       const res = await apiRequest("POST", `/api/installments/${installmentId}/confirm-payment`, {
         paymentDate: paymentDate.toISOString(),
         paymentMethodId: Number(paymentMethodId), // ID do método de pagamento
+        receiptType: "manual", // "manual" é o tipo de comprovante
         notes: notes,
-        receiptData: { detail: "Confirmação manual" }
+        receiptData: { 
+          detail: "Confirmação manual",
+          paymentMethod: selectedMethod?.name || "Método não especificado"
+        }
       });
       return res.json();
     },

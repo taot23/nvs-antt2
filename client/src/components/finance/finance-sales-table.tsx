@@ -26,17 +26,18 @@ import { Eye, Loader2, DollarSign } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
 
-// Versão simplificada da tabela para uso no módulo financeiro
+// Versão adaptada da tabela para uso no módulo financeiro
 interface FinanceSalesTableProps {
   status: string;
   searchTerm: string;
   onViewFinancials: (saleId: number) => void;
   usesFinancialStatus?: boolean; // Indica se deve usar financialStatus ao invés de status
+  dateRange?: { from?: Date, to?: Date }; // Intervalo de datas para filtrar
 }
 
 // Tipo para definir a estrutura do retorno da API
 interface SalesResponse {
-  data: (Sale & { customerName?: string })[];
+  data: (Sale & { customerName?: string, sellerName?: string, paymentMethodName?: string })[];
   total: number;
   page: number;
   totalPages: number;
@@ -46,7 +47,8 @@ export default function FinanceSalesTable({
   status, 
   searchTerm, 
   onViewFinancials,
-  usesFinancialStatus = false // Por padrão, continuamos usando o status operacional
+  usesFinancialStatus = false, // Por padrão, continuamos usando o status operacional
+  dateRange
 }: FinanceSalesTableProps) {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
@@ -54,7 +56,7 @@ export default function FinanceSalesTable({
   
   // Busca os dados de vendas com paginação
   const { data: salesData, isLoading, error } = useQuery<SalesResponse>({
-    queryKey: ['/api/sales', page, limit, status, searchTerm, usesFinancialStatus],
+    queryKey: ['/api/sales', page, limit, status, searchTerm, usesFinancialStatus, dateRange],
     queryFn: async () => {
       const url = new URL('/api/sales', window.location.origin);
       url.searchParams.append('page', page.toString());
@@ -68,6 +70,14 @@ export default function FinanceSalesTable({
       }
       
       if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
+      
+      // Adicionar filtros de data se disponíveis
+      if (dateRange?.from) {
+        url.searchParams.append('startDate', dateRange.from.toISOString());
+      }
+      if (dateRange?.to) {
+        url.searchParams.append('endDate', dateRange.to.toISOString());
+      }
       
       console.log(`Buscando vendas com ${usesFinancialStatus ? 'financialStatus' : 'status'}: ${status}, termo: ${searchTerm || 'nenhum'}, url: ${url.toString()}`);
       
@@ -138,7 +148,14 @@ export default function FinanceSalesTable({
                     </TableCell>
                     <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
                     <TableCell>
-                      <Badge variant="default">
+                      <Badge 
+                        variant={
+                          usesFinancialStatus && sale.financialStatus
+                            ? getStatusVariant(sale.financialStatus)
+                            : getStatusVariant(sale.status)
+                        }
+                        className="uppercase text-xs font-semibold"
+                      >
                         {usesFinancialStatus && sale.financialStatus
                           ? getStatusLabel(sale.financialStatus) 
                           : getStatusLabel(sale.status)}

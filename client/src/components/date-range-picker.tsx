@@ -13,16 +13,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface DateRangePickerProps {
-  dateRange: DateRange | undefined;
-  onDateRangeChange: (range: DateRange | undefined) => void;
+export interface DateRangePickerProps {
+  value?: DateRange | undefined;
+  onValueChange: (range: DateRange | undefined) => void;
   className?: string;
+  align?: "center" | "start" | "end";
+  placeholder?: string;
 }
 
 export function DateRangePicker({
-  dateRange,
-  onDateRangeChange,
+  value,
+  onValueChange,
   className,
+  align = "start",
+  placeholder = "Selecione um período",
 }: DateRangePickerProps) {
   return (
     <div className={cn("grid gap-2", className)}>
@@ -33,29 +37,29 @@ export function DateRangePicker({
             variant={"outline"}
             className={cn(
               "w-full justify-start text-left font-normal",
-              !dateRange && "text-muted-foreground"
+              !value && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {dateRange?.from ? (
-              dateRange.to ? (
+            {value?.from ? (
+              value.to ? (
                 <>
-                  {format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
-                  {format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}
+                  {format(value.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
+                  {format(value.to, "dd/MM/yyyy", { locale: ptBR })}
                 </>
               ) : (
-                format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                format(value.from, "dd/MM/yyyy", { locale: ptBR })
               )
             ) : (
-              <span>Selecione um período</span>
+              <span>{placeholder}</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0" align={align}>
           <Calendar
             mode="range"
-            selected={dateRange}
-            onSelect={onDateRangeChange}
+            selected={value}
+            onSelect={onValueChange}
             initialFocus
             locale={ptBR}
             numberOfMonths={2}
@@ -65,7 +69,7 @@ export function DateRangePicker({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onDateRangeChange(undefined)}
+              onClick={() => onValueChange(undefined)}
             >
               Limpar
             </Button>
