@@ -60,16 +60,30 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             name="username"
             render={({ field }) => (
               <FormItem className="relative">
-                <FormLabel className={`absolute top-3 left-4 text-gray-500 pointer-events-none transition-all duration-200 ${
-                  field.value ? "transform scale-85 -translate-y-5" : ""
+                <FormLabel className={`absolute text-gray-500 pointer-events-none transition-all duration-200 ${
+                  field.value 
+                    ? "text-xs top-2 left-4" 
+                    : "top-1/2 -translate-y-1/2 left-4"
                 }`}>
                   Email
                 </FormLabel>
                 <FormControl>
                   <Input
                     {...field}
-                    className="h-14 pt-6 px-4"
+                    className={`h-14 px-4 ${field.value ? "pt-6" : ""}`}
                     autoComplete="username"
+                    onFocus={(e) => {
+                      // Atualiza o valor para garantir que o label suba quando o campo recebe foco
+                      if (!field.value) {
+                        e.currentTarget.classList.add("pt-6");
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Restaura o padding se o campo estiver vazio
+                      if (!field.value) {
+                        e.currentTarget.classList.remove("pt-6");
+                      }
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -82,8 +96,10 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             name="password"
             render={({ field }) => (
               <FormItem className="relative">
-                <FormLabel className={`absolute top-3 left-4 text-gray-500 pointer-events-none transition-all duration-200 ${
-                  field.value ? "transform scale-85 -translate-y-5" : ""
+                <FormLabel className={`absolute text-gray-500 pointer-events-none transition-all duration-200 ${
+                  field.value 
+                    ? "text-xs top-2 left-4" 
+                    : "top-1/2 -translate-y-1/2 left-4"
                 }`}>
                   Senha
                 </FormLabel>
@@ -92,8 +108,20 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
                     <Input
                       {...field}
                       type={showPassword ? "text" : "password"}
-                      className="h-14 pt-6 px-4 pr-10"
+                      className={`h-14 px-4 pr-10 ${field.value ? "pt-6" : ""}`}
                       autoComplete="current-password"
+                      onFocus={(e) => {
+                        // Atualiza o valor para garantir que o label suba quando o campo recebe foco
+                        if (!field.value) {
+                          e.currentTarget.classList.add("pt-6");
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Restaura o padding se o campo estiver vazio
+                        if (!field.value) {
+                          e.currentTarget.classList.remove("pt-6");
+                        }
+                      }}
                     />
                     <button
                       type="button"
