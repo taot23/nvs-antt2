@@ -1874,17 +1874,38 @@ export default function SalesPage() {
               Escolha o tipo de exportação que deseja realizar:
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:space-x-2 sm:flex-row">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={exportFilteredToPDF} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Vendas com filtros aplicados
-              {statusFilter && <span className="block text-xs mt-1">Status: {getStatusLabel(statusFilter)}</span>}
-              {searchTerm && <span className="block text-xs mt-1">Busca: "{searchTerm}"</span>}
-            </AlertDialogAction>
-            <AlertDialogAction onClick={exportAllToPDF} className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
-              Todas as vendas (sem filtros)
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          
+          {/* Layout mobile: botões em coluna */}
+          <div className="flex flex-col space-y-3 mt-3">
+            <Button 
+              onClick={exportFilteredToPDF}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2"
+            >
+              <div className="text-center w-full">
+                <div>Vendas com filtros aplicados</div>
+                {statusFilter && <div className="text-xs mt-1">Status: {getStatusLabel(statusFilter)}</div>}
+                {searchTerm && <div className="text-xs mt-1">Busca: "{searchTerm}"</div>}
+              </div>
+            </Button>
+            
+            <Button 
+              onClick={exportAllToPDF}
+              className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 py-2"
+            >
+              <div className="text-center w-full">
+                <div>Todas as vendas</div>
+                <div className="text-xs mt-1">(sem filtros)</div>
+              </div>
+            </Button>
+            
+            <Button 
+              onClick={() => setPdfExportDialogOpen(false)}
+              variant="outline"
+              className="w-full mt-2"
+            >
+              Cancelar
+            </Button>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
       
@@ -1897,17 +1918,38 @@ export default function SalesPage() {
               Escolha o tipo de exportação que deseja realizar:
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:space-x-2 sm:flex-row">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={exportFilteredToExcel} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Vendas com filtros aplicados
-              {statusFilter && <span className="block text-xs mt-1">Status: {getStatusLabel(statusFilter)}</span>}
-              {searchTerm && <span className="block text-xs mt-1">Busca: "{searchTerm}"</span>}
-            </AlertDialogAction>
-            <AlertDialogAction onClick={exportAllToExcel} className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
-              Todas as vendas (sem filtros)
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          
+          {/* Layout mobile: botões em coluna */}
+          <div className="flex flex-col space-y-3 mt-3">
+            <Button 
+              onClick={exportFilteredToExcel}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2"
+            >
+              <div className="text-center w-full">
+                <div>Vendas com filtros aplicados</div>
+                {statusFilter && <div className="text-xs mt-1">Status: {getStatusLabel(statusFilter)}</div>}
+                {searchTerm && <div className="text-xs mt-1">Busca: "{searchTerm}"</div>}
+              </div>
+            </Button>
+            
+            <Button 
+              onClick={exportAllToExcel}
+              className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 py-2"
+            >
+              <div className="text-center w-full">
+                <div>Todas as vendas</div>
+                <div className="text-xs mt-1">(sem filtros)</div>
+              </div>
+            </Button>
+            
+            <Button 
+              onClick={() => setExcelExportDialogOpen(false)}
+              variant="outline"
+              className="w-full mt-2"
+            >
+              Cancelar
+            </Button>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
       
