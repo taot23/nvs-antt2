@@ -491,17 +491,26 @@ export default function SaleDialog({
       };
       console.log("Debug - Dados formatados a serem enviados:", JSON.stringify(formattedData, null, 2));
       
-      // Adiciona as datas de vencimento das parcelas se o pagamento for parcelado
-      if (data.installments > 1 && installmentDates.length > 0) {
+      // CORREÇÃO CRÍTICA: Garantir que as datas de parcelas sejam enviadas 
+      // Forçar a geração das datas mesmo que não estejam definidas no estado
+      let installmentDatesToSend = installmentDates;
+      
+      if (data.installments > 1) {
+        // Se não temos datas suficientes ou nenhuma data, geramos novas
+        if (installmentDatesToSend.length !== data.installments) {
+          console.log("⚠️ CORREÇÃO: Número de datas não corresponde ao número de parcelas!");
+          const firstDate = new Date(); // Usa a data atual se não tivermos primeira data
+          installmentDatesToSend = generateInstallmentDates(firstDate, data.installments);
+          console.log(`⚠️ CORREÇÃO: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
+        }
+        
         // Adiciona as datas formatadas em ISO para envio ao servidor
-        console.log("Incluindo datas de vencimento:", installmentDates);
-        // Usar uma maneira diferente de passar as datas, já que o TS está apontando erro
-        const dataWithDates = {
-          ...formattedData,
-          installmentDates: installmentDates.map(date => date.toISOString())
-        };
-        // Substituir formattedData pelo novo objeto
-        Object.assign(formattedData, dataWithDates);
+        console.log("⚠️ CORREÇÃO: Incluindo datas de vencimento:", installmentDatesToSend);
+        
+        // Definir diretamente a propriedade no objeto
+        formattedData.installmentDates = installmentDatesToSend.map(date => date.toISOString());
+        
+        console.log("⚠️ CORREÇÃO: Datas formatadas em ISO:", formattedData.installmentDates);
       }
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";

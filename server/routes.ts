@@ -1401,8 +1401,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Verificar se já existem parcelas
           const existingInstallments = await storage.getSaleInstallments(createdSale.id);
           if (existingInstallments.length > 0) {
-            console.log("Parcelas já existem para esta venda, não criando novas parcelas");
-            return;
+            console.log("Parcelas já existem para esta venda, removendo parcelas existentes antes de criar novas");
+            // Remover parcelas existentes antes de criar novas
+            await storage.deleteSaleInstallments(createdSale.id);
           }
           
           // Calcular o valor de cada parcela
