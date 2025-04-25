@@ -13,6 +13,7 @@ import ServiceTypesPage from "@/pages/service-types-page";
 import ServiceProvidersPage from "@/pages/service-providers-page";
 import SalesPage from "@/pages/sales-page";
 import FinancePage from "@/pages/finance-page";
+import CostTypesPage from "@/pages/cost-types-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";

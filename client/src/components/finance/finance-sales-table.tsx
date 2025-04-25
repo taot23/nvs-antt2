@@ -289,28 +289,158 @@ export default function FinanceSalesTable({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 overflow-auto">
-        <div className="rounded-md border">
+        {/* Filtros de ordenação móveis */}
+        <div className="mb-4 md:hidden">
+          <Select
+            value={sortField}
+            onValueChange={(value) => {
+              setSortField(value);
+              // Resetar direção para padrão conforme o campo
+              if (['orderNumber', 'customerName'].includes(value)) {
+                setSortDirection('asc');
+              } else {
+                setSortDirection('desc');
+              }
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Ordenar por..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="orderNumber">Número de Ordem</SelectItem>
+              <SelectItem value="customerName">Cliente</SelectItem>
+              <SelectItem value="date">Data</SelectItem>
+              <SelectItem value="totalAmount">Valor</SelectItem>
+              <SelectItem value="createdAt">Data de Criação</SelectItem>
+              {usesFinancialStatus && <SelectItem value="financialStatus">Status Financeiro</SelectItem>}
+              {!usesFinancialStatus && <SelectItem value="status">Status</SelectItem>}
+            </SelectContent>
+          </Select>
+          
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-sm text-muted-foreground">
+              Ordenação: {sortDirection === 'asc' ? 'Crescente' : 'Decrescente'}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+            >
+              {sortDirection === 'asc' ? (
+                <ArrowUpAZ className="h-4 w-4" />
+              ) : (
+                <ArrowDownAZ className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+        
+        <div className="rounded-md border overflow-x-auto max-w-full">
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[100px]">Número</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Valor Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead 
+                  className="w-[80px] cursor-pointer whitespace-nowrap" 
+                  onClick={() => toggleSort('orderNumber')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Número</span>
+                    {sortField === 'orderNumber' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUpAZ className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownAZ className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer whitespace-nowrap"
+                  onClick={() => toggleSort('customerName')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Cliente</span>
+                    {sortField === 'customerName' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUpAZ className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownAZ className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer whitespace-nowrap"
+                  onClick={() => toggleSort('date')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Data</span>
+                    {sortField === 'date' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUpAZ className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownAZ className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer whitespace-nowrap"
+                  onClick={() => toggleSort('totalAmount')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Valor Total</span>
+                    {sortField === 'totalAmount' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp01 className="h-4 w-4" />
+                      ) : (
+                        <ArrowDown01 className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer whitespace-nowrap"
+                  onClick={() => toggleSort(usesFinancialStatus ? 'financialStatus' : 'status')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Status</span>
+                    {sortField === (usesFinancialStatus ? 'financialStatus' : 'status') ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUpAZ className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownAZ className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sales.map((sale) => (
                 <TableRow key={sale.id} data-status={usesFinancialStatus ? sale.financialStatus : sale.status}>
-                  <TableCell className="font-medium">{sale.orderNumber}</TableCell>
-                  <TableCell>{sale.customerName || `Cliente #${sale.customerId}`}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{sale.orderNumber}</TableCell>
+                  <TableCell className="max-w-[150px] truncate">
+                    <span title={sale.customerName || `Cliente #${sale.customerId}`}>
+                      {sale.customerName || `Cliente #${sale.customerId}`}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {formatDate(sale.date)}
                   </TableCell>
-                  <TableCell className="font-medium">{formatCurrency(sale.totalAmount)}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{formatCurrency(sale.totalAmount)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {usesFinancialStatus && (
                       <Badge 
                         variant="outline" 
@@ -336,7 +466,7 @@ export default function FinanceSalesTable({
                           variant="default" 
                           size="sm" 
                           onClick={() => onViewFinancials(sale.id)}
-                          className="bg-green-600 hover:bg-green-700"
+                          className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
                         >
                           <DollarSign className="h-4 w-4 mr-1" />
                           <span className="hidden sm:inline">Iniciar Tratativa</span>
@@ -350,6 +480,7 @@ export default function FinanceSalesTable({
                           variant="outline" 
                           size="sm" 
                           onClick={() => onViewFinancials(sale.id)}
+                          className="whitespace-nowrap"
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           <span className="hidden sm:inline">Financeiro</span>
