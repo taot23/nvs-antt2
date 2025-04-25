@@ -110,6 +110,15 @@ const ProtectedFinance = () => {
   );
 };
 
+const ProtectedCostTypes = () => {
+  console.log("Renderizando ProtectedCostTypes");
+  return (
+    <ProtectedApp>
+      <CostTypesPage />
+    </ProtectedApp>
+  );
+};
+
 function Router() {
   console.log("Renderizando Router");
   return (
@@ -124,6 +133,7 @@ function Router() {
       <ProtectedRoute path="/service-providers" component={ProtectedServiceProviders} />
       <ProtectedRoute path="/sales" component={ProtectedSales} />
       <ProtectedRoute path="/finance" component={ProtectedFinance} />
+      <ProtectedRoute path="/cost-types" component={ProtectedCostTypes} />
       <Route component={NotFound} />
     </Switch>
   );

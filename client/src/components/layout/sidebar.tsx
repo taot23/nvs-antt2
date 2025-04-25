@@ -108,6 +108,12 @@ export function Sidebar() {
       roles: ['admin', 'financeiro'] // Apenas admin e financeiro
     },
     {
+      path: '/cost-types',
+      icon: <Tags className="h-5 w-5" />,
+      label: 'Tipos de Custo',
+      roles: ['admin', 'financeiro'] // Apenas admin e financeiro
+    },
+    {
       path: '/customers',
       icon: <Users className="h-5 w-5" />,
       label: 'Clientes'
