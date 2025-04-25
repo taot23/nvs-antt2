@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ChevronDown } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -1007,42 +1008,52 @@ export default function SalesPage() {
             className="w-full"
           />
           
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <Button 
-              variant={!statusFilter ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("")}
-            >
-              Todas
-            </Button>
-            <Button 
-              variant={statusFilter === "pending" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("pending")}
-            >
-              Pendentes
-            </Button>
-            <Button 
-              variant={statusFilter === "in_progress" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("in_progress")}
-            >
-              Em Andamento
-            </Button>
-            <Button 
-              variant={statusFilter === "completed" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("completed")}
-            >
-              Concluídas
-            </Button>
-            <Button 
-              variant={statusFilter === "returned" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("returned")}
-            >
-              Devolvidas
-            </Button>
+          {/* Menu dropdown para filtro de status em mobile */}
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full justify-between">
+                  <span>
+                    {!statusFilter 
+                      ? "Todas" 
+                      : statusFilter === "pending" 
+                        ? "Pendentes" 
+                        : statusFilter === "in_progress" 
+                          ? "Em Andamento" 
+                          : statusFilter === "completed" 
+                            ? "Concluídas" 
+                            : statusFilter === "returned" 
+                              ? "Devolvidas" 
+                              : statusFilter === "corrected" 
+                                ? "Corrigidas" 
+                                : "Filtrar por status"}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full min-w-[200px]">
+                <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter("")}>
+                  <span className={!statusFilter ? "font-bold" : ""}>Todas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
+                  <span className={statusFilter === "pending" ? "font-bold" : ""}>Pendentes</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("in_progress")}>
+                  <span className={statusFilter === "in_progress" ? "font-bold" : ""}>Em Andamento</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("completed")}>
+                  <span className={statusFilter === "completed" ? "font-bold" : ""}>Concluídas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("returned")}>
+                  <span className={statusFilter === "returned" ? "font-bold" : ""}>Devolvidas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("corrected")}>
+                  <span className={statusFilter === "corrected" ? "font-bold" : ""}>Corrigidas</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
@@ -1309,51 +1320,52 @@ export default function SalesPage() {
             />
           </div>
           
-          {/* Filtros de status */}
-          <div className="flex gap-1 flex-wrap">
-            <Button 
-              variant={!statusFilter ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("")}
-            >
-              Todas
-            </Button>
-            <Button 
-              variant={statusFilter === "pending" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("pending")}
-            >
-              Pendentes
-            </Button>
-            <Button 
-              variant={statusFilter === "in_progress" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("in_progress")}
-            >
-              Em Andamento
-            </Button>
-            <Button 
-              variant={statusFilter === "completed" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("completed")}
-            >
-              Concluídas
-            </Button>
-            <Button 
-              variant={statusFilter === "returned" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("returned")}
-            >
-              Devolvidas
-            </Button>
-            <Button 
-              variant={statusFilter === "corrected" ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setStatusFilter("corrected")}
-              className={statusFilter === "corrected" ? "" : "border-primary text-primary hover:bg-primary/10"}
-            >
-              Corrigidas
-            </Button>
+          {/* Menu dropdown para filtros de status */}
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="min-w-[150px] justify-between">
+                  <span>
+                    {!statusFilter 
+                      ? "Todas" 
+                      : statusFilter === "pending" 
+                        ? "Pendentes" 
+                        : statusFilter === "in_progress" 
+                          ? "Em Andamento" 
+                          : statusFilter === "completed" 
+                            ? "Concluídas" 
+                            : statusFilter === "returned" 
+                              ? "Devolvidas" 
+                              : statusFilter === "corrected" 
+                                ? "Corrigidas" 
+                                : "Filtrar por status"}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full min-w-[200px]">
+                <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter("")}>
+                  <span className={!statusFilter ? "font-bold" : ""}>Todas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
+                  <span className={statusFilter === "pending" ? "font-bold" : ""}>Pendentes</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("in_progress")}>
+                  <span className={statusFilter === "in_progress" ? "font-bold" : ""}>Em Andamento</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("completed")}>
+                  <span className={statusFilter === "completed" ? "font-bold" : ""}>Concluídas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("returned")}>
+                  <span className={statusFilter === "returned" ? "font-bold" : ""}>Devolvidas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("corrected")}>
+                  <span className={statusFilter === "corrected" ? "font-bold" : ""}>Corrigidas</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           
           <div className="flex gap-2 ml-auto">
