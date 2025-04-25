@@ -1325,11 +1325,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Obter o número de parcelas e valor total da venda
         console.log("DADOS COMPLETOS RECEBIDOS DO CLIENTE:", userData);
-        const numInstallments = Number(userData.installments) || 1;
+        
+        // Validação robusta para garantir um número de parcelas válido
+        let numInstallments = 1; // Valor padrão seguro
+        const rawInstallmentsValue = userData.installments;
+        
+        if (rawInstallmentsValue !== undefined && rawInstallmentsValue !== null) {
+          if (typeof rawInstallmentsValue === 'number') {
+            numInstallments = Math.floor(rawInstallmentsValue); // Garantir que seja um inteiro
+          } else if (typeof rawInstallmentsValue === 'string') {
+            const parsed = parseInt(rawInstallmentsValue, 10);
+            if (!isNaN(parsed)) {
+              numInstallments = parsed;
+            }
+          }
+        }
+        
+        // Garantir valor válido
+        if (numInstallments < 1) {
+          numInstallments = 1;
+        }
+        
         const totalAmount = parseFloat(createdSale.totalAmount.toString());
         
         console.log(`⚠️ Dados de instalação recebidos: installments=${numInstallments}, valor total=${totalAmount}`);
         console.log(`⚠️ Tipo do valor de installments: ${typeof userData.installments}, valor bruto: ${userData.installments}`);
+        console.log(`⚠️ Valor final validado para installments: ${numInstallments}`);
         
         if (numInstallments === 1) {
           // Venda à vista - uma parcela única
@@ -1603,6 +1624,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Se já for um objeto Date, usamos diretamente
           saleDate = req.body.date;
         }
+      }
+      
+      // Validação robusta de installments na atualização
+      if (req.body.installments !== undefined) {
+        const rawInstallmentsValue = req.body.installments;
+        let parsedInstallments = 1; // Valor padrão seguro
+        
+        console.log(`⚠️ PATCH - Valor bruto de parcelas: [${rawInstallmentsValue}], tipo: ${typeof rawInstallmentsValue}`);
+        
+        if (rawInstallmentsValue !== null) {
+          if (typeof rawInstallmentsValue === 'number') {
+            parsedInstallments = Math.floor(rawInstallmentsValue); // Garantir que seja um inteiro
+          } else if (typeof rawInstallmentsValue === 'string') {
+            const parsed = parseInt(rawInstallmentsValue, 10);
+            if (!isNaN(parsed)) {
+              parsedInstallments = parsed;
+            }
+          }
+        }
+        
+        // Garantir valor válido
+        if (parsedInstallments < 1) {
+          parsedInstallments = 1;
+        }
+        
+        console.log(`⚠️ PATCH - Valor final validado para installments: ${parsedInstallments}`);
+        req.body.installments = parsedInstallments;
       }
       
       // Se a data for null ou undefined, usar a data processada
