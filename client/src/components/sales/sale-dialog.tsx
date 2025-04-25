@@ -105,6 +105,10 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
   
+  // Estados para controle das parcelas e datas de vencimento
+  const [installmentDates, setInstallmentDates] = useState<Date[]>([]);
+  const [firstDueDate, setFirstDueDate] = useState<Date>(addMonths(new Date(), 1));
+  
 
   // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
@@ -263,6 +267,30 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     service.name.toLowerCase().includes(serviceSearchTerm.toLowerCase())
   );
 
+  // Função para gerar as datas de vencimento com base na data do primeiro vencimento
+  const generateInstallmentDates = (firstDate: Date, numberOfInstallments: number) => {
+    const dates = [];
+    dates.push(new Date(firstDate)); // A primeira data é a própria data fornecida
+    
+    for (let i = 1; i < numberOfInstallments; i++) {
+      // Adiciona um mês para cada parcela subsequente
+      dates.push(addMonths(new Date(firstDate), i));
+    }
+    
+    return dates;
+  };
+  
+  // Efeito para atualizar as datas de vencimento quando o número de parcelas muda
+  useEffect(() => {
+    const installmentsValue = form.getValues("installments");
+    if (installmentsValue > 1) {
+      const dates = generateInstallmentDates(firstDueDate, installmentsValue);
+      setInstallmentDates(dates);
+    } else {
+      setInstallmentDates([]);
+    }
+  }, [form.watch("installments"), firstDueDate]);
+  
   // Efeito para atualizar o formulário quando os itens são carregados
   useEffect(() => {
     if (sale && saleItems.length > 0 && !formInitialized.current) {
@@ -366,6 +394,12 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     mutationFn: async (data: z.infer<typeof saleSchema>) => {
       setIsSubmitting(true);
       
+      // Calcula o valor de cada parcela com base no valor total e número de parcelas
+      const totalAmountValue = parseFloat(data.totalAmount?.replace(',', '.') || "0");
+      const installmentValueCalculated = data.installments > 1 
+        ? (totalAmountValue / data.installments).toFixed(2) 
+        : null;
+      
       // Formato ISO para data que será corretamente processado pelo servidor
       // Também converte o formato de número brasileiro (com vírgula) para o formato com ponto
       const formattedData = {
@@ -374,9 +408,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
         installments: data.installments || 1,
         // Calculamos o valor da parcela com base no valor total e número de parcelas
-        installmentValue: data.totalAmount && data.installments && data.installments > 1 
-          ? (parseFloat(data.totalAmount.replace(',', '.')) / data.installments).toFixed(2) 
-          : null,
+        installmentValue: installmentValueCalculated,
       };
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
@@ -395,7 +427,35 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         throw new Error(error.message || "Erro ao salvar venda");
       }
       
-      return await response.json();
+      const savedSale = await response.json();
+      
+      // Se for mais de uma parcela, crie as parcelas no banco
+      if (data.installments > 1 && installmentDates.length > 0) {
+        // Preparar os dados das parcelas
+        const installmentData = installmentDates.map((date, index) => ({
+          saleId: savedSale.id,
+          installmentNumber: index + 1,
+          amount: installmentValueCalculated,
+          dueDate: date.toISOString(),
+          status: 'pending'
+        }));
+        
+        // Salvar as parcelas
+        const installmentsResponse = await fetch(`/api/sales/${savedSale.id}/installments`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(installmentData),
+        });
+        
+        if (!installmentsResponse.ok) {
+          const error = await installmentsResponse.json();
+          throw new Error(error.message || "Erro ao salvar parcelas");
+        }
+      }
+      
+      return savedSale;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
