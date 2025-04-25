@@ -1304,39 +1304,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: "Venda criada"
       });
       
-      // Verificar se a venda é à vista (1 parcela)
+      // Criar parcelas para a venda, independente do número de parcelas
       let finalStatus = "pending";
       
-      if (createdSale.installments === 1) {
-        // MODIFICADO: Vendas à vista agora permanecem com status "pending"
-        // para aguardar o operacional iniciar o tratamento
-        try {
+      try {
+        // Obter o número de parcelas e valor total da venda
+        const numInstallments = createdSale.installments || 1;
+        const totalAmount = parseFloat(createdSale.totalAmount.toString());
+        
+        if (numInstallments === 1) {
+          // Venda à vista - uma parcela única
           console.log("Venda com parcela única (à vista) - mantendo status 'pending'");
-          
-          // Não alteramos mais o status para approved automaticamente
-          // O status permanece como "pending"
-          
-          // Não criamos mais o histórico de mudança para approved
-          // O status continua como "pending"
-          
-          finalStatus = "pending";
-          
-          // Criar a parcela única com vencimento para hoje
-          const installmentValue = createdSale.totalAmount;
           
           await storage.createSaleInstallment({
             saleId: createdSale.id,
             installmentNumber: 1,
-            amount: installmentValue,
-            dueDate: new Date(), // Vencimento na data atual
+            amount: createdSale.totalAmount.toString(),
+            dueDate: new Date().toISOString().split('T')[0], // Vencimento na data atual
             status: "pending", // Status inicial da parcela
             paymentDate: null
           });
           
-          console.log(`Parcela única criada com valor ${installmentValue} e vencimento hoje`);
-        } catch (err) {
-          console.error("Erro ao processar venda à vista:", err);
+          console.log(`Parcela única criada com valor ${createdSale.totalAmount} e vencimento hoje`);
+        } else {
+          // Venda parcelada - criar múltiplas parcelas
+          console.log(`Criando ${numInstallments} parcelas para a venda #${createdSale.id}`);
+          
+          // Calcular o valor de cada parcela
+          const installmentValue = parseFloat((totalAmount / numInstallments).toFixed(2));
+          
+          // Ajustar a última parcela para garantir que a soma seja exata
+          const lastInstallmentValue = totalAmount - (installmentValue * (numInstallments - 1));
+          
+          // Criar as parcelas
+          const hoje = new Date();
+          for (let i = 1; i <= numInstallments; i++) {
+            // Definir data de vencimento (30 dias após o mês anterior)
+            const dueDate = new Date(hoje);
+            dueDate.setMonth(hoje.getMonth() + (i - 1));
+            
+            // Definir o valor, ajustando para a última parcela se necessário
+            const amount = i === numInstallments ? lastInstallmentValue : installmentValue;
+            
+            await storage.createSaleInstallment({
+              saleId: createdSale.id,
+              installmentNumber: i,
+              amount: amount.toString(),
+              dueDate: dueDate.toISOString().split('T')[0],
+              status: "pending",
+              paymentDate: null
+            });
+          }
+          
+          console.log(`${numInstallments} parcelas criadas com sucesso para a venda #${createdSale.id}`);
         }
+      } catch (err) {
+        console.error("Erro ao processar parcelas da venda:", err);
       }
       
       // Buscar a venda atualizada com o valor total definido e possível status alterado
@@ -2481,46 +2504,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verificar se a venda já está em processo financeiro
       if (sale.financialStatus !== 'pending') {
         return res.status(400).json({ error: "Esta venda não está no status financeiro pendente" });
-      }
-      
-      // Verificar se já existem parcelas para esta venda
-      const existingInstallments = await storage.getSaleInstallments(saleId);
-      
-      // Se não houver parcelas, criar automaticamente com base nas informações da venda
-      if (existingInstallments.length === 0) {
-        console.log(`Criando parcelas para a venda #${saleId}`);
-        
-        // Obter o número de parcelas e valor da venda
-        const numInstallments = sale.installments || 1;
-        const totalAmount = parseFloat(sale.totalAmount.toString());
-        
-        // Calcular o valor de cada parcela
-        const installmentValue = parseFloat((totalAmount / numInstallments).toFixed(2));
-        
-        // Ajustar a última parcela para garantir que a soma seja exata
-        const lastInstallmentValue = totalAmount - (installmentValue * (numInstallments - 1));
-        
-        // Criar as parcelas
-        const hoje = new Date();
-        for (let i = 1; i <= numInstallments; i++) {
-          // Definir data de vencimento (30 dias após o mês anterior)
-          const dueDate = new Date(hoje);
-          dueDate.setMonth(hoje.getMonth() + (i - 1));
-          
-          // Definir o valor, ajustando para a última parcela se necessário
-          const amount = i === numInstallments ? lastInstallmentValue : installmentValue;
-          
-          await storage.createSaleInstallment({
-            saleId,
-            installmentNumber: i,
-            amount: amount.toString(),
-            dueDate: dueDate.toISOString().split('T')[0],
-            status: 'pending',
-            paymentDate: null
-          });
-        }
-        
-        console.log(`Parcelas criadas com sucesso para a venda #${saleId}`);
       }
       
       // Atualizar o status financeiro e o responsável financeiro
