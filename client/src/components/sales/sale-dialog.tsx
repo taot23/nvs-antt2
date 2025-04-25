@@ -462,16 +462,34 @@ export default function SaleDialog({
       
       // Formato ISO para data que será corretamente processado pelo servidor
       // Também converte o formato de número brasileiro (com vírgula) para o formato com ponto
-      console.log("Debug - Número de parcelas antes da formatação:", data.installments);
+      // Verificamos e convertemos, de forma MUITO cuidadosa, o número de parcelas
+      const rawInstallmentsValue = data.installments;
+      let parsedInstallments = 1; // Padrão para evitar problemas
+      
+      console.log(`Debug - Valor bruto de parcelas: [${rawInstallmentsValue}], tipo: ${typeof rawInstallmentsValue}`);
+      
+      if (typeof rawInstallmentsValue === 'number') {
+        parsedInstallments = rawInstallmentsValue;
+      } else if (typeof rawInstallmentsValue === 'string') {
+        parsedInstallments = parseInt(rawInstallmentsValue, 10);
+      }
+      
+      // Garantir valor válido
+      if (isNaN(parsedInstallments) || parsedInstallments < 1) {
+        parsedInstallments = 1;
+      }
+      
+      console.log(`Debug - Número de parcelas após validação: ${parsedInstallments}`);
+      
       const formattedData = {
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
-        installments: Number(data.installments) || 1, // Garantir que seja número
+        installments: parsedInstallments,
         // Calculamos o valor da parcela com base no valor total e número de parcelas
         installmentValue: installmentValueCalculated,
       };
-      console.log("Debug - Dados formatados a serem enviados:", formattedData);
+      console.log("Debug - Dados formatados a serem enviados:", JSON.stringify(formattedData, null, 2));
       
       // Adiciona as datas de vencimento das parcelas se o pagamento for parcelado
       if (data.installments > 1 && installmentDates.length > 0) {
