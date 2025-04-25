@@ -2354,11 +2354,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
-      // Buscar parcelas no banco de dados
-      const installments = await storage.getSaleInstallments(id);
+      console.log(`Buscando parcelas para venda #${id}, número de parcelas na venda: ${sale.installments}`);
       
+      // Buscar parcelas no banco de dados
+      let installments = await storage.getSaleInstallments(id);
+      console.log(`Encontradas ${installments.length} parcelas no banco para a venda #${id}`);
+      
+      // Se a venda tiver múltiplas parcelas mas não estiver no banco, vamos criar com base no total e número de parcelas
+      if (sale.installments > 1 && installments.length === 0) {
+        console.log(`CORREÇÃO: Venda #${id} deveria ter ${sale.installments} parcelas, mas não tem parcelas no banco. Criando parcelas.`);
+        
+        // Calcular o valor de cada parcela
+        const totalAmount = parseFloat(sale.totalAmount);
+        const numInstallments = sale.installments;
+        const installmentValue = (totalAmount / numInstallments).toFixed(2);
+        
+        // Criar parcelas para essa venda
+        const today = new Date();
+        const installmentsToCreate = [];
+        
+        for (let i = 1; i <= numInstallments; i++) {
+          // Definir data de vencimento (30 dias após o mês anterior)
+          const dueDate = new Date(today);
+          dueDate.setMonth(today.getMonth() + (i - 1));
+          
+          installmentsToCreate.push({
+            saleId: id,
+            installmentNumber: i,
+            amount: installmentValue,
+            dueDate: dueDate.toISOString().split('T')[0],
+            status: "pending",
+            paymentDate: null
+          });
+        }
+        
+        console.log(`Criando ${installmentsToCreate.length} parcelas automaticamente`);
+        
+        // Criar parcelas em massa
+        try {
+          await storage.deleteSaleInstallments(id); // Remover se houver alguma
+          const createdInstallments = await storage.createSaleInstallments(installmentsToCreate);
+          installments = createdInstallments; // Atualizar para retornar as parcelas criadas
+          console.log(`${createdInstallments.length} parcelas criadas com sucesso`);
+        } catch (error) {
+          console.error("Erro ao criar parcelas automaticamente:", error);
+        }
+      }
       // Se a venda for à vista (1 parcela) e não tiver parcelas no banco, criar uma parcela virtual
-      if (sale.installments <= 1 && installments.length === 0) {
+      else if (sale.installments <= 1 && installments.length === 0) {
         console.log(`Venda #${id} é à vista e não tem parcelas no banco. Criando parcela virtual.`);
         
         // Tenta criar uma parcela real para essa venda à vista
