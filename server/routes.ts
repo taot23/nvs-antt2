@@ -2174,6 +2174,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar parcelas da venda" });
     }
   });
+  
+  // Rota para criar parcelas para uma venda
+  app.post("/api/sales/:id/installments", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Validar os dados das parcelas
+      if (!Array.isArray(req.body)) {
+        return res.status(400).json({ error: "O corpo da requisição deve ser um array de parcelas" });
+      }
+      
+      // Remove parcelas existentes, se houver
+      await storage.deleteSaleInstallments(id);
+      
+      // Prepara os dados das parcelas com o ID da venda
+      const installmentsData = req.body.map(item => ({
+        saleId: id,
+        installmentNumber: item.number || item.installmentNumber,
+        amount: item.amount,
+        dueDate: item.dueDate,
+        status: item.status || 'pending',
+        notes: item.notes || null
+      }));
+      
+      console.log(`Criando ${installmentsData.length} parcelas para a venda #${id}`);
+      
+      // Cria as novas parcelas
+      const installments = await storage.createSaleInstallments(installmentsData);
+      
+      // Emitir evento de atualização
+      notifySalesUpdate();
+      
+      res.status(201).json(installments);
+    } catch (error) {
+      console.error("Erro ao criar parcelas da venda:", error);
+      res.status(500).json({ error: "Erro ao criar parcelas da venda" });
+    }
+  });
 
   // Criar o servidor HTTP
   const httpServer = createServer(app);
