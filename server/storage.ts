@@ -483,6 +483,12 @@ export class DatabaseStorage implements IStorage {
     // Precisamos garantir que o totalAmount seja preservado
     // Vamos extrair ele antes da inserção
     const userTotalAmount = saleData.totalAmount;
+    
+    // Extraímos as datas de instalações se existirem (propriedade customizada)
+    // @ts-ignore - Esta propriedade vem do frontend
+    const installmentDates = saleData.installmentDates;
+    // @ts-ignore - Removemos para não causar erro na inserção
+    delete saleData.installmentDates;
 
     const [createdSale] = await db
       .insert(sales)
@@ -513,6 +519,32 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
+    // Se a venda tiver mais de uma parcela e as datas de vencimento foram fornecidas
+    if (createdSale.installments > 1 && installmentDates && Array.isArray(installmentDates)) {
+      try {
+        console.log(`Criando ${installmentDates.length} parcelas para a venda ${createdSale.id}`);
+        
+        // Garantir que temos um valor de parcela válido, nunca nulo
+        const installmentValue = createdSale.installmentValue || '0';
+        
+        const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => ({
+          saleId: createdSale.id,
+          installmentNumber: index + 1,
+          dueDate,
+          amount: installmentValue,
+          status: 'pending',
+          notes: null
+        }));
+        
+        if (installmentsToCreate.length > 0) {
+          await this.createSaleInstallments(installmentsToCreate);
+          console.log(`Parcelas criadas com sucesso para a venda ${createdSale.id}`);
+        }
+      } catch (error) {
+        console.error("Erro ao criar parcelas:", error);
+      }
+    }
+    
     return createdSale;
   }
 
@@ -527,6 +559,12 @@ export class DatabaseStorage implements IStorage {
       if (!existingSale) {
         return undefined;
       }
+      
+      // Extraímos as datas de instalações se existirem (propriedade customizada)
+      // @ts-ignore - Esta propriedade vem do frontend
+      const installmentDates = saleData.installmentDates;
+      // @ts-ignore - Removemos para não causar erro na inserção
+      delete saleData.installmentDates;
       
       // Se estiver tentando atualizar o valor total, garantimos que ele seja preservado
       if (saleData.totalAmount) {
@@ -564,6 +602,42 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
+      // Se houve alteração no número de parcelas ou no valor da parcela e foram fornecidas novas datas
+      if (
+        (saleData.installments !== undefined || saleData.installmentValue !== undefined) && 
+        installmentDates && 
+        Array.isArray(installmentDates)
+      ) {
+        try {
+          // Remover parcelas existentes
+          await this.deleteSaleInstallments(id);
+          
+          console.log(`Recriando ${installmentDates.length} parcelas para a venda ${id}`);
+          
+          // Usar o novo valor de parcelas da venda atualizada
+          const installments = updatedSale.installments;
+          const installmentValue = updatedSale.installmentValue;
+          
+          if (installments > 1 && installmentValue) {
+            const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => ({
+              saleId: id,
+              installmentNumber: index + 1,
+              dueDate,
+              amount: installmentValue,
+              paid: false,
+              notes: null
+            }));
+            
+            if (installmentsToCreate.length > 0) {
+              await this.createSaleInstallments(installmentsToCreate);
+              console.log(`Parcelas recriadas com sucesso para a venda ${id}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Erro ao atualizar parcelas da venda #${id}:`, error);
+        }
+      }
+      
       return updatedSale || undefined;
     } catch (error) {
       console.error(`Erro ao atualizar venda #${id}:`, error);
@@ -572,16 +646,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSale(id: number): Promise<boolean> {
-    // Primeiro excluir os itens relacionados
-    await db.delete(saleItems).where(eq(saleItems.saleId, id));
-    
-    // Depois excluir a venda
-    const [deletedSale] = await db
-      .delete(sales)
-      .where(eq(sales.id, id))
-      .returning();
+    try {
+      // Primeiro excluir os itens relacionados
+      await db.delete(saleItems).where(eq(saleItems.saleId, id));
       
-    return !!deletedSale;
+      // Excluir as parcelas relacionadas
+      await this.deleteSaleInstallments(id);
+      
+      // Depois excluir a venda
+      const [deletedSale] = await db
+        .delete(sales)
+        .where(eq(sales.id, id))
+        .returning();
+        
+      return !!deletedSale;
+    } catch (error) {
+      console.error(`Erro ao excluir venda #${id}:`, error);
+      return false;
+    }
   }
   
   async getSalesPaginated(options: {
@@ -851,6 +933,60 @@ export class DatabaseStorage implements IStorage {
       .values(historyData)
       .returning();
     return createdHistory;
+  }
+
+  // Métodos de gerenciamento de parcelas
+  async getSaleInstallments(saleId: number): Promise<SaleInstallment[]> {
+    return await db
+      .select()
+      .from(saleInstallments)
+      .where(eq(saleInstallments.saleId, saleId))
+      .orderBy(saleInstallments.installmentNumber);
+  }
+  
+  async getSaleInstallment(id: number): Promise<SaleInstallment | undefined> {
+    const [installment] = await db
+      .select()
+      .from(saleInstallments)
+      .where(eq(saleInstallments.id, id));
+    return installment || undefined;
+  }
+  
+  async createSaleInstallment(installmentData: InsertSaleInstallment): Promise<SaleInstallment> {
+    const [createdInstallment] = await db
+      .insert(saleInstallments)
+      .values(installmentData)
+      .returning();
+    return createdInstallment;
+  }
+  
+  async createSaleInstallments(installmentsData: InsertSaleInstallment[]): Promise<SaleInstallment[]> {
+    if (installmentsData.length === 0) {
+      return [];
+    }
+    
+    const createdInstallments = await db
+      .insert(saleInstallments)
+      .values(installmentsData)
+      .returning();
+    return createdInstallments;
+  }
+  
+  async updateSaleInstallment(id: number, installmentData: Partial<InsertSaleInstallment>): Promise<SaleInstallment | undefined> {
+    const [updatedInstallment] = await db
+      .update(saleInstallments)
+      .set(installmentData)
+      .where(eq(saleInstallments.id, id))
+      .returning();
+    return updatedInstallment || undefined;
+  }
+  
+  async deleteSaleInstallments(saleId: number): Promise<boolean> {
+    const result = await db
+      .delete(saleInstallments)
+      .where(eq(saleInstallments.saleId, saleId))
+      .returning();
+    return result.length > 0;
   }
 
   // Operações especiais de vendas
