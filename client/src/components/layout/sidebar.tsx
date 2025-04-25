@@ -19,7 +19,8 @@ import {
   CreditCard,
   Tags,
   HardHat,
-  ShoppingCart
+  ShoppingCart,
+  DollarSign
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -99,6 +100,12 @@ export function Sidebar() {
       icon: <ShoppingCart className="h-5 w-5" />,
       label: 'Vendas'
       // Sem roles = todos os perfis têm acesso
+    },
+    {
+      path: '/finance',
+      icon: <DollarSign className="h-5 w-5" />,
+      label: 'Financeiro',
+      roles: ['admin', 'financeiro'] // Apenas admin e financeiro
     },
     {
       path: '/customers',

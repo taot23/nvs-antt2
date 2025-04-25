@@ -2282,7 +2282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description,
         amount: amount.toString(),
         date: date ? date : new Date().toISOString(),
-        registeredBy: req.user!.id,
+        responsibleId: req.user!.id,
         notes: notes || null
       });
       
