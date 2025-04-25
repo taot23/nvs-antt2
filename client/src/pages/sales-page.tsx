@@ -1325,7 +1325,7 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo - VERSÃO ULTRA SIMPLIFICADA */}
+      {/* Interface adaptativa com base no dispositivo - VERSÃO BARE BONES */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
@@ -1334,13 +1334,13 @@ export default function SalesPage() {
         <div className="mobile-view-container">
           <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Rolagem nativa - versão simplificada para celulares
+              Rolagem ultra-simplificada - versão extremamente básica para celulares
             </p>
           </div>
           
-          {/* Nova abordagem ultra-simples para móvel */}
+          {/* Abordagem Bare Bones (ultra-simplificada) para móvel */}
           <div className="mt-2 border-t border-border">
-            <UltraSimpleMobileCards
+            <BareBonesMobileList
               data={filteredSales}
               isLoading={isLoading}
               error={error as Error}
