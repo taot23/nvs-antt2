@@ -34,6 +34,7 @@ import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
 import SwiperSalesCards from "@/components/swiper-sales-cards";
+import UltraSimpleMobileCards from "@/components/ultra-simple-mobile-cards";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1407,36 +1408,38 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo */}
-      {/* MODO FORÇADO: Renderize SwiperSalesCards para QUALQUER dispositivo mobile */}
+      {/* Interface adaptativa com base no dispositivo - VERSÃO ULTRA SIMPLIFICADA */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
         (navigator.maxTouchPoints > 0) || 
         window.innerWidth < 768 ? (
         <div className="mobile-view-container">
-          <div className="pb-3 pt-2">
+          <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Deslize para cima/baixo para navegar entre as vendas
+              Rolagem nativa - versão simplificada para celulares
             </p>
           </div>
           
-          <SwiperSalesCards
-            data={filteredSales}
-            isLoading={isLoading}
-            error={error as Error}
-            onViewDetails={handleViewDetails}
-            onViewHistory={handleViewHistory}
-            onEdit={handleEdit}
-            onStartExecution={handleStartExecution}
-            onCompleteExecution={handleCompleteExecution}
-            onReturnClick={handleReturnClick}
-            onMarkAsPaid={handleMarkAsPaid}
-            onDeleteClick={handleDeleteClick}
-            user={user}
-            ReenviaButton={ReenviaButton}
-            DevolveButton={DevolveButton}
-          />
+          {/* Nova abordagem ultra-simples para móvel */}
+          <div className="mt-2 border-t border-border">
+            <UltraSimpleMobileCards
+              data={filteredSales}
+              isLoading={isLoading}
+              error={error as Error}
+              onViewDetails={handleViewDetails}
+              onViewHistory={handleViewHistory}
+              onEdit={handleEdit}
+              onStartExecution={handleStartExecution}
+              onCompleteExecution={handleCompleteExecution}
+              onReturnClick={handleReturnClick}
+              onMarkAsPaid={handleMarkAsPaid}
+              onDeleteClick={handleDeleteClick}
+              user={user}
+              ReenviaButton={ReenviaButton}
+              DevolveButton={DevolveButton}
+            />
+          </div>
         </div>
       ) : (
         <PaginatedSalesTable

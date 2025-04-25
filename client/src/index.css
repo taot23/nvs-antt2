@@ -49,6 +49,32 @@
     -webkit-overflow-scrolling: touch;
   }
   
+  /* Estilos para a versão ultra simplificada do componente mobile */
+  .ultra-simple-mobile-container {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transform: translateZ(0);
+    will-change: scroll-position;
+  }
+  
+  .mobile-view-container {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .mobile-card {
+    will-change: transform;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease;
+  }
+  
+  .mobile-card:active {
+    transform: scale(0.98);
+  }
+  
   .native-sales-scroller {
     height: calc(100vh - 230px);
     overflow-y: auto;
