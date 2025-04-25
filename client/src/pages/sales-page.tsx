@@ -33,7 +33,6 @@ import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
-import BareBonesMobileList from "@/components/bare-bones-mobile-list";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -321,7 +320,7 @@ export default function SalesPage() {
     gcTime,
     refetchOnWindowFocus: false,
   });
-  
+
   // Preparar dados enriquecidos
   const enrichedSales = sales.map((sale: Sale) => {
     const customer = customers.find((c: any) => c.id === sale.customerId);
@@ -339,26 +338,63 @@ export default function SalesPage() {
       serviceProviderName: serviceProvider?.name || null
     };
   });
-  
-  // Mutation para excluir uma venda
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/sales/${id}`, {
-        method: "DELETE",
-      });
+
+  // Filtrar vendas com base no termo de busca e filtro de status
+  const filteredSales = useMemo(() => {
+    let filtered = [...enrichedSales];
+    
+    return filtered;
+  }, [enrichedSales]);
+
+  // Usar o evento WebSocket para atualizar dados de vendas
+  useEffect(() => {
+    if (lastEvent?.type === 'sales_update') {
+      console.log("Recebendo atualização de vendas via WebSocket");
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao excluir venda");
+      // Verificar se está na página de vendas antes de atualizar
+      if (window.location.pathname.includes('/sales')) {
+        refetch();
       }
-      
-      return true;
+    }
+  }, [lastEvent, refetch]);
+
+  // Atualizar o termo de pesquisa com debounce
+  const updateSearchTerm = useDebounce(() => {
+    setSearchTerm(internalSearchTerm);
+    setPage(1); // Resetar para a primeira página ao pesquisar
+  }, 500);
+
+  useEffect(() => {
+    updateSearchTerm();
+  }, [internalSearchTerm, updateSearchTerm]);
+
+  // Manipulador de mudança de filtro de status
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1); // Resetar para a primeira página ao filtrar
+  };
+
+  // Manipulador de mudança de intervalo de datas
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    setPage(1); // Resetar para a primeira página ao alterar datas
+  };
+
+  // Mutation para excluir uma venda
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/sales/${id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao excluir venda");
+      }
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
         title: "Venda excluída",
-        description: "A venda foi excluída com sucesso",
+        description: `A venda foi excluída com sucesso.`,
       });
       setDeleteDialogOpen(false);
     },
@@ -370,30 +406,52 @@ export default function SalesPage() {
       });
     },
   });
-  
-  // Mutation para iniciar execução
-  const startExecutionMutation = useMutation({
-    mutationFn: async (id: number) => {
-      // Ao invés de chamar diretamente a API, vamos abrir o diálogo de operação
-      // para garantir que o usuário pode selecionar o tipo de execução e prestador parceiro
-      
-      // Selecionar a venda atual
-      const sale = sales.find((sale: Sale) => sale.id === id);
-      if (!sale) {
-        throw new Error("Venda não encontrada");
+
+  // Mutation para devolver uma venda
+  const returnSaleMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
+      const response = await apiRequest("POST", `/api/sales/${id}/return`, { reason });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao devolver venda");
       }
-      
-      // Definir como selecionada e abrir diálogo de operação
-      setSelectedSale(sale);
-      setOperationDialogOpen(true);
-      
-      // Retornar um resultado vazio - o diálogo se encarregará do restante
-      return { success: true };
+      return await response.json();
     },
-    onSuccess: () => {
-      // Apenas invalidar a consulta - não mostrar mensagem de sucesso
-      // pois o processo será concluído no diálogo de operação
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      toast({
+        title: "Venda devolvida",
+        description: `A venda foi devolvida com sucesso.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao devolver venda",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para iniciar a execução
+  const startExecutionMutation = useMutation({
+    mutationFn: async ({ id, serviceTypeId, serviceProviderId }: { id: number; serviceTypeId?: number; serviceProviderId?: number }) => {
+      const response = await apiRequest("POST", `/api/sales/${id}/start-execution`, { 
+        serviceTypeId, 
+        serviceProviderId 
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao iniciar execução");
+      }
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      toast({
+        title: "Execução iniciada",
+        description: `A execução da venda foi iniciada com sucesso.`,
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -403,30 +461,23 @@ export default function SalesPage() {
       });
     },
   });
-  
-  // Mutation para completar execução
+
+  // Mutation para concluir a execução
   const completeExecutionMutation = useMutation({
     mutationFn: async (id: number) => {
-      // Ao invés de chamar diretamente a API, vamos abrir o diálogo de operação
-      // para garantir que o usuário tenha acesso a todas as opções
-      
-      // Selecionar a venda atual
-      const sale = sales.find((sale: Sale) => sale.id === id);
-      if (!sale) {
-        throw new Error("Venda não encontrada");
+      const response = await apiRequest("POST", `/api/sales/${id}/complete-execution`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao concluir execução");
       }
-      
-      // Definir como selecionada e abrir diálogo de operação
-      setSelectedSale(sale);
-      setOperationDialogOpen(true);
-      
-      // Retornar um resultado vazio - o diálogo se encarregará do restante
-      return { success: true };
+      return await response.json();
     },
-    onSuccess: () => {
-      // Apenas invalidar a consulta - não mostrar mensagem de sucesso
-      // pois o processo será concluído no diálogo de operação
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      toast({
+        title: "Execução concluída",
+        description: `A execução da venda foi concluída com sucesso.`,
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -436,56 +487,48 @@ export default function SalesPage() {
       });
     },
   });
-  
-  // Mutation para limpar todas as vendas
-  const clearAllSalesMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/admin/clear-sales`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      
+
+  // Mutation para marcar como pago
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("POST", `/api/sales/${id}/mark-as-paid`);
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao limpar vendas");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao marcar como pago");
       }
-      
       return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
-        title: "Vendas removidas",
-        description: `Foram removidas ${data.count} vendas do sistema`,
+        title: "Pagamento registrado",
+        description: `O pagamento da venda foi registrado com sucesso.`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao limpar vendas",
+        title: "Erro ao registrar pagamento",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-  
-  // Mutation para reenviar venda corrigida
+
+  // Mutation para reenviar venda ao vendedor
   const resendSaleMutation = useMutation({
     mutationFn: async (id: number) => {
-      console.log("Iniciando mutation para reenviar diretamente venda:", id);
-      // Usar apiRequest ao invés de fetch diretamente
-      const response = await apiRequest("POST", `/api/sales/${id}/resend`, {
-        notes: "Venda corrigida e reenviada via botão rápido"
-      });
-      
+      const response = await apiRequest("POST", `/api/sales/${id}/resend`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao reenviar venda");
+      }
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
         title: "Venda reenviada",
-        description: "A venda corrigida foi reenviada com sucesso para o setor operacional",
+        description: `A venda foi reenviada ao vendedor com sucesso.`,
       });
     },
     onError: (error: Error) => {
@@ -497,683 +540,196 @@ export default function SalesPage() {
     },
   });
 
-  // Mutation para marcar como paga
-  const markAsPaidMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/sales/${id}/mark-paid`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-      
+  // Mutation para limpar todas as vendas (administrativo)
+  const clearAllSalesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/sales/clear-all`);
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao marcar venda como paga");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao limpar todas as vendas");
       }
-      
-      return await response.json();
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
-        title: "Pagamento confirmado",
-        description: "A venda foi marcada como paga com sucesso",
+        title: "Vendas limpas",
+        description: "Todas as vendas foram removidas com sucesso.",
       });
+      setClearSalesDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao confirmar pagamento",
+        title: "Erro ao limpar vendas",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-  
-  // Efeito para escutar atualizações via WebSocket
+
+  // Handler para atualização de vendas via WebSocket
   useEffect(() => {
-    if (lastEvent?.type === 'sales_update') {
-      console.log('Recebida atualização de vendas via WebSocket (lastEvent)');
-      
-      // Atualizar automaticamente os dados
-      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      
-      // Mostrar notificação
-      toast({
-        title: "Atualização de vendas",
-        description: "As vendas foram atualizadas",
-      });
-    }
-  }, [lastEvent, queryClient, toast]);
-  
-  // Adicionar ouvinte para o evento personalizado de sales-update
-  useEffect(() => {
-    // Função para lidar com o evento personalizado
     const handleSalesUpdateEvent = (event: Event) => {
-      console.log('Recebido evento personalizado sales-update');
-      
-      // Atualizar os dados
-      refetch();
-      
-      // Mostrar notificação
-      toast({
-        title: "Atualização de vendas",
-        description: "As vendas foram atualizadas via evento personalizado",
-      });
-    };
-    
-    // Adicionar o ouvinte de eventos
-    window.addEventListener('sales-update', handleSalesUpdateEvent);
-    
-    // Remover o ouvinte quando o componente for desmontado
-    return () => {
-      window.removeEventListener('sales-update', handleSalesUpdateEvent);
-    };
-  }, [refetch, toast]);
-  
-  // NOVA ABORDAGEM COM EFEITO DIRETO NO DOM
-  useLayoutEffect(() => {
-    // Função que aplica cores diretamente no DOM
-    const applyColorsToTable = () => {
-      console.log('Aplicando cores diretamente ao DOM...');
-      
-      // Para cada status, definimos cores específicas com cores mais intensas
-      const colorMap = {
-        'corrected': 'rgba(250, 240, 137, 0.25)',  // Amarelo mais visível
-        'completed': 'rgba(134, 239, 172, 0.25)',  // Verde mais visível
-        'in_progress': 'rgba(255, 159, 64, 0.3)',  // Laranja mais visível
-        'returned': 'rgba(252, 165, 165, 0.25)'    // Vermelho mais visível
-      };
-      
-      // Para cada linha com data-status
-      const rowsWithStatus = document.querySelectorAll('tr[data-status]');
-      console.log(`Encontradas ${rowsWithStatus.length} linhas com atributo data-status`);
-      
-      rowsWithStatus.forEach(row => {
-        const status = row.getAttribute('data-status');
-        console.log(`Processando linha com status: ${status}`);
-        
-        if (status && status in colorMap) {
-          // Aplicar cor em todas as células da linha
-          const cells = row.querySelectorAll('td');
-          console.log(`Aplicando cor ${colorMap[status as keyof typeof colorMap]} em ${cells.length} células`);
-          
-          cells.forEach(cell => {
-            (cell as HTMLElement).style.backgroundColor = colorMap[status as keyof typeof colorMap];
-            // Garantir que a cor seja aplicada com !important
-            (cell as HTMLElement).setAttribute('style', 
-              `background-color: ${colorMap[status as keyof typeof colorMap]} !important`);
-          });
-        }
-      });
-      
-      // Para cards no mobile
-      const cardsWithStatus = document.querySelectorAll('div[data-status]');
-      console.log(`Encontrados ${cardsWithStatus.length} cards com atributo data-status`);
-      
-      cardsWithStatus.forEach(card => {
-        const status = card.getAttribute('data-status');
-        console.log(`Processando card com status: ${status}`);
-        
-        if (status && status in colorMap) {
-          console.log(`Aplicando cor ${colorMap[status as keyof typeof colorMap]} ao card`);
-          // Aplicar diretamente no elemento com !important
-          (card as HTMLElement).setAttribute('style', 
-            `background-color: ${colorMap[status as keyof typeof colorMap]} !important`);
-        }
-      });
-    };
-    
-    // Aplicar cores imediatamente após a renderização
-    applyColorsToTable();
-    
-    // Programar várias tentativas com intervalos diferentes para garantir a aplicação
-    const timerIds: ReturnType<typeof setTimeout>[] = [];
-    // Tentar após 100ms, 300ms, 500ms, 1s e 2s para maior cobertura de cenários
-    [100, 300, 500, 1000, 2000].forEach(delay => {
-      const timerId = setTimeout(applyColorsToTable, delay);
-      timerIds.push(timerId);
-    });
-    
-    // Também adicionar observador de mutação para recolorir quando o DOM for modificado
-    const observer = new MutationObserver((mutations) => {
-      console.log('DOM modificado, reaplicando cores...');
-      applyColorsToTable();
-    });
-    
-    observer.observe(document.body, { 
-      childList: true, 
-      subtree: true 
-    });
-    
-    return () => {
-      // Limpar todos os timers
-      timerIds.forEach(id => clearTimeout(id));
-      // Desconectar o observer
-      observer.disconnect();
-    };
-  }, [sales, statusFilter, searchTerm]);
-  
-  // Função para forçar a atualização dos dados
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      // Primeiro tentar reconectar o WebSocket se não estiver conectado
-      if (!isConnected) {
-        console.log('WebSocket não conectado. Tentando reconectar...');
-        reconnect();
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail === 'sales_update') {
+        console.log("Evento de atualização de vendas recebido");
+        queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       }
-      
-      // Então atualizar os dados
-      await refetch();
-      toast({
-        title: "Dados atualizados",
-        description: "Os dados de vendas foram atualizados",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao atualizar",
-        description: "Não foi possível atualizar os dados",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-  
-  // Handlers
-  const handleOpenCreateDialog = () => {
-    console.log("Botão Nova Venda clicado");
-    // Limpar a venda selecionada e abrir o diálogo de criação
-    setSelectedSale(null);
-    // Usar o novo estado específico
-    setShowCreateVendaDialog(true);
-    
-    // Logs para diagnóstico
-    console.log("Abrindo diálogo de nova venda usando showCreateVendaDialog");
-  };
-  
+    };
+
+    // Adicionar ouvinte ao documento para eventos personalizados
+    document.addEventListener('sales_update', handleSalesUpdateEvent);
+
+    // Limpeza ao desmontar
+    return () => {
+      document.removeEventListener('sales_update', handleSalesUpdateEvent);
+    };
+  }, [queryClient]);
+
+  // Handlers de ações para vendas
   const handleEdit = (sale: Sale) => {
-    console.log("Botão Editar Venda clicado para venda:", sale.id);
-    // Primeiro selecionamos a venda
     setSelectedSale(sale);
-    // Usar um setTimeout para garantir que o estado seja atualizado
-    setTimeout(() => {
-      // Então abrir o diálogo
-      setDialogOpen(true);
-      console.log("Estado do diálogo após editar:", true);
-    }, 0);
+    setDialogOpen(true);
   };
-  
+
   const handleViewDetails = (sale: Sale) => {
     setSelectedSale(sale);
     setDetailsDialogOpen(true);
   };
-  
+
   const handleDeleteClick = (sale: Sale) => {
     setSelectedSale(sale);
     setDeleteDialogOpen(true);
   };
-  
-  const handleConfirmDelete = () => {
-    if (selectedSale) {
-      deleteMutation.mutate(selectedSale.id);
-    }
-  };
-  
+
   const handleReturnClick = (sale: Sale) => {
     setSelectedSale(sale);
     setReturnDialogOpen(true);
   };
-  
+
   const handleStartExecution = (sale: Sale) => {
-    // Novo fluxo: abrir tela de tratativa ao invés de executar diretamente
-    if (user?.role === "operacional" || user?.role === "admin" || user?.role === "supervisor") {
-      setSelectedSale(sale);
-      setOperationDialogOpen(true);
-    } else {
-      // Manter o comportamento anterior para outros casos
-      startExecutionMutation.mutate(sale.id);
-    }
+    setSelectedSale(sale);
+    setOperationDialogOpen(true);
   };
-  
+
   const handleCompleteExecution = (sale: Sale) => {
-    // Novo fluxo: abrir tela de tratativa para vendas em andamento também
-    if (user?.role === "operacional" || user?.role === "admin" || user?.role === "supervisor") {
-      setSelectedSale(sale);
-      setOperationDialogOpen(true);
-    } else {
-      // Manter o comportamento anterior para outros casos
-      completeExecutionMutation.mutate(sale.id);
-    }
+    completeExecutionMutation.mutate(sale.id);
   };
-  
+
   const handleMarkAsPaid = (sale: Sale) => {
     markAsPaidMutation.mutate(sale.id);
   };
-  
-  // Handler para visualizar histórico de status da venda
+
   const handleViewHistory = (sale: Sale) => {
     setSelectedSale(sale);
     setHistoryDialogOpen(true);
   };
-  
-  // Mutation para reenvio direto (usado por usuários não vendedores)
-  const handleDirectResend = (saleId: number) => {
-    console.log("Chamando mutation direta para reenvio (perfil não vendedor)");
-    resendSaleMutation.mutate(saleId);
-  };
-  
-  // Handler para limpar todas as vendas
-  const handleClearAllSales = () => {
-    setClearSalesDialogOpen(true);
-  };
-  
-  const handleConfirmClearAllSales = () => {
-    clearAllSalesMutation.mutate();
-    setClearSalesDialogOpen(false);
-  };
-  
-  // Função para aplicar debounce na pesquisa
-  const debouncedSearchTerm = useDebounce(internalSearchTerm, 300);
-  
-  // Efeito para atualizar o termo de pesquisa após o debounce
-  useEffect(() => {
-    setSearchTerm(debouncedSearchTerm);
-  }, [debouncedSearchTerm]);
-  
-  // Função para atualizar o termo de pesquisa interno (sem delay)
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInternalSearchTerm(e.target.value);
-  };
-  
-  const clearSearch = () => {
-    setSearchTerm("");
-    setInternalSearchTerm("");
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
+
+  // Confirmar exclusão
+  const handleConfirmDelete = () => {
+    if (selectedSale) {
+      deleteSaleMutation.mutate(selectedSale.id);
     }
   };
-  
+
+  // Confirmar limpeza de todas as vendas
+  const handleConfirmClearAllSales = () => {
+    clearAllSalesMutation.mutate();
+  };
+
+  // Função para alternar ordenação
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
+      // Se já estamos ordenando por este campo, alternamos a direção
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
+      // Caso contrário, mudamos o campo e definimos a direção para ascendente
       setSortField(field);
       setSortDirection('asc');
     }
+    setPage(1); // Resetar para a primeira página ao alterar ordenação
   };
-  
-  // Exportação para Excel
+
+  // Função para exportar dados em Excel
   const exportToExcel = () => {
     const exportData = filteredSales.map((sale: Sale) => ({
-      'Nº OS': sale.orderNumber,
-      'Data': format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
-      'Cliente': sale.customerName,
-      'Vendedor': sale.sellerName,
-      'Valor Total': `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`,
+      'Número OS': sale.orderNumber,
+      'Data': sale.date ? new Date(sale.date).toLocaleDateString('pt-BR') : '',
+      'Cliente': sale.customerName || '',
+      'Vendedor': sale.sellerName || '',
+      'Forma de Pagamento': sale.paymentMethodName || '',
+      'Valor Total': parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
       'Status': getStatusLabel(sale.status),
-      'Pago': sale.financialStatus === 'paid' ? 'Sim' : 'Não',
+      'Observações': sale.notes || ''
     }));
-    
+
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas");
+    
+    // Ajustar largura das colunas
+    const colWidths = [
+      { wch: 12 }, // Número OS
+      { wch: 12 }, // Data
+      { wch: 25 }, // Cliente
+      { wch: 15 }, // Vendedor
+      { wch: 20 }, // Forma de Pagamento
+      { wch: 15 }, // Valor Total
+      { wch: 15 }, // Status
+      { wch: 30 }, // Observações
+    ];
+    worksheet["!cols"] = colWidths;
+
     XLSX.writeFile(workbook, "vendas.xlsx");
   };
-  
-  // Exportação para PDF
+
+  // Função para exportar dados em PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    // Título
+    // Adicionar cabeçalho
     doc.setFontSize(18);
-    doc.text("Relatório de Vendas", 14, 22);
+    doc.text("Relatório de Vendas", 105, 15, { align: "center" });
+    doc.setFontSize(12);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 105, 22, { align: "center" });
     
-    // Data do relatório
-    doc.setFontSize(11);
-    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 30);
-    
-    // Filtro aplicado
-    if (statusFilter) {
-      doc.text(`Filtro: ${getStatusLabel(statusFilter)}`, 14, 38);
-    }
-    
-    // Dados para a tabela
+    // Preparar dados para a tabela
     const tableData = filteredSales.map((sale: Sale) => [
       sale.orderNumber,
-      format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
-      sale.customerName,
-      sale.sellerName,
-      `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`,
-      getStatusLabel(sale.status),
+      sale.date ? new Date(sale.date).toLocaleDateString('pt-BR') : '',
+      sale.customerName || '',
+      sale.sellerName || '',
+      parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      getStatusLabel(sale.status)
     ]);
     
-    // Criar tabela
+    // Adicionar tabela
     autoTable(doc, {
-      startY: statusFilter ? 45 : 38,
-      head: [['Nº OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
+      head: [['Número OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
       body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [75, 75, 75] },
+      startY: 30,
+      headStyles: { fillColor: [41, 128, 185] },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { top: 30 },
     });
     
     doc.save("vendas.pdf");
   };
-  
-  // Usuário atual e log simples
-  console.log("Renderizando SalesPage para usuário:", user?.role);
-  
-  // A filtragem e ordenação agora é feita no servidor através da API paginada
-  // Os parâmetros: statusFilter, searchTerm, sortField e sortDirection
-  // são enviados diretamente para o servidor através dos parâmetros de query
-  const filteredSales = enrichedSales;
-  
-  // Renderização para dispositivos móveis
-  if (isMobile) {
+
+  // Se estiver carregando, mostre um indicador de carregamento
+  if (isLoading && !isRefreshing && !sales.length) {
     return (
-      <div className="container py-4 space-y-4">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Vendas</h1>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              size="icon"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              title="Atualizar dados"
-              className={`h-8 w-8 ${isConnected ? "border-green-500" : ""}`}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            </Button>
-            
-            <Button size="sm" onClick={handleOpenCreateDialog}>
-              <Plus className="h-4 w-4 mr-1" />
-              Nova
-            </Button>
-          </div>
+      <div className="container py-8 space-y-6">
+        <div className="flex justify-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
-        
-        <div className="flex flex-col space-y-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              type="search"
-              placeholder="Buscar venda..."
-              className="pl-8 pr-10"
-              value={internalSearchTerm}
-              onChange={handleSearch}
-            />
-            {searchTerm && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-9 px-2.5"
-                onClick={clearSearch}
-              >
-                <span className="sr-only">Limpar</span>
-                &times;
-              </Button>
-            )}
-          </div>
-          
-          {/* Filtro por intervalo de datas (versão mobile) */}
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            className="w-full"
-          />
-          
-          {/* Menu dropdown para filtro de status em mobile */}
-          <div className="flex items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full justify-between">
-                  <span>
-                    {!statusFilter 
-                      ? "Todas" 
-                      : statusFilter === "pending" 
-                        ? "Pendentes" 
-                        : statusFilter === "in_progress" 
-                          ? "Em Andamento" 
-                          : statusFilter === "completed" 
-                            ? "Concluídas" 
-                            : statusFilter === "returned" 
-                              ? "Devolvidas" 
-                              : statusFilter === "corrected" 
-                                ? "Corrigidas" 
-                                : "Filtrar por status"}
-                  </span>
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-full min-w-[200px]">
-                <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setStatusFilter("")}>
-                  <span className={!statusFilter ? "font-bold" : ""}>Todas</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
-                  <span className={statusFilter === "pending" ? "font-bold" : ""}>Pendentes</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("in_progress")}>
-                  <span className={statusFilter === "in_progress" ? "font-bold" : ""}>Em Andamento</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("completed")}>
-                  <span className={statusFilter === "completed" ? "font-bold" : ""}>Concluídas</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("returned")}>
-                  <span className={statusFilter === "returned" ? "font-bold" : ""}>Devolvidas</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("corrected")}>
-                  <span className={statusFilter === "corrected" ? "font-bold" : ""}>Corrigidas</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        
-        <div className="grid gap-4">
-          {isLoading ? (
-            <div className="text-center py-10">Carregando vendas...</div>
-          ) : error ? (
-            <div className="text-center py-10 text-destructive">Erro ao carregar vendas</div>
-          ) : filteredSales.length === 0 ? (
-            <div className="text-center py-10">
-              {searchTerm || statusFilter
-                ? "Nenhuma venda encontrada para sua busca"
-                : "Nenhuma venda cadastrada ainda"}
-            </div>
-          ) : (
-            filteredSales.map((sale: Sale) => {
-              return (
-                <Card 
-                  key={sale.id} 
-                  className="overflow-hidden"
-                  data-status={sale.status}
-                  style={getStatusStyle(sale.status)}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-base flex items-center">
-                          OS: {sale.orderNumber}
-                        </CardTitle>
-                        <CardDescription>
-                          {format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
-                        </CardDescription>
-                      </div>
-                      <Badge variant={getStatusVariant(sale.status) as any}>
-                        {getStatusLabel(sale.status)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="p-4 pt-0 pb-2 grid gap-1">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground text-xs">Cliente:</span>{" "}
-                      {sale.customerName}
-                    </div>
-                    
-                    <div className="text-sm">
-                      <span className="text-muted-foreground text-xs">Vendedor:</span>{" "}
-                      {sale.sellerName}
-                    </div>
-                    
-                    <div className="text-sm">
-                      <span className="text-muted-foreground text-xs">Valor:</span>{" "}
-                      <span className="font-semibold">
-                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                    
-                    {sale.returnReason && (
-                      <div className="text-sm mt-1 text-destructive">
-                        <span className="text-xs font-semibold">Motivo da devolução:</span>{" "}
-                        {sale.returnReason}
-                      </div>
-                    )}
-                  </CardContent>
-                  
-                  <CardFooter className="p-2 pt-0 flex flex-wrap gap-1">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="h-8 px-2 flex-grow"
-                      onClick={() => handleViewDetails(sale)}
-                    >
-                      <Eye className="h-3.5 w-3.5 mr-1" />
-                      Detalhes
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2 flex-grow"
-                      onClick={() => handleViewHistory(sale)}
-                    >
-                      <ClipboardList className="h-3.5 w-3.5 mr-1" />
-                      Histórico
-                    </Button>
-                    
-                    {/* Botões de ação com base no status e permissões */}
-                    {user?.role === "admin" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 flex-grow"
-                        onClick={() => handleEdit(sale)}
-                      >
-                        <Edit className="h-3.5 w-3.5 mr-1" />
-                        Editar
-                      </Button>
-                    )}
-                    
-                    {/* Botão para operacionais iniciarem execução */}
-                    {(user?.role === "admin" || user?.role === "operacional") && 
-                      (sale.status === "pending" || sale.status === "corrected") && (
-                      <Button
-                        size="sm"
-                        variant={sale.status === "corrected" ? "default" : "outline"}
-                        className={`h-8 px-2 flex-grow ${sale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}`}
-                        onClick={() => handleStartExecution(sale)}
-                      >
-                        <CornerDownRight className="h-3.5 w-3.5 mr-1" />
-                        Iniciar
-                      </Button>
-                    )}
-                    
-                    {/* Botão para operacionais concluírem execução */}
-                    {(user?.role === "admin" || user?.role === "operacional") && 
-                      sale.status === "in_progress" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 flex-grow"
-                        onClick={() => handleCompleteExecution(sale)}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                        Concluir
-                      </Button>
-                    )}
-                    
-                    {/* Botão para operacionais devolverem a venda */}
-                    {(user?.role === "admin" || user?.role === "operacional") && 
-                      (sale.status === "pending" || sale.status === "in_progress") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 flex-grow text-destructive border-destructive hover:bg-destructive/10"
-                        onClick={() => handleReturnClick(sale)}
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                        Devolver
-                      </Button>
-                    )}
-                    
-                    {/* Botão para vendedor/supervisor reenviar venda corrigida */}
-                    {sale.status === 'returned' && (
-                      <ReenviaButton sale={sale} />
-                    )}
-                    
-                    {/* Botão para operacional/admin devolver venda corrigida */}
-                    {(user?.role === "admin" || user?.role === "operacional") && 
-                      sale.status === "corrected" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 flex-grow text-amber-500 border-amber-200 hover:bg-amber-50"
-                        onClick={() => {
-                          // Abrir um diálogo semelhante ao DevolveButton, 
-                          // mas vamos usar o diálogo de retorno existente com o componente já pronto
-                          setSelectedSale(sale);
-                          setReturnDialogOpen(true);
-                        }}
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                        Devolver
-                      </Button>
-                    )}
-                    
-                    {/* Botão para financeiro marcar como paga */}
-                    {(user?.role === "admin" || user?.role === "financeiro") && 
-                      sale.status === "completed" && 
-                      sale.financialStatus !== "paid" && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 px-2 flex-grow"
-                        onClick={() => handleMarkAsPaid(sale)}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                        Confirmar Pagamento
-                      </Button>
-                    )}
-                    
-                    {/* Botão de exclusão (apenas admin) */}
-                    {user?.role === "admin" && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-8 px-2 flex-grow"
-                        onClick={() => handleDeleteClick(sale)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Excluir
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              );
-            })
-          )}
+        <div className="text-center text-muted-foreground">
+          Carregando vendas...
         </div>
       </div>
     );
   }
-  
+
   // Renderização para desktop
   return (
     <div className="container py-8 space-y-6">
@@ -1187,171 +743,82 @@ export default function SalesPage() {
         
         <div className="flex gap-2">
           <Button 
-            variant="outline"
-            size="icon"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            title="Atualizar dados"
-            className={isConnected ? "border-green-500" : ""}
+            variant="outline" 
+            className="gap-1 items-center" 
+            onClick={exportToExcel}
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            <FileText className="h-4 w-4" /> 
+            <span className="hidden sm:inline">Excel</span>
           </Button>
-          
-          <Button onClick={handleOpenCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Venda
+          <Button 
+            variant="outline" 
+            className="gap-1 items-center" 
+            onClick={exportToPDF}
+          >
+            <FileText className="h-4 w-4" /> 
+            <span className="hidden sm:inline">PDF</span>
+          </Button>
+          <Button 
+            onClick={() => setShowCreateVendaDialog(true)} 
+            className="gap-1 items-center"
+          >
+            <Plus className="h-4 w-4" /> 
+            <span className="hidden sm:inline">Nova Venda</span>
           </Button>
         </div>
       </div>
       
-      {/* Barra de ferramentas */}
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div className="relative w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            ref={searchInputRef}
-            type="search"
-            placeholder="Buscar venda..."
-            className="pl-8 pr-10"
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-end">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
             value={internalSearchTerm}
-            onChange={handleSearch}
+            onChange={(e) => setInternalSearchTerm(e.target.value)}
+            placeholder="Pesquisar por número OS, cliente ou vendedor..." 
+            className="pl-10"
+            ref={searchInputRef}
           />
-          {searchTerm && (
-            <Button
-              variant="ghost"
+        </div>
+        
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
+            <SelectItem value="in_progress">Em Andamento</SelectItem>
+            <SelectItem value="completed">Concluída</SelectItem>
+            <SelectItem value="returned">Devolvida</SelectItem>
+            <SelectItem value="corrected">Corrigida</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        <DateRangePicker
+          value={dateRange}
+          onChange={handleDateRangeChange}
+          placeholder="Filtrar por período"
+          locale={ptBR}
+          className="w-[250px]"
+        />
+        
+        <div className="md:col-span-3 flex justify-end">
+          {user?.role === 'admin' && (
+            <Button 
+              onClick={() => setClearSalesDialogOpen(true)} 
+              variant="destructive" 
               size="sm"
-              className="absolute right-0 top-0 h-9 px-2.5"
-              onClick={clearSearch}
+              className="gap-1 items-center"
             >
-              <span className="sr-only">Limpar</span>
-              &times;
+              <Trash2 className="h-4 w-4" /> 
+              Limpar Vendas
             </Button>
           )}
         </div>
-        
-        <div className="flex gap-3">
-          {/* Filtro por intervalo de datas */}
-          <div className="flex-shrink-0">
-            <DateRangePicker
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-            />
-          </div>
-          
-          {/* Menu dropdown para filtros de status */}
-          <div className="flex items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="min-w-[150px] justify-between">
-                  <span>
-                    {!statusFilter 
-                      ? "Todas" 
-                      : statusFilter === "pending" 
-                        ? "Pendentes" 
-                        : statusFilter === "in_progress" 
-                          ? "Em Andamento" 
-                          : statusFilter === "completed" 
-                            ? "Concluídas" 
-                            : statusFilter === "returned" 
-                              ? "Devolvidas" 
-                              : statusFilter === "corrected" 
-                                ? "Corrigidas" 
-                                : "Filtrar por status"}
-                  </span>
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-full min-w-[200px]">
-                <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setStatusFilter("")}>
-                  <span className={!statusFilter ? "font-bold" : ""}>Todas</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
-                  <span className={statusFilter === "pending" ? "font-bold" : ""}>Pendentes</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("in_progress")}>
-                  <span className={statusFilter === "in_progress" ? "font-bold" : ""}>Em Andamento</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("completed")}>
-                  <span className={statusFilter === "completed" ? "font-bold" : ""}>Concluídas</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("returned")}>
-                  <span className={statusFilter === "returned" ? "font-bold" : ""}>Devolvidas</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter("corrected")}>
-                  <span className={statusFilter === "corrected" ? "font-bold" : ""}>Corrigidas</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          
-          <div className="flex gap-2 ml-auto">
-            <Button variant="outline" onClick={exportToPDF}>
-              <FileText className="mr-2 h-4 w-4" />
-              Exportar PDF
-            </Button>
-            <Button variant="outline" onClick={exportToExcel}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar Excel
-            </Button>
-            
-            {/* Botões de administração */}
-            {(user?.role === "admin") && (
-              <>
-                <PopulateSalesButton />
-                <Button 
-                  variant="destructive" 
-                  onClick={handleClearAllSales}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Limpar Vendas
-                </Button>
-              </>
-            )}
-            
-            {/* Operacional pode limpar vendas mas não popular */}
-            {(user?.role === "operacional") && (
-              <Button 
-                variant="destructive" 
-                onClick={handleClearAllSales}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Limpar Vendas
-              </Button>
-            )}
-          </div>
-        </div>
       </div>
       
-      {/* Interface otimizada para dispositivos móveis com técnicas modernas */}
-      {isMobile ? (
-        <div className="mobile-view-container pb-2">
-          <div className="pb-1 pt-1">
-            <p className="text-xs text-muted-foreground text-center">
-              Visualização Mobile Otimizada
-            </p>
-          </div>
-          
-          {/* Componente ultra simples para visualização móvel */}
-          <BareBonesMobileList
-            data={enrichedSales}
-            isLoading={isLoading}
-            error={error as Error}
-            onViewDetails={handleViewDetails}
-            onViewHistory={handleViewHistory}
-            onEdit={handleEdit}
-            onStartExecution={handleStartExecution}
-            onCompleteExecution={handleCompleteExecution}
-            onReturnClick={handleReturnClick}
-            onMarkAsPaid={handleMarkAsPaid}
-            onDeleteClick={handleDeleteClick}
-            user={user}
-            ReenviaButton={ReenviaButton}
-            DevolveButton={DevolveButton}
-          />
-        </div>
-      ) : (
+      {/* Interface única para dispositivos móveis e desktop */}
+      <div className="w-full overflow-hidden">
         <PaginatedSalesTable
           data={filteredSales}
           isLoading={isLoading}
@@ -1380,7 +847,7 @@ export default function SalesPage() {
           ReenviaButton={ReenviaButton}
           DevolveButton={DevolveButton}
         />
-      )}
+      </div>
       
       {/* Diálogo apenas para edição de vendas existentes */}
       {dialogOpen && (

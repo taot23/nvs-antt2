@@ -12,9 +12,7 @@ import PaymentMethodsPage from "@/pages/payment-methods-page";
 import ServiceTypesPage from "@/pages/service-types-page";
 import ServiceProvidersPage from "@/pages/service-providers-page";
 import SalesPage from "@/pages/sales-page";
-import MobileSalesPage from "@/pages/mobile-sales-page";
 import SaleDetailsPage from "@/pages/sale-details";
-import UltraSimpleMobilePage from "@/pages/ultra-simple-mobile";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -102,15 +100,7 @@ const ProtectedSales = () => {
   );
 };
 
-// Componentes específicos para as novas páginas móveis
-const ProtectedMobileSales = () => {
-  console.log("Renderizando ProtectedMobileSales");
-  return (
-    <ProtectedApp>
-      <MobileSalesPage />
-    </ProtectedApp>
-  );
-};
+// Componente para a página de detalhes de venda
 
 const ProtectedSaleDetails = () => {
   console.log("Renderizando ProtectedSaleDetails");
@@ -121,14 +111,7 @@ const ProtectedSaleDetails = () => {
   );
 };
 
-const ProtectedUltraSimpleMobile = () => {
-  console.log("Renderizando ProtectedUltraSimpleMobile");
-  return (
-    <ProtectedApp>
-      <UltraSimpleMobilePage />
-    </ProtectedApp>
-  );
-};
+
 
 function Router() {
   console.log("Renderizando Router");
@@ -143,9 +126,8 @@ function Router() {
       <ProtectedRoute path="/service-types" component={ProtectedServiceTypes} />
       <ProtectedRoute path="/service-providers" component={ProtectedServiceProviders} />
       <ProtectedRoute path="/sales" component={ProtectedSales} />
-      <ProtectedRoute path="/mobile-sales" component={ProtectedMobileSales} />
+
       <ProtectedRoute path="/sale-details" component={ProtectedSaleDetails} />
-      <ProtectedRoute path="/ultra-simple" component={ProtectedUltraSimpleMobile} />
       <Route component={NotFound} />
     </Switch>
   );
