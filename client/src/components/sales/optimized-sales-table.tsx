@@ -123,7 +123,7 @@ export default function OptimizedSalesTable({
     ]);
     
     autoTable(doc, {
-      head: [['Número', 'Data', 'Cliente', 'Vendedor', 'Valor', 'Status']],
+      head: [['Ordem de Serviço', 'Data', 'Cliente', 'Vendedor', 'Valor', 'Status']],
       body: tableData,
       startY: 40,
       styles: { fontSize: 8, cellPadding: 2 },
