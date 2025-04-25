@@ -1,513 +1,460 @@
-import React, { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { formatCurrency, formatDate, parseInputToNumber } from "@/lib/formatters";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { DatePicker } from "@/components/ui/date-picker";
 import { 
   Card, 
   CardContent, 
   CardDescription, 
-  CardFooter, 
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  AlertCircle, 
-  DollarSign, 
-  Loader2, 
-  PlusCircle, 
-  Receipt, 
-  Trash2, 
-  X 
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { useForm } from "react-hook-form";
+import { Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/formatters";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CostType, SaleOperationalCost } from "@shared/schema";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface OperationalCostsProps {
-  saleId: number | null;
-  canManage: boolean;
+  saleId: number;
 }
 
-export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
+interface AddCostFormData {
+  costTypeId: number;
+  amount: string;
+  description: string;
+}
+
+export default function OperationalCosts({ saleId }: OperationalCostsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [costDialogOpen, setCostDialogOpen] = useState(false);
-  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
-  const [selectedCostId, setSelectedCostId] = useState<number | null>(null);
-  
-  // Form for adding new cost
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
-    defaultValues: {
-      description: "",
-      amount: "",
-      date: new Date().toISOString().split("T")[0], // Today as default
-      notes: "",
-      serviceProviderId: ""
-    }
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [formData, setFormData] = useState<AddCostFormData>({
+    costTypeId: 0,
+    amount: "",
+    description: ""
   });
   
-  // Buscar custos operacionais
-  const { data: costs = [], isLoading } = useQuery({
+  // Buscar custos operacionais existentes para esta venda
+  const { 
+    data: operationalCosts = [], 
+    isLoading, 
+    error 
+  } = useQuery({
     queryKey: ['/api/sales', saleId, 'operational-costs'],
     queryFn: async () => {
-      if (!saleId) return [];
-      const res = await apiRequest("GET", `/api/sales/${saleId}/operational-costs`);
-      return res.json();
+      const response = await fetch(`/api/sales/${saleId}/operational-costs`);
+      if (!response.ok) {
+        throw new Error('Erro ao carregar custos operacionais');
+      }
+      return response.json();
     },
-    enabled: !!saleId,
   });
   
-  // Buscar detalhes da venda
-  const { data: sale, isLoading: isLoadingSale } = useQuery({
-    queryKey: ['/api/sales', saleId],
+  // Buscar tipos de custo para o formulário
+  const { 
+    data: costTypes = [], 
+    isLoading: loadingCostTypes 
+  } = useQuery<CostType[]>({
+    queryKey: ['/api/cost-types'],
     queryFn: async () => {
-      if (!saleId) return null;
-      const res = await apiRequest("GET", `/api/sales/${saleId}`);
-      return res.json();
+      const response = await fetch('/api/cost-types?active=true');
+      if (!response.ok) {
+        throw new Error('Erro ao carregar tipos de custo');
+      }
+      return response.json();
     },
-    enabled: !!saleId,
   });
   
-  // Buscar tipo de serviço
-  const { data: serviceType, isLoading: isLoadingServiceType } = useQuery({
-    queryKey: ['/api/service-types', sale?.serviceTypeId],
-    queryFn: async () => {
-      if (!sale?.serviceTypeId) return null;
-      const res = await apiRequest("GET", `/api/service-types/${sale.serviceTypeId}`);
-      return res.json();
-    },
-    enabled: !!sale?.serviceTypeId,
-  });
-  
-  // Buscar prestador de serviço se aplicável
-  const { data: serviceProvider, isLoading: isLoadingServiceProvider } = useQuery({
-    queryKey: ['/api/service-providers', sale?.serviceProviderId],
-    queryFn: async () => {
-      if (!sale?.serviceProviderId) return null;
-      const res = await apiRequest("GET", `/api/service-providers/${sale.serviceProviderId}`);
-      return res.json();
-    },
-    enabled: !!sale?.serviceProviderId,
-  });
-  
-  // Verificar se é tipo SINDICATO
-  const isSindicatoType = serviceType?.name?.toUpperCase() === "SINDICATO";
-  
-  // Buscar todos os prestadores de serviço para exibir os nomes na tabela
-  const { data: serviceProviders = [] } = useQuery({
-    queryKey: ['/api/service-providers'],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/service-providers");
-      return res.json();
-    }
-  });
-  
-  // Função para obter o nome do prestador de serviço pelo ID
-  const getServiceProviderNameById = (id: number) => {
-    const provider = serviceProviders.find((p: any) => p.id === id);
-    return provider ? provider.name : `Prestador #${id}`;
-  };
-  
-  // Mutation para adicionar custo
+  // Mutação para adicionar um novo custo operacional
   const addCostMutation = useMutation({
-    mutationFn: async (data: any) => {
-      // Preparar os dados para envio, adicionando informações de serviço
-      const costData = {
-        ...data,
-        amount: parseInputToNumber(data.amount)
-      };
+    mutationFn: async (data: AddCostFormData) => {
+      // Converter o valor para o formato esperado pela API
+      const parsedAmount = data.amount.replace(/\./g, '').replace(',', '.');
       
-      // Se for SINDICATO e tiver prestador de serviço, incluir o ID do prestador
-      if (isSindicatoType && serviceProvider) {
-        costData.serviceProviderId = serviceProvider.id;
-        
-        // Adicionar o tipo ao início da descrição se não estiver presente
-        if (!costData.description.toUpperCase().includes("SINDICATO")) {
-          costData.description = `SINDICATO - ${costData.description}`;
-        }
+      const response = await fetch(`/api/sales/${saleId}/operational-costs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          amount: parsedAmount,
+          saleId
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao adicionar custo operacional');
       }
       
-      const res = await apiRequest("POST", `/api/sales/${saleId}/operational-costs`, costData);
-      return res.json();
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'operational-costs'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
+      // Limpar formulário
+      setFormData({
+        costTypeId: 0,
+        amount: "",
+        description: ""
+      });
       
+      // Fechar diálogo
+      setShowAddDialog(false);
+      
+      // Atualizar dados
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'operational-costs'] });
+      
+      // Mostrar notificação
       toast({
         title: "Custo adicionado",
-        description: "O custo operacional foi registrado com sucesso.",
+        description: "O custo operacional foi adicionado com sucesso.",
       });
-      
-      reset();
-      setCostDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Erro ao adicionar custo",
-        description: error.message || "Não foi possível adicionar o custo operacional.",
+        description: error.message,
         variant: "destructive",
       });
-    }
+    },
   });
   
-  // Mutation para excluir custo
+  // Mutação para excluir um custo operacional
   const deleteCostMutation = useMutation({
     mutationFn: async (costId: number) => {
-      await apiRequest("DELETE", `/api/sales/operational-costs/${costId}`);
+      const response = await fetch(`/api/sales/${saleId}/operational-costs/${costId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao excluir custo operacional');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
+      // Atualizar dados
       queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'operational-costs'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
       
+      // Mostrar notificação
       toast({
         title: "Custo excluído",
         description: "O custo operacional foi excluído com sucesso.",
       });
-      
-      setConfirmDeleteDialogOpen(false);
-      setSelectedCostId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Erro ao excluir custo",
-        description: error.message || "Não foi possível excluir o custo operacional.",
+        description: error.message,
         variant: "destructive",
       });
-    }
+    },
   });
   
-  // Função para abrir o diálogo de confirmação de exclusão
-  const openDeleteDialog = (costId: number) => {
-    setSelectedCostId(costId);
-    setConfirmDeleteDialogOpen(true);
+  // Função para formatar valor monetário no input
+  const handleAmountChange = (value: string) => {
+    // Remover tudo que não for número
+    const numericValue = value.replace(/\D/g, '');
+    
+    // Converter para formato de moeda (R$ 100,00)
+    if (numericValue === '') {
+      setFormData({ ...formData, amount: '' });
+    } else {
+      // Converter para centavos e depois para o formato brasileiro
+      const cents = parseInt(numericValue, 10);
+      const formatted = (cents / 100).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      
+      setFormData({ ...formData, amount: formatted });
+    }
   };
   
-  // Calcular total dos custos
-  const totalCosts = costs.reduce((sum: number, cost: any) => sum + Number(cost.amount), 0);
-  
-  const onSubmit = (data: any) => {
-    addCostMutation.mutate(data);
+  // Handler de submit do formulário
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validações básicas
+    if (!formData.costTypeId) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Selecione um tipo de custo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.amount || formData.amount === '0,00') {
+      toast({
+        title: "Campo obrigatório",
+        description: "Informe o valor do custo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Processar o envio
+    addCostMutation.mutate(formData);
   };
   
+  // Função para confirmar exclusão
+  const handleDeleteCost = (costId: number) => {
+    if (window.confirm('Tem certeza que deseja excluir este custo operacional?')) {
+      deleteCostMutation.mutate(costId);
+    }
+  };
+  
+  // Calcular o total de custos
+  const calculateTotal = () => {
+    return operationalCosts.reduce((total, cost) => {
+      return total + parseFloat(cost.amount.toString());
+    }, 0);
+  };
+  
+  // Exibir estado de carregamento
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Receipt className="mr-2 h-5 w-5" />
-            Custos Operacionais
-          </CardTitle>
-          <CardDescription>
-            Gerencie os custos operacionais relacionados a esta venda
-          </CardDescription>
+          <CardTitle>Custos Operacionais</CardTitle>
+          <CardDescription>Carregando informações...</CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Carregando custos...</span>
+        <CardContent>
+          <Skeleton className="h-8 w-full mb-4" />
+          <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Exibir erro, se houver
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Custos Operacionais</CardTitle>
+          <CardDescription>Ocorreu um erro ao carregar os dados</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            <p>Não foi possível carregar os custos operacionais. Tente novamente mais tarde.</p>
+          </div>
         </CardContent>
       </Card>
     );
   }
   
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <CardTitle className="flex items-center">
-                <Receipt className="mr-2 h-5 w-5" />
-                Custos Operacionais
-              </CardTitle>
-              <CardDescription>
-                Custos relacionados à execução operacional desta venda
-              </CardDescription>
-            </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div>
+          <CardTitle>Custos Operacionais</CardTitle>
+          <CardDescription>
+            Gerencie os custos operacionais desta venda
+          </CardDescription>
+        </div>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogTrigger asChild>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Custo
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar Custo Operacional</DialogTitle>
+              <DialogDescription>
+                Preencha os dados para registrar um novo custo operacional para esta venda.
+              </DialogDescription>
+            </DialogHeader>
             
-            {canManage && (
-              <Button 
-                onClick={() => setCostDialogOpen(true)}
-                variant="default"
-                className="bg-primary hover:bg-primary/90"
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Adicionar Custo
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {costs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                Não há custos operacionais registrados para esta venda.
-              </p>
-              {canManage && (
-                <Button 
-                  onClick={() => setCostDialogOpen(true)}
-                  variant="outline"
-                  className="mt-4"
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="costType">Tipo de Custo</Label>
+                <Select
+                  value={formData.costTypeId.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, costTypeId: parseInt(value) })}
                 >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Adicionar Custo
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo de custo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingCostTypes ? (
+                      <div className="flex items-center justify-center p-2">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        <span>Carregando...</span>
+                      </div>
+                    ) : (
+                      costTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          {type.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="amount">Valor</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    id="amount"
+                    placeholder="0,00"
+                    className="pl-9"
+                    value={formData.amount}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Descreva o custo operacional..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddDialog(false)}
+                >
+                  Cancelar
                 </Button>
-              )}
-            </div>
-          ) : (
+                <Button 
+                  type="submit"
+                  disabled={addCostMutation.isPending}
+                >
+                  {addCostMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>Salvar</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      
+      <CardContent>
+        {operationalCosts.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <p>Nenhum custo operacional registrado para esta venda.</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Custo
+            </Button>
+          </div>
+        ) : (
+          <ScrollArea className="max-h-[300px]">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Tipo de Custo</TableHead>
+                  <TableHead>Valor</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Detalhes</TableHead>
-                  {canManage && <TableHead className="text-right">Ações</TableHead>}
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {costs.map((cost: any) => (
-                  <TableRow key={cost.id}>
-                    <TableCell className="font-medium">
-                      {cost.description}
-                      {cost.serviceProviderId && (
-                        <div className="mt-1">
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                            SINDICATO
-                          </Badge>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{formatDate(cost.date)}</TableCell>
-                    <TableCell>{formatCurrency(cost.amount)}</TableCell>
-                    <TableCell className="max-w-[200px]">
-                      {cost.notes && <p className="truncate">{cost.notes}</p>}
-                      
-                      {cost.serviceProviderId && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          <p className="font-semibold">Prestador de Serviço:</p>
-                          <p className="text-sm">{getServiceProviderNameById(cost.serviceProviderId)}</p>
-                          <Button 
-                            variant="link" 
-                            size="sm" 
-                            className="h-auto p-0 text-xs"
-                            asChild
-                          >
-                            <a href={`/service-providers/${cost.serviceProviderId}`} target="_blank" rel="noopener noreferrer">
-                              Ver detalhes
-                            </a>
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                    {canManage && (
+                {operationalCosts.map((cost) => {
+                  // Encontrar nome do tipo de custo
+                  const costType = costTypes.find(t => t.id === cost.costTypeId);
+                  
+                  return (
+                    <TableRow key={cost.id}>
+                      <TableCell className="font-medium">
+                        {costType?.name || `Tipo #${cost.costTypeId}`}
+                      </TableCell>
+                      <TableCell>{formatCurrency(cost.amount)}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">
+                        <span title={cost.description || undefined}>
+                          {cost.description || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatDate(cost.createdAt)}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => openDeleteDialog(cost.id)}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteCost(cost.id)}
+                          title="Excluir custo"
+                          disabled={deleteCostMutation.isPending}
                         >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Excluir</span>
+                          {deleteCostMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          )}
                         </Button>
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  );
+                })}
+                
+                {/* Linha de total */}
+                <TableRow>
+                  <TableCell colSpan={1} className="font-bold">
+                    Total
+                  </TableCell>
+                  <TableCell colSpan={4} className="font-bold">
+                    {formatCurrency(calculateTotal())}
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-        {costs.length > 0 && (
-          <CardFooter className="border-t px-6 py-4">
-            <div className="flex items-center justify-between w-full">
-              <span className="text-muted-foreground">Total de custos operacionais:</span>
-              <span className="font-semibold text-lg">
-                {formatCurrency(totalCosts)}
-              </span>
-            </div>
-          </CardFooter>
+          </ScrollArea>
         )}
-      </Card>
-      
-      {/* Diálogo para adicionar custo */}
-      <Dialog open={costDialogOpen} onOpenChange={setCostDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar Custo Operacional</DialogTitle>
-            <DialogDescription>
-              Registre um novo custo relacionado à execução desta venda.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="description">Descrição <span className="text-destructive">*</span></Label>
-                <Input
-                  id="description"
-                  placeholder="Ex: Transporte, Material, etc."
-                  {...register("description", { required: "Descrição é obrigatória" })}
-                />
-                {errors.description && (
-                  <p className="text-sm text-destructive">{errors.description.message}</p>
-                )}
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="amount">Valor <span className="text-destructive">*</span></Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="amount"
-                    className="pl-9"
-                    placeholder="0,00"
-                    {...register("amount", { 
-                      required: "Valor é obrigatório",
-                      pattern: {
-                        value: /^[0-9]+(?:[.,][0-9]+)?$/,
-                        message: "Informe um valor válido"
-                      }
-                    })}
-                  />
-                </div>
-                {errors.amount && (
-                  <p className="text-sm text-destructive">{errors.amount.message}</p>
-                )}
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="date">Data <span className="text-destructive">*</span></Label>
-                <Input
-                  id="date"
-                  type="date"
-                  {...register("date", { required: "Data é obrigatória" })}
-                />
-                {errors.date && (
-                  <p className="text-sm text-destructive">{errors.date.message}</p>
-                )}
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Informações adicionais sobre o custo..."
-                  {...register("notes")}
-                />
-              </div>
-
-              {/* Campo extra para o caso de SINDICATO */}
-              {isSindicatoType && (
-                <div className="grid gap-2 border p-4 rounded-lg border-amber-200 bg-amber-50 mt-2">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
-                    <Label className="font-medium text-amber-700">
-                      Tipo de Execução: SINDICATO
-                    </Label>
-                  </div>
-                  
-                  {serviceProvider ? (
-                    <div className="mt-2">
-                      <Label htmlFor="serviceProvider" className="text-muted-foreground">Prestador de Serviço</Label>
-                      <div className="p-3 border rounded-md mt-1 bg-white">
-                        <p className="font-medium">{serviceProvider.name}</p>
-                        {serviceProvider.document && (
-                          <p className="text-sm text-muted-foreground">
-                            Documento: {serviceProvider.document}
-                          </p>
-                        )}
-                        <Input 
-                          type="hidden" 
-                          {...register("serviceProviderId")}
-                          value={serviceProvider.id}
-                        />
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Este é o prestador de serviço associado a esta venda do tipo SINDICATO.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-amber-700">
-                      <p>Não há prestador de serviço associado a esta venda. Verifique com a equipe operacional.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCostDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                type="submit"
-                disabled={addCostMutation.isPending}
-                variant="default"
-              >
-                {addCostMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                )}
-                Adicionar Custo
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Diálogo de confirmação de exclusão */}
-      <Dialog open={confirmDeleteDialogOpen} onOpenChange={setConfirmDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir este custo operacional? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDeleteDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={() => selectedCostId && deleteCostMutation.mutate(selectedCostId)}
-              disabled={deleteCostMutation.isPending}
-            >
-              {deleteCostMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+      </CardContent>
+    </Card>
   );
 }
