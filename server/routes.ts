@@ -1623,6 +1623,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Usar SQL puro para maior eficiência
       const { pool } = await import('./db');
       
+      // Remover comprovantes de pagamento (dependência mais distante)
+      await pool.query('DELETE FROM sale_payment_receipts');
+      console.log("Todos os comprovantes de pagamento foram excluídos");
+      
+      // Remover custos operacionais (estava causando o erro)
+      await pool.query('DELETE FROM sale_operational_costs');
+      console.log("Todos os custos operacionais foram excluídos");
+      
       // Remover primeiro os itens de vendas (dependência)
       await pool.query('DELETE FROM sale_items');
       console.log("Todos os itens de vendas foram excluídos");
