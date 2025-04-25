@@ -177,6 +177,8 @@ export default function SalesPage() {
   const [clearSalesDialogOpen, setClearSalesDialogOpen] = useState(false); // Estado para diálogo de limpar vendas
   const [operationDialogOpen, setOperationDialogOpen] = useState(false); // Estado para diálogo de operação de vendas
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false); // Estado para diálogo de histórico de vendas
+  const [pdfExportDialogOpen, setPdfExportDialogOpen] = useState(false); // Estado para diálogo de exportação PDF
+  const [excelExportDialogOpen, setExcelExportDialogOpen] = useState(false); // Estado para diálogo de exportação Excel
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined); // Estado para filtro de intervalo de datas
@@ -887,8 +889,60 @@ export default function SalesPage() {
     }
   };
   
-  // Exportação para Excel
-  const exportToExcel = () => {
+  // Função para buscar todas as vendas (sem filtros)
+  const fetchAllSales = async () => {
+    try {
+      // Configurar parâmetros para buscar todas as vendas
+      const queryParams = new URLSearchParams();
+      
+      // Vendedor só pode ver suas próprias vendas mesmo sem filtros
+      if (user?.role === "vendedor") {
+        queryParams.append("sellerId", user.id.toString());
+      }
+      
+      // Solicitar um limite maior para obter mais registros
+      queryParams.append("limit", "1000"); // Limitado a 1000 registros
+      
+      const url = `/api/sales?${queryParams.toString()}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error("Erro ao carregar todas as vendas");
+      }
+      
+      const data = await response.json();
+      
+      // Enriquecer os dados com nomes
+      return data.data.map((sale: Sale) => {
+        const customer = customers.find((c: any) => c.id === sale.customerId);
+        const seller = users.find((u: any) => u.id === sale.sellerId);
+        const paymentMethod = paymentMethods.find((p: any) => p.id === sale.paymentMethodId);
+        
+        return {
+          ...sale,
+          customerName: customer?.name || `Cliente #${sale.customerId}`,
+          sellerName: seller?.username || `Vendedor #${sale.sellerId}`,
+          paymentMethodName: paymentMethod?.name || `Forma de Pagamento #${sale.paymentMethodId}`,
+        };
+      });
+    } catch (error) {
+      console.error("Erro ao buscar todas as vendas:", error);
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível carregar todas as vendas",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+  
+  // Abrir diálogo para exportação Excel
+  const openExcelExportDialog = () => {
+    setExcelExportDialogOpen(true);
+  };
+
+  // Exportação para Excel (apenas dados filtrados)
+  const exportFilteredToExcel = () => {
     const exportData = filteredSales.map((sale: Sale) => ({
       'Nº OS': sale.orderNumber,
       'Data': format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
@@ -902,11 +956,55 @@ export default function SalesPage() {
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas");
-    XLSX.writeFile(workbook, "vendas.xlsx");
+    XLSX.writeFile(workbook, `vendas-filtradas-${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.xlsx`);
+    setExcelExportDialogOpen(false);
+  };
+
+  // Exportação de todas as vendas para Excel
+  const exportAllToExcel = async () => {
+    // Mostrar feedback visual
+    toast({
+      title: "Exportando vendas",
+      description: "Buscando todas as vendas para exportação...",
+    });
+
+    // Buscar todas as vendas
+    const allSales = await fetchAllSales();
+    
+    if (allSales.length === 0) {
+      return; // Mensagem de erro já mostrada em fetchAllSales
+    }
+
+    const exportData = allSales.map((sale: Sale) => ({
+      'Nº OS': sale.orderNumber,
+      'Data': format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
+      'Cliente': sale.customerName,
+      'Vendedor': sale.sellerName,
+      'Valor Total': `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`,
+      'Status': getStatusLabel(sale.status),
+      'Pago': sale.financialStatus === 'paid' ? 'Sim' : 'Não',
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Todas as Vendas");
+    XLSX.writeFile(workbook, `todas-as-vendas-${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.xlsx`);
+    
+    toast({
+      title: "Exportação concluída",
+      description: `${allSales.length} vendas exportadas com sucesso`,
+    });
+    
+    setExcelExportDialogOpen(false);
   };
   
-  // Exportação para PDF
-  const exportToPDF = () => {
+  // Abrir diálogo para exportação PDF
+  const openPdfExportDialog = () => {
+    setPdfExportDialogOpen(true);
+  };
+
+  // Exportação para PDF (apenas dados filtrados)
+  const exportFilteredToPDF = () => {
     const doc = new jsPDF();
     
     // Título
@@ -917,9 +1015,13 @@ export default function SalesPage() {
     doc.setFontSize(11);
     doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 30);
     
+    // Informação sobre os dados
+    doc.setFontSize(11);
+    doc.text("Dados: Apenas vendas filtradas", 14, 38);
+    
     // Filtro aplicado
     if (statusFilter) {
-      doc.text(`Filtro: ${getStatusLabel(statusFilter)}`, 14, 38);
+      doc.text(`Filtro: ${getStatusLabel(statusFilter)}`, 14, 46);
     }
     
     // Dados para a tabela
@@ -934,14 +1036,71 @@ export default function SalesPage() {
     
     // Criar tabela
     autoTable(doc, {
-      startY: statusFilter ? 45 : 38,
+      startY: statusFilter ? 54 : 46,
       head: [['Nº OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
       body: tableData,
       theme: 'striped',
       headStyles: { fillColor: [75, 75, 75] },
     });
     
-    doc.save("vendas.pdf");
+    doc.save(`vendas-filtradas-${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.pdf`);
+    setPdfExportDialogOpen(false);
+  };
+
+  // Exportação de todas as vendas para PDF
+  const exportAllToPDF = async () => {
+    // Mostrar feedback visual
+    toast({
+      title: "Exportando vendas",
+      description: "Buscando todas as vendas para exportação...",
+    });
+
+    // Buscar todas as vendas
+    const allSales = await fetchAllSales();
+    
+    if (allSales.length === 0) {
+      return; // Mensagem de erro já mostrada em fetchAllSales
+    }
+
+    const doc = new jsPDF();
+    
+    // Título
+    doc.setFontSize(18);
+    doc.text("Relatório Completo de Vendas", 14, 22);
+    
+    // Data do relatório e informações
+    doc.setFontSize(11);
+    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 30);
+    doc.text(`Total de vendas: ${allSales.length}`, 14, 38);
+    doc.text("Dados: Todas as vendas (sem filtros)", 14, 46);
+    
+    // Dados para a tabela
+    const tableData = allSales.map((sale: Sale) => [
+      sale.orderNumber,
+      format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
+      sale.customerName,
+      sale.sellerName,
+      `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`,
+      getStatusLabel(sale.status),
+    ]);
+    
+    // Criar tabela
+    autoTable(doc, {
+      startY: 54,
+      head: [['Nº OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [75, 75, 75] },
+    });
+    
+    doc.save(`todas-as-vendas-${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.pdf`);
+    
+    toast({
+      title: "Exportação concluída",
+      description: `${allSales.length} vendas exportadas com sucesso`,
+    });
+    
+    setPdfExportDialogOpen(false);
   };
   
   // Usuário atual e log simples
@@ -974,6 +1133,27 @@ export default function SalesPage() {
               <Plus className="h-4 w-4 mr-1" />
               Nova
             </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Exportar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Exportar dados</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={openPdfExportDialog}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openExcelExportDialog}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
@@ -1369,11 +1549,11 @@ export default function SalesPage() {
           </div>
           
           <div className="flex gap-2 ml-auto">
-            <Button variant="outline" onClick={exportToPDF}>
+            <Button variant="outline" onClick={openPdfExportDialog}>
               <FileText className="mr-2 h-4 w-4" />
               Exportar PDF
             </Button>
-            <Button variant="outline" onClick={exportToExcel}>
+            <Button variant="outline" onClick={openExcelExportDialog}>
               <Download className="mr-2 h-4 w-4" />
               Exportar Excel
             </Button>
@@ -1558,6 +1738,48 @@ export default function SalesPage() {
         onClose={() => setHistoryDialogOpen(false)}
         saleId={selectedSale?.id}
       />
+      
+      {/* Diálogo de exportação PDF */}
+      <AlertDialog open={pdfExportDialogOpen} onOpenChange={setPdfExportDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Exportar para PDF</AlertDialogTitle>
+            <AlertDialogDescription>
+              Escolha o tipo de exportação que deseja realizar:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:space-x-2 sm:flex-row">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={exportFilteredToPDF} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              Exportar {filteredSales.length} vendas da aba atual
+            </AlertDialogAction>
+            <AlertDialogAction onClick={exportAllToPDF} className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
+              Exportar todas as vendas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Diálogo de exportação Excel */}
+      <AlertDialog open={excelExportDialogOpen} onOpenChange={setExcelExportDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Exportar para Excel</AlertDialogTitle>
+            <AlertDialogDescription>
+              Escolha o tipo de exportação que deseja realizar:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:space-x-2 sm:flex-row">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={exportFilteredToExcel} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              Exportar {filteredSales.length} vendas da aba atual
+            </AlertDialogAction>
+            <AlertDialogAction onClick={exportAllToExcel} className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
+              Exportar todas as vendas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       {/* O diálogo de reenvio está agora encapsulado no componente ReenviaButton */}
     </div>
