@@ -2,6 +2,7 @@ import React from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,10 +22,17 @@ import {
   AlertTriangle,
   SortAsc,
   SortDesc,
+  ChevronRight,
+  Calendar,
+  FileText,
+  User,
+  DollarSign,
+  Hash
 } from "lucide-react";
 import { getStatusLabel, getStatusVariant } from "@/lib/status-utils";
 import { cn } from "@/lib/utils";
 import { Sale } from "@shared/schema";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SimpleSalesTableProps {
   data: Sale[];
@@ -128,283 +136,511 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
     );
   };
 
-  return (
-    <Table>
-      <TableCaption>
-        {isLoading ? (
-          "Carregando dados..."
-        ) : error ? (
-          <span className="text-red-500">Erro ao carregar: {error.message}</span>
-        ) : data.length === 0 ? (
-          "Nenhuma venda encontrada"
-        ) : (
-          `Total de ${data.length} vendas`
-        )}
-      </TableCaption>
-      
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[100px] cursor-pointer" onClick={() => toggleSort('orderNumber')}>
-            <div className="flex items-center">
-              Nº OS
-              {sortField === 'orderNumber' && (
-                sortDirection === 'asc' 
-                  ? <SortAsc className="ml-1 h-4 w-4" /> 
-                  : <SortDesc className="ml-1 h-4 w-4" />
-              )}
-            </div>
-          </TableHead>
-          <TableHead className="cursor-pointer" onClick={() => toggleSort('date')}>
-            <div className="flex items-center">
-              Data
-              {sortField === 'date' && (
-                sortDirection === 'asc' 
-                  ? <SortAsc className="ml-1 h-4 w-4" /> 
-                  : <SortDesc className="ml-1 h-4 w-4" />
-              )}
-            </div>
-          </TableHead>
-          <TableHead className="cursor-pointer" onClick={() => toggleSort('customerName')}>
-            <div className="flex items-center">
-              Cliente
-              {sortField === 'customerName' && (
-                sortDirection === 'asc' 
-                  ? <SortAsc className="ml-1 h-4 w-4" /> 
-                  : <SortDesc className="ml-1 h-4 w-4" />
-              )}
-            </div>
-          </TableHead>
-          <TableHead className="cursor-pointer" onClick={() => toggleSort('sellerName')}>
-            <div className="flex items-center">
-              Vendedor
-              {sortField === 'sellerName' && (
-                sortDirection === 'asc' 
-                  ? <SortAsc className="ml-1 h-4 w-4" /> 
-                  : <SortDesc className="ml-1 h-4 w-4" />
-              )}
-            </div>
-          </TableHead>
-          <TableHead className="cursor-pointer" onClick={() => toggleSort('totalAmount')}>
-            <div className="flex items-center">
-              Valor Total
-              {sortField === 'totalAmount' && (
-                sortDirection === 'asc' 
-                  ? <SortAsc className="ml-1 h-4 w-4" /> 
-                  : <SortDesc className="ml-1 h-4 w-4" />
-              )}
-            </div>
-          </TableHead>
-          <TableHead className="cursor-pointer" onClick={() => toggleSort('status')}>
-            <div className="flex items-center">
-              Status
-              {sortField === 'status' && (
-                sortDirection === 'asc' 
-                  ? <SortAsc className="ml-1 h-4 w-4" /> 
-                  : <SortDesc className="ml-1 h-4 w-4" />
-              )}
-            </div>
-          </TableHead>
-          {/* Coluna para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
-          {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
-            <TableHead>Tipo de Execução</TableHead>
+  const isMobile = useIsMobile();
+
+  // Renderizar cards para dispositivos móveis
+  const renderMobileCards = () => {
+    if (isLoading) {
+      return (
+        <div className="animate-pulse space-y-4 py-4">
+          <div className="h-20 bg-gray-100 rounded"></div>
+          <div className="h-20 bg-gray-100 rounded"></div>
+          <div className="h-20 bg-gray-100 rounded"></div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-8 text-red-500">
+          Erro ao carregar vendas: {error.message}
+        </div>
+      );
+    }
+
+    if (data.length === 0) {
+      return (
+        <div className="text-center py-8">
+          Nenhuma venda encontrada
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {data.map(sale => (
+          <Card 
+            key={sale.id} 
+            className={cn(
+              "relative overflow-hidden", 
+              `status-card-${sale.status}`,
+              sale.status === "completed" && "bg-green-50 border-green-200", 
+              sale.status === "in_progress" && "bg-orange-50 border-orange-200",
+              sale.status === "returned" && "bg-red-50 border-red-200",
+              sale.status === "corrected" && "bg-yellow-50 border-yellow-200"
+            )}
+            data-status={sale.status}
+          >
+            <CardContent className="p-4">
+              {/* Cabeçalho do Card */}
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <div className="flex items-center gap-1 mb-1">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{sale.orderNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>{format(new Date(sale.date || sale.createdAt), 'dd/MM/yyyy')}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end">
+                  <StatusBadge status={sale.status} />
+                  {sale.financialStatus === 'paid' && (
+                    <span className="text-xs text-green-600 font-medium mt-1">Pago</span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Informações principais */}
+              <div className="grid grid-cols-2 gap-y-2 text-sm mb-3">
+                <div className="flex items-center gap-1">
+                  <User className="h-3 w-3 text-muted-foreground" />
+                  <span className="font-medium">Cliente:</span>
+                </div>
+                <div className="truncate">{sale.customerName}</div>
+                
+                <div className="flex items-center gap-1">
+                  <User className="h-3 w-3 text-muted-foreground" />
+                  <span className="font-medium">Vendedor:</span>
+                </div>
+                <div className="truncate">{sale.sellerName}</div>
+                
+                <div className="flex items-center gap-1">
+                  <DollarSign className="h-3 w-3 text-muted-foreground" />
+                  <span className="font-medium">Valor:</span>
+                </div>
+                <div>{`R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`}</div>
+                
+                {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && 
+                 sale.serviceTypeId && (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <FileText className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">Tipo:</span>
+                    </div>
+                    <div className="truncate">{sale.serviceTypeName || "Não definido"}</div>
+                  </>
+                )}
+              </div>
+              
+              {/* Ações */}
+              <div className="flex flex-wrap justify-center gap-1 mt-2 pt-2 border-t border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onViewDetails(sale)}
+                  className="h-8 px-2"
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  <span>Detalhes</span>
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onViewHistory(sale)}
+                  className="h-8 px-2"
+                >
+                  <ClipboardList className="h-4 w-4 mr-1" />
+                  <span>Histórico</span>
+                </Button>
+                
+                {/* Permissões específicas de acordo com o papel do usuário */}
+                {user?.role === "admin" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(sale)}
+                    className="h-8 px-2"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    <span>Editar</span>
+                  </Button>
+                )}
+                
+                {/* Permissão para iniciar execução (operacional/admin) */}
+                {(user?.role === "operacional" || user?.role === "admin") && 
+                  sale.status === "pending" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onStartExecution(sale)}
+                    className="h-8 px-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                  >
+                    <CornerDownRight className="h-4 w-4 mr-1" />
+                    <span>Iniciar</span>
+                  </Button>
+                )}
+                
+                {/* Permissão para concluir execução (operacional/admin) */}
+                {(user?.role === "operacional" || user?.role === "admin") && 
+                  sale.status === "in_progress" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onCompleteExecution(sale)}
+                    className="h-8 px-2 text-green-500 hover:text-green-700 hover:bg-green-50"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    <span>Concluir</span>
+                  </Button>
+                )}
+                
+                {/* Permissão para devolver para vendedor (operacional/admin) */}
+                {(user?.role === "operacional" || user?.role === "admin") && 
+                  (sale.status === "pending" || sale.status === "in_progress") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onReturnClick(sale)}
+                    className="h-8 px-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    <span>Devolver</span>
+                  </Button>
+                )}
+                
+                {/* Reenviar e Devolver botões personalizados */}
+                {(user?.role === "admin" || 
+                  user?.role === "supervisor" || 
+                  (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                  <ReenviaButton sale={sale} />
+                )}
+                
+                {(user?.role === "admin" || user?.role === "operacional") && 
+                  sale.status === "corrected" && (
+                  <DevolveButton sale={sale} />
+                )}
+                
+                {/* Marcar como pago */}
+                {(user?.role === "admin" || user?.role === "financeiro") && 
+                  sale.status === "completed" && 
+                  sale.financialStatus !== "paid" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onMarkAsPaid(sale)}
+                    className="h-8 px-2 text-green-500 hover:text-green-700 hover:bg-green-50"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    <span>Pago</span>
+                  </Button>
+                )}
+                
+                {/* Excluir */}
+                {user?.role === "admin" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDeleteClick(sale)}
+                    className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    <span>Excluir</span>
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  // Renderizar tabela para desktops
+  const renderDesktopTable = () => {
+    return (
+      <Table>
+        <TableCaption>
+          {isLoading ? (
+            "Carregando dados..."
+          ) : error ? (
+            <span className="text-red-500">Erro ao carregar: {error.message}</span>
+          ) : data.length === 0 ? (
+            "Nenhuma venda encontrada"
+          ) : (
+            `Total de ${data.length} vendas`
           )}
-          <TableHead className="text-right">Ações</TableHead>
-        </TableRow>
-      </TableHeader>
-      
-      <TableBody>
-        {isLoading ? (
+        </TableCaption>
+        
+        <TableHeader>
           <TableRow>
-            <TableCell 
-              colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
-              className="text-center py-8"
-            >
-              <div className="flex items-center justify-center">
-                <div className="animate-pulse flex space-x-4">
-                  <div className="flex-1 space-y-4 py-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 bg-gray-200 rounded"></div>
-                      <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+            <TableHead className="w-[100px] cursor-pointer" onClick={() => toggleSort('orderNumber')}>
+              <div className="flex items-center">
+                Nº OS
+                {sortField === 'orderNumber' && (
+                  sortDirection === 'asc' 
+                    ? <SortAsc className="ml-1 h-4 w-4" /> 
+                    : <SortDesc className="ml-1 h-4 w-4" />
+                )}
+              </div>
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => toggleSort('date')}>
+              <div className="flex items-center">
+                Data
+                {sortField === 'date' && (
+                  sortDirection === 'asc' 
+                    ? <SortAsc className="ml-1 h-4 w-4" /> 
+                    : <SortDesc className="ml-1 h-4 w-4" />
+                )}
+              </div>
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => toggleSort('customerName')}>
+              <div className="flex items-center">
+                Cliente
+                {sortField === 'customerName' && (
+                  sortDirection === 'asc' 
+                    ? <SortAsc className="ml-1 h-4 w-4" /> 
+                    : <SortDesc className="ml-1 h-4 w-4" />
+                )}
+              </div>
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => toggleSort('sellerName')}>
+              <div className="flex items-center">
+                Vendedor
+                {sortField === 'sellerName' && (
+                  sortDirection === 'asc' 
+                    ? <SortAsc className="ml-1 h-4 w-4" /> 
+                    : <SortDesc className="ml-1 h-4 w-4" />
+                )}
+              </div>
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => toggleSort('totalAmount')}>
+              <div className="flex items-center">
+                Valor Total
+                {sortField === 'totalAmount' && (
+                  sortDirection === 'asc' 
+                    ? <SortAsc className="ml-1 h-4 w-4" /> 
+                    : <SortDesc className="ml-1 h-4 w-4" />
+                )}
+              </div>
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => toggleSort('status')}>
+              <div className="flex items-center">
+                Status
+                {sortField === 'status' && (
+                  sortDirection === 'asc' 
+                    ? <SortAsc className="ml-1 h-4 w-4" /> 
+                    : <SortDesc className="ml-1 h-4 w-4" />
+                )}
+              </div>
+            </TableHead>
+            {/* Coluna para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
+            {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
+              <TableHead>Tipo de Execução</TableHead>
+            )}
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        
+        <TableBody>
+          {isLoading ? (
+            <TableRow>
+              <TableCell 
+                colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
+                className="text-center py-8"
+              >
+                <div className="flex items-center justify-center">
+                  <div className="animate-pulse flex space-x-4">
+                    <div className="flex-1 space-y-4 py-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </TableCell>
-          </TableRow>
-        ) : error ? (
-          <TableRow>
-            <TableCell 
-              colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
-              className="text-center py-8 text-red-500"
-            >
-              Erro ao carregar vendas: {error.message}
-            </TableCell>
-          </TableRow>
-        ) : data.length === 0 ? (
-          <TableRow>
-            <TableCell 
-              colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
-              className="text-center py-8"
-            >
-              Nenhuma venda encontrada
-            </TableCell>
-          </TableRow>
-        ) : (
-          data.map(sale => (
-            <TableRow key={sale.id} className={getRowStyle(sale.status)}>
-              <TableCell className={getFirstCellStyle(sale.status)}>
-                {sale.orderNumber}
-              </TableCell>
-              <TableCell className={getCellStyle(sale.status)}>
-                {format(new Date(sale.date || sale.createdAt), 'dd/MM/yyyy')}
-              </TableCell>
-              <TableCell className={getCellStyle(sale.status)}>
-                {sale.customerName}
-              </TableCell>
-              <TableCell className={getCellStyle(sale.status)}>
-                {sale.sellerName}
-              </TableCell>
-              <TableCell className={getCellStyle(sale.status)}>
-                {`R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`}
-              </TableCell>
-              <TableCell className={getCellStyle(sale.status)}>
-                <div className="flex flex-col gap-1">
-                  <StatusBadge status={sale.status} />
-                  {sale.financialStatus === 'paid' && <PaidBadge />}
-                </div>
-              </TableCell>
-              {/* Célula para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
-              {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
-                <TableCell className={getCellStyle(sale.status)}>
-                  <ServiceType sale={sale} />
-                </TableCell>
-              )}
-              <TableCell className={cn("text-right", getCellStyle(sale.status))}>
-                <div className="flex justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onViewDetails(sale)}
-                    className="h-8 w-8"
-                    title="Ver detalhes"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onViewHistory(sale)}
-                    className="h-8 w-8"
-                    title="Ver histórico de status"
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                  </Button>
-                  
-                  {/* Permissão para editar (admin) */}
-                  {user?.role === "admin" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onEdit(sale)}
-                      className="h-8 w-8"
-                      title="Editar"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Permissão para iniciar execução (operacional/admin) */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    (sale.status === "pending" || sale.status === "corrected") && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onStartExecution(sale)}
-                      className="h-8 w-8"
-                      title="Iniciar execução"
-                    >
-                      <CornerDownRight className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Permissão para concluir execução (operacional/admin) */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    sale.status === "in_progress" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onCompleteExecution(sale)}
-                      className="h-8 w-8"
-                      title="Concluir execução"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Permissão para devolver a venda (operacional/admin) */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    (sale.status === "pending" || sale.status === "in_progress") && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onReturnClick(sale)}
-                      className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                      title="Devolver para correção"
-                    >
-                      <AlertTriangle className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Botão de reenvio para vendedor */}
-                  {(user?.role === "admin" || 
-                    user?.role === "supervisor" || 
-                    (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                    <ReenviaButton sale={sale} />
-                  )}
-                  
-                  {/* Botão de devolução para vendas com status "corrected" */}
-                  {(user?.role === "admin" || user?.role === "operacional") && 
-                    sale.status === "corrected" && (
-                    <DevolveButton sale={sale} />
-                  )}
-                  
-                  {/* Permissão para marcar como paga (financeiro/admin) */}
-                  {(user?.role === "admin" || user?.role === "financeiro") && 
-                    sale.status === "completed" && 
-                    sale.financialStatus !== "paid" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onMarkAsPaid(sale)}
-                      className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
-                      title="Confirmar pagamento"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Permissão para excluir (apenas admin) */}
-                  {user?.role === "admin" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onDeleteClick(sale)}
-                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      title="Excluir"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
               </TableCell>
             </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
-  );
+          ) : error ? (
+            <TableRow>
+              <TableCell 
+                colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
+                className="text-center py-8 text-red-500"
+              >
+                Erro ao carregar vendas: {error.message}
+              </TableCell>
+            </TableRow>
+          ) : data.length === 0 ? (
+            <TableRow>
+              <TableCell 
+                colSpan={(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") ? 8 : 7} 
+                className="text-center py-8"
+              >
+                Nenhuma venda encontrada
+              </TableCell>
+            </TableRow>
+          ) : (
+            data.map(sale => (
+              <TableRow key={sale.id} className={getRowStyle(sale.status)} data-status={sale.status}>
+                <TableCell className={getFirstCellStyle(sale.status)}>
+                  {sale.orderNumber}
+                </TableCell>
+                <TableCell className={getCellStyle(sale.status)}>
+                  {format(new Date(sale.date || sale.createdAt), 'dd/MM/yyyy')}
+                </TableCell>
+                <TableCell className={getCellStyle(sale.status)}>
+                  {sale.customerName}
+                </TableCell>
+                <TableCell className={getCellStyle(sale.status)}>
+                  {sale.sellerName}
+                </TableCell>
+                <TableCell className={getCellStyle(sale.status)}>
+                  {`R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`}
+                </TableCell>
+                <TableCell className={getCellStyle(sale.status)}>
+                  <div className="flex flex-col gap-1">
+                    <StatusBadge status={sale.status} />
+                    {sale.financialStatus === 'paid' && <PaidBadge />}
+                  </div>
+                </TableCell>
+                {/* Célula para tipo de execução - mostrar apenas para operacional, financeiro e admin */}
+                {(user?.role === "operacional" || user?.role === "financeiro" || user?.role === "admin") && (
+                  <TableCell className={getCellStyle(sale.status)}>
+                    <ServiceType sale={sale} />
+                  </TableCell>
+                )}
+                <TableCell className={cn("text-right", getCellStyle(sale.status))}>
+                  <div className="flex justify-end gap-1 items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onViewDetails(sale)}
+                      className="h-8 w-8"
+                      title="Ver detalhes"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onViewHistory(sale)}
+                      className="h-8 w-8"
+                      title="Ver histórico de status"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                    </Button>
+                    
+                    {/* Permissão para editar (admin) */}
+                    {user?.role === "admin" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(sale)}
+                        className="h-8 w-8"
+                        title="Editar"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
+                    {/* Permissão para iniciar execução (operacional/admin) */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      (sale.status === "pending" || sale.status === "corrected") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onStartExecution(sale)}
+                        className="h-8 w-8"
+                        title="Iniciar execução"
+                      >
+                        <CornerDownRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
+                    {/* Permissão para concluir execução (operacional/admin) */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      sale.status === "in_progress" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onCompleteExecution(sale)}
+                        className="h-8 w-8"
+                        title="Concluir execução"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
+                    {/* Permissão para devolver a venda (operacional/admin) */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      (sale.status === "pending" || sale.status === "in_progress") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onReturnClick(sale)}
+                        className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                        title="Devolver para correção"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
+                    {/* Botão de reenvio para vendedor */}
+                    {(user?.role === "admin" || 
+                      user?.role === "supervisor" || 
+                      (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
+                      <ReenviaButton sale={sale} />
+                    )}
+                    
+                    {/* Botão de devolução para vendas com status "corrected" */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      sale.status === "corrected" && (
+                      <DevolveButton sale={sale} />
+                    )}
+                    
+                    {/* Permissão para marcar como paga (financeiro/admin) */}
+                    {(user?.role === "admin" || user?.role === "financeiro") && 
+                      sale.status === "completed" && 
+                      sale.financialStatus !== "paid" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onMarkAsPaid(sale)}
+                        className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
+                        title="Confirmar pagamento"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
+                    {/* Permissão para excluir (apenas admin) */}
+                    {user?.role === "admin" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDeleteClick(sale)}
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    );
+  };
+
+  // Renderiza a tabela para desktop ou cards para mobile
+  return isMobile ? renderMobileCards() : renderDesktopTable();
 };
 
 export default SimpleSalesTable;
