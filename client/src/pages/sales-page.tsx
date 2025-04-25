@@ -33,7 +33,7 @@ import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
-import IframeMobileView from "@/components/iframe-mobile-view-new";
+import BasicMobileView from "@/components/basic-mobile-view";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1333,8 +1333,8 @@ export default function SalesPage() {
             </p>
           </div>
           
-          {/* Novo componente móvel com técnicas modernas de alta performance */}
-          <IframeMobileView
+          {/* Componente móvel básico e altamente otimizado para todos os dispositivos */}
+          <BasicMobileView
             data={enrichedSales}
             isLoading={isLoading}
             error={error as Error}
