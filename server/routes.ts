@@ -2465,6 +2465,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar comprovantes de pagamento" });
     }
   });
+  
+  // Rota para iniciar o processamento financeiro de uma venda
+  app.post("/api/sales/:id/process-financial", isAuthenticated, canManageSaleFinancials, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.id);
+      const { financialId } = req.body;
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(saleId);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda já está em processo financeiro
+      if (sale.financialStatus !== 'pending') {
+        return res.status(400).json({ error: "Esta venda não está no status financeiro pendente" });
+      }
+      
+      // Atualizar o status financeiro e o responsável financeiro
+      const updatedSale = await storage.updateSale(saleId, {
+        financialStatus: 'in_progress',
+        responsibleFinancialId: financialId
+      });
+      
+      // Registrar a atualização no histórico de status
+      await storage.createSalesStatusHistory({
+        saleId,
+        userId: financialId,
+        fromStatus: 'pending',
+        toStatus: 'in_progress',
+        notes: "Iniciada tratativa financeira"
+      });
+      
+      // Notificar via WebSocket sobre a mudança
+      notifySalesUpdate();
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao iniciar processamento financeiro:", error);
+      res.status(500).json({ error: "Erro ao iniciar processamento financeiro" });
+    }
+  });
+  
+  // Rota para finalizar o processamento financeiro de uma venda
+  app.post("/api/sales/:id/complete-financial", isAuthenticated, canManageSaleFinancials, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.id);
+      const { financialId } = req.body;
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(saleId);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está em processo financeiro
+      if (sale.financialStatus !== 'in_progress') {
+        return res.status(400).json({ error: "Esta venda não está em processamento financeiro" });
+      }
+      
+      // Verificar se todas as parcelas estão pagas
+      const installments = await storage.getSaleInstallments(saleId);
+      const allPaid = installments.length > 0 && installments.every(inst => inst.status === 'paid');
+      
+      if (!allPaid) {
+        return res.status(400).json({ error: "Não é possível finalizar - existem parcelas pendentes" });
+      }
+      
+      // Atualizar o status financeiro da venda
+      const updatedSale = await storage.updateSale(saleId, {
+        financialStatus: 'completed'
+      });
+      
+      // Registrar a atualização no histórico de status
+      await storage.createSalesStatusHistory({
+        saleId,
+        userId: financialId,
+        fromStatus: 'in_progress',
+        toStatus: 'completed',
+        notes: "Finalizada tratativa financeira"
+      });
+      
+      // Notificar via WebSocket sobre a mudança
+      notifySalesUpdate();
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao finalizar processamento financeiro:", error);
+      res.status(500).json({ error: "Erro ao finalizar processamento financeiro" });
+    }
+  });
 
   // Criar o servidor HTTP
   const httpServer = createServer(app);

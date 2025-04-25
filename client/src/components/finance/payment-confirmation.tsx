@@ -1,469 +1,319 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import React, { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { formatCurrency, formatDate } from "@/lib/formatters";
+import { useToast } from "@/hooks/use-toast";
+import { DatePicker } from "@/components/ui/date-picker";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  AlertCircle, 
+  Check, 
+  CheckCircle, 
+  CreditCard, 
+  Loader2, 
+  Upload 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Clock, FileText, Link, Upload } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { formatCurrency } from "@/lib/formatters";
-
-interface SaleInstallment {
-  id: number;
-  saleId: number;
-  installmentNumber: number;
-  amount: string;
-  dueDate: string;
-  status: string;
-  paymentDate: string | null;
-  confirmedBy: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface PaymentReceipt {
-  id: number;
-  installmentId: number;
-  type: string;
-  url: string | null;
-  data: any;
-  notes: string | null;
-  createdAt: string;
-}
+import { Textarea } from "@/components/ui/textarea";
 
 interface PaymentConfirmationProps {
-  saleId: number;
+  saleId: number | null;
   canManage: boolean;
 }
 
 export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationProps) {
   const { toast } = useToast();
-  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
-  const [selectedInstallmentId, setSelectedInstallmentId] = useState<number | null>(null);
-  const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [receiptType, setReceiptType] = useState("manual");
-  const [receiptUrl, setReceiptUrl] = useState("");
-  const [notes, setNotes] = useState("");
-  const [viewingReceipts, setViewingReceipts] = useState(false);
-  const [selectedInstallmentForReceipts, setSelectedInstallmentForReceipts] = useState<number | null>(null);
-
-  // Buscar parcelas da venda
-  const { data: installments, isLoading } = useQuery<SaleInstallment[]>({
-    queryKey: [`/api/sales/${saleId}/installments`],
+  const queryClient = useQueryClient();
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
+  const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
+  const [paymentNotes, setPaymentNotes] = useState("");
+  
+  // Buscar parcelas
+  const { data: installments = [], isLoading } = useQuery({
+    queryKey: ['/api/sales', saleId, 'installments'],
+    queryFn: async () => {
+      if (!saleId) return [];
+      const res = await apiRequest("GET", `/api/sales/${saleId}/installments`);
+      return res.json();
+    },
     enabled: !!saleId,
   });
-
-  // Buscar comprovantes de pagamento de uma parcela
-  const { data: receipts, isLoading: isLoadingReceipts } = useQuery<PaymentReceipt[]>({
-    queryKey: [`/api/installments/${selectedInstallmentForReceipts}/payment-receipts`],
-    enabled: !!selectedInstallmentForReceipts,
-  });
-
-  // Confirmar pagamento de parcela
+  
+  // Mutation para confirmar pagamento
   const confirmPaymentMutation = useMutation({
-    mutationFn: async (data: {
-      installmentId: number;
-      paymentDate: string;
-      receiptType: string;
-      receiptUrl?: string;
-      notes?: string;
-    }) => {
-      const res = await apiRequest(
-        "POST",
-        `/api/installments/${data.installmentId}/confirm-payment`,
-        data
-      );
-      return await res.json();
+    mutationFn: async ({ installmentId, paymentDate, notes }: { installmentId: number, paymentDate: Date, notes: string }) => {
+      const res = await apiRequest("POST", `/api/sale-installments/${installmentId}/confirm-payment`, {
+        paymentDate: paymentDate.toISOString(),
+        receiptData: {
+          type: "manual",
+          notes
+        }
+      });
+      return res.json();
     },
     onSuccess: () => {
-      // Limpar o formulário
-      setPaymentDate(format(new Date(), "yyyy-MM-dd"));
-      setReceiptType("manual");
-      setReceiptUrl("");
-      setNotes("");
-      setIsConfirmingPayment(false);
-      setSelectedInstallmentId(null);
-
-      // Invalidar consultas para atualizar os dados
-      queryClient.invalidateQueries({ queryKey: [`/api/sales/${saleId}/installments`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'installments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
       
       toast({
         title: "Pagamento confirmado",
-        description: "O pagamento foi confirmado com sucesso",
+        description: "O pagamento foi confirmado com sucesso.",
       });
+      
+      closeConfirmDialog();
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: "Erro ao confirmar pagamento",
-        description: error.message,
+        description: error.message || "Não foi possível confirmar o pagamento.",
         variant: "destructive",
       });
-    },
+    }
   });
-
+  
+  // Função para abrir o diálogo de confirmação
+  const openConfirmDialog = (installment: any) => {
+    setSelectedInstallment(installment);
+    setPaymentDate(new Date());
+    setPaymentNotes("");
+    setConfirmDialogOpen(true);
+  };
+  
+  // Fechar diálogo
+  const closeConfirmDialog = () => {
+    setConfirmDialogOpen(false);
+    setSelectedInstallment(null);
+  };
+  
+  // Confirmar pagamento
   const handleConfirmPayment = () => {
-    if (!selectedInstallmentId) {
-      toast({
-        title: "Erro ao confirmar pagamento",
-        description: "Selecione uma parcela para confirmar o pagamento",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!paymentDate) {
-      toast({
-        title: "Erro ao confirmar pagamento",
-        description: "A data de pagamento é obrigatória",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!receiptType) {
-      toast({
-        title: "Erro ao confirmar pagamento",
-        description: "O tipo de comprovante é obrigatório",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!selectedInstallment || !paymentDate) return;
+    
     confirmPaymentMutation.mutate({
-      installmentId: selectedInstallmentId,
+      installmentId: selectedInstallment.id,
       paymentDate,
-      receiptType,
-      receiptUrl: receiptUrl || undefined,
-      notes: notes || undefined,
+      notes: paymentNotes
     });
   };
-
-  const openConfirmDialog = (installmentId: number) => {
-    setSelectedInstallmentId(installmentId);
-    setIsConfirmingPayment(true);
-  };
-
-  const openReceiptsDialog = (installmentId: number) => {
-    setSelectedInstallmentForReceipts(installmentId);
-    setViewingReceipts(true);
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pending":
-        return (
-          <span className="flex items-center gap-1 text-yellow-600">
-            <Clock size={16} />
-            <span>Pendente</span>
-          </span>
-        );
-      case "paid":
-        return (
-          <span className="flex items-center gap-1 text-green-600">
-            <CheckCircle size={16} />
-            <span>Pago</span>
-          </span>
-        );
-      case "overdue":
-        return (
-          <span className="flex items-center gap-1 text-red-600">
-            <Clock size={16} />
-            <span>Atrasado</span>
-          </span>
-        );
-      default:
-        return status;
-    }
-  };
-
-  const getInstallmentLabel = (installment: SaleInstallment) => {
-    return `Parcela ${installment.installmentNumber} - ${formatCurrency(parseFloat(installment.amount))}`;
-  };
-
-  const renderReceiptContent = (receipt: PaymentReceipt) => {
-    switch (receipt.type) {
-      case "manual":
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <FileText size={16} />
-              <span>Confirmação manual</span>
-            </div>
-            {receipt.notes && (
-              <div className="text-sm text-muted-foreground p-2 bg-muted/50 rounded">
-                {receipt.notes}
-              </div>
-            )}
-          </div>
-        );
-      case "link":
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Link size={16} />
-              <span>Link de comprovante</span>
-            </div>
-            {receipt.url && (
-              <a
-                href={receipt.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary underline flex items-center gap-1"
-              >
-                <span>Visualizar comprovante</span>
-                <Link size={14} />
-              </a>
-            )}
-            {receipt.notes && (
-              <div className="text-sm text-muted-foreground p-2 bg-muted/50 rounded">
-                {receipt.notes}
-              </div>
-            )}
-          </div>
-        );
-      default:
-        return (
-          <div className="text-sm text-muted-foreground">
-            Comprovante sem detalhes disponíveis
-          </div>
-        );
-    }
-  };
-
-  return (
-    <div className="space-y-4">
+  
+  // Verificar se todas as parcelas estão pagas
+  const allPaid = installments.length > 0 && installments.every((item: any) => item.status === 'paid');
+  
+  if (isLoading) {
+    return (
       <Card>
         <CardHeader>
-          <CardTitle>Parcelas e Pagamentos</CardTitle>
+          <CardTitle className="flex items-center">
+            <CreditCard className="mr-2 h-5 w-5" />
+            Confirmação de Pagamentos
+          </CardTitle>
+          <CardDescription>
+            Confirme os pagamentos das parcelas da venda
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="py-8 text-center">Carregando parcelas...</div>
-          ) : installments && installments.length > 0 ? (
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-secondary/20">
-                      <th className="px-4 py-2 text-left">Parcela</th>
-                      <th className="px-4 py-2 text-right">Valor</th>
-                      <th className="px-4 py-2 text-center">Vencimento</th>
-                      <th className="px-4 py-2 text-center">Status</th>
-                      <th className="px-4 py-2 text-center">Data de Pagamento</th>
-                      <th className="px-4 py-2 text-center">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {installments.map((installment) => (
-                      <tr key={installment.id} className="border-b">
-                        <td className="px-4 py-2">
-                          Parcela {installment.installmentNumber}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">
-                          {formatCurrency(parseFloat(installment.amount))}
-                        </td>
-                        <td className="px-4 py-2 text-center whitespace-nowrap">
-                          {format(new Date(installment.dueDate), "dd/MM/yyyy", {
-                            locale: ptBR,
-                          })}
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                          {getStatusLabel(installment.status)}
-                        </td>
-                        <td className="px-4 py-2 text-center whitespace-nowrap">
-                          {installment.paymentDate
-                            ? format(new Date(installment.paymentDate), "dd/MM/yyyy", {
-                                locale: ptBR,
-                              })
-                            : "-"}
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                          <div className="flex justify-center gap-2">
-                            {installment.status === "paid" ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openReceiptsDialog(installment.id)}
-                                className="flex items-center gap-1"
-                              >
-                                <FileText size={14} />
-                                <span>Comprovantes</span>
-                              </Button>
-                            ) : canManage ? (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => openConfirmDialog(installment.id)}
-                                className="flex items-center gap-1"
-                              >
-                                <CheckCircle size={14} />
-                                <span>Confirmar</span>
-                              </Button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              Nenhuma parcela registrada para esta venda.
-            </div>
-          )}
+        <CardContent className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Carregando parcelas...</span>
         </CardContent>
       </Card>
-
+    );
+  }
+  
+  if (installments.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <CreditCard className="mr-2 h-5 w-5" />
+            Confirmação de Pagamentos
+          </CardTitle>
+          <CardDescription>
+            Confirme os pagamentos das parcelas da venda
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              Não há parcelas registradas para esta venda.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <CreditCard className="mr-2 h-5 w-5" />
+            Confirmação de Pagamentos
+          </CardTitle>
+          <CardDescription>
+            {allPaid 
+              ? "Todos os pagamentos foram confirmados." 
+              : "Confirme os pagamentos das parcelas pendentes."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Parcela</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {installments.map((installment: any) => (
+                <TableRow key={installment.id}>
+                  <TableCell>{installment.installmentNumber}</TableCell>
+                  <TableCell>{formatDate(installment.dueDate)}</TableCell>
+                  <TableCell>{formatCurrency(installment.amount)}</TableCell>
+                  <TableCell>
+                    <Badge variant={installment.status === 'paid' ? 'success' : 'warning'}>
+                      {installment.status === 'paid' ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Pago
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Pendente
+                        </>
+                      )}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {installment.status === 'pending' && canManage && (
+                      <Button 
+                        onClick={() => openConfirmDialog(installment)}
+                        size="sm"
+                        variant="default"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Confirmar
+                      </Button>
+                    )}
+                    {installment.status === 'paid' && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="text-green-600"
+                        disabled
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Confirmado
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <div className="text-sm text-muted-foreground">
+            {allPaid ? (
+              <span className="flex items-center text-green-600">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Todos os pagamentos confirmados
+              </span>
+            ) : (
+              <span className="flex items-center text-amber-600">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                Há parcelas pendentes de confirmação
+              </span>
+            )}
+          </div>
+        </CardFooter>
+      </Card>
+      
       {/* Diálogo de confirmação de pagamento */}
-      <Dialog open={isConfirmingPayment} onOpenChange={setIsConfirmingPayment}>
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar Pagamento</DialogTitle>
             <DialogDescription>
-              Preencha os dados para confirmar o pagamento da parcela.
+              Confirme o recebimento do pagamento da parcela {selectedInstallment?.installmentNumber}.
             </DialogDescription>
           </DialogHeader>
-
+          
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="paymentDate">Data de Pagamento</Label>
-              <Input
-                id="paymentDate"
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
+            <div className="grid gap-2">
+              <Label htmlFor="payment-date">Data do Pagamento</Label>
+              <DatePicker
+                selected={paymentDate}
+                onSelect={setPaymentDate}
+                placeholder="Selecione a data do pagamento"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="receiptType">Tipo de Comprovante</Label>
-              <Select
-                value={receiptType}
-                onValueChange={(value) => setReceiptType(value)}
-              >
-                <SelectTrigger id="receiptType">
-                  <SelectValue placeholder="Selecione o tipo de comprovante" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Confirmação Manual</SelectItem>
-                  <SelectItem value="link">Link de Comprovante</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {receiptType === "link" && (
-              <div className="space-y-2">
-                <Label htmlFor="receiptUrl">URL do Comprovante</Label>
-                <Input
-                  id="receiptUrl"
-                  value={receiptUrl}
-                  onChange={(e) => setReceiptUrl(e.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Observações</Label>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="payment-notes">Observações</Label>
               <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observações sobre o pagamento (opcional)"
-                rows={3}
+                id="payment-notes"
+                placeholder="Informações adicionais sobre o pagamento..."
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
               />
             </div>
           </div>
-
+          
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsConfirmingPayment(false)}
-              disabled={confirmPaymentMutation.isPending}
-            >
+            <Button variant="outline" onClick={closeConfirmDialog}>
               Cancelar
             </Button>
             <Button 
-              onClick={handleConfirmPayment} 
-              disabled={confirmPaymentMutation.isPending}
+              onClick={handleConfirmPayment}
+              disabled={!paymentDate || confirmPaymentMutation.isPending}
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
             >
-              {confirmPaymentMutation.isPending
-                ? "Confirmando..."
-                : "Confirmar Pagamento"}
+              {confirmPaymentMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-2" />
+              )}
+              Confirmar Pagamento
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo de visualização de comprovantes */}
-      <Dialog open={viewingReceipts} onOpenChange={setViewingReceipts}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Comprovantes de Pagamento</DialogTitle>
-            <DialogDescription>
-              Visualize os comprovantes de pagamento registrados para esta parcela.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            {isLoadingReceipts ? (
-              <div className="py-8 text-center">
-                Carregando comprovantes...
-              </div>
-            ) : receipts && receipts.length > 0 ? (
-              <div className="space-y-4">
-                {receipts.map((receipt) => (
-                  <Card key={receipt.id}>
-                    <CardContent className="p-4 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div className="font-medium">
-                          Comprovante de Pagamento
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(receipt.createdAt), "dd/MM/yyyy HH:mm", {
-                            locale: ptBR,
-                          })}
-                        </div>
-                      </div>
-                      {renderReceiptContent(receipt)}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-muted-foreground">
-                Nenhum comprovante registrado para esta parcela.
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button onClick={() => setViewingReceipts(false)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </>
   );
 }

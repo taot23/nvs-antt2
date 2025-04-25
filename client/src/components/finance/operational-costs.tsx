@@ -1,335 +1,381 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import React, { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { formatCurrency, formatDate, parseInputToNumber } from "@/lib/formatters";
+import { useToast } from "@/hooks/use-toast";
+import { DatePicker } from "@/components/ui/date-picker";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  AlertCircle, 
+  DollarSign, 
+  Loader2, 
+  PlusCircle, 
+  Receipt, 
+  Trash2, 
+  X 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, parseInputToNumber } from "@/lib/formatters";
-import { Trash2, Plus } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-interface OperationalCost {
-  id: number;
-  saleId: number;
-  description: string;
-  amount: string;
-  date: string;
-  responsibleId: number;
-  notes: string | null;
-  paymentReceiptUrl: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useForm } from "react-hook-form";
 
 interface OperationalCostsProps {
-  saleId: number;
+  saleId: number | null;
   canManage: boolean;
 }
 
 export function OperationalCosts({ saleId, canManage }: OperationalCostsProps) {
   const { toast } = useToast();
-  const [isAddingCost, setIsAddingCost] = useState(false);
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [notes, setNotes] = useState("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const [costDialogOpen, setCostDialogOpen] = useState(false);
+  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
   const [selectedCostId, setSelectedCostId] = useState<number | null>(null);
-
-  // Buscar custos operacionais da venda
-  const { data: costs, isLoading } = useQuery<OperationalCost[]>({
-    queryKey: [`/api/sales/${saleId}/operational-costs`],
+  
+  // Form for adding new cost
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+    defaultValues: {
+      description: "",
+      amount: "",
+      date: new Date().toISOString().split("T")[0], // Today as default
+      notes: ""
+    }
+  });
+  
+  // Buscar custos operacionais
+  const { data: costs = [], isLoading } = useQuery({
+    queryKey: ['/api/sales', saleId, 'operational-costs'],
+    queryFn: async () => {
+      if (!saleId) return [];
+      const res = await apiRequest("GET", `/api/sales/${saleId}/operational-costs`);
+      return res.json();
+    },
     enabled: !!saleId,
   });
-
-  // Adicionar custo operacional
+  
+  // Mutation para adicionar custo
   const addCostMutation = useMutation({
-    mutationFn: async (costData: {
-      description: string;
-      amount: string;
-      date: string;
-      notes?: string;
-    }) => {
-      const res = await apiRequest(
-        "POST",
-        `/api/sales/${saleId}/operational-costs`,
-        costData
-      );
-      return await res.json();
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", `/api/sales/${saleId}/operational-costs`, {
+        ...data,
+        amount: parseInputToNumber(data.amount)
+      });
+      return res.json();
     },
     onSuccess: () => {
-      // Limpar o formulário
-      setDescription("");
-      setAmount("");
-      setDate(format(new Date(), "yyyy-MM-dd"));
-      setNotes("");
-      setIsAddingCost(false);
-
-      // Invalidar consulta para atualizar a lista
-      queryClient.invalidateQueries({ queryKey: [`/api/sales/${saleId}/operational-costs`] });
-
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'operational-costs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
+      
       toast({
-        title: "Custo operacional adicionado",
-        description: "O custo operacional foi adicionado com sucesso",
+        title: "Custo adicionado",
+        description: "O custo operacional foi registrado com sucesso.",
       });
+      
+      reset();
+      setCostDialogOpen(false);
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
-        title: "Erro ao adicionar custo operacional",
-        description: error.message,
+        title: "Erro ao adicionar custo",
+        description: error.message || "Não foi possível adicionar o custo operacional.",
         variant: "destructive",
       });
-    },
+    }
   });
-
-  // Excluir custo operacional
+  
+  // Mutation para excluir custo
   const deleteCostMutation = useMutation({
     mutationFn: async (costId: number) => {
-      const res = await apiRequest("DELETE", `/api/operational-costs/${costId}`);
-      return await res.json();
+      await apiRequest("DELETE", `/api/sales/operational-costs/${costId}`);
     },
     onSuccess: () => {
-      // Invalidar consulta para atualizar a lista
-      queryClient.invalidateQueries({ queryKey: [`/api/sales/${saleId}/operational-costs`] });
-
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'operational-costs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
+      
       toast({
-        title: "Custo operacional excluído",
-        description: "O custo operacional foi excluído com sucesso",
+        title: "Custo excluído",
+        description: "O custo operacional foi excluído com sucesso.",
       });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir custo operacional",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Calcular o total de custos
-  const totalCosts = costs?.reduce((total, cost) => {
-    const costAmount = parseFloat(cost.amount);
-    return total + (isNaN(costAmount) ? 0 : costAmount);
-  }, 0);
-
-  const handleAddCost = () => {
-    if (!description) {
-      toast({
-        title: "Erro ao adicionar custo",
-        description: "A descrição é obrigatória",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        title: "Erro ao adicionar custo",
-        description: "Informe um valor válido",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const parsedAmount = parseInputToNumber(amount);
-    
-    addCostMutation.mutate({
-      description,
-      amount: parsedAmount.toString(),
-      date,
-      notes: notes || undefined,
-    });
-  };
-
-  const confirmDelete = (costId: number) => {
-    setSelectedCostId(costId);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDelete = () => {
-    if (selectedCostId) {
-      deleteCostMutation.mutate(selectedCostId);
-      setDeleteDialogOpen(false);
+      
+      setConfirmDeleteDialogOpen(false);
       setSelectedCostId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir custo",
+        description: error.message || "Não foi possível excluir o custo operacional.",
+        variant: "destructive",
+      });
     }
+  });
+  
+  // Função para abrir o diálogo de confirmação de exclusão
+  const openDeleteDialog = (costId: number) => {
+    setSelectedCostId(costId);
+    setConfirmDeleteDialogOpen(true);
   };
-
-  return (
-    <div className="space-y-4">
+  
+  // Calcular total dos custos
+  const totalCosts = costs.reduce((sum: number, cost: any) => sum + Number(cost.amount), 0);
+  
+  const onSubmit = (data: any) => {
+    addCostMutation.mutate(data);
+  };
+  
+  if (isLoading) {
+    return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex justify-between items-center">
-            <span>Custos Operacionais</span>
-            {canManage && !isAddingCost && (
-              <Button
-                size="sm"
-                onClick={() => setIsAddingCost(true)}
-                className="flex gap-1 items-center"
+          <CardTitle className="flex items-center">
+            <Receipt className="mr-2 h-5 w-5" />
+            Custos Operacionais
+          </CardTitle>
+          <CardDescription>
+            Gerencie os custos operacionais relacionados a esta venda
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Carregando custos...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="flex items-center">
+                <Receipt className="mr-2 h-5 w-5" />
+                Custos Operacionais
+              </CardTitle>
+              <CardDescription>
+                Custos relacionados à execução operacional desta venda
+              </CardDescription>
+            </div>
+            
+            {canManage && (
+              <Button 
+                onClick={() => setCostDialogOpen(true)}
+                variant="default"
+                className="bg-primary hover:bg-primary/90"
               >
-                <Plus size={16} />
-                <span>Adicionar</span>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Adicionar Custo
               </Button>
             )}
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          {isAddingCost && (
-            <div className="space-y-4 mb-6 p-4 border rounded-md">
-              <h3 className="font-medium text-lg">Novo Custo Operacional</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Input
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Descrição do custo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Valor</Label>
-                  <Input
-                    id="amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0,00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date">Data</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="notes">Observações</Label>
-                  <Textarea
-                    id="notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Observações (opcional)"
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAddingCost(false)}
-                  disabled={addCostMutation.isPending}
-                >
-                  Cancelar
-                </Button>
+          {costs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                Não há custos operacionais registrados para esta venda.
+              </p>
+              {canManage && (
                 <Button 
-                  onClick={handleAddCost} 
-                  disabled={addCostMutation.isPending}
+                  onClick={() => setCostDialogOpen(true)}
+                  variant="outline"
+                  className="mt-4"
                 >
-                  {addCostMutation.isPending ? "Adicionando..." : "Adicionar Custo"}
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Adicionar Custo
                 </Button>
-              </div>
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="py-8 text-center">Carregando custos operacionais...</div>
-          ) : costs && costs.length > 0 ? (
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-secondary/20">
-                      <th className="px-4 py-2 text-left">Descrição</th>
-                      <th className="px-4 py-2 text-right">Valor</th>
-                      <th className="px-4 py-2 text-center">Data</th>
-                      <th className="px-4 py-2 text-left">Observações</th>
-                      {canManage && <th className="px-4 py-2 text-center">Ações</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {costs.map((cost) => (
-                      <tr key={cost.id} className="border-b">
-                        <td className="px-4 py-2">{cost.description}</td>
-                        <td className="px-4 py-2 text-right font-mono">
-                          {formatCurrency(parseFloat(cost.amount))}
-                        </td>
-                        <td className="px-4 py-2 text-center whitespace-nowrap">
-                          {format(new Date(cost.date), "dd/MM/yyyy", { locale: ptBR })}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-muted-foreground">
-                          {cost.notes || "-"}
-                        </td>
-                        {canManage && (
-                          <td className="px-4 py-2 text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => confirmDelete(cost.id)}
-                              className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              )}
             </div>
           ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              Nenhum custo operacional registrado para esta venda.
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Observações</TableHead>
+                  {canManage && <TableHead className="text-right">Ações</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {costs.map((cost: any) => (
+                  <TableRow key={cost.id}>
+                    <TableCell className="font-medium">{cost.description}</TableCell>
+                    <TableCell>{formatDate(cost.date)}</TableCell>
+                    <TableCell>{formatCurrency(cost.amount)}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{cost.notes || "-"}</TableCell>
+                    {canManage && (
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openDeleteDialog(cost.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Excluir</span>
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
-        {costs && costs.length > 0 && (
-          <CardFooter className="flex justify-end">
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Total de custos:</div>
-              <div className="text-xl font-bold">
-                {formatCurrency(totalCosts || 0)}
-              </div>
+        {costs.length > 0 && (
+          <CardFooter className="border-t px-6 py-4">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">Total de custos operacionais:</span>
+              <span className="font-semibold text-lg">
+                {formatCurrency(totalCosts)}
+              </span>
             </div>
           </CardFooter>
         )}
       </Card>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir custo operacional</AlertDialogTitle>
-            <AlertDialogDescription>
+      
+      {/* Diálogo para adicionar custo */}
+      <Dialog open={costDialogOpen} onOpenChange={setCostDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Custo Operacional</DialogTitle>
+            <DialogDescription>
+              Registre um novo custo relacionado à execução desta venda.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="description">Descrição <span className="text-destructive">*</span></Label>
+                <Input
+                  id="description"
+                  placeholder="Ex: Transporte, Material, etc."
+                  {...register("description", { required: "Descrição é obrigatória" })}
+                />
+                {errors.description && (
+                  <p className="text-sm text-destructive">{errors.description.message}</p>
+                )}
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="amount">Valor <span className="text-destructive">*</span></Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="amount"
+                    className="pl-9"
+                    placeholder="0,00"
+                    {...register("amount", { 
+                      required: "Valor é obrigatório",
+                      pattern: {
+                        value: /^[0-9]+(?:[.,][0-9]+)?$/,
+                        message: "Informe um valor válido"
+                      }
+                    })}
+                  />
+                </div>
+                {errors.amount && (
+                  <p className="text-sm text-destructive">{errors.amount.message}</p>
+                )}
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="date">Data <span className="text-destructive">*</span></Label>
+                <Input
+                  id="date"
+                  type="date"
+                  {...register("date", { required: "Data é obrigatória" })}
+                />
+                {errors.date && (
+                  <p className="text-sm text-destructive">{errors.date.message}</p>
+                )}
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="notes">Observações</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Informações adicionais sobre o custo..."
+                  {...register("notes")}
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCostDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                type="submit"
+                disabled={addCostMutation.isPending}
+                variant="default"
+              >
+                {addCostMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                )}
+                Adicionar Custo
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de confirmação de exclusão */}
+      <Dialog open={confirmDeleteDialogOpen} onOpenChange={setConfirmDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
               Tem certeza que deseja excluir este custo operacional? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => selectedCostId && deleteCostMutation.mutate(selectedCostId)}
+              disabled={deleteCostMutation.isPending}
             >
+              {deleteCostMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
               Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
