@@ -29,6 +29,8 @@ type Sale = {
   paymentMethodId: number;
   sellerId: number;
   totalAmount: string;
+  installments: number;
+  installmentValue: string | null;
   status: string;
   executionStatus: string;
   financialStatus: string;
@@ -58,6 +60,7 @@ const saleSchema = z.object({
   serviceTypeId: z.coerce.number().min(1, "Tipo de serviço é obrigatório"),
   sellerId: z.coerce.number().min(1, "Vendedor é obrigatório"),
   totalAmount: z.string().optional(),
+  installments: z.coerce.number().min(1, "Número de parcelas deve ser pelo menos 1").default(1),
   notes: z.string().optional(),
   items: z.array(saleItemSchema).min(1, "Adicione pelo menos um item à venda"),
 });
@@ -167,6 +170,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     serviceTypeId: 0,
     sellerId: user?.id || 0,
     totalAmount: "",
+    installments: 1, // Padrão: pagamento à vista
     notes: "",
     items: [] // Sem item inicial, usuário precisa adicionar manualmente
   };
@@ -269,6 +273,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         serviceTypeId: saleItems[0]?.serviceTypeId || 0, // Pega o tipo de serviço do primeiro item
         sellerId: sale.sellerId,
         totalAmount: sale.totalAmount,
+        installments: sale.installments || 1, // Garante que tenha pelo menos 1 parcela
         notes: sale.notes,
         items: saleItems.map((item: SaleItem) => ({
           serviceId: item.serviceId,
