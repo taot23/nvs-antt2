@@ -694,6 +694,7 @@ export class DatabaseStorage implements IStorage {
     page: number;
     limit: number;
     status?: string;
+    financialStatus?: string; // Novo parâmetro para filtrar por status financeiro
     sellerId?: number;
     searchTerm?: string;
     sortField?: string;
@@ -710,6 +711,7 @@ export class DatabaseStorage implements IStorage {
       page = 1, 
       limit = 10, 
       status, 
+      financialStatus, // Novo parâmetro extraído das opções
       sellerId, 
       searchTerm, 
       sortField = 'createdAt', 
@@ -718,15 +720,20 @@ export class DatabaseStorage implements IStorage {
       endDate
     } = options;
     
-    console.log(`Buscando vendas paginadas: página ${page}, limite ${limit}, intervalo de datas: ${startDate || 'não definido'} a ${endDate || 'não definido'}`);
+    console.log(`Buscando vendas paginadas: página ${page}, limite ${limit}, status operacional: ${status || 'não definido'}, status financeiro: ${financialStatus || 'não definido'}, intervalo de datas: ${startDate || 'não definido'} a ${endDate || 'não definido'}`);
     
     // Obter todas as vendas primeiro (depois otimizaremos isso com SQL direto)
     let allSales = await db.select().from(sales);
     let totalRecords = allSales.length;
     
-    // Filtrar pelo status, se fornecido
+    // Filtrar pelo status operacional, se fornecido
     if (status) {
       allSales = allSales.filter(sale => sale.status === status);
+    }
+    
+    // Filtrar pelo status financeiro, se fornecido
+    if (financialStatus) {
+      allSales = allSales.filter(sale => sale.financialStatus === financialStatus);
     }
     
     // Filtrar pelo vendedor, se fornecido

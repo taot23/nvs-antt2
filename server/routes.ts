@@ -1014,6 +1014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = req.query.page ? parseInt(req.query.page as string) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const status = req.query.status as string || undefined;
+      const financialStatus = req.query.financialStatus as string || undefined; // Novo: Suporte para filtro por status financeiro
       const searchTerm = req.query.searchTerm as string || undefined;
       const sortField = req.query.sortField as string || 'createdAt';
       const sortDirection = req.query.sortDirection as 'asc' | 'desc' || 'desc';
@@ -1033,6 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           page,
           limit,
           status,
+          financialStatus, // Adicionado suporte para filtro por status financeiro
           sellerId,
           searchTerm,
           sortField,
