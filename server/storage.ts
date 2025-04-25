@@ -757,7 +757,23 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Adicionar ordenação
-    queryText += ` ORDER BY s.${sortField} ${sortDirection.toUpperCase()}`;
+    // Converter nomes de campos camelCase para snake_case para SQL
+    const fieldMapping: Record<string, string> = {
+      'createdAt': 'created_at',
+      'updatedAt': 'updated_at',
+      'totalAmount': 'total_amount',
+      'orderNumber': 'order_number',
+      'customerId': 'customer_id',
+      'paymentMethodId': 'payment_method_id',
+      'sellerId': 'seller_id',
+      'serviceTypeId': 'service_type_id',
+      'serviceProviderId': 'service_provider_id',
+      'financialStatus': 'financial_status'
+    };
+    
+    // Usar o nome do campo mapeado ou o original se não tiver mapeamento
+    const sqlFieldName = fieldMapping[sortField] || sortField;
+    queryText += ` ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}`;
     
     // Adicionar paginação
     queryParams.push(limit);
@@ -817,7 +833,7 @@ export class DatabaseStorage implements IStorage {
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         WHERE ${whereConditions.join(' AND ')}
-        ORDER BY s.${sortField} ${sortDirection.toUpperCase()}
+        ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}
         LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
       `;
       

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/pagination";
 import { getStatusLabel, getStatusVariant } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2, DollarSign } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
 
@@ -144,15 +144,31 @@ export default function FinanceSalesTable({
                           : getStatusLabel(sale.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => onViewFinancials(sale.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Financeiro
-                      </Button>
+                    <TableCell className="text-right space-x-2">
+                      {/* Botão para iniciar tratativa */}
+                      {usesFinancialStatus && sale.financialStatus === "pending" && (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={() => onViewFinancials(sale.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          Iniciar Tratativa
+                        </Button>
+                      )}
+                      
+                      {/* Botão padrão para visualizar detalhes */}
+                      {(!usesFinancialStatus || sale.financialStatus !== "pending") && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => onViewFinancials(sale.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Financeiro
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
