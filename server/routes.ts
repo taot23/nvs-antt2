@@ -2483,6 +2483,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Esta venda não está no status financeiro pendente" });
       }
       
+      // Verificar se já existem parcelas para esta venda
+      const existingInstallments = await storage.getSaleInstallments(saleId);
+      
+      // Se não houver parcelas, criar automaticamente com base nas informações da venda
+      if (existingInstallments.length === 0) {
+        console.log(`Criando parcelas para a venda #${saleId}`);
+        
+        // Obter o número de parcelas e valor da venda
+        const numInstallments = sale.installments || 1;
+        const totalAmount = parseFloat(sale.totalAmount.toString());
+        
+        // Calcular o valor de cada parcela
+        const installmentValue = parseFloat((totalAmount / numInstallments).toFixed(2));
+        
+        // Ajustar a última parcela para garantir que a soma seja exata
+        const lastInstallmentValue = totalAmount - (installmentValue * (numInstallments - 1));
+        
+        // Criar as parcelas
+        const hoje = new Date();
+        for (let i = 1; i <= numInstallments; i++) {
+          // Definir data de vencimento (30 dias após o mês anterior)
+          const dueDate = new Date(hoje);
+          dueDate.setMonth(hoje.getMonth() + (i - 1));
+          
+          // Definir o valor, ajustando para a última parcela se necessário
+          const amount = i === numInstallments ? lastInstallmentValue : installmentValue;
+          
+          await storage.createSaleInstallment({
+            saleId,
+            installmentNumber: i,
+            amount: amount.toString(),
+            dueDate: dueDate.toISOString().split('T')[0],
+            status: 'pending',
+            paymentDate: null
+          });
+        }
+        
+        console.log(`Parcelas criadas com sucesso para a venda #${saleId}`);
+      }
+      
       // Atualizar o status financeiro e o responsável financeiro
       const updatedSale = await storage.updateSale(saleId, {
         financialStatus: 'in_progress',
