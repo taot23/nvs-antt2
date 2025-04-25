@@ -10,7 +10,8 @@ import {
   salesStatusHistory, type SalesStatusHistory, type InsertSalesStatusHistory,
   saleInstallments, type SaleInstallment, type InsertSaleInstallment,
   saleOperationalCosts, type SaleOperationalCost, type InsertSaleOperationalCost,
-  salePaymentReceipts, type SalePaymentReceipt, type InsertSalePaymentReceipt
+  salePaymentReceipts, type SalePaymentReceipt, type InsertSalePaymentReceipt,
+  costTypes, type CostType, type InsertCostType
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -128,6 +129,14 @@ export interface IStorage {
   createSalePaymentReceipt(receipt: InsertSalePaymentReceipt): Promise<SalePaymentReceipt>;
   updateSalePaymentReceipt(id: number, receipt: Partial<InsertSalePaymentReceipt>): Promise<SalePaymentReceipt | undefined>;
   deleteSalePaymentReceipt(id: number): Promise<boolean>;
+  
+  // Cost Types methods
+  getCostTypes(): Promise<CostType[]>;
+  getCostType(id: number): Promise<CostType | undefined>;
+  getCostTypeByName(name: string): Promise<CostType | undefined>;
+  createCostType(costType: InsertCostType): Promise<CostType>;
+  updateCostType(id: number, costType: Partial<InsertCostType>): Promise<CostType | undefined>;
+  deleteCostType(id: number): Promise<boolean>;
   
   // Gerenciar confirmação de pagamentos de parcelas
   confirmInstallmentPayment(
@@ -1365,6 +1374,57 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedInstallment;
+  }
+  
+  // Cost Types methods implementation
+  async getCostTypes(): Promise<CostType[]> {
+    return await db.select().from(costTypes);
+  }
+
+  async getCostType(id: number): Promise<CostType | undefined> {
+    const [costType] = await db.select().from(costTypes).where(eq(costTypes.id, id));
+    return costType || undefined;
+  }
+  
+  async getCostTypeByName(name: string): Promise<CostType | undefined> {
+    // Buscar todos os tipos de custo para verificar (usando lowercase para comparação insensitiva)
+    const allCostTypes = await db.select().from(costTypes);
+    
+    // Encontrar tipo de custo com o mesmo nome (comparação case-insensitive)
+    const foundCostType = allCostTypes.find(costType => 
+      costType.name.toLowerCase() === name.toLowerCase()
+    );
+    
+    return foundCostType;
+  }
+
+  async createCostType(costTypeData: InsertCostType): Promise<CostType> {
+    const [createdCostType] = await db
+      .insert(costTypes)
+      .values({
+        name: costTypeData.name,
+        description: costTypeData.description,
+        active: costTypeData.active
+      })
+      .returning();
+    return createdCostType;
+  }
+
+  async updateCostType(id: number, costTypeData: Partial<InsertCostType>): Promise<CostType | undefined> {
+    const [updatedCostType] = await db
+      .update(costTypes)
+      .set(costTypeData)
+      .where(eq(costTypes.id, id))
+      .returning();
+    return updatedCostType || undefined;
+  }
+
+  async deleteCostType(id: number): Promise<boolean> {
+    const [deletedCostType] = await db
+      .delete(costTypes)
+      .where(eq(costTypes.id, id))
+      .returning();
+    return !!deletedCostType;
   }
 }
 
