@@ -203,11 +203,29 @@ export const insertSaleInstallmentSchema = createInsertSchema(saleInstallments).
   updatedAt: true,
 });
 
+// Tabela de tipos de custo operacional
+export const costTypes = pgTable("cost_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // Nome do tipo de custo
+  description: text("description"), // Descrição opcional
+  active: boolean("active").notNull().default(true), // Indica se o tipo está ativo
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de tipos de custo
+export const insertCostTypeSchema = createInsertSchema(costTypes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tabela de custos operacionais da venda
 export const saleOperationalCosts = pgTable("sale_operational_costs", {
   id: serial("id").primaryKey(),
   saleId: integer("sale_id").notNull().references(() => sales.id), // Venda relacionada
   description: text("description").notNull(), // Descrição do custo
+  costTypeId: integer("cost_type_id").references(() => costTypes.id), // Tipo de custo padronizado
   amount: numeric("amount").notNull(), // Valor do custo
   date: date("date").notNull(), // Data do custo
   responsibleId: integer("responsible_id").notNull().references(() => users.id), // Responsável pelo registro
@@ -248,6 +266,8 @@ export type InsertSalesStatusHistory = z.infer<typeof insertSalesStatusHistorySc
 export type SalesStatusHistory = typeof salesStatusHistory.$inferSelect;
 export type InsertSaleInstallment = z.infer<typeof insertSaleInstallmentSchema>;
 export type SaleInstallment = typeof saleInstallments.$inferSelect;
+export type InsertCostType = z.infer<typeof insertCostTypeSchema>;
+export type CostType = typeof costTypes.$inferSelect;
 export type InsertSaleOperationalCost = z.infer<typeof insertSaleOperationalCostSchema>;
 export type SaleOperationalCost = typeof saleOperationalCosts.$inferSelect;
 export type InsertSalePaymentReceipt = z.infer<typeof insertSalePaymentReceiptSchema>;

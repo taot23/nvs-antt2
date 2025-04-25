@@ -28,9 +28,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getStatusLabel } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Loader2, DollarSign, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, InfoIcon } from "lucide-react";
+import { 
+  Eye, 
+  Loader2, 
+  DollarSign, 
+  ChevronLeft, 
+  ChevronRight, 
+  ChevronsLeft, 
+  ChevronsRight, 
+  InfoIcon,
+  ArrowDownAZ,
+  ArrowUpAZ,
+  ArrowDown01,
+  ArrowUp01,
+  Calendar,
+  Hash,
+  User,
+  MoreHorizontal
+} from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,14 +85,32 @@ export default function FinanceSalesTable({
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [sortField, setSortField] = useState('id');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Função para alternar ordenação
+  const toggleSort = (field: string) => {
+    if (sortField === field) {
+      // Se já estiver ordenando por este campo, inverte a direção
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Se for um novo campo, ordena ascendente por padrão
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
   
   // Busca os dados de vendas com paginação
   const { data: salesData, isLoading, error } = useQuery<SalesResponse>({
-    queryKey: ['/api/sales', page, limit, status, searchTerm, usesFinancialStatus, dateRange],
+    queryKey: ['/api/sales', page, limit, status, searchTerm, usesFinancialStatus, dateRange, sortField, sortDirection],
     queryFn: async () => {
       const url = new URL('/api/sales', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', limit.toString());
+      
+      // Adicionar parâmetros de ordenação
+      url.searchParams.append('sortField', sortField);
+      url.searchParams.append('sortDirection', sortDirection);
       
       // Dependendo do flag, usa status ou financialStatus (exceto quando for "all")
       if (usesFinancialStatus) {
