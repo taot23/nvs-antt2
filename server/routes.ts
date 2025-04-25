@@ -13,7 +13,10 @@ import {
   insertSaleSchema,
   insertSaleItemSchema,
   insertSalesStatusHistorySchema,
-  InsertSale
+  insertSaleOperationalCostSchema,
+  InsertSale,
+  InsertSaleOperationalCost,
+  InsertSalePaymentReceipt
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { scrypt, randomBytes } from "crypto";
@@ -2222,6 +2225,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao criar parcelas da venda:", error);
       res.status(500).json({ error: "Erro ao criar parcelas da venda" });
+    }
+  });
+
+  // === MÓDULO FINANCEIRO ===
+
+  // Rota para buscar custos operacionais de uma venda
+  app.get("/api/sales/:id/operational-costs", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      const costs = await storage.getSaleOperationalCosts(id);
+      res.json(costs);
+    } catch (error) {
+      console.error("Erro ao buscar custos operacionais:", error);
+      res.status(500).json({ error: "Erro ao buscar custos operacionais" });
+    }
+  });
+
+  // Rota para adicionar um custo operacional a uma venda
+  app.post("/api/sales/:id/operational-costs", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Extrair dados do corpo da requisição
+      const { description, amount, date, notes } = req.body;
+      
+      // Validar dados
+      if (!description) {
+        return res.status(400).json({ error: "Descrição é obrigatória" });
+      }
+      
+      if (!amount || isNaN(parseFloat(amount))) {
+        return res.status(400).json({ error: "Valor inválido" });
+      }
+      
+      // Criar o custo operacional
+      const cost = await storage.createSaleOperationalCost({
+        saleId: id,
+        description,
+        amount: amount.toString(),
+        date: date ? date : new Date().toISOString(),
+        registeredBy: req.user!.id,
+        notes: notes || null
+      });
+      
+      // Emitir evento de atualização
+      notifySalesUpdate();
+      
+      res.status(201).json(cost);
+    } catch (error) {
+      console.error("Erro ao adicionar custo operacional:", error);
+      res.status(500).json({ error: "Erro ao adicionar custo operacional" });
+    }
+  });
+
+  // Rota para atualizar um custo operacional
+  app.patch("/api/operational-costs/:id", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const cost = await storage.getSaleOperationalCost(id);
+      if (!cost) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      // Extrair dados do corpo da requisição
+      const { description, amount, date, notes } = req.body;
+      
+      // Preparar dados para atualização
+      const updateData: Partial<InsertSaleOperationalCost> = {};
+      
+      if (description !== undefined) updateData.description = description;
+      if (amount !== undefined) updateData.amount = amount.toString();
+      if (date !== undefined) updateData.date = date;
+      if (notes !== undefined) updateData.notes = notes;
+      
+      // Atualizar o custo operacional
+      const updatedCost = await storage.updateSaleOperationalCost(id, updateData);
+      
+      // Emitir evento de atualização
+      notifySalesUpdate();
+      
+      res.json(updatedCost);
+    } catch (error) {
+      console.error("Erro ao atualizar custo operacional:", error);
+      res.status(500).json({ error: "Erro ao atualizar custo operacional" });
+    }
+  });
+
+  // Rota para excluir um custo operacional
+  app.delete("/api/operational-costs/:id", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const cost = await storage.getSaleOperationalCost(id);
+      if (!cost) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      const success = await storage.deleteSaleOperationalCost(id);
+      
+      // Emitir evento de atualização
+      notifySalesUpdate();
+      
+      res.json({ success });
+    } catch (error) {
+      console.error("Erro ao excluir custo operacional:", error);
+      res.status(500).json({ error: "Erro ao excluir custo operacional" });
+    }
+  });
+
+  // Rota para confirmar pagamento de uma parcela
+  app.post("/api/installments/:id/confirm-payment", canManageSaleFinancials, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const installment = await storage.getSaleInstallment(id);
+      if (!installment) {
+        return res.status(404).json({ error: "Parcela não encontrada" });
+      }
+      
+      // Extrair dados do corpo da requisição
+      const { paymentDate, receiptType, receiptUrl, receiptData, notes } = req.body;
+      
+      // Validar data de pagamento
+      if (!paymentDate) {
+        return res.status(400).json({ error: "Data de pagamento é obrigatória" });
+      }
+      
+      // Validar tipo de comprovante
+      if (!receiptType) {
+        return res.status(400).json({ error: "Tipo de comprovante é obrigatório" });
+      }
+      
+      // Confirmar pagamento da parcela
+      const updatedInstallment = await storage.confirmInstallmentPayment(
+        id,
+        req.user!.id,
+        new Date(paymentDate),
+        {
+          type: receiptType,
+          url: receiptUrl,
+          data: receiptData,
+          notes
+        }
+      );
+      
+      // Emitir evento de atualização
+      notifySalesUpdate();
+      
+      res.json(updatedInstallment);
+    } catch (error) {
+      console.error("Erro ao confirmar pagamento de parcela:", error);
+      res.status(500).json({ error: "Erro ao confirmar pagamento de parcela" });
+    }
+  });
+
+  // Rota para buscar comprovantes de pagamento de uma parcela
+  app.get("/api/installments/:id/payment-receipts", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const installment = await storage.getSaleInstallment(id);
+      if (!installment) {
+        return res.status(404).json({ error: "Parcela não encontrada" });
+      }
+      
+      const receipts = await storage.getSalePaymentReceipts(id);
+      res.json(receipts);
+    } catch (error) {
+      console.error("Erro ao buscar comprovantes de pagamento:", error);
+      res.status(500).json({ error: "Erro ao buscar comprovantes de pagamento" });
     }
   });
 
