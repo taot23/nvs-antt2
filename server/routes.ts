@@ -1049,6 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           page,
           limit,
           status,
+          financialStatus, // Adicionado suporte para filtro por status financeiro
           sellerId: req.user!.id, // Força o filtro pelo ID do vendedor
           searchTerm,
           sortField,
