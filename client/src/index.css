@@ -8,6 +8,65 @@
   --color-completed-bg: rgba(134, 239, 172, 0.35); /* Verde intenso */
   --color-in-progress-bg: rgba(255, 159, 64, 0.4); /* Laranja intenso */
   --color-returned-bg: rgba(252, 165, 165, 0.35); /* Vermelho intenso */
+  
+  /* Variáveis para breakpoints */
+  --xs: 480px;
+  --sm: 640px;
+  --md: 768px;
+  --lg: 1024px;
+  --xl: 1280px;
+}
+
+/* Adicionando classe de utilidade para tela extra pequena */
+@layer utilities {
+  .xs\:inline {
+    @media (min-width: 480px) {
+      display: inline;
+    }
+  }
+  
+  .xs\:block {
+    @media (min-width: 480px) {
+      display: block;
+    }
+  }
+  
+  .xs\:flex {
+    @media (min-width: 480px) {
+      display: flex;
+    }
+  }
+  
+  .xs\:hidden {
+    @media (min-width: 480px) {
+      display: none;
+    }
+  }
+  
+  /* Classes para melhorar a interação em telas de toque */
+  .touch-target {
+    @media (max-width: 640px) {
+      min-height: 48px;
+      min-width: 48px;
+    }
+  }
+  
+  /* Espaçamento responsivo */
+  .p-responsive {
+    padding: 0.5rem;
+  }
+  
+  @media (min-width: 640px) {
+    .p-responsive {
+      padding: 1rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .p-responsive {
+      padding: 1.5rem;
+    }
+  }
 }
 
 /* SOLUÇÃO FINAL 2.0 - ABORDAGEM DIRETA COM BORDAS E CORES INTENSAS */

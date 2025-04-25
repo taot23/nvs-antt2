@@ -4,7 +4,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { LogOut, ChevronLeft, Menu } from 'lucide-react';
 import { 
   User, 
   ShieldCheck, 
@@ -27,6 +27,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   
   // Função para obter o ícone correto com base no perfil do usuário
   const getUserRoleIcon = () => {
@@ -63,16 +64,35 @@ export function AppLayout({ children }: AppLayoutProps) {
         return 'default';
     }
   };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
   
   return (
     <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-background">
-      {/* Sidebar importada do componente separado */}
-      <Sidebar />
+      {/* Sidebar com nova prop para controlar visibilidade */}
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
-      <div className="flex flex-col flex-1">
-        {/* Indicador de usuário logado com menu dropdown */}
-        {user && (
-          <div className="flex justify-end p-2 bg-background/90 backdrop-blur-sm shadow-sm border-b sticky top-0 z-10">
+      <div className="flex flex-col flex-1 w-full">
+        {/* Header mais responsivo com botão para toggle da sidebar */}
+        <header className="flex items-center justify-between p-2 bg-background/90 backdrop-blur-sm shadow-sm border-b sticky top-0 z-30 h-14">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="mr-2"
+              aria-label={sidebarOpen ? "Fechar menu" : "Abrir menu"}
+            >
+              {sidebarOpen && !isMobile ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+            
+            <h1 className="text-lg font-semibold truncate hidden sm:block">Sistema de Gestão</h1>
+          </div>
+
+          {/* Indicador de usuário logado com menu dropdown */}
+          {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -84,8 +104,8 @@ export function AppLayout({ children }: AppLayoutProps) {
                     className="flex items-center py-1.5 px-3 hover:opacity-90 transition-opacity"
                   >
                     {getUserRoleIcon()}
-                    <span className="font-medium">
-                      {user.username} ({user.role})
+                    <span className="font-medium hidden xs:inline">
+                      {user.username} {!isMobile && `(${user.role})`}
                     </span>
                   </Badge>
                 </Button>
@@ -100,15 +120,25 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        )}
+          )}
+        </header>
         
-        {/* Conteúdo principal - se ajusta automaticamente com padding responsivo 
-            Com espaço adicional no topo para o botão de menu mobile */}
-        <main className={`flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 ${isMobile ? 'pt-16' : 'pt-4'}`}>
-          {children}
+        {/* Conteúdo principal - se ajusta automaticamente com padding responsivo */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pt-4 w-full">
+          <div className="max-w-full mx-auto">
+            {children}
+          </div>
         </main>
       </div>
+      
+      {/* Overlay para fechar o sidebar em mobile quando clicado fora */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-20"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }
