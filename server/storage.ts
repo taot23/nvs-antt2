@@ -8,7 +8,9 @@ import {
   sales, type Sale, type InsertSale,
   saleItems, type SaleItem, type InsertSaleItem,
   salesStatusHistory, type SalesStatusHistory, type InsertSalesStatusHistory,
-  saleInstallments, type SaleInstallment, type InsertSaleInstallment
+  saleInstallments, type SaleInstallment, type InsertSaleInstallment,
+  saleOperationalCosts, type SaleOperationalCost, type InsertSaleOperationalCost,
+  salePaymentReceipts, type SalePaymentReceipt, type InsertSalePaymentReceipt
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -1150,6 +1152,135 @@ export class DatabaseStorage implements IStorage {
       financialStatus: 'paid',
       responsibleFinancialId: financialId
     });
+  }
+
+  // Implementação dos métodos de custos operacionais
+  async getSaleOperationalCosts(saleId: number): Promise<SaleOperationalCost[]> {
+    return db.select().from(saleOperationalCosts).where(eq(saleOperationalCosts.saleId, saleId));
+  }
+
+  async getSaleOperationalCost(id: number): Promise<SaleOperationalCost | undefined> {
+    const [cost] = await db.select().from(saleOperationalCosts).where(eq(saleOperationalCosts.id, id));
+    return cost || undefined;
+  }
+
+  async createSaleOperationalCost(costData: InsertSaleOperationalCost): Promise<SaleOperationalCost> {
+    const [createdCost] = await db
+      .insert(saleOperationalCosts)
+      .values(costData)
+      .returning();
+    return createdCost;
+  }
+
+  async updateSaleOperationalCost(id: number, costData: Partial<InsertSaleOperationalCost>): Promise<SaleOperationalCost | undefined> {
+    const [updatedCost] = await db
+      .update(saleOperationalCosts)
+      .set({
+        ...costData,
+        updatedAt: new Date()
+      })
+      .where(eq(saleOperationalCosts.id, id))
+      .returning();
+    return updatedCost || undefined;
+  }
+
+  async deleteSaleOperationalCost(id: number): Promise<boolean> {
+    const [deletedCost] = await db
+      .delete(saleOperationalCosts)
+      .where(eq(saleOperationalCosts.id, id))
+      .returning();
+    return !!deletedCost;
+  }
+
+  // Implementação dos métodos de comprovantes de pagamento
+  async getSalePaymentReceipts(installmentId: number): Promise<SalePaymentReceipt[]> {
+    return db.select().from(salePaymentReceipts).where(eq(salePaymentReceipts.installmentId, installmentId));
+  }
+
+  async getSalePaymentReceipt(id: number): Promise<SalePaymentReceipt | undefined> {
+    const [receipt] = await db.select().from(salePaymentReceipts).where(eq(salePaymentReceipts.id, id));
+    return receipt || undefined;
+  }
+
+  async createSalePaymentReceipt(receiptData: InsertSalePaymentReceipt): Promise<SalePaymentReceipt> {
+    const [createdReceipt] = await db
+      .insert(salePaymentReceipts)
+      .values(receiptData)
+      .returning();
+    return createdReceipt;
+  }
+
+  async updateSalePaymentReceipt(id: number, receiptData: Partial<InsertSalePaymentReceipt>): Promise<SalePaymentReceipt | undefined> {
+    const [updatedReceipt] = await db
+      .update(salePaymentReceipts)
+      .set(receiptData)
+      .where(eq(salePaymentReceipts.id, id))
+      .returning();
+    return updatedReceipt || undefined;
+  }
+
+  async deleteSalePaymentReceipt(id: number): Promise<boolean> {
+    const [deletedReceipt] = await db
+      .delete(salePaymentReceipts)
+      .where(eq(salePaymentReceipts.id, id))
+      .returning();
+    return !!deletedReceipt;
+  }
+
+  // Método para confirmar pagamento de parcela
+  async confirmInstallmentPayment(
+    installmentId: number, 
+    userId: number, 
+    paymentDate: Date, 
+    receiptData?: { type: string, url?: string, data?: any, notes?: string }
+  ): Promise<SaleInstallment | undefined> {
+    // Obter parcela
+    const installment = await this.getSaleInstallment(installmentId);
+    if (!installment) return undefined;
+    
+    // Atualizar status da parcela para paga
+    const [updatedInstallment] = await db
+      .update(saleInstallments)
+      .set({
+        status: 'paid',
+        paymentDate: paymentDate,
+        updatedAt: new Date()
+      })
+      .where(eq(saleInstallments.id, installmentId))
+      .returning();
+    
+    // Se temos dados de comprovante, registrá-lo
+    if (receiptData) {
+      await this.createSalePaymentReceipt({
+        installmentId,
+        receiptType: receiptData.type,
+        receiptUrl: receiptData.url || null,
+        receiptData: receiptData.data ? receiptData.data : null,
+        confirmedBy: userId,
+        notes: receiptData.notes || null
+      });
+    }
+    
+    // Verificar se todas as parcelas desta venda estão pagas
+    const saleId = installment.saleId;
+    const allInstallments = await this.getSaleInstallments(saleId);
+    const allPaid = allInstallments.every(inst => inst.status === 'paid');
+    
+    // Se todas estiverem pagas, atualizar o status financeiro da venda
+    if (allPaid) {
+      await this.markSaleAsPaid(saleId, userId);
+    } else {
+      // Caso contrário, definir como parcialmente pago
+      await db
+        .update(sales)
+        .set({
+          financialStatus: 'partial',
+          updatedAt: new Date()
+        })
+        .where(eq(sales.id, saleId));
+    }
+    
+    return updatedInstallment;
   }
 }
 
