@@ -93,27 +93,29 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   };
 
   return (
-    <Card className="shadow-sm">
-      <CardContent className="p-responsive">
-        <SimpleSalesTable
-          data={data}
-          isLoading={isLoading}
-          error={error}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={onSort}
-          onViewDetails={onViewDetails}
-          onViewHistory={onViewHistory}
-          onEdit={onEdit}
-          onStartExecution={onStartExecution}
-          onCompleteExecution={onCompleteExecution}
-          onReturnClick={onReturnClick}
-          onMarkAsPaid={onMarkAsPaid}
-          onDeleteClick={onDeleteClick}
-          user={user}
-          ReenviaButton={ReenviaButton}
-          DevolveButton={DevolveButton}
-        />
+    <Card className="shadow-sm flex flex-col h-full">
+      <CardContent className={`p-responsive flex-grow ${isMobile ? 'flex flex-col max-h-[calc(100vh-170px)]' : ''}`}>
+        <div className={isMobile ? 'flex-grow overflow-auto pb-4' : ''}>
+          <SimpleSalesTable
+            data={data}
+            isLoading={isLoading}
+            error={error}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={onSort}
+            onViewDetails={onViewDetails}
+            onViewHistory={onViewHistory}
+            onEdit={onEdit}
+            onStartExecution={onStartExecution}
+            onCompleteExecution={onCompleteExecution}
+            onReturnClick={onReturnClick}
+            onMarkAsPaid={onMarkAsPaid}
+            onDeleteClick={onDeleteClick}
+            user={user}
+            ReenviaButton={ReenviaButton}
+            DevolveButton={DevolveButton}
+          />
+        </div>
         
         {/* Controles de paginação - redesenhados para melhor responsividade */}
         {!isLoading && !error && data.length > 0 && (

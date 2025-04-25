@@ -167,7 +167,7 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 pb-4 max-h-[calc(100vh-200px)] overflow-y-auto">
         {data.map(sale => (
           <Card 
             key={sale.id} 
