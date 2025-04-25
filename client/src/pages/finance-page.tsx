@@ -50,18 +50,20 @@ export default function FinancePage() {
     setSelectedSaleId(null);
   };
 
-  const getStatusForActiveTab = (): string => {
+  // Obter o status financeiro correspondente à aba ativa
+  // Estamos usando o financialStatus ao invés do status operacional da venda
+  const getFinancialStatusForActiveTab = (): string => {
     switch (activeTab) {
       case "pending":
-        return "approved"; // Exibir vendas com status "approved" na aba "Aguardando Pagamento"
+        return "pending"; // Vendas aguardando pagamento têm financialStatus "pending"
       case "inProgress":
-        return "in_progress";
+        return "in_progress"; // Vendas em processo financeiro
       case "completed":
-        return "completed";
+        return "completed"; // Vendas com processo financeiro concluído
       case "paid":
-        return "paid";
+        return "paid"; // Vendas com pagamento completado
       default:
-        return "approved";
+        return "pending";
     }
   };
 
@@ -114,33 +116,37 @@ export default function FinancePage() {
 
           <TabsContent value="pending" className="space-y-4">
             <FinanceSalesTable 
-              status={getStatusForActiveTab()}
+              status={getFinancialStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
+              usesFinancialStatus={true}
             />
           </TabsContent>
 
           <TabsContent value="inProgress" className="space-y-4">
             <FinanceSalesTable 
-              status={getStatusForActiveTab()}
+              status={getFinancialStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
+              usesFinancialStatus={true}
             />
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
             <FinanceSalesTable 
-              status={getStatusForActiveTab()}
+              status={getFinancialStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
+              usesFinancialStatus={true}
             />
           </TabsContent>
 
           <TabsContent value="paid" className="space-y-4">
             <FinanceSalesTable 
-              status={getStatusForActiveTab()}
+              status={getFinancialStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
+              usesFinancialStatus={true}
             />
           </TabsContent>
         </Tabs>

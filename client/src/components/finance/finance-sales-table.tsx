@@ -31,6 +31,7 @@ interface FinanceSalesTableProps {
   status: string;
   searchTerm: string;
   onViewFinancials: (saleId: number) => void;
+  usesFinancialStatus?: boolean; // Indica se deve usar financialStatus ao invés de status
 }
 
 // Tipo para definir a estrutura do retorno da API
