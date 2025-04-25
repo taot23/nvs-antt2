@@ -3050,6 +3050,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NOVA ROTA: Solução definitiva para forçar a criação de parcelas para uma venda
+  app.post("/api/sales/:id/recreate-installments", isAuthenticated, async (req, res) => {
+    try {
+      console.log("🔄 INICIANDO RECRIAÇÃO DE PARCELAS");
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        console.log("🔄 ERRO: ID inválido");
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se o usuário tem permissão
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
+        console.log("🔄 ERRO: Permissão negada para usuário " + req.user?.username);
+        return res.status(403).json({ error: "Permissão negada" });
+      }
+      
+      // Buscar a venda
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        console.log("🔄 ERRO: Venda não encontrada");
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      console.log(`🔄 Recriando parcelas para venda #${id}`);
+      console.log(`🔄 Detalhes da venda: orderNumber=${sale.orderNumber}, totalAmount=${sale.totalAmount}, installments=${sale.installments}`);
+      
+      // Parâmetros do request
+      const { numInstallments, installmentValue } = req.body;
+      
+      // Número de parcelas (usar o valor da venda se não fornecido)
+      let installments = sale.installments;
+      
+      if (numInstallments) {
+        installments = parseInt(String(numInstallments));
+        console.log(`🔄 Usando número de parcelas da requisição: ${installments}`);
+        
+        // Atualizar o número de parcelas na venda
+        console.log(`🔄 Atualizando número de parcelas na venda para ${installments}`);
+        await db
+          .update(sales)
+          .set({ installments })
+          .where(eq(sales.id, id));
+      }
+      
+      // Verificar se o número de parcelas é válido
+      if (installments < 1) {
+        console.log("🔄 ERRO: Número de parcelas inválido");
+        return res.status(400).json({ error: "Número de parcelas inválido" });
+      }
+      
+      // Remover parcelas existentes
+      console.log("🔄 Removendo parcelas existentes");
+      await storage.deleteSaleInstallments(id);
+      
+      // Valor total
+      const totalAmount = parseFloat(sale.totalAmount);
+      
+      // Valor das parcelas
+      let parsedInstallmentValue = null;
+      if (installmentValue) {
+        parsedInstallmentValue = parseFloat(String(installmentValue).replace(',', '.'));
+        console.log(`🔄 Valor de parcela fornecido: ${parsedInstallmentValue}`);
+      }
+      
+      // Calcular valor da parcela se não fornecido
+      const calculatedInstallmentValue = parseFloat((totalAmount / installments).toFixed(2));
+      const lastInstallmentValue = totalAmount - (calculatedInstallmentValue * (installments - 1));
+      
+      console.log(`🔄 Valor calculado por parcela: ${calculatedInstallmentValue}`);
+      console.log(`🔄 Valor calculado para última parcela: ${lastInstallmentValue}`);
+      
+      // Criar as parcelas
+      console.log(`🔄 Criando ${installments} parcelas`);
+      const hoje = new Date();
+      const createdInstallments = [];
+      
+      for (let i = 1; i <= installments; i++) {
+        // Data de vencimento (um mês após o anterior)
+        const dueDate = new Date(hoje);
+        dueDate.setMonth(hoje.getMonth() + (i - 1));
+        
+        // Valor da parcela
+        const amount = parsedInstallmentValue || 
+                      (i === installments ? lastInstallmentValue : calculatedInstallmentValue);
+        
+        // Criar parcela
+        console.log(`🔄 Criando parcela #${i} com valor ${amount} e vencimento ${dueDate.toISOString().split('T')[0]}`);
+        
+        const installment = await storage.createSaleInstallment({
+          saleId: id,
+          installmentNumber: i,
+          amount: amount.toString(),
+          dueDate: dueDate.toISOString().split('T')[0],
+          status: "pending",
+          paymentDate: null
+        });
+        
+        createdInstallments.push(installment);
+      }
+      
+      // Notificar todos os clientes sobre a atualização
+      notifySalesUpdate();
+      
+      console.log(`🔄 ${createdInstallments.length} parcelas criadas com sucesso`);
+      
+      // Retornar as parcelas criadas
+      res.status(200).json({
+        success: true,
+        message: `${createdInstallments.length} parcelas criadas com sucesso`,
+        installments: createdInstallments
+      });
+    } catch (error) {
+      console.error("🔄 ERRO ao recriar parcelas:", error);
+      res.status(500).json({ error: "Erro ao recriar parcelas" });
+    }
+  });
+
   // Criar o servidor HTTP
   const httpServer = createServer(app);
   
