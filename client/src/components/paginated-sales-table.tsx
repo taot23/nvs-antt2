@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,10 +92,102 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
     setShowPaginationControls(!showPaginationControls);
   };
 
+  // Usamos useEffect para garantir que a rolagem funcione corretamente em dispositivos móveis
+  useEffect(() => {
+    if (isMobile) {
+      // ABORDAGEM RADICAL: Injetar um script para forçar o comportamento correto de rolagem
+      const fixScrollingScript = document.createElement('script');
+      fixScrollingScript.textContent = `
+        (function() {
+          // Desabilitar comportamentos de rolagem problemáticos
+          document.addEventListener('touchmove', function(e) {
+            if (!e.target.closest('.mobile-scrollable-content')) {
+              e.preventDefault();
+            }
+          }, { passive: false });
+          
+          // Detectar quando o conteúdo é scrollado e garantir que a rolagem funcione
+          const scrollableContents = document.querySelectorAll('.mobile-scrollable-content');
+          scrollableContents.forEach(content => {
+            content.addEventListener('touchstart', function(e) {
+              e.stopPropagation();
+            }, { passive: true });
+            
+            content.addEventListener('touchmove', function(e) {
+              e.stopPropagation();
+            }, { passive: true });
+          });
+          
+          // Forçar recalculo de tamanhos
+          window.dispatchEvent(new Event('resize'));
+        })();
+      `;
+      document.body.appendChild(fixScrollingScript);
+      
+      // Configuração direta de estilos
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
+      
+      // Forçando redimensionamento para atualizar o layout
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+      
+      return () => {
+        // Remover script e manipulações na desmontagem
+        if (fixScrollingScript && fixScrollingScript.parentNode) {
+          fixScrollingScript.parentNode.removeChild(fixScrollingScript);
+        }
+        
+        document.body.style.overflow = '';
+        document.body.style.height = '';
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.height = '';
+      };
+    }
+  }, [isMobile, data]);
+
   return (
     <Card className="shadow-sm flex flex-col h-full overflow-hidden">
       <CardContent className="p-responsive flex-grow flex flex-col overflow-hidden">
-        <div className={isMobile ? 'flex-grow overflow-auto pb-4 mobile-scrollable-content' : ''} style={isMobile ? { height: 'calc(100vh - 220px)', WebkitOverflowScrolling: 'touch' } : {}}>
+        {isMobile ? (
+          <div 
+            className="mobile-scrollable-content"
+            style={{
+              height: 'calc(100vh - 230px)',
+              maxHeight: 'calc(100vh - 230px)',
+              overflow: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+              position: 'relative',
+              paddingBottom: '20px',
+              width: '100%',
+              touchAction: 'pan-y'
+            }}
+          >
+            <SimpleSalesTable
+              data={data}
+              isLoading={isLoading}
+              error={error}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={onSort}
+              onViewDetails={onViewDetails}
+              onViewHistory={onViewHistory}
+              onEdit={onEdit}
+              onStartExecution={onStartExecution}
+              onCompleteExecution={onCompleteExecution}
+              onReturnClick={onReturnClick}
+              onMarkAsPaid={onMarkAsPaid}
+              onDeleteClick={onDeleteClick}
+              user={user}
+              ReenviaButton={ReenviaButton}
+              DevolveButton={DevolveButton}
+            />
+          </div>
+        ) : (
           <SimpleSalesTable
             data={data}
             isLoading={isLoading}
@@ -115,7 +207,7 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
             ReenviaButton={ReenviaButton}
             DevolveButton={DevolveButton}
           />
-        </div>
+        )}
         
         {/* Controles de paginação - redesenhados para melhor responsividade */}
         {!isLoading && !error && data.length > 0 && (

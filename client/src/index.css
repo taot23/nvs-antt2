@@ -309,8 +309,22 @@ select {
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain !important;
     position: relative;
-    height: calc(100vh - 220px) !important;
-    max-height: calc(100vh - 220px) !important;
+    height: calc(100vh - 230px) !important;
+    max-height: calc(100vh - 230px) !important;
     padding-bottom: 20px !important;
+    touch-action: pan-y !important;
+  }
+  
+  /* Garantir que o container pai também permita rolagem */
+  .p-responsive.flex-grow {
+    overflow: visible !important;
+  }
+  
+  /* Regras específicas para telas muito pequenas */
+  @media screen and (max-height: 600px) {
+    .mobile-scrollable-content {
+      height: calc(100vh - 180px) !important;
+      max-height: calc(100vh - 180px) !important;
+    }
   }
 }
