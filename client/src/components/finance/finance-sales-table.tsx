@@ -64,11 +64,15 @@ export default function FinanceSalesTable({
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', limit.toString());
       
-      // Dependendo do flag, usa status ou financialStatus
+      // Dependendo do flag, usa status ou financialStatus (exceto quando for "all")
       if (usesFinancialStatus) {
-        url.searchParams.append('financialStatus', status);
+        if (status !== 'all') {
+          url.searchParams.append('financialStatus', status);
+        }
       } else {
-        url.searchParams.append('status', status);
+        if (status !== 'all') {
+          url.searchParams.append('status', status);
+        }
       }
       
       if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
@@ -128,7 +132,10 @@ export default function FinanceSalesTable({
           <>
             <Table>
               <TableCaption>
-                Lista de vendas com {usesFinancialStatus ? 'status financeiro' : 'status operacional'}: {getStatusLabel(status)}
+                {status === 'all' 
+                  ? 'Lista completa de vendas'
+                  : `Lista de vendas com ${usesFinancialStatus ? 'status financeiro' : 'status operacional'}: ${getStatusLabel(status)}`
+                }
               </TableCaption>
               <TableHeader>
                 <TableRow>

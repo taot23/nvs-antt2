@@ -206,6 +206,8 @@ export default function FinancePage() {
   // Estamos usando o financialStatus ao invés do status operacional da venda
   function getFinancialStatusForActiveTab(): string {
     switch (activeTab) {
+      case "all":
+        return "all"; // Todas as vendas, sem filtro de status
       case "pending":
         return "pending"; // Vendas aguardando pagamento têm financialStatus "pending"
       case "inProgress":
@@ -222,6 +224,7 @@ export default function FinancePage() {
   // Obter a descrição do status financeiro
   function getFinancialStatusLabel(status: string): string {
     switch (status) {
+      case 'all': return 'Todos';
       case 'pending': return 'Aguardando Pagamento';
       case 'in_progress': return 'Em Execução';
       case 'completed': return 'Executado';
@@ -295,6 +298,10 @@ export default function FinancePage() {
         <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center justify-between pb-3">
             <TabsList>
+              <TabsTrigger value="all" className="flex items-center gap-1">
+                <BarChart4 className="h-4 w-4" />
+                <span>Todos</span>
+              </TabsTrigger>
               <TabsTrigger value="pending" className="flex items-center gap-1">
                 <Pencil className="h-4 w-4" />
                 <span>Aguardando Pagamento</span>
@@ -313,6 +320,16 @@ export default function FinancePage() {
               </TabsTrigger>
             </TabsList>
           </div>
+
+          <TabsContent value="all" className="space-y-4">
+            <FinanceSalesTable 
+              status={getFinancialStatusForActiveTab()}
+              searchTerm={searchTerm}
+              onViewFinancials={handleViewFinancials}
+              usesFinancialStatus={true}
+              dateRange={dateRange}
+            />
+          </TabsContent>
 
           <TabsContent value="pending" className="space-y-4">
             <FinanceSalesTable 
