@@ -123,6 +123,14 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     }
   });
   
+  // Função para formatar data no padrão brasileiro
+  const formatDateToBR = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   // Função para abrir o diálogo de confirmação
   const openConfirmDialog = (installment: any) => {
     setSelectedInstallment(installment);
@@ -130,7 +138,8 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     // Atualizar a data atual
     const today = new Date();
     setPaymentDate(today);
-    setPaymentDateStr(today.toISOString().split("T")[0]);
+    // Formatar a data no padrão brasileiro dd/mm/aaaa
+    setPaymentDateStr(formatDateToBR(today));
     setPaymentNotes("");
     
     // Definir primeiro método de pagamento como padrão, se disponível
@@ -337,13 +346,26 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
               <Label htmlFor="payment-date">Data do Pagamento</Label>
               <Input
                 id="payment-date"
-                type="date"
+                type="text"
+                placeholder="dd/mm/aaaa"
                 value={paymentDateStr}
                 onChange={(e) => {
                   setPaymentDateStr(e.target.value);
-                  // Também atualiza o objeto Date para manter a consistência
-                  if (e.target.value) {
-                    setPaymentDate(new Date(e.target.value));
+                  // Tentamos converter a data para um objeto Date apenas se tiver formato válido
+                  // Aceitamos formatos dd/mm/aaaa e aaaa-mm-dd
+                  try {
+                    // Se o formato for dd/mm/aaaa
+                    if (/^\d{2}\/\d{2}\/\d{4}$/.test(e.target.value)) {
+                      const [day, month, year] = e.target.value.split('/');
+                      setPaymentDate(new Date(`${year}-${month}-${day}`));
+                    } 
+                    // Se o formato for aaaa-mm-dd
+                    else if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) {
+                      setPaymentDate(new Date(e.target.value));
+                    }
+                  } catch (error) {
+                    // Se falhar, apenas mantém a string mas não atualiza o objeto Date
+                    console.log('Formato de data inválido');
                   }
                 }}
               />
