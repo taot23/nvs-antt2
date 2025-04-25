@@ -388,14 +388,16 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
         {operationalCosts.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
             <p>Nenhum custo operacional registrado para esta venda.</p>
-            <Button 
-              variant="outline" 
-              className="mt-4"
-              onClick={() => setShowAddDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Custo
-            </Button>
+            {canManage && (
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Custo
+              </Button>
+            )}
           </div>
         ) : (
           <ScrollArea className="max-h-[300px]">
@@ -427,19 +429,21 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
                       </TableCell>
                       <TableCell>{formatDate(cost.createdAt)}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteCost(cost.id)}
-                          title="Excluir custo"
-                          disabled={deleteCostMutation.isPending}
-                        >
-                          {deleteCostMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          )}
-                        </Button>
+                        {canManage && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteCost(cost.id)}
+                            title="Excluir custo"
+                            disabled={deleteCostMutation.isPending}
+                          >
+                            {deleteCostMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
