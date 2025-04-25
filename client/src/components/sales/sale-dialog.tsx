@@ -476,7 +476,14 @@ export default function SaleDialog({
       // Adiciona as datas de vencimento das parcelas se o pagamento for parcelado
       if (data.installments > 1 && installmentDates.length > 0) {
         // Adiciona as datas formatadas em ISO para envio ao servidor
-        formattedData.installmentDates = installmentDates.map(date => date.toISOString());
+        console.log("Incluindo datas de vencimento:", installmentDates);
+        // Usar uma maneira diferente de passar as datas, já que o TS está apontando erro
+        const dataWithDates = {
+          ...formattedData,
+          installmentDates: installmentDates.map(date => date.toISOString())
+        };
+        // Substituir formattedData pelo novo objeto
+        Object.assign(formattedData, dataWithDates);
       }
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
@@ -497,29 +504,19 @@ export default function SaleDialog({
       
       const savedSale = await response.json();
       
-      // Se for mais de uma parcela, crie as parcelas no banco
-      if (data.installments > 1 && installmentDates.length > 0) {
-        // Preparar os dados das parcelas
-        const installmentData = installmentDates.map((date, index) => ({
-          saleId: savedSale.id,
-          installmentNumber: index + 1,
-          amount: installmentValueCalculated,
-          dueDate: date.toISOString(),
-          status: 'pending'
-        }));
-        
-        // Salvar as parcelas
-        const installmentsResponse = await fetch(`/api/sales/${savedSale.id}/installments`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(installmentData),
-        });
-        
-        if (!installmentsResponse.ok) {
-          const error = await installmentsResponse.json();
-          throw new Error(error.message || "Erro ao salvar parcelas");
+      // O frontend não vai mais criar as parcelas, essa responsabilidade é do backend
+      // O frontend apenas envia o número de parcelas e as datas de vencimento
+      console.log("Parcelas serão criadas pelo backend, evitando duplicação.");
+      
+      // Vamos verificar se as parcelas foram criadas corretamente
+      if (data.installments > 1) {
+        try {
+          // Verificar se as parcelas foram criadas, apenas para debug
+          const installmentsResponse = await fetch(`/api/sales/${savedSale.id}/installments`);
+          const instalments = await installmentsResponse.json();
+          console.log(`Parcelas da venda #${savedSale.id}:`, instalments.length);
+        } catch (err) {
+          console.error("Erro ao verificar parcelas:", err);
         }
       }
       
@@ -1077,7 +1074,12 @@ export default function SaleDialog({
                       Parcelas
                     </FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      onValueChange={(value) => {
+                        console.log("Seleção de parcelas alterada para:", value);
+                        const numValue = parseInt(value);
+                        console.log("Valor convertido para número:", numValue);
+                        field.onChange(numValue);
+                      }}
                       value={field.value ? field.value.toString() : "1"}
                     >
                       <FormControl>

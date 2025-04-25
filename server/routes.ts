@@ -1324,10 +1324,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Obter o número de parcelas e valor total da venda
+        console.log("DADOS COMPLETOS RECEBIDOS DO CLIENTE:", userData);
         const numInstallments = Number(userData.installments) || 1;
         const totalAmount = parseFloat(createdSale.totalAmount.toString());
         
         console.log(`⚠️ Dados de instalação recebidos: installments=${numInstallments}, valor total=${totalAmount}`);
+        console.log(`⚠️ Tipo do valor de installments: ${typeof userData.installments}, valor bruto: ${userData.installments}`);
         
         if (numInstallments === 1) {
           // Venda à vista - uma parcela única
