@@ -2148,6 +2148,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro ao buscar histórico da venda" });
     }
   });
+  
+  // Rota para buscar as parcelas de uma venda
+  app.get("/api/sales/:id/installments", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Se a venda não tiver parcelas, retornar array vazio
+      if (sale.installments <= 1) {
+        return res.json([]);
+      }
+      
+      const installments = await storage.getSaleInstallments(id);
+      res.json(installments);
+    } catch (error) {
+      console.error("Erro ao buscar parcelas da venda:", error);
+      res.status(500).json({ error: "Erro ao buscar parcelas da venda" });
+    }
+  });
 
   // Criar o servidor HTTP
   const httpServer = createServer(app);

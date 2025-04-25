@@ -616,15 +616,15 @@ export class DatabaseStorage implements IStorage {
           
           // Usar o novo valor de parcelas da venda atualizada
           const installments = updatedSale.installments;
-          const installmentValue = updatedSale.installmentValue;
+          const installmentValue = updatedSale.installmentValue || '0'; // Garantir valor não nulo
           
-          if (installments > 1 && installmentValue) {
+          if (installments > 1) {
             const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => ({
               saleId: id,
               installmentNumber: index + 1,
               dueDate,
               amount: installmentValue,
-              paid: false,
+              status: 'pending',
               notes: null
             }));
             
