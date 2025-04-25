@@ -64,6 +64,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const [paymentDateStr, setPaymentDateStr] = useState<string>(new Date().toISOString().split("T")[0]);
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string>("");
+  const [isRecreating, setIsRecreating] = useState(false);
   
   // Buscar métodos de pagamento do sistema
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } = useQuery({
@@ -168,6 +169,47 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       notes: paymentNotes,
       paymentMethodId
     });
+  };
+  
+  // Mutation para recriar parcelas - SOLUÇÃO DEFINITIVA para o problema de parcelas
+  const recreateInstallmentsMutation = useMutation({
+    mutationFn: async () => {
+      if (!saleId) throw new Error("ID da venda não fornecido");
+      setIsRecreating(true);
+      
+      const res = await apiRequest("POST", `/api/sales/${saleId}/recreate-installments`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'installments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
+      
+      toast({
+        title: "Parcelas recriadas",
+        description: `${data.installments.length} parcelas foram recriadas com sucesso.`,
+        variant: "default",
+      });
+      
+      setIsRecreating(false);
+    },
+    onError: (error: any) => {
+      console.error("Erro ao recriar parcelas:", error);
+      toast({
+        title: "Erro ao recriar parcelas",
+        description: error.message || "Ocorreu um erro ao recriar as parcelas.",
+        variant: "destructive",
+      });
+      
+      setIsRecreating(false);
+    }
+  });
+  
+  // Função para recriar as parcelas 
+  const recreateInstallments = () => {
+    if (window.confirm("ATENÇÃO: Esta ação irá recriar todas as parcelas da venda. Parcelas já pagas serão perdidas. Deseja continuar?")) {
+      recreateInstallmentsMutation.mutate();
+    }
   };
   
   // Verificar se todas as parcelas estão pagas
@@ -310,6 +352,21 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
               </span>
             )}
           </div>
+          {canManage && (
+            <Button
+              onClick={() => recreateInstallments()}
+              variant="outline"
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+              disabled={isRecreating || recreateInstallmentsMutation.isPending}
+            >
+              {(isRecreating || recreateInstallmentsMutation.isPending) ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              {(isRecreating || recreateInstallmentsMutation.isPending) ? "Recriando..." : "Recriar Parcelas"}
+            </Button>
+          )}
         </CardFooter>
       </Card>
       
