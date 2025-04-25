@@ -39,6 +39,7 @@ import BareBonesMobileList from "@/components/bare-bones-mobile-list";
 import PureNativeScrollList from "@/components/pure-native-scroll-list";
 import IframeScrollableList from "@/components/iframe-scrollable-list";
 import SingleCardPager from "@/components/single-card-pager";
+import TouchOptimizedCardList from "@/components/touch-optimized-card-list";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1328,7 +1329,7 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo - VERSÃO NAVEGAÇÃO HORIZONTAL (CARROSSEL) */}
+      {/* Interface adaptativa com base no dispositivo - VERSÃO ULTRA OTIMIZADA COM SUPORTE NATIVO A TOQUE */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
@@ -1337,13 +1338,13 @@ export default function SalesPage() {
         <div className="mobile-view-container">
           <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Navegação horizontal de cards (tipo carrossel)
+              Versão com suporte nativo a gestos de toque (iOS/Android)
             </p>
           </div>
           
-          {/* Abordagem de navegação horizontal (carrossel) entre cards individuais */}
+          {/* Abordagem com suporte nativo a gestos de toque otimizada para iOS/Android */}
           <div className="mt-2 border-t border-border">
-            <SingleCardPager
+            <TouchOptimizedCardList
               data={filteredSales}
               isLoading={isLoading}
               error={error as Error}
