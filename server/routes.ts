@@ -1623,29 +1623,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Usar SQL puro para maior eficiência
       const { pool } = await import('./db');
       
-      // Remover comprovantes de pagamento (dependência mais distante)
+      // Limpar um por um, em ordem para evitar problemas de chave estrangeira
+      console.log("1. Excluindo comprovantes de pagamento...");
       await pool.query('DELETE FROM sale_payment_receipts');
-      console.log("Todos os comprovantes de pagamento foram excluídos");
       
-      // Remover custos operacionais (estava causando o erro)
+      console.log("2. Excluindo custos operacionais...");
       await pool.query('DELETE FROM sale_operational_costs');
-      console.log("Todos os custos operacionais foram excluídos");
       
-      // Remover primeiro os itens de vendas (dependência)
+      console.log("3. Excluindo itens de vendas...");
       await pool.query('DELETE FROM sale_items');
-      console.log("Todos os itens de vendas foram excluídos");
       
-      // Remover histórico de status (dependência)
+      console.log("4. Excluindo histórico de status...");
       await pool.query('DELETE FROM sales_status_history');
-      console.log("Todo o histórico de status foi excluído");
       
-      // Remover parcelas (dependência)
+      console.log("5. Excluindo parcelas...");
       await pool.query('DELETE FROM sale_installments');
-      console.log("Todas as parcelas foram excluídas");
       
+      console.log("6. Excluindo vendas...");
       // Remover as vendas
       const result = await pool.query('DELETE FROM sales RETURNING *');
-      console.log(`${result.rowCount} vendas foram excluídas`);
+      
+      console.log(`Exclusão finalizada com sucesso: ${result.rowCount} vendas removidas.`);
       
       // Notificar todos os clientes sobre a atualização da venda
       notifySalesUpdate();
