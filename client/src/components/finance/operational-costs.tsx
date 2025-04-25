@@ -44,6 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface OperationalCostsProps {
   saleId: number;
+  canManage?: boolean;
 }
 
 interface AddCostFormData {
@@ -52,7 +53,7 @@ interface AddCostFormData {
   description: string;
 }
 
-export default function OperationalCosts({ saleId }: OperationalCostsProps) {
+export default function OperationalCosts({ saleId, canManage = true }: OperationalCostsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -281,103 +282,106 @@ export default function OperationalCosts({ saleId }: OperationalCostsProps) {
         <div>
           <CardTitle>Custos Operacionais</CardTitle>
           <CardDescription>
-            Gerencie os custos operacionais desta venda
+            {canManage ? 'Gerencie os custos operacionais desta venda' : 'Visualize os custos operacionais desta venda'}
           </CardDescription>
         </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Custo
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar Custo Operacional</DialogTitle>
-              <DialogDescription>
-                Preencha os dados para registrar um novo custo operacional para esta venda.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="costType">Tipo de Custo</Label>
-                <Select
-                  value={formData.costTypeId.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, costTypeId: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo de custo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {loadingCostTypes ? (
-                      <div className="flex items-center justify-center p-2">
-                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                        <span>Carregando...</span>
-                      </div>
-                    ) : (
-                      costTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          {type.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+        
+        {canManage && (
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Custo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Adicionar Custo Operacional</DialogTitle>
+                <DialogDescription>
+                  Preencha os dados para registrar um novo custo operacional para esta venda.
+                </DialogDescription>
+              </DialogHeader>
               
-              <div className="space-y-2">
-                <Label htmlFor="amount">Valor</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    R$
-                  </span>
-                  <Input
-                    id="amount"
-                    placeholder="0,00"
-                    className="pl-9"
-                    value={formData.amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
+              <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="costType">Tipo de Custo</Label>
+                  <Select
+                    value={formData.costTypeId.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, costTypeId: parseInt(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de custo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingCostTypes ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                          <span>Carregando...</span>
+                        </div>
+                      ) : (
+                        costTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            {type.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Valor</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      R$
+                    </span>
+                    <Input
+                      id="amount"
+                      placeholder="0,00"
+                      className="pl-9"
+                      value={formData.amount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descrição</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Descreva o custo operacional..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Descreva o custo operacional..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddDialog(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={addCostMutation.isPending}
-                >
-                  {addCostMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>Salvar</>
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAddDialog(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={addCostMutation.isPending}
+                  >
+                    {addCostMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>Salvar</>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </CardHeader>
       
       <CardContent>
