@@ -113,6 +113,28 @@ export interface IStorage {
   updateSaleInstallment(id: number, installment: Partial<InsertSaleInstallment>): Promise<SaleInstallment | undefined>;
   deleteSaleInstallments(saleId: number): Promise<boolean>;
   
+  // Operational Costs methods
+  getSaleOperationalCosts(saleId: number): Promise<SaleOperationalCost[]>;
+  getSaleOperationalCost(id: number): Promise<SaleOperationalCost | undefined>;
+  createSaleOperationalCost(cost: InsertSaleOperationalCost): Promise<SaleOperationalCost>;
+  updateSaleOperationalCost(id: number, cost: Partial<InsertSaleOperationalCost>): Promise<SaleOperationalCost | undefined>;
+  deleteSaleOperationalCost(id: number): Promise<boolean>;
+  
+  // Payment Receipt methods
+  getSalePaymentReceipts(installmentId: number): Promise<SalePaymentReceipt[]>;
+  getSalePaymentReceipt(id: number): Promise<SalePaymentReceipt | undefined>;
+  createSalePaymentReceipt(receipt: InsertSalePaymentReceipt): Promise<SalePaymentReceipt>;
+  updateSalePaymentReceipt(id: number, receipt: Partial<InsertSalePaymentReceipt>): Promise<SalePaymentReceipt | undefined>;
+  deleteSalePaymentReceipt(id: number): Promise<boolean>;
+  
+  // Gerenciar confirmação de pagamentos de parcelas
+  confirmInstallmentPayment(
+    installmentId: number, 
+    userId: number, 
+    paymentDate: Date, 
+    receiptData?: { type: string, url?: string, data?: any, notes?: string }
+  ): Promise<SaleInstallment | undefined>;
+  
   // Special Sale operations
   returnSaleToSeller(saleId: number, userId: number, reason: string): Promise<Sale | undefined>;
   markSaleInProgress(

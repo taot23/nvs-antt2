@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, numeric, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, numeric, timestamp, date, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -203,7 +203,51 @@ export const insertSaleInstallmentSchema = createInsertSchema(saleInstallments).
   updatedAt: true,
 });
 
+// Tabela de custos operacionais da venda
+export const saleOperationalCosts = pgTable("sale_operational_costs", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull().references(() => sales.id), // Venda relacionada
+  description: text("description").notNull(), // Descrição do custo
+  amount: numeric("amount").notNull(), // Valor do custo
+  date: date("date").notNull(), // Data do custo
+  responsibleId: integer("responsible_id").notNull().references(() => users.id), // Responsável pelo registro
+  notes: text("notes"), // Observações adicionais
+  paymentReceiptUrl: text("payment_receipt_url"), // URL do comprovante de pagamento
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de custos operacionais
+export const insertSaleOperationalCostSchema = createInsertSchema(saleOperationalCosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Tabela de comprovantes de pagamento das parcelas
+export const salePaymentReceipts = pgTable("sale_payment_receipts", {
+  id: serial("id").primaryKey(),
+  installmentId: integer("installment_id").notNull().references(() => saleInstallments.id), // Parcela relacionada
+  receiptType: text("receipt_type").notNull(), // Tipo de comprovante: "bank_transfer", "credit_card", "pix", "other"
+  receiptUrl: text("receipt_url"), // URL do comprovante
+  receiptData: json("receipt_data"), // Dados adicionais do comprovante em formato JSON
+  confirmedBy: integer("confirmed_by").notNull().references(() => users.id), // Usuário que confirmou
+  confirmationDate: timestamp("confirmation_date").notNull().defaultNow(), // Data da confirmação
+  notes: text("notes"), // Observações
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de comprovantes de pagamento
+export const insertSalePaymentReceiptSchema = createInsertSchema(salePaymentReceipts).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertSalesStatusHistory = z.infer<typeof insertSalesStatusHistorySchema>;
 export type SalesStatusHistory = typeof salesStatusHistory.$inferSelect;
 export type InsertSaleInstallment = z.infer<typeof insertSaleInstallmentSchema>;
 export type SaleInstallment = typeof saleInstallments.$inferSelect;
+export type InsertSaleOperationalCost = z.infer<typeof insertSaleOperationalCostSchema>;
+export type SaleOperationalCost = typeof saleOperationalCosts.$inferSelect;
+export type InsertSalePaymentReceipt = z.infer<typeof insertSalePaymentReceiptSchema>;
+export type SalePaymentReceipt = typeof salePaymentReceipts.$inferSelect;
