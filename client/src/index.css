@@ -315,7 +315,7 @@ select {
     touch-action: pan-y !important;
   }
   
-  /* Nova classe para container de scroll otimizada */
+  /* Nova classe para container de scroll otimizada - ULTRA REFORÇADA */
   .mobile-scroll-container {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
@@ -326,6 +326,14 @@ select {
     padding-bottom: 20px !important;
     touch-action: pan-y !important;
     scrollbar-width: thin;
+    z-index: 1 !important;
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+    will-change: transform !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    perspective: 1000px !important;
+    -webkit-perspective: 1000px !important;
   }
   
   /* Fix específico para iOS */
@@ -333,6 +341,10 @@ select {
     .mobile-scroll-container {
       height: calc(100vh - 210px) !important;
       max-height: calc(100vh - 210px) !important;
+      margin-bottom: 40px !important;
+      padding-bottom: 40px !important;
+      -webkit-mask-image: -webkit-radial-gradient(white, black) !important;
+      mask-image: radial-gradient(white, black) !important;
     }
     
     /* Força o body a ficar fixo para evitar bouncing */
@@ -341,6 +353,31 @@ select {
       width: 100% !important;
       height: 100% !important;
       overflow: hidden !important;
+    }
+    
+    /* Safari iOS específico */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) and (max-device-width: 1024px) {
+      body {
+        -webkit-overflow-scrolling: touch !important;
+      }
+      
+      .mobile-scroll-container {
+        -webkit-overflow-scrolling: touch !important;
+        transform: translate3d(0,0,0) !important;
+        -webkit-transform: translate3d(0,0,0) !important;
+      }
+      
+      /* Desabilita comportamentos irritantes de touch */
+      * {
+        -webkit-tap-highlight-color: transparent !important;
+      }
+      
+      /* Força hardware acceleration */
+      .mobile-sales-card, 
+      .mobile-scroll-container * {
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+      }
     }
   }
   

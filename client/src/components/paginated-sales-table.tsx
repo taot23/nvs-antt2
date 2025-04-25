@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import {
   ListFilter
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { setupMobileScrollFix } from "@/lib/mobile-scroll-fix";
 
 interface PaginatedSalesTableProps {
   data: Sale[];
@@ -97,37 +98,17 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   // Ref para controlar manipulações do DOM
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  // Nova abordagem simplificada para fixar rolagem em mobile
+  // SOLUÇÃO FINAL - Usamos o script de correção dedicado para rolagem mobile
   useEffect(() => {
     if (isMobile) {
-      // Aplicar classe para ajustes específicos de iOS
-      document.body.classList.add('mobile-scroll-fixed');
-      
-      // Simples configuração para evitar problemas comuns de rolagem
-      const fixScrolling = () => {
-        // Ajusta tamanho e comportamento
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.style.touchAction = 'pan-y';
-          // Usar como string para evitar problema de tipagem
-          (scrollContainerRef.current.style as any)['-webkit-overflow-scrolling'] = 'touch';
-          scrollContainerRef.current.style.overscrollBehavior = 'contain';
-        }
-        
-        // Força atualização de layout
-        window.dispatchEvent(new Event('resize'));
-      };
-      
-      fixScrolling();
-      
-      // Monitora orientação e ajustes de tamanho
-      window.addEventListener('resize', fixScrolling);
-      window.addEventListener('orientationchange', fixScrolling);
+      // Aplicar script completo de correção
+      const cleanup = setupMobileScrollFix();
       
       return () => {
-        // Limpar todas manipulações
-        document.body.classList.remove('mobile-scroll-fixed');
-        window.removeEventListener('resize', fixScrolling);
-        window.removeEventListener('orientationchange', fixScrolling);
+        // Cleanup função retornada pelo script
+        if (typeof cleanup === 'function') {
+          cleanup();
+        }
       };
     }
   }, [isMobile]);
