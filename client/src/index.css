@@ -43,6 +43,30 @@
     }
   }
   
+  /* Classes específicas para scroll em dispositivos móveis */
+  .mobile-scroll-fixed {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .native-sales-scroller {
+    height: calc(100vh - 230px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+    transform: translateZ(0);
+    will-change: scroll-position;
+    z-index: 1;
+  }
+  
+  .native-sale-card {
+    transform: translateZ(0);
+    will-change: transform;
+    transition: transform 0.2s;
+    touch-action: pan-y;
+  }
+  
   /* Classes para melhorar a interação em telas de toque */
   .touch-target {
     @media (max-width: 640px) {

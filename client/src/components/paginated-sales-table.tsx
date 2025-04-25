@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Sale } from "@shared/schema";
 import SimpleSalesTable from "./simple-sales-table";
-import VirtualizedSalesCards from "./virtualized-sales-cards";
+import NativeSalesScroller from "./native-sales-scroller";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -118,7 +118,7 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
             ref={scrollContainerRef}
             className="mobile-scroll-container"
           >
-            <VirtualizedSalesCards
+            <NativeSalesScroller
               data={data}
               isLoading={isLoading}
               error={error}
