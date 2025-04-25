@@ -507,6 +507,16 @@ export default function SaleDialog({
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
       const method = sale ? "PATCH" : "POST";
       
+      // Garantir explicitamente que o número de parcelas seja um número inteiro
+      const validatedInstallments = parseInt(formattedData.installments.toString());
+      console.log("⚠️ IMPORTANTE - Número de parcelas enviado para o backend:", validatedInstallments);
+      
+      // Atualizar formattedData com o valor convertido
+      formattedData.installments = validatedInstallments;
+      
+      // Log para debug do payload
+      console.log("Payload completo da venda:", JSON.stringify(formattedData, null, 2));
+      
       const response = await fetch(url, {
         method,
         headers: {
