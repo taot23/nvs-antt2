@@ -1567,6 +1567,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await pool.query('DELETE FROM sales_status_history');
       console.log("Todo o histórico de status foi excluído");
       
+      // Remover parcelas (dependência)
+      await pool.query('DELETE FROM sale_installments');
+      console.log("Todas as parcelas foram excluídas");
+      
       // Remover as vendas
       const result = await pool.query('DELETE FROM sales RETURNING *');
       console.log(`${result.rowCount} vendas foram excluídas`);
