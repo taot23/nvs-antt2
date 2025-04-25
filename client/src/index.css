@@ -654,3 +654,38 @@ body.swiper-scroll-locked {
     overflow: hidden !important;
   }
 }
+
+/* =============================================================== */
+/* CSS ESPECÍFICO PARA PURE NATIVE SCROLL LIST */
+/* =============================================================== */
+
+/* Esta é a abordagem mais simplificada possível */
+.pure-native-scroll-container {
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  overflow-y: auto !important;
+  height: calc(100vh - 220px) !important;
+  width: 100% !important;
+  contain: strict !important;
+}
+
+/* Remover comportamentos complicados do iOS */
+@supports (-webkit-touch-callout: none) {
+  body.pure-native-mode {
+    overflow-y: hidden !important;
+    position: relative !important;
+    touch-action: manipulation !important;
+    height: 100% !important;
+  }
+  
+  .pure-native-scroll-container {
+    overflow-y: scroll !important; /* Forçar modo de scroll nativo */
+    height: calc(100vh - 250px) !important;
+  }
+  
+  /* Forçar renderização de hardware para scroll */
+  .pure-native-scroll-container * {
+    -webkit-transform: translateZ(0) !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+}

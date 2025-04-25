@@ -36,6 +36,7 @@ import PaginatedSalesTable from "@/components/paginated-sales-table";
 import SwiperSalesCards from "@/components/swiper-sales-cards";
 import UltraSimpleMobileCards from "@/components/ultra-simple-mobile-cards";
 import BareBonesMobileList from "@/components/bare-bones-mobile-list";
+import PureNativeScrollList from "@/components/pure-native-scroll-list";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1325,7 +1326,7 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo - VERSÃO BARE BONES */}
+      {/* Interface adaptativa com base no dispositivo - VERSÃO PURE NATIVE */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
@@ -1334,13 +1335,13 @@ export default function SalesPage() {
         <div className="mobile-view-container">
           <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Rolagem ultra-simplificada - versão extremamente básica para celulares
+              Versão ultra-otimizada para celulares - Scroll nativo puro
             </p>
           </div>
           
-          {/* Abordagem Bare Bones (ultra-simplificada) para móvel */}
+          {/* Abordagem PureNative - HTML puro sem framework no scroll */}
           <div className="mt-2 border-t border-border">
-            <BareBonesMobileList
+            <PureNativeScrollList
               data={filteredSales}
               isLoading={isLoading}
               error={error as Error}
