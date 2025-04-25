@@ -1031,6 +1031,91 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
               />
             </div>
             
+            {/* Datas de vencimento */}
+            {form.watch("installments") > 1 && (
+              <div className="mt-4 border rounded-md p-4 bg-muted/20">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Datas de Vencimento
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure as datas de vencimento para cada parcela
+                  </p>
+                </div>
+                
+                <div className="mb-4">
+                  <FormLabel className="text-sm">Primeira data de vencimento</FormLabel>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-[240px] justify-start text-left font-normal",
+                            !firstDueDate && "text-muted-foreground"
+                          )}
+                        >
+                          {firstDueDate ? (
+                            format(firstDueDate, "dd/MM/yyyy")
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={firstDueDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setFirstDueDate(date);
+                              // Atualiza todas as datas de vencimento quando a primeira muda
+                              const newDates = generateInstallmentDates(date, form.getValues("installments"));
+                              setInstallmentDates(newDates);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    <span className="text-sm text-muted-foreground">
+                      As demais datas serão calculadas automaticamente
+                    </span>
+                  </div>
+                </div>
+                
+                {installmentDates.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Parcela</TableHead>
+                        <TableHead>Data de Vencimento</TableHead>
+                        <TableHead>Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {installmentDates.map((date, index) => {
+                        const installmentAmount = form.getValues("totalAmount") 
+                          ? (parseFloat(form.getValues("totalAmount").replace(",", ".")) / installmentDates.length).toFixed(2)
+                          : "0.00";
+                        
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>{index + 1}ª parcela</TableCell>
+                            <TableCell>{format(date, "dd/MM/yyyy")}</TableCell>
+                            <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            )}
+            
             {/* Observações */}
             <FormField
               control={form.control}
