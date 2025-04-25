@@ -411,6 +411,12 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         installmentValue: installmentValueCalculated,
       };
       
+      // Adiciona as datas de vencimento das parcelas se o pagamento for parcelado
+      if (data.installments > 1 && installmentDates.length > 0) {
+        // Adiciona as datas formatadas em ISO para envio ao servidor
+        formattedData.installmentDates = installmentDates.map(date => date.toISOString());
+      }
+      
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
       const method = sale ? "PATCH" : "POST";
       
