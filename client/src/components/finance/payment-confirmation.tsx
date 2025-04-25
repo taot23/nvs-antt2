@@ -40,6 +40,13 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface PaymentConfirmationProps {
@@ -54,6 +61,17 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
   const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("PIX");
+  
+  // Lista de métodos de pagamento disponíveis
+  const paymentMethods = [
+    { value: "PIX", label: "PIX" },
+    { value: "BOLETO", label: "Boleto Bancário" },
+    { value: "CARTAO", label: "Cartão de Crédito/Débito" },
+    { value: "DINHEIRO", label: "Dinheiro" },
+    { value: "TED", label: "Transferência Bancária" },
+    { value: "OUTRO", label: "Outro método" }
+  ];
   
   // Buscar parcelas
   const { data: installments = [], isLoading } = useQuery({
@@ -68,13 +86,12 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Mutation para confirmar pagamento
   const confirmPaymentMutation = useMutation({
-    mutationFn: async ({ installmentId, paymentDate, notes }: { installmentId: number, paymentDate: Date, notes: string }) => {
-      const res = await apiRequest("POST", `/api/sale-installments/${installmentId}/confirm-payment`, {
+    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethod }: { installmentId: number, paymentDate: Date, notes: string, paymentMethod: string }) => {
+      const res = await apiRequest("POST", `/api/installments/${installmentId}/confirm-payment`, {
         paymentDate: paymentDate.toISOString(),
-        receiptData: {
-          type: "manual",
-          notes
-        }
+        receiptType: paymentMethod, // Tipo de pagamento (PIX, boleto, etc.)
+        notes: notes,
+        receiptData: { detail: "Confirmação manual" }
       });
       return res.json();
     },
@@ -91,6 +108,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       closeConfirmDialog();
     },
     onError: (error: any) => {
+      console.error("Erro completo:", error);
       toast({
         title: "Erro ao confirmar pagamento",
         description: error.message || "Não foi possível confirmar o pagamento.",
@@ -104,6 +122,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     setSelectedInstallment(installment);
     setPaymentDate(new Date());
     setPaymentNotes("");
+    setPaymentMethod("PIX"); // Reinicia com o método padrão
     setConfirmDialogOpen(true);
   };
   
@@ -115,12 +134,13 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Confirmar pagamento
   const handleConfirmPayment = () => {
-    if (!selectedInstallment || !paymentDate) return;
+    if (!selectedInstallment || !paymentDate || !paymentMethod) return;
     
     confirmPaymentMutation.mutate({
       installmentId: selectedInstallment.id,
       paymentDate,
-      notes: paymentNotes
+      notes: paymentNotes,
+      paymentMethod
     });
   };
   
@@ -278,6 +298,22 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="payment-method">Método de Pagamento</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o método de pagamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method.value} value={method.value}>
+                      {method.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="grid gap-2">
               <Label htmlFor="payment-date">Data do Pagamento</Label>
               <DatePicker
