@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
-import { DatePicker } from "@/components/ui/date-picker";
 import { 
   Card, 
   CardContent, 
@@ -60,6 +59,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
+  const [paymentDateStr, setPaymentDateStr] = useState<string>(new Date().toISOString().split("T")[0]);
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   
@@ -126,7 +126,11 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   // Função para abrir o diálogo de confirmação
   const openConfirmDialog = (installment: any) => {
     setSelectedInstallment(installment);
-    setPaymentDate(new Date());
+    
+    // Atualizar a data atual
+    const today = new Date();
+    setPaymentDate(today);
+    setPaymentDateStr(today.toISOString().split("T")[0]);
     setPaymentNotes("");
     
     // Definir primeiro método de pagamento como padrão, se disponível
@@ -331,10 +335,17 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
             
             <div className="grid gap-2">
               <Label htmlFor="payment-date">Data do Pagamento</Label>
-              <DatePicker
-                selected={paymentDate}
-                onSelect={setPaymentDate}
-                placeholder="Selecione a data do pagamento"
+              <Input
+                id="payment-date"
+                type="date"
+                value={paymentDateStr}
+                onChange={(e) => {
+                  setPaymentDateStr(e.target.value);
+                  // Também atualiza o objeto Date para manter a consistência
+                  if (e.target.value) {
+                    setPaymentDate(new Date(e.target.value));
+                  }
+                }}
               />
             </div>
             
