@@ -1289,7 +1289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Registrar no histórico
+      // Registrar no histórico inicial da venda
       await storage.createSalesStatusHistory({
         saleId: createdSale.id,
         fromStatus: "",
@@ -1298,10 +1298,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: "Venda criada"
       });
       
-      // Este código não é mais necessário pois agora inserimos o valor total diretamente
-      // na criação da venda usando SQL direto para garantir que o valor seja respeitado
+      // Verificar se a venda é à vista (1 parcela)
+      let finalStatus = "pending";
       
-      // Buscar a venda atualizada com o valor total definido
+      if (createdSale.installments === 1) {
+        // Se for venda à vista, aprovar automaticamente e enviar para o financeiro
+        try {
+          console.log("Venda com parcela única (à vista) - alterando status para 'approved'");
+          
+          // Atualizar o status para aprovado
+          await storage.updateSale(createdSale.id, { status: "approved" });
+          
+          // Criar histórico de mudança para approved
+          await storage.createSalesStatusHistory({
+            saleId: createdSale.id,
+            fromStatus: "pending",
+            toStatus: "approved",
+            userId: req.user!.id,
+            notes: "Venda à vista aprovada automaticamente"
+          });
+          
+          finalStatus = "approved";
+          
+          // Criar a parcela única com vencimento para hoje
+          const installmentValue = createdSale.totalAmount;
+          
+          await storage.createSaleInstallment({
+            saleId: createdSale.id,
+            installmentNumber: 1,
+            amount: installmentValue,
+            dueDate: new Date(), // Vencimento na data atual
+            status: "pending", // Status inicial da parcela
+            paymentDate: null
+          });
+          
+          console.log(`Parcela única criada com valor ${installmentValue} e vencimento hoje`);
+        } catch (err) {
+          console.error("Erro ao processar venda à vista:", err);
+        }
+      }
+      
+      // Buscar a venda atualizada com o valor total definido e possível status alterado
       const updatedSale = await storage.getSale(createdSale.id);
       
       // Notificar todos os clientes sobre a atualização da venda
