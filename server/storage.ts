@@ -1442,6 +1442,222 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return !!deletedCostType;
   }
+  
+  // Métodos para gerenciar custos operacionais
+  async getSaleOperationalCosts(saleId: number): Promise<SaleOperationalCost[]> {
+    try {
+      // Usar SQL puro para lidar com a tabela recém-criada (se não estiver completamente refletida no Drizzle)
+      const result = await pool.query(
+        `SELECT * FROM sale_operational_costs WHERE sale_id = $1 ORDER BY created_at DESC`,
+        [saleId]
+      );
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        saleId: row.sale_id,
+        description: row.description,
+        costTypeId: row.cost_type_id,
+        amount: row.amount,
+        date: row.date ? new Date(row.date) : new Date(),
+        responsibleId: row.responsible_id || null,
+        serviceProviderId: row.service_provider_id || null,
+        notes: row.notes || null,
+        paymentReceiptUrl: row.payment_receipt_url || null,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      }));
+    } catch (error) {
+      console.error("Erro ao buscar custos operacionais:", error);
+      return [];
+    }
+  }
+  
+  async getSaleOperationalCost(id: number): Promise<SaleOperationalCost | undefined> {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM sale_operational_costs WHERE id = $1`,
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return undefined;
+      }
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        saleId: row.sale_id,
+        description: row.description,
+        costTypeId: row.cost_type_id,
+        amount: row.amount,
+        date: row.date ? new Date(row.date) : new Date(),
+        responsibleId: row.responsible_id || null,
+        serviceProviderId: row.service_provider_id || null,
+        notes: row.notes || null,
+        paymentReceiptUrl: row.payment_receipt_url || null,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      };
+    } catch (error) {
+      console.error("Erro ao buscar custo operacional:", error);
+      return undefined;
+    }
+  }
+  
+  async createSaleOperationalCost(data: Partial<InsertSaleOperationalCost>): Promise<SaleOperationalCost> {
+    try {
+      // Garantir que temos o ID do usuário atual (responsável)
+      const responsibleId = data.responsibleId || 1; // Usar ID 1 (admin) como fallback
+      
+      // Garantir que temos uma data
+      const date = data.date || new Date().toISOString().split('T')[0];
+      
+      const result = await pool.query(
+        `INSERT INTO sale_operational_costs 
+         (sale_id, description, cost_type_id, amount, date, responsible_id, 
+          service_provider_id, notes, payment_receipt_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          data.saleId,
+          data.description || '',
+          data.costTypeId,
+          data.amount,
+          date,
+          responsibleId,
+          data.serviceProviderId || null,
+          data.notes || null,
+          data.paymentReceiptUrl || null
+        ]
+      );
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        saleId: row.sale_id,
+        description: row.description,
+        costTypeId: row.cost_type_id,
+        amount: row.amount,
+        date: row.date ? new Date(row.date) : new Date(),
+        responsibleId: row.responsible_id,
+        serviceProviderId: row.service_provider_id || null,
+        notes: row.notes || null,
+        paymentReceiptUrl: row.payment_receipt_url || null,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      };
+    } catch (error) {
+      console.error("Erro ao criar custo operacional:", error);
+      throw error;
+    }
+  }
+  
+  async updateSaleOperationalCost(id: number, data: Partial<InsertSaleOperationalCost>): Promise<SaleOperationalCost | undefined> {
+    try {
+      // Construir a query de atualização com base nos campos fornecidos
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+      
+      // Para cada campo que pode ser atualizado
+      if (data.description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(data.description);
+      }
+      
+      if (data.costTypeId !== undefined) {
+        updates.push(`cost_type_id = $${paramIndex++}`);
+        values.push(data.costTypeId);
+      }
+      
+      if (data.amount !== undefined) {
+        updates.push(`amount = $${paramIndex++}`);
+        values.push(data.amount);
+      }
+      
+      if (data.date !== undefined) {
+        updates.push(`date = $${paramIndex++}`);
+        values.push(data.date);
+      }
+      
+      if (data.responsibleId !== undefined) {
+        updates.push(`responsible_id = $${paramIndex++}`);
+        values.push(data.responsibleId);
+      }
+      
+      if (data.serviceProviderId !== undefined) {
+        updates.push(`service_provider_id = $${paramIndex++}`);
+        values.push(data.serviceProviderId);
+      }
+      
+      if (data.notes !== undefined) {
+        updates.push(`notes = $${paramIndex++}`);
+        values.push(data.notes);
+      }
+      
+      if (data.paymentReceiptUrl !== undefined) {
+        updates.push(`payment_receipt_url = $${paramIndex++}`);
+        values.push(data.paymentReceiptUrl);
+      }
+      
+      // Sempre atualizar o updated_at
+      updates.push(`updated_at = $${paramIndex++}`);
+      values.push(new Date());
+      
+      // Se não há nada para atualizar, retornar undefined
+      if (updates.length === 0) {
+        return undefined;
+      }
+      
+      // Adicionar o ID ao final dos valores
+      values.push(id);
+      
+      const result = await pool.query(
+        `UPDATE sale_operational_costs 
+         SET ${updates.join(', ')}
+         WHERE id = $${paramIndex}
+         RETURNING *`,
+        values
+      );
+      
+      if (result.rows.length === 0) {
+        return undefined;
+      }
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        saleId: row.sale_id,
+        description: row.description,
+        costTypeId: row.cost_type_id,
+        amount: row.amount,
+        date: row.date ? new Date(row.date) : new Date(),
+        responsibleId: row.responsible_id,
+        serviceProviderId: row.service_provider_id || null,
+        notes: row.notes || null,
+        paymentReceiptUrl: row.payment_receipt_url || null,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      };
+    } catch (error) {
+      console.error("Erro ao atualizar custo operacional:", error);
+      return undefined;
+    }
+  }
+  
+  async deleteSaleOperationalCost(id: number): Promise<boolean> {
+    try {
+      const result = await pool.query(
+        `DELETE FROM sale_operational_costs WHERE id = $1 RETURNING id`,
+        [id]
+      );
+      
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error("Erro ao excluir custo operacional:", error);
+      return false;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
