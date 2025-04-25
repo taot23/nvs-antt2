@@ -54,7 +54,9 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', limit.toString());
       url.searchParams.append('status', status);
-      if (searchTerm) url.searchParams.append('search', searchTerm);
+      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
+      
+      console.log(`Buscando vendas com status: ${status}, termo: ${searchTerm || 'nenhum'}, url: ${url.toString()}`);
       
       const response = await fetch(url.toString());
       if (!response.ok) {

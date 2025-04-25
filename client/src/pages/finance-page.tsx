@@ -53,7 +53,7 @@ export default function FinancePage() {
   const getStatusForActiveTab = (): string => {
     switch (activeTab) {
       case "pending":
-        return "approved";
+        return "pending"; // Mudado de "approved" para "pending" para exibir vendas recém-criadas
       case "inProgress":
         return "in_progress";
       case "completed":
@@ -61,7 +61,7 @@ export default function FinancePage() {
       case "paid":
         return "paid";
       default:
-        return "approved";
+        return "pending";
     }
   };
 
