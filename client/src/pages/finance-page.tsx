@@ -22,9 +22,18 @@ export default function FinancePage() {
   // Verificar as permissões do usuário
   const canPerformFinancialOperations = user?.role === "admin" || user?.role === "financeiro";
 
-  // Buscar dados do usuário selecionado para exibir informações
+  // Buscar dados da venda selecionada para exibir informações
   const { data: selectedSale } = useQuery({
-    queryKey: [`/api/sales/${selectedSaleId}`],
+    queryKey: ['/api/sales', selectedSaleId],
+    queryFn: async () => {
+      if (!selectedSaleId) return null;
+      
+      const response = await fetch(`/api/sales/${selectedSaleId}`);
+      if (!response.ok) {
+        throw new Error('Erro ao carregar dados da venda');
+      }
+      return response.json();
+    },
     enabled: !!selectedSaleId,
   });
 
