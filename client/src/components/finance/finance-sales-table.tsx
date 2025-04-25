@@ -48,7 +48,20 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
   
   // Busca os dados de vendas com paginação
   const { data: salesData, isLoading, error } = useQuery<SalesResponse>({
-    queryKey: ['/api/sales', { page, limit, status, searchTerm }],
+    queryKey: ['/api/sales', page, limit, status, searchTerm],
+    queryFn: async () => {
+      const url = new URL('/api/sales', window.location.origin);
+      url.searchParams.append('page', page.toString());
+      url.searchParams.append('limit', limit.toString());
+      url.searchParams.append('status', status);
+      if (searchTerm) url.searchParams.append('search', searchTerm);
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Erro ao carregar vendas');
+      }
+      return response.json();
+    },
     retry: 1,
   });
 
