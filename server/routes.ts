@@ -16,13 +16,16 @@ import {
   insertSaleOperationalCostSchema,
   InsertSale,
   InsertSaleOperationalCost,
-  InsertSalePaymentReceipt
+  InsertSalePaymentReceipt,
+  sales
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -1321,26 +1324,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Obter o número de parcelas e valor total da venda
-        const numInstallments = createdSale.installments || 1;
+        const numInstallments = Number(userData.installments) || 1;
         const totalAmount = parseFloat(createdSale.totalAmount.toString());
+        
+        console.log(`⚠️ Dados de instalação recebidos: installments=${numInstallments}, valor total=${totalAmount}`);
         
         if (numInstallments === 1) {
           // Venda à vista - uma parcela única
           console.log("Venda com parcela única (à vista) - mantendo status 'pending'");
           
-          await storage.createSaleInstallment({
-            saleId: createdSale.id,
-            installmentNumber: 1,
-            amount: createdSale.totalAmount.toString(),
-            dueDate: new Date().toISOString().split('T')[0], // Vencimento na data atual
-            status: "pending", // Status inicial da parcela
-            paymentDate: null
-          });
-          
-          console.log(`Parcela única criada com valor ${createdSale.totalAmount} e vencimento hoje`);
+          // Verificar se já existe uma parcela para esta venda
+          const existingInstallments = await storage.getSaleInstallments(createdSale.id);
+          if (existingInstallments.length === 0) {
+            await storage.createSaleInstallment({
+              saleId: createdSale.id,
+              installmentNumber: 1,
+              amount: createdSale.totalAmount.toString(),
+              dueDate: new Date().toISOString().split('T')[0], // Vencimento na data atual
+              status: "pending", // Status inicial da parcela
+              paymentDate: null
+            });
+            
+            console.log(`Parcela única criada com valor ${createdSale.totalAmount} e vencimento hoje`);
+          } else {
+            console.log("Parcelas já existem para esta venda, não criando novas parcelas");
+          }
         } else {
           // Venda parcelada - criar múltiplas parcelas
           console.log(`Criando ${numInstallments} parcelas para a venda #${createdSale.id}`);
+          
+          // Verificar se já existem parcelas
+          const existingInstallments = await storage.getSaleInstallments(createdSale.id);
+          if (existingInstallments.length > 0) {
+            console.log("Parcelas já existem para esta venda, não criando novas parcelas");
+            return;
+          }
           
           // Calcular o valor de cada parcela
           const installmentValue = parseFloat((totalAmount / numInstallments).toFixed(2));
@@ -1348,6 +1366,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Ajustar a última parcela para garantir que a soma seja exata
           const lastInstallmentValue = totalAmount - (installmentValue * (numInstallments - 1));
           
+          // Usar valor de parcela do usuário, se fornecido
+          const userInstallmentValue = userData.installmentValue 
+            ? parseFloat(String(userData.installmentValue).replace(',', '.')) 
+            : null;
+            
           // Criar as parcelas
           const hoje = new Date();
           for (let i = 1; i <= numInstallments; i++) {
@@ -1356,7 +1379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dueDate.setMonth(hoje.getMonth() + (i - 1));
             
             // Definir o valor, ajustando para a última parcela se necessário
-            const amount = i === numInstallments ? lastInstallmentValue : installmentValue;
+            const amount = userInstallmentValue || (i === numInstallments ? lastInstallmentValue : installmentValue);
             
             await storage.createSaleInstallment({
               saleId: createdSale.id,
@@ -1366,6 +1389,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "pending",
               paymentDate: null
             });
+          }
+          
+          // Atualizar o campo installments na tabela de vendas, caso necessário
+          if (createdSale.installments !== numInstallments) {
+            await db
+              .update(sales)
+              .set({ installments: numInstallments })
+              .where(eq(sales.id, createdSale.id));
+              
+            console.log(`Atualizando o número de parcelas na venda para ${numInstallments}`);
           }
           
           console.log(`${numInstallments} parcelas criadas com sucesso para a venda #${createdSale.id}`);
