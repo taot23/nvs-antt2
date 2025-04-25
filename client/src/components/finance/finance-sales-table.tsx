@@ -20,11 +20,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getStatusLabel, getStatusVariant } from "@/lib/status-utils";
+import { getStatusLabel } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Loader2, DollarSign } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
+
+// Removida função getStatusVariant em favor de uma abordagem inline
 
 // Versão adaptada da tabela para uso no módulo financeiro
 interface FinanceSalesTableProps {
@@ -148,18 +150,36 @@ export default function FinanceSalesTable({
                     </TableCell>
                     <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={
-                          usesFinancialStatus && sale.financialStatus
-                            ? getStatusVariant(sale.financialStatus)
-                            : getStatusVariant(sale.status)
-                        }
-                        className="uppercase text-xs font-semibold"
-                      >
-                        {usesFinancialStatus && sale.financialStatus
-                          ? getStatusLabel(sale.financialStatus) 
-                          : getStatusLabel(sale.status)}
-                      </Badge>
+                      {usesFinancialStatus && sale.financialStatus === "pending" && (
+                        <Badge variant="secondary" className="uppercase text-xs font-semibold">
+                          Aguardando Pagamento
+                        </Badge>
+                      )}
+                      {usesFinancialStatus && sale.financialStatus === "in_progress" && (
+                        <Badge variant="secondary" className="uppercase text-xs font-semibold">
+                          Em Execução
+                        </Badge>
+                      )}
+                      {usesFinancialStatus && sale.financialStatus === "completed" && (
+                        <Badge variant="default" className="uppercase text-xs font-semibold">
+                          Executado
+                        </Badge>
+                      )}
+                      {usesFinancialStatus && sale.financialStatus === "paid" && (
+                        <Badge variant="default" className="uppercase text-xs font-semibold">
+                          Pago
+                        </Badge>
+                      )}
+                      {!usesFinancialStatus && (
+                        <Badge 
+                          variant={sale.status === "pending" ? "secondary" : 
+                                  sale.status === "in_progress" ? "secondary" : 
+                                  sale.status === "returned" ? "destructive" : "default"}
+                          className="uppercase text-xs font-semibold"
+                        >
+                          {getStatusLabel(sale.status)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       {/* Botão para iniciar tratativa */}
