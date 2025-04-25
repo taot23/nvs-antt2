@@ -371,6 +371,11 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
+        installments: data.installments || 1,
+        // Calculamos o valor da parcela com base no valor total e número de parcelas
+        installmentValue: data.totalAmount && data.installments && data.installments > 1 
+          ? (parseFloat(data.totalAmount.replace(',', '.')) / data.installments).toFixed(2) 
+          : null,
       };
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
@@ -465,6 +470,8 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
         date: values.date || new Date(),
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
+        // Garante que parcelas seja pelo menos 1
+        installments: values.installments || 1,
         // Corrige os itens
         items: values.items.map(item => ({
           ...item,
@@ -925,6 +932,38 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         {...field} 
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Número de Parcelas */}
+              <FormField
+                control={form.control}
+                name="installments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Parcelas
+                    </FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value ? field.value.toString() : "1"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((parcela) => (
+                          <SelectItem key={parcela} value={parcela.toString()}>
+                            {parcela === 1 ? 'À vista' : `${parcela}x`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
