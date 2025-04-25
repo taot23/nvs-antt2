@@ -466,12 +466,13 @@ export default function SaleDialog({
       const rawInstallmentsValue = data.installments;
       let parsedInstallments = 1; // Padrão para evitar problemas
       
-      console.log(`Debug - Valor bruto de parcelas: [${rawInstallmentsValue}], tipo: ${typeof rawInstallmentsValue}`);
+      console.log(`🔧 CORREÇÃO - Valor bruto de parcelas: [${rawInstallmentsValue}], tipo: ${typeof rawInstallmentsValue}`);
       
+      // Forçar a conversão para número
       if (typeof rawInstallmentsValue === 'number') {
-        parsedInstallments = rawInstallmentsValue;
+        parsedInstallments = Number(rawInstallmentsValue);
       } else if (typeof rawInstallmentsValue === 'string') {
-        parsedInstallments = parseInt(rawInstallmentsValue, 10);
+        parsedInstallments = Number(parseInt(rawInstallmentsValue, 10));
       }
       
       // Garantir valor válido
@@ -479,7 +480,7 @@ export default function SaleDialog({
         parsedInstallments = 1;
       }
       
-      console.log(`Debug - Número de parcelas após validação: ${parsedInstallments}`);
+      console.log(`🔧 CORREÇÃO - Número de parcelas após validação: ${parsedInstallments}, tipo: ${typeof parsedInstallments}`);
       
       const formattedData = {
         ...data,
@@ -1163,27 +1164,29 @@ export default function SaleDialog({
                     </FormLabel>
                     <Select 
                       onValueChange={(value) => {
-                        console.log("Seleção de parcelas alterada para:", value);
+                        console.log("🔧 CORREÇÃO - Seleção de parcelas alterada para:", value);
                         const numValue = parseInt(value);
-                        console.log("Valor convertido para número:", numValue);
+                        console.log("🔧 CORREÇÃO - Valor convertido para número:", numValue);
                         
                         // Garantir que o número de parcelas seja um inteiro válido
                         if (isNaN(numValue) || numValue < 1) {
-                          console.error("ERRO! Valor de parcelas inválido:", value);
+                          console.error("🔧 CORREÇÃO - ERRO! Valor de parcelas inválido:", value);
                           field.onChange(1); // Valor padrão seguro
                         } else {
-                          field.onChange(numValue);
-                          console.log("Número de parcelas definido como:", numValue);
+                          // Aqui está o problema: precisamos garantir que seja um número, não uma string
+                          const valueAsNumber = Number(numValue);
+                          field.onChange(valueAsNumber);
+                          console.log("🔧 CORREÇÃO - Número de parcelas definido como:", valueAsNumber, typeof valueAsNumber);
                           
                           // Atualiza as datas de vencimento ao mudar o número de parcelas
                           if (firstDueDate) {
-                            const newDates = generateInstallmentDates(firstDueDate, numValue);
+                            const newDates = generateInstallmentDates(firstDueDate, valueAsNumber);
                             setInstallmentDates(newDates);
-                            console.log(`Geradas ${newDates.length} datas de vencimento para ${numValue} parcelas`);
+                            console.log(`🔧 CORREÇÃO - Geradas ${newDates.length} datas de vencimento para ${valueAsNumber} parcelas`);
                           }
                         }
                       }}
-                      value={field.value ? field.value.toString() : "1"}
+                      value={String(field.value) || "1"}
                     >
                       <FormControl>
                         <SelectTrigger>
