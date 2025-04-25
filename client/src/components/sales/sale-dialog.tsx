@@ -81,11 +81,22 @@ type SaleItem = {
 interface SaleDialogProps {
   open: boolean;
   onClose: () => void;
-  sale: Sale | null;
-  onSaveSuccess: () => void;
+  sale?: Sale | null;
+  saleId?: number;
+  readOnly?: boolean;
+  renderAdditionalContent?: () => React.ReactNode;
+  onSaveSuccess?: () => void;
 }
 
-export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleDialogProps) {
+export default function SaleDialog({ 
+  open, 
+  onClose, 
+  sale: propSale, 
+  saleId,
+  readOnly = false,
+  renderAdditionalContent,
+  onSaveSuccess 
+}: SaleDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -192,32 +203,49 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
     name: "items"
   });
   
+  // Consulta para obter a venda pelo ID
+  const { data: sale = null, isLoading: isLoadingSale } = useQuery({
+    queryKey: ["/api/sales", saleId],
+    queryFn: async () => {
+      if (!saleId) return propSale || null;
+      const response = await fetch(`/api/sales/${saleId}`);
+      if (!response.ok) {
+        throw new Error("Erro ao carregar venda");
+      }
+      return response.json();
+    },
+    enabled: !!saleId,
+    initialData: propSale || null
+  });
+
   // Consulta para obter os itens da venda ao editar
   const { data: saleItems = [] } = useQuery({
-    queryKey: ["/api/sales", sale?.id, "items"],
+    queryKey: ["/api/sales", sale?.id || saleId, "items"],
     queryFn: async () => {
-      if (!sale?.id) return [];
-      const response = await fetch(`/api/sales/${sale.id}/items`);
+      const id = sale?.id || saleId;
+      if (!id) return [];
+      const response = await fetch(`/api/sales/${id}/items`);
       if (!response.ok) {
         throw new Error("Erro ao carregar itens da venda");
       }
       return response.json();
     },
-    enabled: !!sale?.id
+    enabled: !!(sale?.id || saleId)
   });
   
   // Consulta para obter as parcelas da venda ao editar
   const { data: saleInstallments = [] } = useQuery({
-    queryKey: ["/api/sales", sale?.id, "installments"],
+    queryKey: ["/api/sales", sale?.id || saleId, "installments"],
     queryFn: async () => {
-      if (!sale?.id) return [];
-      const response = await fetch(`/api/sales/${sale.id}/installments`);
+      const id = sale?.id || saleId;
+      if (!id) return [];
+      const response = await fetch(`/api/sales/${id}/installments`);
       if (!response.ok) {
         throw new Error("Erro ao carregar parcelas da venda");
       }
       return response.json();
     },
-    enabled: !!sale?.id
+    enabled: !!(sale?.id || saleId)
   });
   
   // Mutation para criar novo cliente

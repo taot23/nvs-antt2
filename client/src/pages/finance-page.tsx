@@ -141,7 +141,6 @@ export default function FinancePage() {
           <SaleDialog
             open={!!selectedSaleId}
             onClose={handleCloseDialog}
-            title="Gestão Financeira"
             saleId={selectedSaleId}
             readOnly={!canPerformFinancialOperations}
             renderAdditionalContent={() => (

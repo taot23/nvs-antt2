@@ -35,7 +35,7 @@ interface FinanceSalesTableProps {
 
 // Tipo para definir a estrutura do retorno da API
 interface SalesResponse {
-  data: Sale[];
+  data: (Sale & { customerName?: string })[];
   total: number;
   page: number;
   totalPages: number;
@@ -99,16 +99,16 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map((sale: Sale) => (
+                {sales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.orderNumber}</TableCell>
-                    <TableCell>{sale.customerName}</TableCell>
+                    <TableCell>{sale.customerName || `Cliente #${sale.customerId}`}</TableCell>
                     <TableCell>
                       {formatDate(sale.date)}
                     </TableCell>
                     <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(sale.status) || "default"}>
+                      <Badge variant="default">
                         {getStatusLabel(sale.status)}
                       </Badge>
                     </TableCell>
