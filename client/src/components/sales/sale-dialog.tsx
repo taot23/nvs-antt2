@@ -486,7 +486,8 @@ export default function SaleDialog({
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
-        installments: parsedInstallments,
+        // Garantir que installments seja um número - CORREÇÃO CRÍTICA
+        installments: parseInt(String(parsedInstallments), 10),
         // Calculamos o valor da parcela com base no valor total e número de parcelas
         installmentValue: installmentValueCalculated,
       };
@@ -1164,29 +1165,55 @@ export default function SaleDialog({
                     </FormLabel>
                     <Select 
                       onValueChange={(value) => {
-                        console.log("🔧 CORREÇÃO - Seleção de parcelas alterada para:", value);
-                        const numValue = parseInt(value);
-                        console.log("🔧 CORREÇÃO - Valor convertido para número:", numValue);
+                        console.log("🛑 SUPER CORREÇÃO - Seleção de parcelas alterada para:", value, "tipo:", typeof value);
                         
-                        // Garantir que o número de parcelas seja um inteiro válido
-                        if (isNaN(numValue) || numValue < 1) {
-                          console.error("🔧 CORREÇÃO - ERRO! Valor de parcelas inválido:", value);
-                          field.onChange(1); // Valor padrão seguro
-                        } else {
-                          // Aqui está o problema: precisamos garantir que seja um número, não uma string
-                          const valueAsNumber = Number(numValue);
-                          field.onChange(valueAsNumber);
-                          console.log("🔧 CORREÇÃO - Número de parcelas definido como:", valueAsNumber, typeof valueAsNumber);
-                          
-                          // Atualiza as datas de vencimento ao mudar o número de parcelas
-                          if (firstDueDate) {
-                            const newDates = generateInstallmentDates(firstDueDate, valueAsNumber);
-                            setInstallmentDates(newDates);
-                            console.log(`🔧 CORREÇÃO - Geradas ${newDates.length} datas de vencimento para ${valueAsNumber} parcelas`);
+                        // Garantia absoluta de que teremos um número inteiro válido
+                        let numParcelas = 1; // Valor padrão super-seguro
+                        
+                        try {
+                          // Converter para número com verificações múltiplas
+                          if (value) {
+                            const tempValue = parseInt(value, 10);
+                            if (!isNaN(tempValue) && tempValue > 0) {
+                              numParcelas = tempValue;
+                            }
                           }
+                        } catch (error) {
+                          console.error("🛑 ERRO NA CONVERSÃO:", error);
+                        }
+                        
+                        // Garantia absoluta de que é um número inteiro (não string)
+                        console.log("🛑 SUPER CORREÇÃO - Valor após processamento:", numParcelas, "tipo:", typeof numParcelas);
+                        
+                        // Define o valor no campo como NUMBER, não string
+                        field.onChange(numParcelas);
+                        
+                        // Registra no console em formato visível
+                        console.log(
+                          "🛑 SUPER CORREÇÃO - Campo definido como:", 
+                          numParcelas, 
+                          "tipo:", 
+                          typeof field.value
+                        );
+                        
+                        // Log especial para debug
+                        console.log(
+                          "🛑 DADOS DO FORMULÁRIO:",
+                          "Parcelas:", numParcelas,
+                          "Tipo:", typeof numParcelas,
+                          "Valor do campo:", field.value,
+                          "Tipo do campo:", typeof field.value
+                        );
+                        
+                        // Força atualização das datas de parcelas
+                        if (firstDueDate) {
+                          // Criar datas de vencimento baseadas no número de parcelas selecionado
+                          const novasDatas = generateInstallmentDates(firstDueDate, numParcelas);
+                          setInstallmentDates(novasDatas);
+                          console.log(`🛑 SUPER CORREÇÃO - Geradas ${novasDatas.length} datas para ${numParcelas} parcelas`);
                         }
                       }}
-                      value={String(field.value) || "1"}
+                      value={field.value ? String(field.value) : "1"}
                     >
                       <FormControl>
                         <SelectTrigger>

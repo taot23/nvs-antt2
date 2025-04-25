@@ -1326,30 +1326,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Obter o número de parcelas e valor total da venda
         console.log("DADOS COMPLETOS RECEBIDOS DO CLIENTE:", userData);
         
-        // Validação robusta para garantir um número de parcelas válido
-        let numInstallments = 1; // Valor padrão seguro
+        // SUPER CORREÇÃO: Validação extremamente rigorosa para garantir um número de parcelas válido
+        // Esta função é crítica para o correto funcionamento do sistema de parcelas
+        let numInstallments = 1; // Valor padrão super-seguro
         const rawInstallmentsValue = userData.installments;
         
-        console.log("⚠️ IMPORTANTE: Validando número de parcelas");
-        console.log("⚠️ Valor bruto recebido:", rawInstallmentsValue);
-        console.log("⚠️ Tipo do valor:", typeof rawInstallmentsValue);
+        console.log("🚨 SUPER CORREÇÃO: Validando número de parcelas");
+        console.log("🚨 Valor bruto recebido:", rawInstallmentsValue);
+        console.log("🚨 Tipo do valor:", typeof rawInstallmentsValue);
         
-        if (rawInstallmentsValue !== undefined && rawInstallmentsValue !== null) {
+        try {
+          // Tentativa #1: Conversão direta se for número
           if (typeof rawInstallmentsValue === 'number') {
             numInstallments = Math.floor(rawInstallmentsValue); // Garantir que seja um inteiro
-            console.log("⚠️ Convertido número para inteiro:", numInstallments);
-          } else if (typeof rawInstallmentsValue === 'string') {
+            console.log("🚨 1️⃣ Conversão direta número→inteiro:", numInstallments);
+          } 
+          // Tentativa #2: Conversão de string para número
+          else if (typeof rawInstallmentsValue === 'string') {
             const parsed = parseInt(rawInstallmentsValue, 10);
             if (!isNaN(parsed)) {
               numInstallments = parsed;
-              console.log("⚠️ Convertido string para inteiro:", numInstallments);
+              console.log("🚨 2️⃣ Conversão string→inteiro:", numInstallments);
             }
-          } else {
-            console.log("⚠️ ERRO: Tipo de dados inesperado para parcelas:", typeof rawInstallmentsValue);
+          } 
+          // Tentativa #3: Procurar propriedade 'installments' como string no objeto
+          else if (rawInstallmentsValue && typeof rawInstallmentsValue === 'object') {
+            console.log("🚨 Detectado valor como objeto, procurando propriedade installments");
+            if ('installments' in rawInstallmentsValue) {
+              const nestedValue = (rawInstallmentsValue as any).installments;
+              if (typeof nestedValue === 'number') {
+                numInstallments = Math.floor(nestedValue);
+                console.log("🚨 3️⃣ Extraído do objeto número→inteiro:", numInstallments);
+              } else if (typeof nestedValue === 'string') {
+                const parsed = parseInt(nestedValue, 10);
+                if (!isNaN(parsed)) {
+                  numInstallments = parsed;
+                  console.log("🚨 3️⃣ Extraído do objeto string→inteiro:", numInstallments);
+                }
+              }
+            }
+          } 
+          // Tentativa #4: Último recurso, procurar em todo o objeto userData
+          else {
+            console.log("🚨 4️⃣ Procurando em qualquer lugar do objeto userData");
+            // Se tiver uma propriedade chamada 'installments' ou similares em qualquer nível
+            const stringified = JSON.stringify(userData);
+            if (stringified.includes('"installments":')) {
+              const match = stringified.match(/"installments":(\d+)/) || stringified.match(/"installments":"(\d+)"/);
+              if (match && match[1]) {
+                numInstallments = parseInt(match[1], 10);
+                console.log("🚨 4️⃣ Encontrado via regex:", numInstallments);
+              }
+            }
           }
-        } else {
-          console.log("⚠️ ERRO: Valor de parcelas indefinido ou nulo, usando padrão:", numInstallments);
+        } catch (err) {
+          console.error("🚨 ERRO CRÍTICO na conversão de parcelas:", err);
         }
+        
+        // Última verificação de segurança - nunca permitir valores inválidos
+        if (isNaN(numInstallments) || numInstallments <= 0) {
+          numInstallments = 1;
+          console.log("🚨 ⚠️ CORREÇÃO EMERGENCIAL: Valor inválido corrigido para 1");
+        }
+        
+        console.log("🚨 RESULTADO FINAL: Número de parcelas validado =", numInstallments);
         
         // Garantir valor válido
         if (numInstallments < 1) {
