@@ -12,10 +12,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
+import { useDeviceDetection } from "@/hooks/use-device-detection";
 import { useDebounce } from "@/hooks/useDebounce";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,16 +33,7 @@ import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
-import SwiperSalesCards from "@/components/swiper-sales-cards";
-import UltraSimpleMobileCards from "@/components/ultra-simple-mobile-cards";
-import BareBonesMobileList from "@/components/bare-bones-mobile-list";
-import PureNativeScrollList from "@/components/pure-native-scroll-list";
-import IframeScrollableList from "@/components/iframe-scrollable-list";
-import SingleCardPager from "@/components/single-card-pager";
-import TouchOptimizedCardList from "@/components/touch-optimized-card-list";
-import UltraNativeMobileView from "@/components/ultra-native-mobile-view";
-import MobileSingleItemView from "@/components/mobile-single-item-view";
-import SuperBasicMobileView from "@/components/super-basic-mobile-view";
+import MobileSalesView from "@/components/mobile-sales-view";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -84,7 +75,8 @@ export default function SalesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const isMobile = useIsMobile();
+  const deviceInfo = useDeviceDetection();
+  const isMobile = deviceInfo.isMobile || deviceInfo.type === 'mobile' || deviceInfo.type === 'tablet';
   const { lastEvent, isConnected, reconnect } = useWebSocket();
   // Monitoramento de performance
   const performanceMonitor = usePerformanceMonitor();
@@ -1332,38 +1324,32 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface extremamente simplificada para dispositivos móveis */}
-      {isMobile || 
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-        ('ontouchstart' in window) || 
-        (navigator.maxTouchPoints > 0) || 
-        window.innerWidth < 768 ? (
-        <div className="mobile-view-container">
-          <div className="pb-2 pt-2">
+      {/* Interface otimizada para dispositivos móveis com técnicas modernas */}
+      {isMobile ? (
+        <div className="mobile-view-container pb-2">
+          <div className="pb-1 pt-1">
             <p className="text-xs text-muted-foreground text-center">
-              Super simplificada - sem rolagem
+              Visualização Mobile Otimizada
             </p>
           </div>
           
-          {/* Abordagem ultra simplificada com um mínimo absoluto de elementos DOM e CSS */}
-          <div className="mt-2 border-t border-border">
-            <SuperBasicMobileView
-              data={filteredSales}
-              isLoading={isLoading}
-              error={error as Error}
-              onViewDetails={handleViewDetails}
-              onViewHistory={handleViewHistory}
-              onEdit={handleEdit}
-              onStartExecution={handleStartExecution}
-              onCompleteExecution={handleCompleteExecution}
-              onReturnClick={handleReturnClick}
-              onMarkAsPaid={handleMarkAsPaid}
-              onDeleteClick={handleDeleteClick}
-              user={user}
-              ReenviaButton={ReenviaButton}
-              DevolveButton={DevolveButton}
-            />
-          </div>
+          {/* Novo componente móvel com técnicas modernas de alta performance */}
+          <MobileSalesView
+            data={enrichedSales}
+            isLoading={isLoading}
+            error={error as Error}
+            onViewDetails={handleViewDetails}
+            onViewHistory={handleViewHistory}
+            onEdit={handleEdit}
+            onStartExecution={handleStartExecution}
+            onCompleteExecution={handleCompleteExecution}
+            onReturnClick={handleReturnClick}
+            onMarkAsPaid={handleMarkAsPaid}
+            onDeleteClick={handleDeleteClick}
+            user={user}
+            ReenviaButton={ReenviaButton}
+            DevolveButton={DevolveButton}
+          />
         </div>
       ) : (
         <PaginatedSalesTable
