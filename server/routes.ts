@@ -1330,21 +1330,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let numInstallments = 1; // Valor padrão seguro
         const rawInstallmentsValue = userData.installments;
         
+        console.log("⚠️ IMPORTANTE: Validando número de parcelas");
+        console.log("⚠️ Valor bruto recebido:", rawInstallmentsValue);
+        console.log("⚠️ Tipo do valor:", typeof rawInstallmentsValue);
+        
         if (rawInstallmentsValue !== undefined && rawInstallmentsValue !== null) {
           if (typeof rawInstallmentsValue === 'number') {
             numInstallments = Math.floor(rawInstallmentsValue); // Garantir que seja um inteiro
+            console.log("⚠️ Convertido número para inteiro:", numInstallments);
           } else if (typeof rawInstallmentsValue === 'string') {
             const parsed = parseInt(rawInstallmentsValue, 10);
             if (!isNaN(parsed)) {
               numInstallments = parsed;
+              console.log("⚠️ Convertido string para inteiro:", numInstallments);
             }
+          } else {
+            console.log("⚠️ ERRO: Tipo de dados inesperado para parcelas:", typeof rawInstallmentsValue);
           }
+        } else {
+          console.log("⚠️ ERRO: Valor de parcelas indefinido ou nulo, usando padrão:", numInstallments);
         }
         
         // Garantir valor válido
         if (numInstallments < 1) {
           numInstallments = 1;
+          console.log("⚠️ Valor menor que 1, corrigido para:", numInstallments);
         }
+        
+        // Atualizar explicitamente o valor na venda criada
+        await db
+          .update(sales)
+          .set({ installments: numInstallments })
+          .where(eq(sales.id, createdSale.id));
+          
+        console.log(`⚠️ Atualizando explicitamente o número de parcelas na venda para ${numInstallments}`);
+        
+        // Atualizar o objeto para refletir o valor correto
+        createdSale.installments = numInstallments;
         
         const totalAmount = parseFloat(createdSale.totalAmount.toString());
         

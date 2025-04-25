@@ -618,30 +618,53 @@ export default function SaleDialog({
         return;
       }
       
-      // CORREÇÃO IMPORTANTE: Garante que todos os valores sejam válidos antes do envio
-      // Tratamento robusto do número de parcelas
+      // CORREÇÃO CRÍTICA: Garante que o número de parcelas seja sempre um número inteiro válido
+      // Este campo está sendo processado incorretamente no servidor, por isso estamos realizando
+      // múltiplas validações e logs para diagnóstico do problema
+      
+      // Pegando o valor bruto do formulário
       let validatedInstallments = 1; // Valor padrão seguro
       const rawInstallments = values.installments;
       
+      console.log("-------- INÍCIO DA VALIDAÇÃO DE PARCELAS --------");
+      console.log("⚠️ VALOR ORIGINAL:", rawInstallments);
+      console.log("⚠️ TIPO DO VALOR:", typeof rawInstallments);
+      
+      // Conversão explícita para número inteiro
       if (rawInstallments !== undefined && rawInstallments !== null) {
         if (typeof rawInstallments === 'number') {
           validatedInstallments = Math.floor(rawInstallments);
+          console.log("⚠️ CONVERSÃO DIRETA: Numérico para inteiro =", validatedInstallments);
         } else if (typeof rawInstallments === 'string') {
           const parsed = parseInt(rawInstallments, 10);
           if (!isNaN(parsed)) {
             validatedInstallments = parsed;
+            console.log("⚠️ CONVERSÃO: String para inteiro =", validatedInstallments);
+          } else {
+            console.log("⚠️ ERRO DE CONVERSÃO: String inválida:", rawInstallments);
           }
+        } else {
+          console.log("⚠️ ERRO DE TIPO: Tipo não esperado:", typeof rawInstallments);
         }
+      } else {
+        console.log("⚠️ VALOR INDEFINIDO OU NULO, usando padrão:", validatedInstallments);
       }
       
-      // Garantir valor válido
+      // Garantir valor mínimo válido
       if (validatedInstallments < 1) {
         validatedInstallments = 1;
+        console.log("⚠️ VALOR MENOR QUE 1, corrigido para:", validatedInstallments);
       }
       
-      console.log("⚠️ CORREÇÃO FINAL - Valor de parcelas:", rawInstallments, "→", validatedInstallments);
+      // Garantir que parcelas só pode ser um número inteiro (não decimal)
+      validatedInstallments = Math.floor(validatedInstallments);
       
-      // Também valida e corrige outros campos
+      console.log("⚠️ VALOR FINAL DE PARCELAS:", validatedInstallments);
+      console.log("⚠️ TIPO FINAL:", typeof validatedInstallments);
+      console.log("-------- FIM DA VALIDAÇÃO DE PARCELAS --------");
+      
+      // CORREÇÃO CRÍTICA: Trata e valida todos os campos numéricos para garantir tipos corretos
+      // Objeto para envio ao servidor com valores convertidos e validados
       const correctedValues = {
         ...values,
         // Garante que o número da OS esteja definido
@@ -650,14 +673,16 @@ export default function SaleDialog({
         date: values.date || new Date(),
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
-        // Garante que parcelas seja um número válido
-        installments: validatedInstallments,
+        // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
+        // Observe que estamos usando validatedInstallments diretamente e não values.installments
+        installments: Number(validatedInstallments),
+        // Também garantimos que qualquer valor de parcela seja formato corretamente
+        installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
         // Corrige os itens
         items: values.items.map(item => ({
           ...item,
           serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
-          // Itens não terão mais preços individuais
-          quantity: item.quantity || 1
+          quantity: Number(item.quantity) || 1 // Garante que quantidade seja número
         }))
       };
       

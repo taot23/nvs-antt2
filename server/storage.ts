@@ -1094,15 +1094,48 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createSaleInstallments(installmentsData: InsertSaleInstallment[]): Promise<SaleInstallment[]> {
-    if (installmentsData.length === 0) {
-      return [];
+    try {
+      console.log("💰 CRIANDO PARCELAS:", JSON.stringify(installmentsData, null, 2));
+      
+      if (installmentsData.length === 0) {
+        console.log("💰 ERRO: Nenhuma parcela fornecida para criação");
+        return [];
+      }
+      
+      // Verificar a venda associada e atualizar o número de parcelas no banco se necessário
+      const saleId = installmentsData[0].saleId;
+      const numInstallments = installmentsData.length;
+      
+      console.log(`💰 Verificando venda #${saleId} para garantir valor correto de ${numInstallments} parcelas`);
+      
+      // Atualizar o campo de parcelas na venda para garantir consistência
+      try {
+        await db
+          .update(sales)
+          .set({ 
+            installments: numInstallments,
+            updatedAt: new Date()
+          })
+          .where(eq(sales.id, saleId));
+        
+        console.log(`💰 Venda #${saleId} atualizada com ${numInstallments} parcelas`);
+      } catch (updateError) {
+        console.error("💰 ERRO ao atualizar número de parcelas na venda:", updateError);
+      }
+      
+      // Usar inserção em lote para melhor performance
+      const createdInstallments = await db
+        .insert(saleInstallments)
+        .values(installmentsData)
+        .returning();
+      
+      console.log(`💰 ${createdInstallments.length} parcelas criadas com sucesso`);
+      
+      return createdInstallments;
+    } catch (error) {
+      console.error("💰 ERRO CRÍTICO ao criar parcelas:", error);
+      throw error;
     }
-    
-    const createdInstallments = await db
-      .insert(saleInstallments)
-      .values(installmentsData)
-      .returning();
-    return createdInstallments;
   }
   
   async updateSaleInstallment(id: number, installmentData: Partial<InsertSaleInstallment>): Promise<SaleInstallment | undefined> {
