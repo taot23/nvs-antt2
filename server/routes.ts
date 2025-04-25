@@ -69,6 +69,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(403).json({ error: "Permissão negada" });
   };
   
+  // Middleware para verificar permissões - gerenciamento financeiro (tipos de custo, etc)
+  const canManageFinance = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores e financeiros podem gerenciar aspectos financeiros
+    if (req.user?.role === "admin" || req.user?.role === "financeiro") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada" });
+  };
+  
   // Middleware para verificar permissões - gerenciamento de tipos de serviço
   const canManageServiceTypes = (req: Request, res: Response, next: Function) => {
     if (!req.isAuthenticated()) {
@@ -2623,6 +2635,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao finalizar processamento financeiro:", error);
       res.status(500).json({ error: "Erro ao finalizar processamento financeiro" });
+    }
+  });
+
+  // Rotas para tipos de custo operacional
+  // GET - Listar todos os tipos de custo
+  app.get("/api/cost-types", isAuthenticated, async (req, res) => {
+    try {
+      const costTypes = await storage.getCostTypes();
+      res.json(costTypes);
+    } catch (error) {
+      console.error("Erro ao buscar tipos de custo:", error);
+      res.status(500).json({ error: "Erro ao buscar tipos de custo" });
+    }
+  });
+
+  // GET - Obter um tipo de custo específico
+  app.get("/api/cost-types/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const costType = await storage.getCostType(id);
+      if (!costType) {
+        return res.status(404).json({ error: "Tipo de custo não encontrado" });
+      }
+      
+      res.json(costType);
+    } catch (error) {
+      console.error("Erro ao buscar tipo de custo:", error);
+      res.status(500).json({ error: "Erro ao buscar tipo de custo" });
+    }
+  });
+
+  // POST - Criar um novo tipo de custo
+  app.post("/api/cost-types", canManageFinance, async (req, res) => {
+    try {
+      const { name, description, active = true } = req.body;
+      
+      // Validar dados
+      if (!name) {
+        return res.status(400).json({ error: "Nome é obrigatório" });
+      }
+      
+      // Verificar se já existe um tipo de custo com o mesmo nome
+      const existingCostType = await storage.getCostTypeByName(name);
+      if (existingCostType) {
+        return res.status(400).json({ error: "Já existe um tipo de custo com este nome" });
+      }
+      
+      // Criar o tipo de custo
+      const costType = await storage.createCostType({
+        name,
+        description,
+        active
+      });
+      
+      res.status(201).json(costType);
+    } catch (error) {
+      console.error("Erro ao criar tipo de custo:", error);
+      res.status(500).json({ error: "Erro ao criar tipo de custo" });
+    }
+  });
+
+  // PATCH - Atualizar um tipo de custo existente
+  app.patch("/api/cost-types/:id", canManageFinance, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const { name, description, active } = req.body;
+      
+      // Validar dados
+      if (!name) {
+        return res.status(400).json({ error: "Nome é obrigatório" });
+      }
+      
+      // Verificar se o tipo de custo existe
+      const costType = await storage.getCostType(id);
+      if (!costType) {
+        return res.status(404).json({ error: "Tipo de custo não encontrado" });
+      }
+      
+      // Verificar se já existe outro tipo de custo com o mesmo nome
+      if (name !== costType.name) {
+        const existingCostType = await storage.getCostTypeByName(name);
+        if (existingCostType && existingCostType.id !== id) {
+          return res.status(400).json({ error: "Já existe outro tipo de custo com este nome" });
+        }
+      }
+      
+      // Atualizar o tipo de custo
+      const updatedCostType = await storage.updateCostType(id, {
+        name,
+        description,
+        active
+      });
+      
+      res.json(updatedCostType);
+    } catch (error) {
+      console.error("Erro ao atualizar tipo de custo:", error);
+      res.status(500).json({ error: "Erro ao atualizar tipo de custo" });
+    }
+  });
+
+  // DELETE - Remover um tipo de custo
+  app.delete("/api/cost-types/:id", canManageFinance, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se o tipo de custo existe
+      const costType = await storage.getCostType(id);
+      if (!costType) {
+        return res.status(404).json({ error: "Tipo de custo não encontrado" });
+      }
+      
+      // Remover o tipo de custo
+      await storage.deleteCostType(id);
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao remover tipo de custo:", error);
+      res.status(500).json({ error: "Erro ao remover tipo de custo" });
     }
   });
 
