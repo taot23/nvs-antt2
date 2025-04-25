@@ -6,11 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import PaginatedSalesTable from "@/components/paginated-sales-table";
 import SaleDialog from "@/components/sales/sale-dialog";
 import { Pencil, Search, DollarSign, BarChart4 } from "lucide-react";
 import { OperationalCosts } from "@/components/finance/operational-costs";
 import { PaymentConfirmation } from "@/components/finance/payment-confirmation";
+import FinanceSalesTable from "@/components/finance/finance-sales-table";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -104,7 +104,7 @@ export default function FinancePage() {
           </div>
 
           <TabsContent value="pending" className="space-y-4">
-            <PaginatedSalesTable 
+            <FinanceSalesTable 
               status={getStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
@@ -112,7 +112,7 @@ export default function FinancePage() {
           </TabsContent>
 
           <TabsContent value="inProgress" className="space-y-4">
-            <PaginatedSalesTable 
+            <FinanceSalesTable 
               status={getStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
@@ -120,7 +120,7 @@ export default function FinancePage() {
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
-            <PaginatedSalesTable 
+            <FinanceSalesTable 
               status={getStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
@@ -128,7 +128,7 @@ export default function FinancePage() {
           </TabsContent>
 
           <TabsContent value="paid" className="space-y-4">
-            <PaginatedSalesTable 
+            <FinanceSalesTable 
               status={getStatusForActiveTab()}
               searchTerm={searchTerm}
               onViewFinancials={handleViewFinancials}
