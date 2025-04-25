@@ -110,8 +110,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Não autorizado" });
     }
-    // Administradores, operacionais e supervisores podem gerenciar operações em vendas
-    if (req.user?.role === "admin" || req.user?.role === "operacional" || req.user?.role === "supervisor") {
+    // Administradores, operacionais, financeiros e supervisores podem gerenciar operações em vendas
+    if (req.user?.role === "admin" || req.user?.role === "operacional" || req.user?.role === "supervisor" || req.user?.role === "financeiro") {
       console.log("Permissão para operações de venda concedida ao usuário:", req.user.username, "perfil:", req.user.role);
       return next();
     }
