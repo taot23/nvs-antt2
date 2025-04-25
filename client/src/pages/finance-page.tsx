@@ -27,7 +27,7 @@ export default function FinancePage() {
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isMobile = useIsMobile();
@@ -362,7 +362,7 @@ export default function FinancePage() {
           </form>
         </div>
 
-        <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center justify-between pb-3">
             <TabsList>
               <TabsTrigger value="all" className="flex items-center gap-1">
