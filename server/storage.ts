@@ -702,7 +702,7 @@ export class DatabaseStorage implements IStorage {
     startDate?: string;
     endDate?: string;
   }): Promise<{
-    data: Sale[];
+    data: (Sale & { customerName?: string })[];
     total: number;
     page: number;
     totalPages: number;
@@ -722,99 +722,160 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`Buscando vendas paginadas: página ${page}, limite ${limit}, status operacional: ${status || 'não definido'}, status financeiro: ${financialStatus || 'não definido'}, intervalo de datas: ${startDate || 'não definido'} a ${endDate || 'não definido'}`);
     
-    // Obter todas as vendas primeiro (depois otimizaremos isso com SQL direto)
-    let allSales = await db.select().from(sales);
-    let totalRecords = allSales.length;
+    // Usar SQL direto para obter vendas com informações de cliente
+    const { pool } = await import('./db');
     
-    // Filtrar pelo status operacional, se fornecido
+    // Construir a consulta base que inclui o join com clientes
+    let queryText = `
+      SELECT s.*, c.name as customer_name
+      FROM sales s
+      LEFT JOIN customers c ON s.customer_id = c.id
+    `;
+    
+    const queryParams: any[] = [];
+    let whereConditions: string[] = [];
+    
+    // Adicionar condições de filtro
     if (status) {
-      allSales = allSales.filter(sale => sale.status === status);
+      queryParams.push(status);
+      whereConditions.push(`s.status = $${queryParams.length}`);
     }
     
-    // Filtrar pelo status financeiro, se fornecido
     if (financialStatus) {
-      allSales = allSales.filter(sale => sale.financialStatus === financialStatus);
+      queryParams.push(financialStatus);
+      whereConditions.push(`s.financial_status = $${queryParams.length}`);
     }
     
-    // Filtrar pelo vendedor, se fornecido
     if (sellerId) {
-      allSales = allSales.filter(sale => sale.sellerId === sellerId);
+      queryParams.push(sellerId);
+      whereConditions.push(`s.seller_id = $${queryParams.length}`);
     }
     
-    // Filtrar por intervalo de datas, se fornecido
-    if (startDate || endDate) {
-      allSales = allSales.filter(sale => {
-        const saleDate = new Date(sale.date);
-        
-        // Verificar data inicial
-        if (startDate) {
-          const start = new Date(startDate);
-          if (saleDate < start) return false;
-        }
-        
-        // Verificar data final
-        if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999); // Definir para o final do dia
-          if (saleDate > end) return false;
-        }
-        
-        return true;
-      });
+    // Adicionar cláusula WHERE se houver condições
+    if (whereConditions.length > 0) {
+      queryText += ` WHERE ${whereConditions.join(' AND ')}`;
     }
     
-    // Filtrar por termo de busca, se fornecido
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      allSales = allSales.filter(sale => {
-        // Buscar no número do pedido
-        return sale.orderNumber.toLowerCase().includes(term);
-        // Podemos expandir para outros campos no futuro
-      });
+    // Adicionar ordenação
+    queryText += ` ORDER BY s.${sortField} ${sortDirection.toUpperCase()}`;
+    
+    // Adicionar paginação
+    queryParams.push(limit);
+    queryParams.push((page - 1) * limit);
+    queryText += ` LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+    
+    // Executar a consulta
+    const result = await pool.query(queryText, queryParams);
+    
+    // Obter o total de registros para calcular a paginação
+    let countQuery = `
+      SELECT COUNT(*) AS total 
+      FROM sales s
+    `;
+    
+    if (whereConditions.length > 0) {
+      countQuery += ` WHERE ${whereConditions.join(' AND ')}`;
     }
     
-    // Obter o total após a filtragem
-    totalRecords = allSales.length;
+    const countResult = await pool.query(countQuery, queryParams.slice(0, whereConditions.length));
+    const totalRecords = parseInt(countResult.rows[0].total);
     
-    // Ordenar os resultados
-    allSales.sort((a, b) => {
-      // Verificar qual campo usar para ordenação
-      const fieldA = a[sortField as keyof Sale];
-      const fieldB = b[sortField as keyof Sale];
-      
-      // Comparar baseado no tipo de campo
-      if (typeof fieldA === 'string' && typeof fieldB === 'string') {
-        return sortDirection === 'asc' 
-          ? fieldA.localeCompare(fieldB) 
-          : fieldB.localeCompare(fieldA);
-      } else if (fieldA instanceof Date && fieldB instanceof Date) {
-        return sortDirection === 'asc' 
-          ? fieldA.getTime() - fieldB.getTime() 
-          : fieldB.getTime() - fieldA.getTime();
-      } else if (typeof fieldA === 'number' && typeof fieldB === 'number') {
-        return sortDirection === 'asc' 
-          ? fieldA - fieldB 
-          : fieldB - fieldA;
-      }
-      
-      // Fallback para string
-      return sortDirection === 'asc' 
-        ? String(fieldA).localeCompare(String(fieldB)) 
-        : String(fieldB).localeCompare(String(fieldA));
+    // Mapear os resultados para o formato esperado
+    const salesWithCustomerNames = result.rows.map(row => {
+      return {
+        id: row.id,
+        orderNumber: row.order_number,
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        paymentMethodId: row.payment_method_id,
+        sellerId: row.seller_id,
+        serviceTypeId: row.service_type_id,
+        serviceProviderId: row.service_provider_id,
+        totalAmount: row.total_amount,
+        installments: row.installments,
+        installmentValue: row.installment_value,
+        status: row.status,
+        financialStatus: row.financial_status,
+        notes: row.notes,
+        date: row.date,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
     });
+    
+    // Adicionar busca por termo se foi fornecido
+    if (searchTerm && searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase();
+      
+      // Construir condição para WHERE
+      whereConditions.push(`(LOWER(s.order_number) LIKE $${queryParams.length + 1} OR LOWER(c.name) LIKE $${queryParams.length + 1})`);
+      queryParams.push(`%${term}%`);
+      
+      // Refazer consulta com pesquisa
+      queryText = `
+        SELECT s.*, c.name as customer_name
+        FROM sales s
+        LEFT JOIN customers c ON s.customer_id = c.id
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY s.${sortField} ${sortDirection.toUpperCase()}
+        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+      `;
+      
+      queryParams.push(limit);
+      queryParams.push((page - 1) * limit);
+      
+      // Executar a consulta com o filtro
+      const searchResult = await pool.query(queryText, queryParams);
+      
+      // Atualizar os resultados
+      const filteredSales = searchResult.rows.map(row => ({
+        id: row.id,
+        orderNumber: row.order_number,
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        paymentMethodId: row.payment_method_id,
+        sellerId: row.seller_id,
+        serviceTypeId: row.service_type_id,
+        serviceProviderId: row.service_provider_id,
+        totalAmount: row.total_amount,
+        installments: row.installments,
+        installmentValue: row.installment_value,
+        status: row.status,
+        financialStatus: row.financial_status,
+        notes: row.notes,
+        date: row.date,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }));
+      
+      // Atualizar contagem
+      const newCountResult = await pool.query(
+        `SELECT COUNT(*) AS total FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE ${whereConditions.join(' AND ')}`,
+        queryParams.slice(0, -2)
+      );
+      
+      const filteredTotal = parseInt(newCountResult.rows[0].total);
+      
+      // Calcular paginação
+      const totalPages = Math.ceil(filteredTotal / limit);
+      
+      console.log(`Retornando ${filteredSales.length} vendas de um total de ${filteredTotal}`);
+      
+      return {
+        data: filteredSales,
+        total: filteredTotal,
+        page,
+        totalPages
+      };
+    }
     
     // Calcular paginação
     const totalPages = Math.ceil(totalRecords / limit);
-    const start = (page - 1) * limit;
-    const end = page * limit;
     
-    // Pegar apenas os registros da página atual
-    const paginatedResults = allSales.slice(start, end);
-    
-    console.log(`Retornando ${paginatedResults.length} vendas de um total de ${totalRecords}`);
+    console.log(`Retornando ${salesWithCustomerNames.length} vendas de um total de ${totalRecords}`);
     
     return {
-      data: paginatedResults,
+      data: salesWithCustomerNames,
       total: totalRecords,
       page,
       totalPages
