@@ -236,7 +236,7 @@ export default function FinanceSalesTable({
                   onClick={() => toggleSort('orderNumber')}
                 >
                   <div className="flex items-center space-x-1">
-                    <span>Número</span>
+                    <span>Ordem de Serviço</span>
                     {sortField === 'orderNumber' ? (
                       sortDirection === 'asc' ? (
                         <ArrowUpAZ className="h-4 w-4" />

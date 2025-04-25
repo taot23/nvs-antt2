@@ -305,7 +305,7 @@ export default function FinanceTransactionDialog({
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <div>
-                    <Label className="text-muted-foreground">Número do Pedido</Label>
+                    <Label className="text-muted-foreground">Ordem de Serviço</Label>
                     <p className="font-medium">{sale.orderNumber || "N/A"}</p>
                   </div>
                   <div>

@@ -84,7 +84,7 @@ export default function OptimizedSalesTable({
   // Exportar para Excel
   const exportToExcel = useCallback(() => {
     const exportData = processedSales.map((sale: any) => ({
-      Numero: sale.orderNumber,
+      'Ordem de Serviço': sale.orderNumber,
       Data: sale.date,
       Cliente: sale.customerName,
       Vendedor: sale.sellerName,
