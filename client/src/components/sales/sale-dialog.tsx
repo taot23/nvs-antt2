@@ -1171,7 +1171,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                                 type="text"
                                 size={10}
                                 placeholder="DD/MM/AAAA"
-                                value={format(date, "dd/MM/yyyy")}
+                                defaultValue={format(date, "dd/MM/yyyy")}
                                 onChange={(e) => {
                                   try {
                                     // Tentar converter a string para data
