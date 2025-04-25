@@ -5,13 +5,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown, Loader2 } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinanceSalesTable from "@/components/finance/finance-sales-table";
 import FinanceTransactionDialog from "@/components/finance/finance-transaction-dialog";
@@ -31,7 +31,7 @@ export default function FinancePage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isMobile = useIsMobile();
-  const { lastEvent, isConnected, reconnect } = useWebSocket();
+  const { lastEvent, isConnected } = useWebSocket();
   
   // Estados para paginação
   const [page, setPage] = useState(1);
@@ -93,7 +93,8 @@ export default function FinancePage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // O componente de tabela irá se encarregar de usar o searchTerm
+    setSearchTerm(internalSearchTerm);
+    setPage(1); // Voltar para a primeira página ao pesquisar
     // Atualiza as queries para refletir os novos termos de busca
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
@@ -257,6 +258,17 @@ export default function FinancePage() {
     }
   }
 
+  // Usado para atualizar dados via botão "Atualizar"
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Invalidar todas as consultas de vendas para forçar a recuperação de dados
+      await queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
   return (
     <div className="container py-6 max-w-7xl">
       <div className="flex flex-col space-y-6">
@@ -277,6 +289,21 @@ export default function FinancePage() {
               align="end"
               placeholder="Selecione um período"
             />
+            
+            {/* Botão de atualização */}
+            <Button 
+              variant="outline" 
+              className="w-full sm:w-auto"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Atualizar
+            </Button>
             
             {/* Exportação */}
             <DropdownMenu>
@@ -308,11 +335,25 @@ export default function FinancePage() {
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
               placeholder="Buscar vendas por número, cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={internalSearchTerm}
+              onChange={(e) => setInternalSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  setSearchTerm(internalSearchTerm);
+                  setPage(1); // Volta para a primeira página ao pesquisar
+                }
+              }}
               className="max-w-xs"
             />
-            <Button type="submit" className="shrink-0">
+            <Button 
+              type="submit" 
+              className="shrink-0"
+              onClick={() => {
+                setSearchTerm(internalSearchTerm);
+                setPage(1); // Volta para a primeira página ao pesquisar
+              }}
+            >
               <Search className="h-4 w-4 mr-2" />
               Buscar
             </Button>
