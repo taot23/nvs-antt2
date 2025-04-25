@@ -462,14 +462,16 @@ export default function SaleDialog({
       
       // Formato ISO para data que será corretamente processado pelo servidor
       // Também converte o formato de número brasileiro (com vírgula) para o formato com ponto
+      console.log("Debug - Número de parcelas antes da formatação:", data.installments);
       const formattedData = {
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
-        installments: data.installments || 1,
+        installments: Number(data.installments) || 1, // Garantir que seja número
         // Calculamos o valor da parcela com base no valor total e número de parcelas
         installmentValue: installmentValueCalculated,
       };
+      console.log("Debug - Dados formatados a serem enviados:", formattedData);
       
       // Adiciona as datas de vencimento das parcelas se o pagamento for parcelado
       if (data.installments > 1 && installmentDates.length > 0) {
