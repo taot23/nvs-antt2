@@ -33,6 +33,7 @@ import ReenviaButton from "@/components/sales/reenvia-button";
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
+import SwiperSalesCards from "@/components/swiper-sales-cards";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1406,35 +1407,54 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Tabela Paginada - Nova implementação mais eficiente */}
-      <PaginatedSalesTable
-        data={filteredSales}
-        isLoading={isLoading}
-        error={error as Error}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSort={toggleSort}
-        currentPage={page}
-        totalPages={totalPages}
-        pageSize={limit}
-        totalItems={salesData?.total || 0}
-        onPageChange={(newPage) => setPage(newPage)}
-        onPageSizeChange={(newSize) => {
-          setLimit(newSize);
-          setPage(1); // Voltar para a primeira página ao alterar o tamanho
-        }}
-        onViewDetails={handleViewDetails}
-        onViewHistory={handleViewHistory}
-        onEdit={handleEdit}
-        onStartExecution={handleStartExecution}
-        onCompleteExecution={handleCompleteExecution}
-        onReturnClick={handleReturnClick}
-        onMarkAsPaid={handleMarkAsPaid}
-        onDeleteClick={handleDeleteClick}
-        user={user}
-        ReenviaButton={ReenviaButton}
-        DevolveButton={DevolveButton}
-      />
+      {/* Interface adaptativa com base no dispositivo */}
+      {isMobile ? (
+        <SwiperSalesCards
+          data={filteredSales}
+          isLoading={isLoading}
+          error={error as Error}
+          onViewDetails={handleViewDetails}
+          onViewHistory={handleViewHistory}
+          onEdit={handleEdit}
+          onStartExecution={handleStartExecution}
+          onCompleteExecution={handleCompleteExecution}
+          onReturnClick={handleReturnClick}
+          onMarkAsPaid={handleMarkAsPaid}
+          onDeleteClick={handleDeleteClick}
+          user={user}
+          ReenviaButton={ReenviaButton}
+          DevolveButton={DevolveButton}
+        />
+      ) : (
+        <PaginatedSalesTable
+          data={filteredSales}
+          isLoading={isLoading}
+          error={error as Error}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={toggleSort}
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={limit}
+          totalItems={salesData?.total || 0}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1); // Voltar para a primeira página ao alterar o tamanho
+          }}
+          onViewDetails={handleViewDetails}
+          onViewHistory={handleViewHistory}
+          onEdit={handleEdit}
+          onStartExecution={handleStartExecution}
+          onCompleteExecution={handleCompleteExecution}
+          onReturnClick={handleReturnClick}
+          onMarkAsPaid={handleMarkAsPaid}
+          onDeleteClick={handleDeleteClick}
+          user={user}
+          ReenviaButton={ReenviaButton}
+          DevolveButton={DevolveButton}
+        />
+      )}
       
       {/* Diálogo apenas para edição de vendas existentes */}
       {dialogOpen && (
