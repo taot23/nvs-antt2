@@ -777,12 +777,20 @@ export class DatabaseStorage implements IStorage {
       'sellerId': 'seller_id',
       'serviceTypeId': 'service_type_id',
       'serviceProviderId': 'service_provider_id',
-      'financialStatus': 'financial_status'
+      'financialStatus': 'financial_status',
+      'customerName': 'customer_name'
     };
     
     // Usar o nome do campo mapeado ou o original se não tiver mapeamento
     const sqlFieldName = fieldMapping[sortField] || sortField;
-    queryText += ` ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}`;
+    
+    // Tratar campos especiais que não pertencem diretamente à tabela sales
+    if (sortField === 'customerName') {
+      // customer_name vem da tabela customers
+      queryText += ` ORDER BY c.name ${sortDirection.toUpperCase()}`;
+    } else {
+      queryText += ` ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}`;
+    }
     
     // Adicionar paginação
     queryParams.push(limit);
@@ -842,8 +850,16 @@ export class DatabaseStorage implements IStorage {
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         WHERE ${whereConditions.join(' AND ')}
-        ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}
-        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+      `;
+      
+      // Adicionar ordenação específica para o campo customerName
+      if (sortField === 'customerName') {
+        queryText += ` ORDER BY c.name ${sortDirection.toUpperCase()}`;
+      } else {
+        queryText += ` ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}`;
+      }
+      
+      queryText += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
       `;
       
       queryParams.push(limit);

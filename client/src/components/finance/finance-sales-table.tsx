@@ -1,26 +1,19 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -153,61 +146,6 @@ export default function FinanceSalesTable({
     setPage(1);
   }, [status, searchTerm, dateRange]);
 
-  // Gera números de página para a paginação avançada
-  const getPageNumbers = () => {
-    const maxVisiblePages = 5;
-    const pages = [];
-
-    // Início sempre visível
-    pages.push(1);
-    
-    // Se tivermos mais do que 7 páginas, mostrar ellipsis
-    if (totalPages > 7) {
-      // Início da faixa central
-      const startRange = Math.max(2, page - 1);
-      const endRange = Math.min(totalPages - 1, page + 1);
-      
-      // Adicionar ellipsis antes se necessário
-      if (startRange > 2) {
-        pages.push('ellipsis1');
-      }
-      
-      // Adicionar páginas centrais
-      for (let i = startRange; i <= endRange; i++) {
-        pages.push(i);
-      }
-      
-      // Adicionar ellipsis depois se necessário
-      if (endRange < totalPages - 1) {
-        pages.push('ellipsis2');
-      }
-    } else {
-      // Com menos de 8 páginas, mostrar todas
-      for (let i = 2; i < totalPages; i++) {
-        pages.push(i);
-      }
-    }
-    
-    // Adicionar a última página se tivermos mais que uma página
-    if (totalPages > 1) {
-      pages.push(totalPages);
-    }
-    
-    return pages;
-  };
-
-  // Função para ir para a primeira página
-  const goToFirstPage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setPage(1);
-  };
-
-  // Função para ir para a última página
-  const goToLastPage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setPage(totalPages);
-  };
-
   // Função para retornar o estilo do badge com base no status
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
@@ -289,52 +227,6 @@ export default function FinanceSalesTable({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 overflow-auto">
-        {/* Filtros de ordenação móveis */}
-        <div className="mb-4 md:hidden">
-          <Select
-            value={sortField}
-            onValueChange={(value) => {
-              setSortField(value);
-              // Resetar direção para padrão conforme o campo
-              if (['orderNumber', 'customerName'].includes(value)) {
-                setSortDirection('asc');
-              } else {
-                setSortDirection('desc');
-              }
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Ordenar por..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="orderNumber">Número de Ordem</SelectItem>
-              <SelectItem value="customerName">Cliente</SelectItem>
-              <SelectItem value="date">Data</SelectItem>
-              <SelectItem value="totalAmount">Valor</SelectItem>
-              <SelectItem value="createdAt">Data de Criação</SelectItem>
-              {usesFinancialStatus && <SelectItem value="financialStatus">Status Financeiro</SelectItem>}
-              {!usesFinancialStatus && <SelectItem value="status">Status</SelectItem>}
-            </SelectContent>
-          </Select>
-          
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-muted-foreground">
-              Ordenação: {sortDirection === 'asc' ? 'Crescente' : 'Decrescente'}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-            >
-              {sortDirection === 'asc' ? (
-                <ArrowUpAZ className="h-4 w-4" />
-              ) : (
-                <ArrowDownAZ className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-        
         <div className="rounded-md border overflow-x-auto max-w-full">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -451,7 +343,7 @@ export default function FinanceSalesTable({
                     )}
                     {!usesFinancialStatus && (
                       <Badge 
-                        variant="outline"
+                        variant="outline" 
                         className={`uppercase text-xs font-semibold ${getStatusBadgeStyle(sale.status)}`}
                       >
                         {getStatusLabel(sale.status)}
@@ -460,33 +352,14 @@ export default function FinanceSalesTable({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {/* Botão para iniciar tratativa */}
-                      {usesFinancialStatus && sale.financialStatus === "pending" && (
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          onClick={() => onViewFinancials(sale.id)}
-                          className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
-                        >
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Iniciar Tratativa</span>
-                          <span className="sm:hidden">Iniciar</span>
-                        </Button>
-                      )}
-                      
-                      {/* Botão padrão para visualizar detalhes */}
-                      {(!usesFinancialStatus || sale.financialStatus !== "pending") && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => onViewFinancials(sale.id)}
-                          className="whitespace-nowrap"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Financeiro</span>
-                          <span className="sm:hidden">Ver</span>
-                        </Button>
-                      )}
+                      <Button
+                        variant="default" 
+                        size="sm" 
+                        onClick={() => onViewFinancials(sale.id)}
+                      >
+                        <DollarSign className="h-3.5 w-3.5 mr-1" />
+                        <span className="whitespace-nowrap">Financeiro</span>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -494,127 +367,74 @@ export default function FinanceSalesTable({
             </TableBody>
           </Table>
         </div>
-      </CardContent>
-      
-      {/* Rodapé com controles de paginação */}
-      <CardFooter className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0 border-t p-4">
-        {/* Informações de paginação */}
-        <div className="text-sm text-muted-foreground flex items-center">
-          <div className="flex items-center">
-            Exibindo
+        
+        {/* Paginação */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div className="flex items-center gap-2">
             <Select 
-              value={String(limit)} 
-              onValueChange={(value) => setLimit(parseInt(value))}
+              value={limit.toString()}
+              onValueChange={(value) => {
+                setLimit(parseInt(value));
+                setPage(1); // Resetar para a primeira página
+              }}
             >
-              <SelectTrigger className="h-8 w-16 mx-2 px-2">
-                <SelectValue />
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="10 por página" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="15">15</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="5">5 por página</SelectItem>
+                <SelectItem value="10">10 por página</SelectItem>
+                <SelectItem value="25">25 por página</SelectItem>
+                <SelectItem value="50">50 por página</SelectItem>
+                <SelectItem value="100">100 por página</SelectItem>
               </SelectContent>
             </Select>
-            de {totalItems} registros
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Mostrando {sales.length} de {totalItems} registro(s)
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(prev => Math.max(1, prev - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <span className="mx-2 text-sm">
+              Página {page} de {totalPages}
+            </span>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={page === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-
-        {/* Controles de paginação avançados */}
-        {totalPages > 1 && (
-          <Pagination className="mt-0">
-            <PaginationContent>
-              {/* Botão para ir para primeira página */}
-              <PaginationItem className="hidden sm:inline-block">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={goToFirstPage} 
-                  disabled={page === 1}
-                  className="h-8 w-8"
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-              </PaginationItem>
-              
-              {/* Botão anterior */}
-              <PaginationItem>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setPage(prev => Math.max(1, prev - 1));
-                  }}
-                  disabled={page === 1}
-                  className="h-8 w-8"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-              </PaginationItem>
-              
-              {/* Números de página dinâmicos */}
-              {getPageNumbers().map((pageNum, index) => (
-                pageNum === 'ellipsis1' || pageNum === 'ellipsis2' ? (
-                  <PaginationItem key={`ellipsis-${index}`} className="hidden sm:inline-block">
-                    <PaginationEllipsis />
-                  </PaginationItem>
-                ) : (
-                  <PaginationItem key={`page-${pageNum}`} className="hidden sm:inline-block">
-                    <PaginationLink
-                      href="#"
-                      isActive={pageNum === page}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setPage(pageNum as number);
-                      }}
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                )
-              ))}
-              
-              {/* Exibir página atual para telas pequenas */}
-              <PaginationItem className="sm:hidden">
-                <span className="px-2 text-sm">
-                  Página {page} de {totalPages}
-                </span>
-              </PaginationItem>
-              
-              {/* Botão próximo */}
-              <PaginationItem>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setPage(prev => Math.min(totalPages, prev + 1));
-                  }}
-                  disabled={page === totalPages}
-                  className="h-8 w-8"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </PaginationItem>
-              
-              {/* Botão para ir para última página */}
-              <PaginationItem className="hidden sm:inline-block">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={goToLastPage} 
-                  disabled={page === totalPages}
-                  className="h-8 w-8"
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        )}
-      </CardFooter>
+      </CardContent>
     </Card>
   );
 }
