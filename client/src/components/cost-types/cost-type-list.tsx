@@ -32,8 +32,14 @@ import {
   CheckCircle2,
   XCircle,
   Search,
+  ChevronUp,
   ChevronDown,
-  ListFilter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  X,
+  Filter,
 } from "lucide-react";
 import { CostType } from "@shared/schema";
 import CostTypeDialog from "./cost-type-dialog";
@@ -42,18 +48,26 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
 } from "@/components/ui/select";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export default function CostTypeList() {
   const { toast } = useToast();
@@ -132,11 +146,12 @@ export default function CostTypeList() {
       return sortDirection === "asc" 
         ? a.name.localeCompare(b.name)
         : b.name.localeCompare(a.name);
-    } else {
+    } else if (sortField === "createdAt" && a.createdAt && b.createdAt) {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
     }
+    return 0;
   }) : [];
   
   // Calcular paginação
