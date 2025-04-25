@@ -61,17 +61,16 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
   const [paymentNotes, setPaymentNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("PIX");
+  const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   
-  // Lista de métodos de pagamento disponíveis
-  const paymentMethods = [
-    { value: "PIX", label: "PIX" },
-    { value: "BOLETO", label: "Boleto Bancário" },
-    { value: "CARTAO", label: "Cartão de Crédito/Débito" },
-    { value: "DINHEIRO", label: "Dinheiro" },
-    { value: "TED", label: "Transferência Bancária" },
-    { value: "OUTRO", label: "Outro método" }
-  ];
+  // Buscar métodos de pagamento do sistema
+  const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } = useQuery({
+    queryKey: ['/api/payment-methods'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/payment-methods");
+      return res.json();
+    },
+  });
   
   // Buscar parcelas
   const { data: installments = [], isLoading } = useQuery({
@@ -86,10 +85,10 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Mutation para confirmar pagamento
   const confirmPaymentMutation = useMutation({
-    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethod }: { installmentId: number, paymentDate: Date, notes: string, paymentMethod: string }) => {
+    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: Date, notes: string, paymentMethodId: string }) => {
       const res = await apiRequest("POST", `/api/installments/${installmentId}/confirm-payment`, {
         paymentDate: paymentDate.toISOString(),
-        receiptType: paymentMethod, // Tipo de pagamento (PIX, boleto, etc.)
+        paymentMethodId: Number(paymentMethodId), // ID do método de pagamento
         notes: notes,
         receiptData: { detail: "Confirmação manual" }
       });
@@ -122,7 +121,12 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     setSelectedInstallment(installment);
     setPaymentDate(new Date());
     setPaymentNotes("");
-    setPaymentMethod("PIX"); // Reinicia com o método padrão
+    
+    // Definir primeiro método de pagamento como padrão, se disponível
+    if (paymentMethods.length > 0) {
+      setPaymentMethodId(String(paymentMethods[0].id));
+    }
+    
     setConfirmDialogOpen(true);
   };
   
@@ -134,13 +138,13 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Confirmar pagamento
   const handleConfirmPayment = () => {
-    if (!selectedInstallment || !paymentDate || !paymentMethod) return;
+    if (!selectedInstallment || !paymentDate || !paymentMethodId) return;
     
     confirmPaymentMutation.mutate({
       installmentId: selectedInstallment.id,
       paymentDate,
       notes: paymentNotes,
-      paymentMethod
+      paymentMethodId
     });
   };
   
@@ -300,14 +304,18 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="payment-method">Método de Pagamento</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <Select 
+                value={paymentMethodId} 
+                onValueChange={setPaymentMethodId}
+                disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o método de pagamento" />
+                  <SelectValue placeholder={isLoadingPaymentMethods ? "Carregando..." : "Selecione o método de pagamento"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {paymentMethods.map((method) => (
-                    <SelectItem key={method.value} value={method.value}>
-                      {method.label}
+                  {paymentMethods.map((method: any) => (
+                    <SelectItem key={method.id} value={String(method.id)}>
+                      {method.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -340,7 +348,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
             </Button>
             <Button 
               onClick={handleConfirmPayment}
-              disabled={!paymentDate || confirmPaymentMutation.isPending}
+              disabled={!paymentDate || !paymentMethodId || confirmPaymentMutation.isPending}
               variant="default"
               className="bg-green-600 hover:bg-green-700"
             >
