@@ -42,6 +42,7 @@ import SingleCardPager from "@/components/single-card-pager";
 import TouchOptimizedCardList from "@/components/touch-optimized-card-list";
 import UltraNativeMobileView from "@/components/ultra-native-mobile-view";
 import MobileSingleItemView from "@/components/mobile-single-item-view";
+import SuperBasicMobileView from "@/components/super-basic-mobile-view";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1331,7 +1332,7 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo - VISUALIZAÇÃO DE ITEM ÚNICO */}
+      {/* Interface extremamente simplificada para dispositivos móveis */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
@@ -1340,13 +1341,13 @@ export default function SalesPage() {
         <div className="mobile-view-container">
           <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Visualização item a item com navegação simples
+              Super simplificada - sem rolagem
             </p>
           </div>
           
-          {/* Abordagem simplificada mostrando um item por vez com navegação por botões */}
+          {/* Abordagem ultra simplificada com um mínimo absoluto de elementos DOM e CSS */}
           <div className="mt-2 border-t border-border">
-            <MobileSingleItemView
+            <SuperBasicMobileView
               data={filteredSales}
               isLoading={isLoading}
               error={error as Error}
