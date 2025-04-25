@@ -1120,7 +1120,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                     </Popover>
                     
                     <span className="text-sm text-muted-foreground">
-                      As demais datas serão calculadas automaticamente
+                      As demais datas serão calculadas inicialmente, mas podem ser editadas individualmente
                     </span>
                   </div>
                 </div>
