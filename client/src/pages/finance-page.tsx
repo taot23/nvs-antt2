@@ -139,7 +139,7 @@ export default function FinancePage() {
         {/* Diálogo de gestão financeira */}
         {selectedSaleId && (
           <SaleDialog
-            isOpen={!!selectedSaleId}
+            open={!!selectedSaleId}
             onClose={handleCloseDialog}
             title="Gestão Financeira"
             saleId={selectedSaleId}

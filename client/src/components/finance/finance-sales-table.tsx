@@ -23,7 +23,8 @@ import {
 import { getStatusLabel, getStatusVariant } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { formatCurrency, formatDate } from "@/lib/formatters";
+import { Sale } from "@shared/schema";
 
 // Versão simplificada da tabela para uso no módulo financeiro
 interface FinanceSalesTableProps {
@@ -32,13 +33,21 @@ interface FinanceSalesTableProps {
   onViewFinancials: (saleId: number) => void;
 }
 
+// Tipo para definir a estrutura do retorno da API
+interface SalesResponse {
+  data: Sale[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export default function FinanceSalesTable({ status, searchTerm, onViewFinancials }: FinanceSalesTableProps) {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   
   // Busca os dados de vendas com paginação
-  const { data: salesData, isLoading, error } = useQuery({
+  const { data: salesData, isLoading, error } = useQuery<SalesResponse>({
     queryKey: ['/api/sales', { page, limit, status, searchTerm }],
     retry: 1,
   });
@@ -57,15 +66,6 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
     }
     
     return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-  };
-
-  // Formata valor monetário
-  const formatCurrency = (amount: string) => {
-    const value = parseFloat(amount);
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
   };
 
   return (
@@ -99,16 +99,16 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map((sale) => (
+                {sales.map((sale: Sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.orderNumber}</TableCell>
                     <TableCell>{sale.customerName}</TableCell>
                     <TableCell>
-                      {sale.date ? format(new Date(sale.date), 'dd/MM/yyyy') : 'N/A'}
+                      {formatDate(sale.date)}
                     </TableCell>
                     <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(sale.status)}>
+                      <Badge variant={getStatusVariant(sale.status) || "default"}>
                         {getStatusLabel(sale.status)}
                       </Badge>
                     </TableCell>
@@ -133,16 +133,23 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious 
-                      onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                      disabled={page <= 1} 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage(prev => Math.max(1, prev - 1));
+                      }}
                     />
                   </PaginationItem>
                   
                   {getPageNumbers().map(pageNum => (
                     <PaginationItem key={pageNum}>
                       <PaginationLink
+                        href="#"
                         isActive={pageNum === page}
-                        onClick={() => setPage(pageNum)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(pageNum);
+                        }}
                       >
                         {pageNum}
                       </PaginationLink>
@@ -151,8 +158,11 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
                   
                   <PaginationItem>
                     <PaginationNext
-                      onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={page >= totalPages}
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage(prev => Math.min(totalPages, prev + 1));
+                      }}
                     />
                   </PaginationItem>
                 </PaginationContent>
