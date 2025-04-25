@@ -40,6 +40,7 @@ import PureNativeScrollList from "@/components/pure-native-scroll-list";
 import IframeScrollableList from "@/components/iframe-scrollable-list";
 import SingleCardPager from "@/components/single-card-pager";
 import TouchOptimizedCardList from "@/components/touch-optimized-card-list";
+import UltraNativeMobileView from "@/components/ultra-native-mobile-view";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 // Tipos
@@ -1329,7 +1330,7 @@ export default function SalesPage() {
         </div>
       </div>
       
-      {/* Interface adaptativa com base no dispositivo - VERSÃO ULTRA OTIMIZADA COM SUPORTE NATIVO A TOQUE */}
+      {/* Interface adaptativa com base no dispositivo - VERSÃO ULTRA NATIVA COM HTML PURO */}
       {isMobile || 
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
         ('ontouchstart' in window) || 
@@ -1338,13 +1339,13 @@ export default function SalesPage() {
         <div className="mobile-view-container">
           <div className="pb-2 pt-2">
             <p className="text-xs text-muted-foreground text-center">
-              Versão com suporte nativo a gestos de toque (iOS/Android)
+              Abordagem ultra radical com HTML nativo puro
             </p>
           </div>
           
-          {/* Abordagem com suporte nativo a gestos de toque otimizada para iOS/Android */}
+          {/* Abordagem completamente nativa usando HTML puro isolado em iframe */}
           <div className="mt-2 border-t border-border">
-            <TouchOptimizedCardList
+            <UltraNativeMobileView
               data={filteredSales}
               isLoading={isLoading}
               error={error as Error}
