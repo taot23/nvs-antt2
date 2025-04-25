@@ -280,11 +280,7 @@ const SwiperSalesCards: React.FC<SwiperSalesCardsProps> = ({
   // Configure body for mobile
   useEffect(() => {
     // Lock body scrolling but allow Swiper to handle it
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.style.height = '100%';
-    document.body.style.touchAction = 'none';
+    document.body.classList.add('swiper-scroll-locked');
     
     // Apply special styles for Swiper container
     const swiperContainer = document.querySelector('.swiper');
@@ -294,11 +290,7 @@ const SwiperSalesCards: React.FC<SwiperSalesCardsProps> = ({
     
     return () => {
       // Cleanup on unmount
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
-      document.body.style.touchAction = '';
+      document.body.classList.remove('swiper-scroll-locked');
     };
   }, []);
 
@@ -339,15 +331,25 @@ const SwiperSalesCards: React.FC<SwiperSalesCardsProps> = ({
         modules={[Virtual, Mousewheel, FreeMode]}
         spaceBetween={16}
         slidesPerView="auto"
-        mousewheel={true}
+        mousewheel={{
+          forceToAxis: true,
+          sensitivity: 1,
+          releaseOnEdges: true
+        }}
         freeMode={{
           enabled: true,
           sticky: false,
-          momentumBounce: false
+          momentumBounce: false,
+          momentumRatio: 0.8,
+          minimumVelocity: 0.1
         }}
         virtual={{
           addSlidesBefore: 3,
-          addSlidesAfter: 3
+          addSlidesAfter: 3,
+          renderExternal: (data) => {
+            // Renderizar apenas os slides necessários aumenta a performance
+            console.log("Virtual slides rendering:", data.offset, data.from, data.to);
+          }
         }}
         onSwiper={(swiper) => {
           swiperRef.current = swiper;

@@ -469,3 +469,69 @@ select {
     width: 4px !important;
   }
 }
+
+/* Estilos adicionais para o Swiper - Solução definitiva para rolagem em dispositivos móveis */
+/* ==================================================================== */
+
+/* Configuração global do corpo quando o Swiper está ativo */
+body.swiper-scroll-locked {
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
+/* Otimizações específicas para o container Swiper */
+.swiper-container {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  position: relative !important;
+  z-index: 1 !important;
+  transform: translateZ(0) !important;
+  will-change: transform !important;
+}
+
+/* Ajustes para o slider Swiper */
+.sales-swiper {
+  width: 100% !important;
+  height: calc(100vh - 190px) !important;
+  max-height: calc(100vh - 190px) !important;
+  overflow: visible !important;
+  padding-bottom: 20px !important;
+}
+
+/* Ajustes para card dentro do Swiper */
+.swiper-sale-card {
+  width: 100% !important;
+  height: auto !important;
+  margin-bottom: 12px !important;
+  border-radius: 8px !important;
+  transition: transform 0.2s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.swiper-sale-card:active {
+  transform: scale(0.98) !important;
+}
+
+/* Otimização para botões dentro dos cards */
+.swiper-sale-card .flex.flex-wrap.gap-2 button {
+  min-width: 38px !important;
+  min-height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Ajustes específicos para iOS */
+@supports (-webkit-touch-callout: none) {
+  .sales-swiper {
+    height: calc(100vh - 210px) !important;
+    max-height: calc(100vh - 210px) !important;
+    padding-bottom: 40px !important;
+    margin-bottom: 20px !important;
+    -webkit-mask-image: -webkit-radial-gradient(white, black) !important;
+  }
+}
