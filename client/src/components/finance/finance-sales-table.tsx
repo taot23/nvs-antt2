@@ -42,22 +42,34 @@ interface SalesResponse {
   totalPages: number;
 }
 
-export default function FinanceSalesTable({ status, searchTerm, onViewFinancials }: FinanceSalesTableProps) {
+export default function FinanceSalesTable({ 
+  status, 
+  searchTerm, 
+  onViewFinancials,
+  usesFinancialStatus = false // Por padrão, continuamos usando o status operacional
+}: FinanceSalesTableProps) {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   
   // Busca os dados de vendas com paginação
   const { data: salesData, isLoading, error } = useQuery<SalesResponse>({
-    queryKey: ['/api/sales', page, limit, status, searchTerm],
+    queryKey: ['/api/sales', page, limit, status, searchTerm, usesFinancialStatus],
     queryFn: async () => {
       const url = new URL('/api/sales', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', limit.toString());
-      url.searchParams.append('status', status);
+      
+      // Dependendo do flag, usa status ou financialStatus
+      if (usesFinancialStatus) {
+        url.searchParams.append('financialStatus', status);
+      } else {
+        url.searchParams.append('status', status);
+      }
+      
       if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
       
-      console.log(`Buscando vendas com status: ${status}, termo: ${searchTerm || 'nenhum'}, url: ${url.toString()}`);
+      console.log(`Buscando vendas com ${usesFinancialStatus ? 'financialStatus' : 'status'}: ${status}, termo: ${searchTerm || 'nenhum'}, url: ${url.toString()}`);
       
       const response = await fetch(url.toString());
       if (!response.ok) {
@@ -103,7 +115,9 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
         ) : (
           <>
             <Table>
-              <TableCaption>Lista de vendas com status: {getStatusLabel(status)}</TableCaption>
+              <TableCaption>
+                Lista de vendas com {usesFinancialStatus ? 'status financeiro' : 'status operacional'}: {getStatusLabel(status)}
+              </TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Número</TableHead>
@@ -125,7 +139,9 @@ export default function FinanceSalesTable({ status, searchTerm, onViewFinancials
                     <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
                     <TableCell>
                       <Badge variant="default">
-                        {getStatusLabel(sale.status)}
+                        {usesFinancialStatus && sale.financialStatus
+                          ? getStatusLabel(sale.financialStatus) 
+                          : getStatusLabel(sale.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
