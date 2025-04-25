@@ -12,7 +12,6 @@ import PaymentMethodsPage from "@/pages/payment-methods-page";
 import ServiceTypesPage from "@/pages/service-types-page";
 import ServiceProvidersPage from "@/pages/service-providers-page";
 import SalesPage from "@/pages/sales-page";
-import SaleDetailsPage from "@/pages/sale-details";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -100,19 +99,6 @@ const ProtectedSales = () => {
   );
 };
 
-// Componente para a página de detalhes de venda
-
-const ProtectedSaleDetails = () => {
-  console.log("Renderizando ProtectedSaleDetails");
-  return (
-    <ProtectedApp>
-      <SaleDetailsPage />
-    </ProtectedApp>
-  );
-};
-
-
-
 function Router() {
   console.log("Renderizando Router");
   return (
@@ -126,8 +112,6 @@ function Router() {
       <ProtectedRoute path="/service-types" component={ProtectedServiceTypes} />
       <ProtectedRoute path="/service-providers" component={ProtectedServiceProviders} />
       <ProtectedRoute path="/sales" component={ProtectedSales} />
-
-      <ProtectedRoute path="/sale-details" component={ProtectedSaleDetails} />
       <Route component={NotFound} />
     </Switch>
   );

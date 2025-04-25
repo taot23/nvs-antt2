@@ -19,8 +19,7 @@ import {
   CreditCard,
   Tags,
   HardHat,
-  ShoppingCart,
-  Smartphone
+  ShoppingCart
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -31,12 +30,7 @@ type MenuItem = {
   roles?: string[]; // Se definido, o item só será mostrado para esses perfis
 };
 
-interface SidebarProps {
-  isOpen?: boolean;
-  onToggle?: () => void;
-}
-
-export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+export function Sidebar() {
   const isMobile = useIsMobile();
   const [expanded, setExpandedState] = useState(() => {
     // Ler o estado do localStorage na montagem inicial (apenas desktop)
@@ -47,10 +41,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     }
     return false;
   });
-  
-  // Usar o estado externo (isOpen) se fornecido, caso contrário, usar o estado interno
-  const sidebarOpen = isOpen !== undefined ? isOpen : (isMobile ? false : expanded);
-  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logoutMutation, user } = useAuth();
   const [location, setLocation] = useLocation();
   
@@ -66,27 +57,26 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   useEffect(() => {
     // Log para debug
     console.log("Sidebar - Mudou dispositivo:", isMobile ? "Mobile" : "Desktop");
+    
+    // Em mobile, sempre fechar o menu mobile
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
   }, [isMobile]);
   
   // Efeito adicional que monitora mudanças de rota
   useEffect(() => {
-    // Quando mudar de rota, fechar o menu mobile se controlado internamente
-    if (isMobile && onToggle === undefined) {
-      setExpanded(false);
+    // Quando mudar de rota, fechar o menu mobile
+    if (isMobile) {
+      setMobileMenuOpen(false);
     }
-  }, [location, isMobile, onToggle]);
+  }, [location, isMobile]);
   
   const toggleSidebar = () => {
-    // Se temos uma função externa de toggle, usamos ela
-    if (onToggle) {
-      onToggle();
+    if (isMobile) {
+      setMobileMenuOpen(!mobileMenuOpen);
     } else {
-      // Caso contrário, usamos o comportamento interno
-      if (isMobile) {
-        setExpanded(!expanded);
-      } else {
-        setExpanded(!expanded);
-      }
+      setExpanded(!expanded);
     }
   };
   
@@ -95,6 +85,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   };
   
   const userRole = user?.role || '';
+  console.log('Sidebar: usuário atual com perfil:', userRole);
   
   // Definir os itens de menu
   const menuItems: MenuItem[] = [
@@ -108,11 +99,6 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       icon: <ShoppingCart className="h-5 w-5" />,
       label: 'Vendas'
       // Sem roles = todos os perfis têm acesso
-    },
-    {
-      path: '/mobile-sales',
-      icon: <Smartphone className="h-5 w-5" />,
-      label: 'Versão Móvel'
     },
     {
       path: '/customers',
@@ -159,141 +145,189 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     return item.roles.includes(userRole);
   });
 
-  // Determina se o menu está visível
-  const isVisible = isMobile ? sidebarOpen : true;
-  // Determina se o conteúdo expandido deve ser mostrado
-  const showExpandedContent = isMobile ? true : sidebarOpen;
+  // Certifique-se de que mobileMenuOpen seja mostrado no console para debug
+  console.log("Mobile:", isMobile, "Menu aberto:", mobileMenuOpen);
 
   return (
-    <aside 
-      className={cn(
-        "h-full bg-card border-r border-border shadow-sm z-40 flex flex-col transition-all duration-300 ease-in-out",
-        // Layout fixo ou não baseado em mobile
-        isMobile ? "fixed top-0" : "relative",
-        // Visibilidade e posicionamento
-        isMobile ? (sidebarOpen ? "left-0" : "-left-full") : "left-0",
-        // Largura
-        isMobile 
-          ? "w-[85vw] max-w-[280px]" 
-          : showExpandedContent 
-            ? "w-64" 
-            : "w-16"
+    <>
+      {/* Botão de menu mobile fixo no topo - sempre mostra em telas pequenas */}
+      <div className="fixed top-0 left-0 z-50 p-2 bg-background md:hidden">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleSidebar}
+          className="h-10 w-10 rounded-md"
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
+      
+      {/* Overlay para fechar o menu mobile quando clicar fora */}
+      {isMobile && mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          onClick={toggleSidebar}
+        />
       )}
-    >
-      <div className="flex items-center justify-between p-4 h-14 border-b border-border">
-        {showExpandedContent && (
-          <h2 className="text-lg font-semibold truncate">Sistema de Gestão</h2>
+      
+      {/* Sidebar para desktop ou menu mobile */}
+      <aside 
+        className={cn(
+          "fixed h-full bg-card border-r border-border shadow-sm z-50 flex flex-col transition-all duration-300 ease-in-out",
+          // Posicionamento
+          isMobile 
+            ? mobileMenuOpen 
+              ? "left-0 top-0" 
+              : "-left-full top-0" 
+            : "left-0 top-0",
+          // Largura
+          isMobile 
+            ? "w-[75vw] max-w-[280px]" 
+            : expanded 
+              ? "w-60" 
+              : "w-14"
         )}
+      >
+        <div className="flex items-center justify-between p-4 h-14 border-b border-border">
+          {(expanded || isMobile) && (
+            <h2 className="text-lg font-medium truncate">Gestão de Clientes</h2>
+          )}
+          
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSidebar}
+              className={cn(
+                "ml-auto",
+                !expanded && "mx-auto"
+              )}
+            >
+              {expanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            </Button>
+          )}
+        </div>
         
-        {!isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleSidebar}
-            className={cn(
-              !showExpandedContent && "mx-auto"
-            )}
-            aria-label={showExpandedContent ? "Recolher menu" : "Expandir menu"}
-          >
-            {showExpandedContent ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-          </Button>
-        )}
-      </div>
-      
-      <div className="flex-1 py-4 px-2 overflow-y-auto">
-        <nav className="space-y-1">
-          {filteredMenuItems.map((item) => {
-            const isActive = item.path === '/' 
-              ? location === item.path
-              : location.startsWith(item.path);
-              
-            // Versão mobile ou expandida
-            if (showExpandedContent) {
-              return (
-                <Link 
-                  key={item.path} 
-                  href={item.path}
-                  onClick={() => {
-                    // Em mobile, fecha o menu via callback se disponível
-                    if (isMobile && onToggle) {
-                      onToggle();
-                    }
-                  }}
-                >
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start mb-1 font-normal",
-                      isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    )}
+        <div className="flex-1 py-4 px-2 overflow-y-auto">
+          <nav className="space-y-1">
+            {filteredMenuItems.map((item) => {
+              const isActive = item.path === '/' 
+                ? location === item.path
+                : location.startsWith(item.path);
+                
+              // Versão mobile ou expandida
+              if (isMobile || expanded) {
+                return (
+                  <Link 
+                    key={item.path} 
+                    href={item.path}
+                    onClick={() => {
+                      // Em mobile, sempre fecha o menu
+                      if (isMobile) {
+                        setMobileMenuOpen(false);
+                      } 
+                      // Em desktop, recolhe a sidebar se estiver expandida
+                      else if (expanded) {
+                        setExpanded(false);
+                      }
+                    }}
                   >
-                    <div className="flex items-center">
-                      <div className="mr-3">{item.icon}</div>
-                      <span>{item.label}</span>
-                    </div>
-                  </Button>
-                </Link>
-              );
-            }
-            
-            // Versão recolhida com tooltip (apenas desktop)
-            return (
-              <TooltipProvider key={item.path} delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href={item.path}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "w-full h-10 mb-1",
-                          isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        )}
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start mb-1 font-normal",
+                        isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center">
+                        <div className="mr-3">{item.icon}</div>
+                        <span>{item.label}</span>
+                      </div>
+                    </Button>
+                  </Link>
+                );
+              }
+              
+              // Versão recolhida com tooltip (apenas desktop)
+              return (
+                <TooltipProvider key={item.path} delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link 
+                        href={item.path}
+                        onClick={() => {
+                          // Ao clicar no item da sidebar recolhida em desktop
+                          // não vamos expandir, apenas vamos para a nova página
+                        }}
                       >
-                        {item.icon}
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="font-normal">
-                    {item.label}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            );
-          })}
-        </nav>
-      </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "w-full h-10 mb-1",
+                            isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          )}
+                        >
+                          {item.icon}
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-normal">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
+          </nav>
+        </div>
+        
+        <div className="p-2 border-t border-border mt-auto">
+          {isMobile || expanded ? (
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              <span>Sair</span>
+            </Button>
+          ) : (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="w-full text-muted-foreground hover:text-foreground"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-normal">
+                  Sair
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      </aside>
       
-      <div className="p-2 border-t border-border mt-auto">
-        {showExpandedContent ? (
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            <span>Sair</span>
-          </Button>
-        ) : (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="w-full text-muted-foreground hover:text-foreground"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="font-normal">
-                Sair
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-    </aside>
+      {/* Espaçador para empurrar o conteúdo - apenas em desktop */}
+      {!isMobile && (
+        <div 
+          className={cn(
+            "transition-all duration-300 ease-in-out",
+            expanded ? "ml-60" : "ml-14"
+          )}
+        />
+      )}
+      
+      {/* Espaço para o botão do menu mobile */}
+      {isMobile && (
+        <div className="h-14" />
+      )}
+    </>
   );
 }

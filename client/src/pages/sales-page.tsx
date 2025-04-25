@@ -12,11 +12,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
-import { useDeviceDetection } from "@/hooks/use-device-detection";
-// Removido o hook useDebounce
+import { useDebounce } from "@/hooks/useDebounce";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { debounce } from "lodash-es";
@@ -65,8 +65,92 @@ type Sale = {
 type SortField = 'orderNumber' | 'date' | 'customerName' | 'sellerName' | 'totalAmount' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-// Funções de utilidade para status importadas do arquivo separado
-import { getStatusLabel, getStatusVariant, getStatusRowClass, getStatusCardClass, getStatusStyle } from "@/lib/status-utils";
+// Função para obter a descrição do status
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'pending': return 'Pendente';
+    case 'in_progress': return 'Em Andamento';
+    case 'returned': return 'Devolvida';
+    case 'completed': return 'Concluída';
+    case 'canceled': return 'Cancelada';
+    case 'corrected': return 'Corrigida Aguardando Operacional';
+    default: return status;
+  }
+}
+
+// Função para obter a cor do status
+function getStatusVariant(status: string) {
+  switch (status) {
+    case 'pending': return 'warning';
+    case 'in_progress': return 'secondary';
+    case 'returned': return 'destructive';
+    case 'completed': return 'success';
+    case 'canceled': return 'outline';
+    case 'corrected': return 'primary';
+    default: return 'default';
+  }
+}
+
+// Função para obter classes CSS para a linha da tabela
+function getStatusRowClass(status: string) {
+  // Garantir que sempre retornamos uma string válida
+  if (!status) return '';
+  
+  switch (status) {
+    case 'corrected': return 'status-row-corrected'; // Amarelo bem suave para "corrigido"
+    case 'completed': return 'status-row-completed'; // Verde bem suave para "concluído"
+    case 'in_progress': return 'status-row-in_progress'; // Laranja bem suave para "em andamento"
+    case 'returned': return 'status-row-returned'; // Vermelho bem suave para "devolvida"
+    default: return '';
+  }
+}
+
+// Função para obter classes CSS para o card mobile
+function getStatusCardClass(status: string) {
+  // Garantir que sempre retornamos uma string válida
+  if (!status) return '';
+  
+  switch (status) {
+    case 'corrected': return 'status-card-corrected'; // Amarelo bem suave para "corrigido"
+    case 'completed': return 'status-card-completed'; // Verde bem suave para "concluído"
+    case 'in_progress': return 'status-card-in_progress'; // Laranja bem suave para "em andamento"
+    case 'returned': return 'status-card-returned'; // Vermelho bem suave para "devolvida"
+    default: return '';
+  }
+}
+
+// ABORDAGEM FINAL: Função para aplicar estilos inline diretamente
+function getStatusStyle(status: string) {
+  // CORES MAIS INTENSAS USANDO RGB PARA MÁXIMA COMPATIBILIDADE
+  switch (status) {
+    case 'corrected': 
+      return { 
+        backgroundColor: 'rgba(250, 240, 137, 0.3)', 
+        border: '2px solid rgba(250, 240, 137, 0.6)',
+        borderLeft: '5px solid rgba(250, 240, 137, 0.8)'
+      }; // Amarelo mais intenso
+    case 'completed': 
+      return { 
+        backgroundColor: 'rgba(134, 239, 172, 0.3)', 
+        border: '2px solid rgba(134, 239, 172, 0.6)',
+        borderLeft: '5px solid rgba(134, 239, 172, 0.8)'
+      }; // Verde mais intenso
+    case 'in_progress': 
+      return { 
+        backgroundColor: 'rgba(255, 159, 64, 0.3)', 
+        border: '2px solid rgba(255, 159, 64, 0.6)',
+        borderLeft: '5px solid rgba(255, 159, 64, 0.8)'
+      }; // Laranja mais intenso
+    case 'returned': 
+      return { 
+        backgroundColor: 'rgba(252, 165, 165, 0.3)', 
+        border: '2px solid rgba(252, 165, 165, 0.6)',
+        borderLeft: '5px solid rgba(252, 165, 165, 0.8)'
+      }; // Vermelho mais intenso
+    default: 
+      return {};
+  }
+}
 
 // Componente principal
 export default function SalesPage() {
@@ -74,8 +158,7 @@ export default function SalesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const deviceInfo = useDeviceDetection();
-  const isMobile = deviceInfo.isMobile || deviceInfo.type === 'mobile' || deviceInfo.type === 'tablet';
+  const isMobile = useIsMobile();
   const { lastEvent, isConnected, reconnect } = useWebSocket();
   // Monitoramento de performance
   const performanceMonitor = usePerformanceMonitor();
@@ -102,15 +185,6 @@ export default function SalesPage() {
   const staleTime = 5 * 60 * 1000; // 5 minutos 
   const gcTime = 30 * 60 * 1000; // 30 minutos (gcTime substitui cacheTime na v5 do TanStack Query)
   const localStorageCacheTime = 60 * 60 * 1000; // 1 hora para cache do localStorage
-
-  // Precisamos também remover as referências ao hook useDebounce que foi removido
-  const debouncedSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-      setPage(1); // Resetar para a primeira página ao pesquisar
-    }, 500),
-    []
-  );
   
   // Função para obter dados do cache local
   const getFromLocalCache = (key: string) => {
@@ -329,7 +403,7 @@ export default function SalesPage() {
     gcTime,
     refetchOnWindowFocus: false,
   });
-
+  
   // Preparar dados enriquecidos
   const enrichedSales = sales.map((sale: Sale) => {
     const customer = customers.find((c: any) => c.id === sale.customerId);
@@ -347,55 +421,26 @@ export default function SalesPage() {
       serviceProviderName: serviceProvider?.name || null
     };
   });
-
-  // Filtrar vendas com base no termo de busca e filtro de status
-  const filteredSales = useMemo(() => {
-    let filtered = [...enrichedSales];
-    
-    return filtered;
-  }, [enrichedSales]);
-
-  // Usar o evento WebSocket para atualizar dados de vendas
-  useEffect(() => {
-    if (lastEvent?.type === 'sales_update') {
-      console.log("Recebendo atualização de vendas via WebSocket");
-      
-      // Verificar se está na página de vendas antes de atualizar
-      if (window.location.pathname.includes('/sales')) {
-        refetch();
-      }
-    }
-  }, [lastEvent, refetch]);
-
-  // Removemos este useEffect que foi substituído pela função debounce acima
-
-  // Manipulador de mudança de filtro de status
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value);
-    setPage(1); // Resetar para a primeira página ao filtrar
-  };
-
-  // Manipulador de mudança de intervalo de datas
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    setDateRange(range);
-    setPage(1); // Resetar para a primeira página ao alterar datas
-  };
-
+  
   // Mutation para excluir uma venda
-  const deleteSaleMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("DELETE", `/api/sales/${id}`);
+      const response = await fetch(`/api/sales/${id}`, {
+        method: "DELETE",
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao excluir venda");
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao excluir venda");
       }
-      return id;
+      
+      return true;
     },
-    onSuccess: (id) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
         title: "Venda excluída",
-        description: `A venda foi excluída com sucesso.`,
+        description: "A venda foi excluída com sucesso",
       });
       setDeleteDialogOpen(false);
     },
@@ -407,52 +452,30 @@ export default function SalesPage() {
       });
     },
   });
-
-  // Mutation para devolver uma venda
-  const returnSaleMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
-      const response = await apiRequest("POST", `/api/sales/${id}/return`, { reason });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao devolver venda");
-      }
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      toast({
-        title: "Venda devolvida",
-        description: `A venda foi devolvida com sucesso.`,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao devolver venda",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutation para iniciar a execução
+  
+  // Mutation para iniciar execução
   const startExecutionMutation = useMutation({
-    mutationFn: async ({ id, serviceTypeId, serviceProviderId }: { id: number; serviceTypeId?: number; serviceProviderId?: number }) => {
-      const response = await apiRequest("POST", `/api/sales/${id}/start-execution`, { 
-        serviceTypeId, 
-        serviceProviderId 
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao iniciar execução");
+    mutationFn: async (id: number) => {
+      // Ao invés de chamar diretamente a API, vamos abrir o diálogo de operação
+      // para garantir que o usuário pode selecionar o tipo de execução e prestador parceiro
+      
+      // Selecionar a venda atual
+      const sale = sales.find((sale: Sale) => sale.id === id);
+      if (!sale) {
+        throw new Error("Venda não encontrada");
       }
-      return await response.json();
+      
+      // Definir como selecionada e abrir diálogo de operação
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+      
+      // Retornar um resultado vazio - o diálogo se encarregará do restante
+      return { success: true };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Apenas invalidar a consulta - não mostrar mensagem de sucesso
+      // pois o processo será concluído no diálogo de operação
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      toast({
-        title: "Execução iniciada",
-        description: `A execução da venda foi iniciada com sucesso.`,
-      });
     },
     onError: (error: Error) => {
       toast({
@@ -462,23 +485,30 @@ export default function SalesPage() {
       });
     },
   });
-
-  // Mutation para concluir a execução
+  
+  // Mutation para completar execução
   const completeExecutionMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("POST", `/api/sales/${id}/complete-execution`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao concluir execução");
+      // Ao invés de chamar diretamente a API, vamos abrir o diálogo de operação
+      // para garantir que o usuário tenha acesso a todas as opções
+      
+      // Selecionar a venda atual
+      const sale = sales.find((sale: Sale) => sale.id === id);
+      if (!sale) {
+        throw new Error("Venda não encontrada");
       }
-      return await response.json();
+      
+      // Definir como selecionada e abrir diálogo de operação
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+      
+      // Retornar um resultado vazio - o diálogo se encarregará do restante
+      return { success: true };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Apenas invalidar a consulta - não mostrar mensagem de sucesso
+      // pois o processo será concluído no diálogo de operação
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      toast({
-        title: "Execução concluída",
-        description: `A execução da venda foi concluída com sucesso.`,
-      });
     },
     onError: (error: Error) => {
       toast({
@@ -488,48 +518,56 @@ export default function SalesPage() {
       });
     },
   });
-
-  // Mutation para marcar como pago
-  const markAsPaidMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await apiRequest("POST", `/api/sales/${id}/mark-as-paid`);
+  
+  // Mutation para limpar todas as vendas
+  const clearAllSalesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/admin/clear-sales`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao marcar como pago");
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao limpar vendas");
       }
+      
       return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
-        title: "Pagamento registrado",
-        description: `O pagamento da venda foi registrado com sucesso.`,
+        title: "Vendas removidas",
+        description: `Foram removidas ${data.count} vendas do sistema`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao registrar pagamento",
+        title: "Erro ao limpar vendas",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  // Mutation para reenviar venda ao vendedor
+  
+  // Mutation para reenviar venda corrigida
   const resendSaleMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("POST", `/api/sales/${id}/resend`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao reenviar venda");
-      }
+      console.log("Iniciando mutation para reenviar diretamente venda:", id);
+      // Usar apiRequest ao invés de fetch diretamente
+      const response = await apiRequest("POST", `/api/sales/${id}/resend`, {
+        notes: "Venda corrigida e reenviada via botão rápido"
+      });
+      
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
         title: "Venda reenviada",
-        description: `A venda foi reenviada ao vendedor com sucesso.`,
+        description: "A venda corrigida foi reenviada com sucesso para o setor operacional",
       });
     },
     onError: (error: Error) => {
@@ -541,196 +579,683 @@ export default function SalesPage() {
     },
   });
 
-  // Mutation para limpar todas as vendas (administrativo)
-  const clearAllSalesMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/sales/clear-all`);
+  // Mutation para marcar como paga
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/sales/${id}/mark-paid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao limpar todas as vendas");
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao marcar venda como paga");
       }
-      return true;
+      
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       toast({
-        title: "Vendas limpas",
-        description: "Todas as vendas foram removidas com sucesso.",
+        title: "Pagamento confirmado",
+        description: "A venda foi marcada como paga com sucesso",
       });
-      setClearSalesDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao limpar vendas",
+        title: "Erro ao confirmar pagamento",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  // Handler para atualização de vendas via WebSocket
+  
+  // Efeito para escutar atualizações via WebSocket
   useEffect(() => {
+    if (lastEvent?.type === 'sales_update') {
+      console.log('Recebida atualização de vendas via WebSocket (lastEvent)');
+      
+      // Atualizar automaticamente os dados
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      
+      // Mostrar notificação
+      toast({
+        title: "Atualização de vendas",
+        description: "As vendas foram atualizadas",
+      });
+    }
+  }, [lastEvent, queryClient, toast]);
+  
+  // Adicionar ouvinte para o evento personalizado de sales-update
+  useEffect(() => {
+    // Função para lidar com o evento personalizado
     const handleSalesUpdateEvent = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail === 'sales_update') {
-        console.log("Evento de atualização de vendas recebido");
-        queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      }
+      console.log('Recebido evento personalizado sales-update');
+      
+      // Atualizar os dados
+      refetch();
+      
+      // Mostrar notificação
+      toast({
+        title: "Atualização de vendas",
+        description: "As vendas foram atualizadas via evento personalizado",
+      });
     };
-
-    // Adicionar ouvinte ao documento para eventos personalizados
-    document.addEventListener('sales_update', handleSalesUpdateEvent);
-
-    // Limpeza ao desmontar
+    
+    // Adicionar o ouvinte de eventos
+    window.addEventListener('sales-update', handleSalesUpdateEvent);
+    
+    // Remover o ouvinte quando o componente for desmontado
     return () => {
-      document.removeEventListener('sales_update', handleSalesUpdateEvent);
+      window.removeEventListener('sales-update', handleSalesUpdateEvent);
     };
-  }, [queryClient]);
-
-  // Handlers de ações para vendas
-  const handleEdit = (sale: Sale) => {
-    setSelectedSale(sale);
-    setDialogOpen(true);
+  }, [refetch, toast]);
+  
+  // NOVA ABORDAGEM COM EFEITO DIRETO NO DOM
+  useLayoutEffect(() => {
+    // Função que aplica cores diretamente no DOM
+    const applyColorsToTable = () => {
+      console.log('Aplicando cores diretamente ao DOM...');
+      
+      // Para cada status, definimos cores específicas com cores mais intensas
+      const colorMap = {
+        'corrected': 'rgba(250, 240, 137, 0.25)',  // Amarelo mais visível
+        'completed': 'rgba(134, 239, 172, 0.25)',  // Verde mais visível
+        'in_progress': 'rgba(255, 159, 64, 0.3)',  // Laranja mais visível
+        'returned': 'rgba(252, 165, 165, 0.25)'    // Vermelho mais visível
+      };
+      
+      // Para cada linha com data-status
+      const rowsWithStatus = document.querySelectorAll('tr[data-status]');
+      console.log(`Encontradas ${rowsWithStatus.length} linhas com atributo data-status`);
+      
+      rowsWithStatus.forEach(row => {
+        const status = row.getAttribute('data-status');
+        console.log(`Processando linha com status: ${status}`);
+        
+        if (status && status in colorMap) {
+          // Aplicar cor em todas as células da linha
+          const cells = row.querySelectorAll('td');
+          console.log(`Aplicando cor ${colorMap[status as keyof typeof colorMap]} em ${cells.length} células`);
+          
+          cells.forEach(cell => {
+            (cell as HTMLElement).style.backgroundColor = colorMap[status as keyof typeof colorMap];
+            // Garantir que a cor seja aplicada com !important
+            (cell as HTMLElement).setAttribute('style', 
+              `background-color: ${colorMap[status as keyof typeof colorMap]} !important`);
+          });
+        }
+      });
+      
+      // Para cards no mobile
+      const cardsWithStatus = document.querySelectorAll('div[data-status]');
+      console.log(`Encontrados ${cardsWithStatus.length} cards com atributo data-status`);
+      
+      cardsWithStatus.forEach(card => {
+        const status = card.getAttribute('data-status');
+        console.log(`Processando card com status: ${status}`);
+        
+        if (status && status in colorMap) {
+          console.log(`Aplicando cor ${colorMap[status as keyof typeof colorMap]} ao card`);
+          // Aplicar diretamente no elemento com !important
+          (card as HTMLElement).setAttribute('style', 
+            `background-color: ${colorMap[status as keyof typeof colorMap]} !important`);
+        }
+      });
+    };
+    
+    // Aplicar cores imediatamente após a renderização
+    applyColorsToTable();
+    
+    // Programar várias tentativas com intervalos diferentes para garantir a aplicação
+    const timerIds: ReturnType<typeof setTimeout>[] = [];
+    // Tentar após 100ms, 300ms, 500ms, 1s e 2s para maior cobertura de cenários
+    [100, 300, 500, 1000, 2000].forEach(delay => {
+      const timerId = setTimeout(applyColorsToTable, delay);
+      timerIds.push(timerId);
+    });
+    
+    // Também adicionar observador de mutação para recolorir quando o DOM for modificado
+    const observer = new MutationObserver((mutations) => {
+      console.log('DOM modificado, reaplicando cores...');
+      applyColorsToTable();
+    });
+    
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true 
+    });
+    
+    return () => {
+      // Limpar todos os timers
+      timerIds.forEach(id => clearTimeout(id));
+      // Desconectar o observer
+      observer.disconnect();
+    };
+  }, [sales, statusFilter, searchTerm]);
+  
+  // Função para forçar a atualização dos dados
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Primeiro tentar reconectar o WebSocket se não estiver conectado
+      if (!isConnected) {
+        console.log('WebSocket não conectado. Tentando reconectar...');
+        reconnect();
+      }
+      
+      // Então atualizar os dados
+      await refetch();
+      toast({
+        title: "Dados atualizados",
+        description: "Os dados de vendas foram atualizados",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar os dados",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
-
+  
+  // Handlers
+  const handleOpenCreateDialog = () => {
+    console.log("Botão Nova Venda clicado");
+    // Limpar a venda selecionada e abrir o diálogo de criação
+    setSelectedSale(null);
+    // Usar o novo estado específico
+    setShowCreateVendaDialog(true);
+    
+    // Logs para diagnóstico
+    console.log("Abrindo diálogo de nova venda usando showCreateVendaDialog");
+  };
+  
+  const handleEdit = (sale: Sale) => {
+    console.log("Botão Editar Venda clicado para venda:", sale.id);
+    // Primeiro selecionamos a venda
+    setSelectedSale(sale);
+    // Usar um setTimeout para garantir que o estado seja atualizado
+    setTimeout(() => {
+      // Então abrir o diálogo
+      setDialogOpen(true);
+      console.log("Estado do diálogo após editar:", true);
+    }, 0);
+  };
+  
   const handleViewDetails = (sale: Sale) => {
     setSelectedSale(sale);
     setDetailsDialogOpen(true);
   };
-
+  
   const handleDeleteClick = (sale: Sale) => {
     setSelectedSale(sale);
     setDeleteDialogOpen(true);
   };
-
+  
+  const handleConfirmDelete = () => {
+    if (selectedSale) {
+      deleteMutation.mutate(selectedSale.id);
+    }
+  };
+  
   const handleReturnClick = (sale: Sale) => {
     setSelectedSale(sale);
     setReturnDialogOpen(true);
   };
-
+  
   const handleStartExecution = (sale: Sale) => {
-    setSelectedSale(sale);
-    setOperationDialogOpen(true);
+    // Novo fluxo: abrir tela de tratativa ao invés de executar diretamente
+    if (user?.role === "operacional" || user?.role === "admin" || user?.role === "supervisor") {
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+    } else {
+      // Manter o comportamento anterior para outros casos
+      startExecutionMutation.mutate(sale.id);
+    }
   };
-
+  
   const handleCompleteExecution = (sale: Sale) => {
-    completeExecutionMutation.mutate(sale.id);
+    // Novo fluxo: abrir tela de tratativa para vendas em andamento também
+    if (user?.role === "operacional" || user?.role === "admin" || user?.role === "supervisor") {
+      setSelectedSale(sale);
+      setOperationDialogOpen(true);
+    } else {
+      // Manter o comportamento anterior para outros casos
+      completeExecutionMutation.mutate(sale.id);
+    }
   };
-
+  
   const handleMarkAsPaid = (sale: Sale) => {
     markAsPaidMutation.mutate(sale.id);
   };
-
+  
+  // Handler para visualizar histórico de status da venda
   const handleViewHistory = (sale: Sale) => {
     setSelectedSale(sale);
     setHistoryDialogOpen(true);
   };
-
-  // Confirmar exclusão
-  const handleConfirmDelete = () => {
-    if (selectedSale) {
-      deleteSaleMutation.mutate(selectedSale.id);
-    }
+  
+  // Mutation para reenvio direto (usado por usuários não vendedores)
+  const handleDirectResend = (saleId: number) => {
+    console.log("Chamando mutation direta para reenvio (perfil não vendedor)");
+    resendSaleMutation.mutate(saleId);
   };
-
-  // Confirmar limpeza de todas as vendas
+  
+  // Handler para limpar todas as vendas
+  const handleClearAllSales = () => {
+    setClearSalesDialogOpen(true);
+  };
+  
   const handleConfirmClearAllSales = () => {
     clearAllSalesMutation.mutate();
+    setClearSalesDialogOpen(false);
   };
-
-  // Função para alternar ordenação
+  
+  // Função para aplicar debounce na pesquisa
+  const debouncedSearchTerm = useDebounce(internalSearchTerm, 300);
+  
+  // Efeito para atualizar o termo de pesquisa após o debounce
+  useEffect(() => {
+    setSearchTerm(debouncedSearchTerm);
+  }, [debouncedSearchTerm]);
+  
+  // Função para atualizar o termo de pesquisa interno (sem delay)
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInternalSearchTerm(e.target.value);
+  };
+  
+  const clearSearch = () => {
+    setSearchTerm("");
+    setInternalSearchTerm("");
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+  
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
-      // Se já estamos ordenando por este campo, alternamos a direção
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // Caso contrário, mudamos o campo e definimos a direção para ascendente
       setSortField(field);
       setSortDirection('asc');
     }
-    setPage(1); // Resetar para a primeira página ao alterar ordenação
   };
-
-  // Função para exportar dados em Excel
+  
+  // Exportação para Excel
   const exportToExcel = () => {
     const exportData = filteredSales.map((sale: Sale) => ({
-      'Número OS': sale.orderNumber,
-      'Data': sale.date ? new Date(sale.date).toLocaleDateString('pt-BR') : '',
-      'Cliente': sale.customerName || '',
-      'Vendedor': sale.sellerName || '',
-      'Forma de Pagamento': sale.paymentMethodName || '',
-      'Valor Total': parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      'Nº OS': sale.orderNumber,
+      'Data': format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
+      'Cliente': sale.customerName,
+      'Vendedor': sale.sellerName,
+      'Valor Total': `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`,
       'Status': getStatusLabel(sale.status),
-      'Observações': sale.notes || ''
+      'Pago': sale.financialStatus === 'paid' ? 'Sim' : 'Não',
     }));
-
+    
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas");
-    
-    // Ajustar largura das colunas
-    const colWidths = [
-      { wch: 12 }, // Número OS
-      { wch: 12 }, // Data
-      { wch: 25 }, // Cliente
-      { wch: 15 }, // Vendedor
-      { wch: 20 }, // Forma de Pagamento
-      { wch: 15 }, // Valor Total
-      { wch: 15 }, // Status
-      { wch: 30 }, // Observações
-    ];
-    worksheet["!cols"] = colWidths;
-
     XLSX.writeFile(workbook, "vendas.xlsx");
   };
-
-  // Função para exportar dados em PDF
+  
+  // Exportação para PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    // Adicionar cabeçalho
+    // Título
     doc.setFontSize(18);
-    doc.text("Relatório de Vendas", 105, 15, { align: "center" });
-    doc.setFontSize(12);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 105, 22, { align: "center" });
+    doc.text("Relatório de Vendas", 14, 22);
     
-    // Preparar dados para a tabela
+    // Data do relatório
+    doc.setFontSize(11);
+    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 30);
+    
+    // Filtro aplicado
+    if (statusFilter) {
+      doc.text(`Filtro: ${getStatusLabel(statusFilter)}`, 14, 38);
+    }
+    
+    // Dados para a tabela
     const tableData = filteredSales.map((sale: Sale) => [
       sale.orderNumber,
-      sale.date ? new Date(sale.date).toLocaleDateString('pt-BR') : '',
-      sale.customerName || '',
-      sale.sellerName || '',
-      parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      getStatusLabel(sale.status)
+      format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }),
+      sale.customerName,
+      sale.sellerName,
+      `R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`,
+      getStatusLabel(sale.status),
     ]);
     
-    // Adicionar tabela
+    // Criar tabela
     autoTable(doc, {
-      head: [['Número OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
+      startY: statusFilter ? 45 : 38,
+      head: [['Nº OS', 'Data', 'Cliente', 'Vendedor', 'Valor Total', 'Status']],
       body: tableData,
-      startY: 30,
-      headStyles: { fillColor: [41, 128, 185] },
-      alternateRowStyles: { fillColor: [240, 240, 240] },
-      margin: { top: 30 },
+      theme: 'striped',
+      headStyles: { fillColor: [75, 75, 75] },
     });
     
     doc.save("vendas.pdf");
   };
-
-  // Se estiver carregando, mostre um indicador de carregamento
-  if (isLoading && !isRefreshing && !sales.length) {
+  
+  // Usuário atual e log simples
+  console.log("Renderizando SalesPage para usuário:", user?.role);
+  
+  // A filtragem e ordenação agora é feita no servidor através da API paginada
+  // Os parâmetros: statusFilter, searchTerm, sortField e sortDirection
+  // são enviados diretamente para o servidor através dos parâmetros de query
+  const filteredSales = enrichedSales;
+  
+  // Renderização para dispositivos móveis
+  if (isMobile) {
     return (
-      <div className="container py-8 space-y-6">
-        <div className="flex justify-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="container py-4 space-y-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Vendas</h1>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Atualizar dados"
+              className={`h-8 w-8 ${isConnected ? "border-green-500" : ""}`}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+            
+            <Button size="sm" onClick={handleOpenCreateDialog}>
+              <Plus className="h-4 w-4 mr-1" />
+              Nova
+            </Button>
+          </div>
         </div>
-        <div className="text-center text-muted-foreground">
-          Carregando vendas...
+        
+        <div className="flex flex-col space-y-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              type="search"
+              placeholder="Buscar venda..."
+              className="pl-8 pr-10"
+              value={internalSearchTerm}
+              onChange={handleSearch}
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-9 px-2.5"
+                onClick={clearSearch}
+              >
+                <span className="sr-only">Limpar</span>
+                &times;
+              </Button>
+            )}
+          </div>
+          
+          {/* Filtro por intervalo de datas (versão mobile) */}
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            className="w-full"
+          />
+          
+          {/* Menu dropdown para filtro de status em mobile */}
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full justify-between">
+                  <span>
+                    {!statusFilter 
+                      ? "Todas" 
+                      : statusFilter === "pending" 
+                        ? "Pendentes" 
+                        : statusFilter === "in_progress" 
+                          ? "Em Andamento" 
+                          : statusFilter === "completed" 
+                            ? "Concluídas" 
+                            : statusFilter === "returned" 
+                              ? "Devolvidas" 
+                              : statusFilter === "corrected" 
+                                ? "Corrigidas" 
+                                : "Filtrar por status"}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full min-w-[200px]">
+                <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter("")}>
+                  <span className={!statusFilter ? "font-bold" : ""}>Todas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
+                  <span className={statusFilter === "pending" ? "font-bold" : ""}>Pendentes</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("in_progress")}>
+                  <span className={statusFilter === "in_progress" ? "font-bold" : ""}>Em Andamento</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("completed")}>
+                  <span className={statusFilter === "completed" ? "font-bold" : ""}>Concluídas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("returned")}>
+                  <span className={statusFilter === "returned" ? "font-bold" : ""}>Devolvidas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("corrected")}>
+                  <span className={statusFilter === "corrected" ? "font-bold" : ""}>Corrigidas</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        
+        <div className="grid gap-4">
+          {isLoading ? (
+            <div className="text-center py-10">Carregando vendas...</div>
+          ) : error ? (
+            <div className="text-center py-10 text-destructive">Erro ao carregar vendas</div>
+          ) : filteredSales.length === 0 ? (
+            <div className="text-center py-10">
+              {searchTerm || statusFilter
+                ? "Nenhuma venda encontrada para sua busca"
+                : "Nenhuma venda cadastrada ainda"}
+            </div>
+          ) : (
+            filteredSales.map((sale: Sale) => {
+              return (
+                <Card 
+                  key={sale.id} 
+                  className="overflow-hidden"
+                  data-status={sale.status}
+                  style={getStatusStyle(sale.status)}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base flex items-center">
+                          OS: {sale.orderNumber}
+                        </CardTitle>
+                        <CardDescription>
+                          {format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
+                        </CardDescription>
+                      </div>
+                      <Badge variant={getStatusVariant(sale.status) as any}>
+                        {getStatusLabel(sale.status)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="p-4 pt-0 pb-2 grid gap-1">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Cliente:</span>{" "}
+                      {sale.customerName}
+                    </div>
+                    
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Vendedor:</span>{" "}
+                      {sale.sellerName}
+                    </div>
+                    
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Valor:</span>{" "}
+                      <span className="font-semibold">
+                        R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    
+                    {sale.returnReason && (
+                      <div className="text-sm mt-1 text-destructive">
+                        <span className="text-xs font-semibold">Motivo da devolução:</span>{" "}
+                        {sale.returnReason}
+                      </div>
+                    )}
+                  </CardContent>
+                  
+                  <CardFooter className="p-2 pt-0 flex flex-wrap gap-1">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-8 px-2 flex-grow"
+                      onClick={() => handleViewDetails(sale)}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      Detalhes
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 flex-grow"
+                      onClick={() => handleViewHistory(sale)}
+                    >
+                      <ClipboardList className="h-3.5 w-3.5 mr-1" />
+                      Histórico
+                    </Button>
+                    
+                    {/* Botões de ação com base no status e permissões */}
+                    {user?.role === "admin" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleEdit(sale)}
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1" />
+                        Editar
+                      </Button>
+                    )}
+                    
+                    {/* Botão para operacionais iniciarem execução */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      (sale.status === "pending" || sale.status === "corrected") && (
+                      <Button
+                        size="sm"
+                        variant={sale.status === "corrected" ? "default" : "outline"}
+                        className={`h-8 px-2 flex-grow ${sale.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}`}
+                        onClick={() => handleStartExecution(sale)}
+                      >
+                        <CornerDownRight className="h-3.5 w-3.5 mr-1" />
+                        Iniciar
+                      </Button>
+                    )}
+                    
+                    {/* Botão para operacionais concluírem execução */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      sale.status === "in_progress" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleCompleteExecution(sale)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Concluir
+                      </Button>
+                    )}
+                    
+                    {/* Botão para operacionais devolverem a venda */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      (sale.status === "pending" || sale.status === "in_progress") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow text-destructive border-destructive hover:bg-destructive/10"
+                        onClick={() => handleReturnClick(sale)}
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                        Devolver
+                      </Button>
+                    )}
+                    
+                    {/* Botão para vendedor/supervisor reenviar venda corrigida */}
+                    {sale.status === 'returned' && (
+                      <ReenviaButton sale={sale} />
+                    )}
+                    
+                    {/* Botão para operacional/admin devolver venda corrigida */}
+                    {(user?.role === "admin" || user?.role === "operacional") && 
+                      sale.status === "corrected" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 flex-grow text-amber-500 border-amber-200 hover:bg-amber-50"
+                        onClick={() => {
+                          // Abrir um diálogo semelhante ao DevolveButton, 
+                          // mas vamos usar o diálogo de retorno existente com o componente já pronto
+                          setSelectedSale(sale);
+                          setReturnDialogOpen(true);
+                        }}
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                        Devolver
+                      </Button>
+                    )}
+                    
+                    {/* Botão para financeiro marcar como paga */}
+                    {(user?.role === "admin" || user?.role === "financeiro") && 
+                      sale.status === "completed" && 
+                      sale.financialStatus !== "paid" && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleMarkAsPaid(sale)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Confirmar Pagamento
+                      </Button>
+                    )}
+                    
+                    {/* Botão de exclusão (apenas admin) */}
+                    {user?.role === "admin" && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 px-2 flex-grow"
+                        onClick={() => handleDeleteClick(sale)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Excluir
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              );
+            })
+          )}
         </div>
       </div>
     );
   }
-
+  
   // Renderização para desktop
   return (
     <div className="container py-8 space-y-6">
@@ -744,111 +1269,172 @@ export default function SalesPage() {
         
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
-            className="gap-1 items-center" 
-            onClick={exportToExcel}
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Atualizar dados"
+            className={isConnected ? "border-green-500" : ""}
           >
-            <FileText className="h-4 w-4" /> 
-            <span className="hidden sm:inline">Excel</span>
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </Button>
-          <Button 
-            variant="outline" 
-            className="gap-1 items-center" 
-            onClick={exportToPDF}
-          >
-            <FileText className="h-4 w-4" /> 
-            <span className="hidden sm:inline">PDF</span>
-          </Button>
-          <Button 
-            onClick={() => setShowCreateVendaDialog(true)} 
-            className="gap-1 items-center"
-          >
-            <Plus className="h-4 w-4" /> 
-            <span className="hidden sm:inline">Nova Venda</span>
+          
+          <Button onClick={handleOpenCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Venda
           </Button>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-end">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            value={internalSearchTerm}
-            onChange={(e) => debouncedSearch(e.target.value)}
-            placeholder="Pesquisar por número OS, cliente ou vendedor..." 
-            className="pl-10"
+      {/* Barra de ferramentas */}
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div className="relative w-72">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
             ref={searchInputRef}
+            type="search"
+            placeholder="Buscar venda..."
+            className="pl-8 pr-10"
+            value={internalSearchTerm}
+            onChange={handleSearch}
           />
-        </div>
-        
-        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filtrar por status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
-            <SelectItem value="pending">Pendente</SelectItem>
-            <SelectItem value="in_progress">Em Andamento</SelectItem>
-            <SelectItem value="completed">Concluída</SelectItem>
-            <SelectItem value="returned">Devolvida</SelectItem>
-            <SelectItem value="corrected">Corrigida</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <DateRangePicker
-          value={dateRange}
-          onChange={handleDateRangeChange}
-          placeholder="Filtrar por período"
-          locale={ptBR}
-          className="w-[250px]"
-        />
-        
-        <div className="md:col-span-3 flex justify-end">
-          {user?.role === 'admin' && (
-            <Button 
-              onClick={() => setClearSalesDialogOpen(true)} 
-              variant="destructive" 
+          {searchTerm && (
+            <Button
+              variant="ghost"
               size="sm"
-              className="gap-1 items-center"
+              className="absolute right-0 top-0 h-9 px-2.5"
+              onClick={clearSearch}
             >
-              <Trash2 className="h-4 w-4" /> 
-              Limpar Vendas
+              <span className="sr-only">Limpar</span>
+              &times;
             </Button>
           )}
         </div>
+        
+        <div className="flex gap-3">
+          {/* Filtro por intervalo de datas */}
+          <div className="flex-shrink-0">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          </div>
+          
+          {/* Menu dropdown para filtros de status */}
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="min-w-[150px] justify-between">
+                  <span>
+                    {!statusFilter 
+                      ? "Todas" 
+                      : statusFilter === "pending" 
+                        ? "Pendentes" 
+                        : statusFilter === "in_progress" 
+                          ? "Em Andamento" 
+                          : statusFilter === "completed" 
+                            ? "Concluídas" 
+                            : statusFilter === "returned" 
+                              ? "Devolvidas" 
+                              : statusFilter === "corrected" 
+                                ? "Corrigidas" 
+                                : "Filtrar por status"}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full min-w-[200px]">
+                <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter("")}>
+                  <span className={!statusFilter ? "font-bold" : ""}>Todas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
+                  <span className={statusFilter === "pending" ? "font-bold" : ""}>Pendentes</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("in_progress")}>
+                  <span className={statusFilter === "in_progress" ? "font-bold" : ""}>Em Andamento</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("completed")}>
+                  <span className={statusFilter === "completed" ? "font-bold" : ""}>Concluídas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("returned")}>
+                  <span className={statusFilter === "returned" ? "font-bold" : ""}>Devolvidas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("corrected")}>
+                  <span className={statusFilter === "corrected" ? "font-bold" : ""}>Corrigidas</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={exportToPDF}>
+              <FileText className="mr-2 h-4 w-4" />
+              Exportar PDF
+            </Button>
+            <Button variant="outline" onClick={exportToExcel}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+            
+            {/* Botões de administração */}
+            {(user?.role === "admin") && (
+              <>
+                <PopulateSalesButton />
+                <Button 
+                  variant="destructive" 
+                  onClick={handleClearAllSales}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Limpar Vendas
+                </Button>
+              </>
+            )}
+            
+            {/* Operacional pode limpar vendas mas não popular */}
+            {(user?.role === "operacional") && (
+              <Button 
+                variant="destructive" 
+                onClick={handleClearAllSales}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Limpar Vendas
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
       
-      {/* Interface única para dispositivos móveis e desktop */}
-      <div className="w-full overflow-hidden">
-        <PaginatedSalesTable
-          data={filteredSales}
-          isLoading={isLoading}
-          error={error as Error}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={toggleSort}
-          currentPage={page}
-          totalPages={totalPages}
-          pageSize={limit}
-          totalItems={salesData?.total || 0}
-          onPageChange={(newPage) => setPage(newPage)}
-          onPageSizeChange={(newSize) => {
-            setLimit(newSize);
-            setPage(1); // Voltar para a primeira página ao alterar o tamanho
-          }}
-          onViewDetails={handleViewDetails}
-          onViewHistory={handleViewHistory}
-          onEdit={handleEdit}
-          onStartExecution={handleStartExecution}
-          onCompleteExecution={handleCompleteExecution}
-          onReturnClick={handleReturnClick}
-          onMarkAsPaid={handleMarkAsPaid}
-          onDeleteClick={handleDeleteClick}
-          user={user}
-          ReenviaButton={ReenviaButton}
-          DevolveButton={DevolveButton}
-        />
-      </div>
+      {/* Tabela Paginada - Nova implementação mais eficiente */}
+      <PaginatedSalesTable
+        data={filteredSales}
+        isLoading={isLoading}
+        error={error as Error}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        currentPage={page}
+        totalPages={totalPages}
+        pageSize={limit}
+        totalItems={salesData?.total || 0}
+        onPageChange={(newPage) => setPage(newPage)}
+        onPageSizeChange={(newSize) => {
+          setLimit(newSize);
+          setPage(1); // Voltar para a primeira página ao alterar o tamanho
+        }}
+        onViewDetails={handleViewDetails}
+        onViewHistory={handleViewHistory}
+        onEdit={handleEdit}
+        onStartExecution={handleStartExecution}
+        onCompleteExecution={handleCompleteExecution}
+        onReturnClick={handleReturnClick}
+        onMarkAsPaid={handleMarkAsPaid}
+        onDeleteClick={handleDeleteClick}
+        user={user}
+        ReenviaButton={ReenviaButton}
+        DevolveButton={DevolveButton}
+      />
       
       {/* Diálogo apenas para edição de vendas existentes */}
       {dialogOpen && (
