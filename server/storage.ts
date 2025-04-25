@@ -1443,10 +1443,10 @@ export class DatabaseStorage implements IStorage {
     return !!deletedCostType;
   }
   
-  // Métodos para gerenciar custos operacionais
+  // Métodos para gerenciar custos operacionais - usando SQL nativo para compatibilidade com o banco de dados
   async getSaleOperationalCosts(saleId: number): Promise<SaleOperationalCost[]> {
     try {
-      // Usar SQL puro para lidar com a tabela recém-criada (se não estiver completamente refletida no Drizzle)
+      // Usar SQL puro para lidar com a tabela recém-criada
       const result = await pool.query(
         `SELECT * FROM sale_operational_costs WHERE sale_id = $1 ORDER BY created_at DESC`,
         [saleId]
@@ -1458,7 +1458,7 @@ export class DatabaseStorage implements IStorage {
         description: row.description,
         costTypeId: row.cost_type_id,
         amount: row.amount,
-        date: row.date ? new Date(row.date) : new Date(),
+        date: row.date,  // Mantendo como string para compatibilidade
         responsibleId: row.responsible_id || null,
         serviceProviderId: row.service_provider_id || null,
         notes: row.notes || null,
@@ -1490,7 +1490,7 @@ export class DatabaseStorage implements IStorage {
         description: row.description,
         costTypeId: row.cost_type_id,
         amount: row.amount,
-        date: row.date ? new Date(row.date) : new Date(),
+        date: row.date,  // Mantendo como string para compatibilidade
         responsibleId: row.responsible_id || null,
         serviceProviderId: row.service_provider_id || null,
         notes: row.notes || null,
@@ -1538,7 +1538,7 @@ export class DatabaseStorage implements IStorage {
         description: row.description,
         costTypeId: row.cost_type_id,
         amount: row.amount,
-        date: row.date ? new Date(row.date) : new Date(),
+        date: row.date,  // Mantendo como string para compatibilidade
         responsibleId: row.responsible_id,
         serviceProviderId: row.service_provider_id || null,
         notes: row.notes || null,
@@ -1631,7 +1631,7 @@ export class DatabaseStorage implements IStorage {
         description: row.description,
         costTypeId: row.cost_type_id,
         amount: row.amount,
-        date: row.date ? new Date(row.date) : new Date(),
+        date: row.date,  // Mantendo como string para compatibilidade
         responsibleId: row.responsible_id,
         serviceProviderId: row.service_provider_id || null,
         notes: row.notes || null,

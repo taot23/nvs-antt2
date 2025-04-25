@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { setupWebsocket, notifySalesUpdate } from "./websocket";
+import { setupWebsocket, notifySalesUpdate, broadcastEvent } from "./websocket";
 import { 
   insertCustomerSchema, 
   insertUserSchema, 
@@ -2764,6 +2764,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao remover tipo de custo:", error);
       res.status(500).json({ error: "Erro ao remover tipo de custo" });
+    }
+  });
+
+  // Rotas para CRUD de custos operacionais
+  // Obter custos operacionais de uma venda
+  app.get("/api/sales/:id/operational-costs", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      const operationalCosts = await storage.getSaleOperationalCosts(id);
+      res.json(operationalCosts);
+    } catch (error) {
+      console.error("Erro ao buscar custos operacionais:", error);
+      res.status(500).json({ error: "Erro ao buscar custos operacionais" });
+    }
+  });
+  
+  // Obter um custo operacional específico
+  app.get("/api/sales/:saleId/operational-costs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.saleId);
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(saleId) || isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(saleId);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      const operationalCost = await storage.getSaleOperationalCost(id);
+      if (!operationalCost || operationalCost.saleId !== saleId) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      res.json(operationalCost);
+    } catch (error) {
+      console.error("Erro ao buscar custo operacional:", error);
+      res.status(500).json({ error: "Erro ao buscar custo operacional" });
+    }
+  });
+  
+  // Criar um novo custo operacional
+  app.post("/api/sales/:id/operational-costs", canManageSaleOperations, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Validar os dados do custo operacional
+      if (!req.body.costTypeId || !req.body.amount) {
+        return res.status(400).json({ 
+          error: "Dados incompletos. Os campos costTypeId e amount são obrigatórios" 
+        });
+      }
+      
+      // Adicionar o ID da venda e do usuário responsável aos dados
+      const operationalCostData = {
+        ...req.body,
+        saleId: id,
+        responsibleId: req.user?.id || 1
+      };
+      
+      // Criar o custo operacional
+      const operationalCost = await storage.createSaleOperationalCost(operationalCostData);
+      
+      // Notificar via WebSocket
+      broadcastEvent({ 
+        type: 'sales_update', 
+        payload: { action: 'operational-cost-added', saleId: id, operationalCost } 
+      });
+      
+      res.status(201).json(operationalCost);
+    } catch (error) {
+      console.error("Erro ao criar custo operacional:", error);
+      res.status(500).json({ error: "Erro ao criar custo operacional" });
+    }
+  });
+  
+  // Atualizar um custo operacional
+  app.put("/api/sales/:saleId/operational-costs/:id", canManageSaleOperations, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.saleId);
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(saleId) || isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(saleId);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se o custo operacional existe
+      const operationalCost = await storage.getSaleOperationalCost(id);
+      if (!operationalCost || operationalCost.saleId !== saleId) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      // Atualizar o custo operacional
+      const updatedOperationalCost = await storage.updateSaleOperationalCost(id, req.body);
+      if (!updatedOperationalCost) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      // Notificar via WebSocket
+      broadcastEvent({ 
+        type: 'sales_update', 
+        payload: { action: 'operational-cost-updated', saleId, operationalCost: updatedOperationalCost } 
+      });
+      
+      res.json(updatedOperationalCost);
+    } catch (error) {
+      console.error("Erro ao atualizar custo operacional:", error);
+      res.status(500).json({ error: "Erro ao atualizar custo operacional" });
+    }
+  });
+  
+  // Excluir um custo operacional
+  app.delete("/api/sales/:saleId/operational-costs/:id", canManageSaleOperations, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.saleId);
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(saleId) || isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe
+      const sale = await storage.getSale(saleId);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se o custo operacional existe
+      const operationalCost = await storage.getSaleOperationalCost(id);
+      if (!operationalCost || operationalCost.saleId !== saleId) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      // Excluir o custo operacional
+      const deleted = await storage.deleteSaleOperationalCost(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Custo operacional não encontrado" });
+      }
+      
+      // Notificar via WebSocket
+      broadcastEvent({ 
+        type: 'sales_update', 
+        payload: { action: 'operational-cost-deleted', saleId, operationalCostId: id } 
+      });
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir custo operacional:", error);
+      res.status(500).json({ error: "Erro ao excluir custo operacional" });
     }
   });
 
