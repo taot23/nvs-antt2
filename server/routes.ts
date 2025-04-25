@@ -2236,12 +2236,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
-      // Se a venda não tiver parcelas, retornar array vazio
-      if (sale.installments <= 1) {
-        return res.json([]);
+      // Buscar parcelas no banco de dados
+      const installments = await storage.getSaleInstallments(id);
+      
+      // Se a venda for à vista (1 parcela) e não tiver parcelas no banco, criar uma parcela virtual
+      if (sale.installments <= 1 && installments.length === 0) {
+        console.log(`Venda #${id} é à vista e não tem parcelas no banco. Criando parcela virtual.`);
+        
+        // Tenta criar uma parcela real para essa venda à vista
+        try {
+          // Criar parcela única para venda à vista
+          const installment = await storage.createSaleInstallment({
+            saleId: id,
+            installmentNumber: 1,
+            amount: sale.totalAmount || "0",
+            dueDate: new Date().toISOString().split('T')[0], // Vencimento na data atual
+            status: "pending",
+            paymentDate: null
+          });
+          
+          console.log(`Parcela criada com sucesso para a venda à vista #${id}`);
+          res.json([installment]);
+          return;
+        } catch (err) {
+          console.error(`Erro ao criar parcela para venda à vista #${id}:`, err);
+          // Em caso de erro, segue com o código normal
+        }
       }
       
-      const installments = await storage.getSaleInstallments(id);
       res.json(installments);
     } catch (error) {
       console.error("Erro ao buscar parcelas da venda:", error);
