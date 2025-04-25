@@ -567,6 +567,10 @@ export default function SaleDialog({
       console.log("Valores do formulário:", values);
       console.log("Número de itens:", values.items.length);
       
+      // Verificação adicional do número de parcelas antes do envio
+      console.log("⚠️ IMPORTANTE! Verificando número de parcelas no onSubmit:", values.installments);
+      console.log("⚠️ Tipo do valor de parcelas:", typeof values.installments);
+      
       // Verificação completa dos campos
       if (!values.orderNumber) {
         toast({
@@ -604,7 +608,29 @@ export default function SaleDialog({
         return;
       }
       
-      // CORREÇÃO IMPORTANTE: Garante que todos os itens tenham o mesmo serviceTypeId da venda
+      // CORREÇÃO IMPORTANTE: Garante que todos os valores sejam válidos antes do envio
+      // Tratamento robusto do número de parcelas
+      let validatedInstallments = 1; // Valor padrão seguro
+      const rawInstallments = values.installments;
+      
+      if (rawInstallments !== undefined && rawInstallments !== null) {
+        if (typeof rawInstallments === 'number') {
+          validatedInstallments = Math.floor(rawInstallments);
+        } else if (typeof rawInstallments === 'string') {
+          const parsed = parseInt(rawInstallments, 10);
+          if (!isNaN(parsed)) {
+            validatedInstallments = parsed;
+          }
+        }
+      }
+      
+      // Garantir valor válido
+      if (validatedInstallments < 1) {
+        validatedInstallments = 1;
+      }
+      
+      console.log("⚠️ CORREÇÃO FINAL - Valor de parcelas:", rawInstallments, "→", validatedInstallments);
+      
       // Também valida e corrige outros campos
       const correctedValues = {
         ...values,
@@ -614,8 +640,8 @@ export default function SaleDialog({
         date: values.date || new Date(),
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
-        // Garante que parcelas seja pelo menos 1
-        installments: values.installments || 1,
+        // Garante que parcelas seja um número válido
+        installments: validatedInstallments,
         // Corrige os itens
         items: values.items.map(item => ({
           ...item,
@@ -1096,7 +1122,22 @@ export default function SaleDialog({
                         console.log("Seleção de parcelas alterada para:", value);
                         const numValue = parseInt(value);
                         console.log("Valor convertido para número:", numValue);
-                        field.onChange(numValue);
+                        
+                        // Garantir que o número de parcelas seja um inteiro válido
+                        if (isNaN(numValue) || numValue < 1) {
+                          console.error("ERRO! Valor de parcelas inválido:", value);
+                          field.onChange(1); // Valor padrão seguro
+                        } else {
+                          field.onChange(numValue);
+                          console.log("Número de parcelas definido como:", numValue);
+                          
+                          // Atualiza as datas de vencimento ao mudar o número de parcelas
+                          if (firstDueDate) {
+                            const newDates = generateInstallmentDates(firstDueDate, numValue);
+                            setInstallmentDates(newDates);
+                            console.log(`Geradas ${newDates.length} datas de vencimento para ${numValue} parcelas`);
+                          }
+                        }
                       }}
                       value={field.value ? field.value.toString() : "1"}
                     >
