@@ -93,9 +93,9 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   };
 
   return (
-    <Card className="shadow-sm flex flex-col h-full">
-      <CardContent className={`p-responsive flex-grow ${isMobile ? 'flex flex-col max-h-[calc(100vh-170px)]' : ''}`}>
-        <div className={isMobile ? 'flex-grow overflow-auto pb-4' : ''}>
+    <Card className="shadow-sm flex flex-col h-full overflow-hidden">
+      <CardContent className="p-responsive flex-grow flex flex-col overflow-hidden">
+        <div className={isMobile ? 'flex-grow overflow-auto pb-4 mobile-scrollable-content' : ''} style={isMobile ? { height: 'calc(100vh - 220px)', WebkitOverflowScrolling: 'touch' } : {}}>
           <SimpleSalesTable
             data={data}
             isLoading={isLoading}
