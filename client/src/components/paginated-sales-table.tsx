@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Sale } from "@shared/schema";
 import SimpleSalesTable from "./simple-sales-table";
+import MobileSalesCards from "./mobile-sales-cards";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -93,87 +94,56 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   };
 
   // Usamos useEffect para garantir que a rolagem funcione corretamente em dispositivos móveis
+  // Ref para controlar manipulações do DOM
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Nova abordagem simplificada para fixar rolagem em mobile
   useEffect(() => {
     if (isMobile) {
-      // ABORDAGEM RADICAL: Injetar um script para forçar o comportamento correto de rolagem
-      const fixScrollingScript = document.createElement('script');
-      fixScrollingScript.textContent = `
-        (function() {
-          // Desabilitar comportamentos de rolagem problemáticos
-          document.addEventListener('touchmove', function(e) {
-            if (!e.target.closest('.mobile-scrollable-content')) {
-              e.preventDefault();
-            }
-          }, { passive: false });
-          
-          // Detectar quando o conteúdo é scrollado e garantir que a rolagem funcione
-          const scrollableContents = document.querySelectorAll('.mobile-scrollable-content');
-          scrollableContents.forEach(content => {
-            content.addEventListener('touchstart', function(e) {
-              e.stopPropagation();
-            }, { passive: true });
-            
-            content.addEventListener('touchmove', function(e) {
-              e.stopPropagation();
-            }, { passive: true });
-          });
-          
-          // Forçar recalculo de tamanhos
-          window.dispatchEvent(new Event('resize'));
-        })();
-      `;
-      document.body.appendChild(fixScrollingScript);
+      // Aplicar classe para ajustes específicos de iOS
+      document.body.classList.add('mobile-scroll-fixed');
       
-      // Configuração direta de estilos
-      document.body.style.overflow = 'hidden';
-      document.body.style.height = '100%';
-      document.documentElement.style.overflow = 'hidden';
-      document.documentElement.style.height = '100%';
-      
-      // Forçando redimensionamento para atualizar o layout
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 100);
-      
-      return () => {
-        // Remover script e manipulações na desmontagem
-        if (fixScrollingScript && fixScrollingScript.parentNode) {
-          fixScrollingScript.parentNode.removeChild(fixScrollingScript);
+      // Simples configuração para evitar problemas comuns de rolagem
+      const fixScrolling = () => {
+        // Ajusta tamanho e comportamento
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.style.touchAction = 'pan-y';
+          // Usar como string para evitar problema de tipagem
+          (scrollContainerRef.current.style as any)['-webkit-overflow-scrolling'] = 'touch';
+          scrollContainerRef.current.style.overscrollBehavior = 'contain';
         }
         
-        document.body.style.overflow = '';
-        document.body.style.height = '';
-        document.documentElement.style.overflow = '';
-        document.documentElement.style.height = '';
+        // Força atualização de layout
+        window.dispatchEvent(new Event('resize'));
+      };
+      
+      fixScrolling();
+      
+      // Monitora orientação e ajustes de tamanho
+      window.addEventListener('resize', fixScrolling);
+      window.addEventListener('orientationchange', fixScrolling);
+      
+      return () => {
+        // Limpar todas manipulações
+        document.body.classList.remove('mobile-scroll-fixed');
+        window.removeEventListener('resize', fixScrolling);
+        window.removeEventListener('orientationchange', fixScrolling);
       };
     }
-  }, [isMobile, data]);
+  }, [isMobile]);
 
   return (
     <Card className="shadow-sm flex flex-col h-full overflow-hidden">
       <CardContent className="p-responsive flex-grow flex flex-col overflow-hidden">
         {isMobile ? (
           <div 
-            className="mobile-scrollable-content"
-            style={{
-              height: 'calc(100vh - 230px)',
-              maxHeight: 'calc(100vh - 230px)',
-              overflow: 'auto',
-              WebkitOverflowScrolling: 'touch',
-              overscrollBehavior: 'contain',
-              position: 'relative',
-              paddingBottom: '20px',
-              width: '100%',
-              touchAction: 'pan-y'
-            }}
+            ref={scrollContainerRef}
+            className="mobile-scroll-container"
           >
-            <SimpleSalesTable
+            <MobileSalesCards
               data={data}
               isLoading={isLoading}
               error={error}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSort={onSort}
               onViewDetails={onViewDetails}
               onViewHistory={onViewHistory}
               onEdit={onEdit}
