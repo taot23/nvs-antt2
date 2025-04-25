@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
 import { useDeviceDetection } from "@/hooks/use-device-detection";
-import { useDebounce } from "@/hooks/useDebounce";
+// Removido o hook useDebounce
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { debounce } from "lodash-es";
@@ -102,6 +102,15 @@ export default function SalesPage() {
   const staleTime = 5 * 60 * 1000; // 5 minutos 
   const gcTime = 30 * 60 * 1000; // 30 minutos (gcTime substitui cacheTime na v5 do TanStack Query)
   const localStorageCacheTime = 60 * 60 * 1000; // 1 hora para cache do localStorage
+
+  // Precisamos também remover as referências ao hook useDebounce que foi removido
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchTerm(value);
+      setPage(1); // Resetar para a primeira página ao pesquisar
+    }, 500),
+    []
+  );
   
   // Função para obter dados do cache local
   const getFromLocalCache = (key: string) => {
@@ -358,15 +367,7 @@ export default function SalesPage() {
     }
   }, [lastEvent, refetch]);
 
-  // Atualizar o termo de pesquisa com debounce
-  const updateSearchTerm = useDebounce(() => {
-    setSearchTerm(internalSearchTerm);
-    setPage(1); // Resetar para a primeira página ao pesquisar
-  }, 500);
-
-  useEffect(() => {
-    updateSearchTerm();
-  }, [internalSearchTerm, updateSearchTerm]);
+  // Removemos este useEffect que foi substituído pela função debounce acima
 
   // Manipulador de mudança de filtro de status
   const handleStatusFilterChange = (value: string) => {
@@ -773,7 +774,7 @@ export default function SalesPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             value={internalSearchTerm}
-            onChange={(e) => setInternalSearchTerm(e.target.value)}
+            onChange={(e) => debouncedSearch(e.target.value)}
             placeholder="Pesquisar por número OS, cliente ou vendedor..." 
             className="pl-10"
             ref={searchInputRef}
