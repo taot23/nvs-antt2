@@ -1154,7 +1154,7 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         <TableHead>Parcela</TableHead>
                         <TableHead>Data de Vencimento</TableHead>
                         <TableHead>Valor</TableHead>
-                        <TableHead>Ações</TableHead>
+                        <TableHead>Calendário</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1166,65 +1166,63 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                         return (
                           <TableRow key={index}>
                             <TableCell>{index + 1}ª parcela</TableCell>
-                            <TableCell>{format(date, "dd/MM/yyyy")}</TableCell>
-                            <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
                             <TableCell>
-                              <div className="flex gap-2">
-                                <Input
-                                  type="text"
-                                  size={10}
-                                  placeholder="DD/MM/AAAA"
-                                  value={format(date, "dd/MM/yyyy")}
-                                  onChange={(e) => {
-                                    try {
-                                      // Tentar converter a string para data
-                                      const parts = e.target.value.split('/');
-                                      if (parts.length === 3) {
-                                        const day = parseInt(parts[0]);
-                                        const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
-                                        const year = parseInt(parts[2]);
+                              <Input
+                                type="text"
+                                size={10}
+                                placeholder="DD/MM/AAAA"
+                                value={format(date, "dd/MM/yyyy")}
+                                onChange={(e) => {
+                                  try {
+                                    // Tentar converter a string para data
+                                    const parts = e.target.value.split('/');
+                                    if (parts.length === 3) {
+                                      const day = parseInt(parts[0]);
+                                      const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
+                                      const year = parseInt(parts[2]);
+                                      
+                                      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                                        const newDate = new Date(year, month, day);
                                         
-                                        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                          const newDate = new Date(year, month, day);
-                                          
-                                          if (isValid(newDate)) {
-                                            // Atualiza apenas a data específica dessa parcela
-                                            const newDates = [...installmentDates];
-                                            newDates[index] = newDate;
-                                            setInstallmentDates(newDates);
-                                          }
-                                        }
-                                      }
-                                    } catch (error) {
-                                      console.error("Erro ao converter data:", error);
-                                    }
-                                  }}
-                                  className="w-28"
-                                />
-
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-9 px-2">
-                                      <Calendar className="h-4 w-4" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <CalendarComponent
-                                      mode="single"
-                                      selected={date}
-                                      onSelect={(newDate) => {
-                                        if (newDate) {
+                                        if (isValid(newDate)) {
                                           // Atualiza apenas a data específica dessa parcela
                                           const newDates = [...installmentDates];
                                           newDates[index] = newDate;
                                           setInstallmentDates(newDates);
                                         }
-                                      }}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
+                                      }
+                                    }
+                                  } catch (error) {
+                                    console.error("Erro ao converter data:", error);
+                                  }
+                                }}
+                                className="w-28"
+                              />
+                            </TableCell>
+                            <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
+                            <TableCell>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-9 px-2">
+                                    <Calendar className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <CalendarComponent
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={(newDate) => {
+                                      if (newDate) {
+                                        // Atualiza apenas a data específica dessa parcela
+                                        const newDates = [...installmentDates];
+                                        newDates[index] = newDate;
+                                        setInstallmentDates(newDates);
+                                      }
+                                    }}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           </TableRow>
                         );
