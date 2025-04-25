@@ -986,10 +986,25 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                       <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto">
                         <Command>
                           <CommandInput 
+                            id="service-search-input"
                             placeholder="Buscar serviço"
                             value={serviceSearchTerm}
                             onValueChange={(value) => {
                               setServiceSearchTerm(value);
+                            }}
+                            onKeyDown={(e) => {
+                              // Navegar diretamente para CommandItem ao pressionar seta para baixo
+                              if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                const firstItem = document.querySelector('[cmdk-item]') as HTMLElement;
+                                if (firstItem) {
+                                  firstItem.focus();
+                                }
+                              }
+                              // Fechar o popover e voltar ao input principal se pressionar Escape
+                              else if (e.key === 'Escape') {
+                                setShowServicePopover(false);
+                              }
                             }}
                             className="border-none focus:ring-0"
                           />
@@ -1005,6 +1020,31 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                                   onSelect={() => {
                                     setSelectedServiceId(service.id);
                                     setServiceSearchTerm(service.name);
+                                    setShowServicePopover(false);
+                                    
+                                    // Foco automático no campo de quantidade após selecionar o serviço
+                                    setTimeout(() => {
+                                      const quantityInput = document.getElementById('service-quantity');
+                                      if (quantityInput) {
+                                        quantityInput.focus();
+                                      }
+                                    }, 100);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    // Pressionar Tab ou Enter neste item fechará o popover e avançará para o campo quantidade
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      setSelectedServiceId(service.id);
+                                      setServiceSearchTerm(service.name);
+                                      setShowServicePopover(false);
+                                      
+                                      setTimeout(() => {
+                                        const quantityInput = document.getElementById('service-quantity');
+                                        if (quantityInput) {
+                                          quantityInput.focus();
+                                        }
+                                      }, 100);
+                                    }
                                   }}
                                 >
                                   <div className="flex flex-col">
@@ -1026,10 +1066,30 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                 <div className="w-24">
                   <FormLabel className="text-xs mb-1.5 block">Quantidade</FormLabel>
                   <Input
+                    id="service-quantity"
                     type="number"
                     min="1"
                     value={selectedServiceQuantity}
                     onChange={(e) => setSelectedServiceQuantity(parseInt(e.target.value) || 1)}
+                    onKeyDown={(e) => {
+                      // Pressionar Enter no campo de quantidade adiciona o item
+                      if (e.key === 'Enter' && selectedServiceId > 0) {
+                        e.preventDefault();
+                        handleAddItem();
+                        
+                        // Reset e volta o foco para o campo de busca de serviço
+                        setTimeout(() => {
+                          setSelectedServiceId(0);
+                          setSelectedServiceQuantity(1);
+                          setServiceSearchTerm("");
+                          
+                          const serviceInput = document.getElementById('service-search-input');
+                          if (serviceInput) {
+                            serviceInput.focus();
+                          }
+                        }, 100);
+                      }
+                    }}
                   />
                 </div>
                 <Button
@@ -1072,6 +1132,25 @@ export default function SaleDialog({ open, onClose, sale, onSaveSuccess }: SaleD
                               min="1"
                               {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
                               className="h-8"
+                              onKeyDown={(e) => {
+                                // Ao pressionar Enter no campo de quantidade de um item já adicionado
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  // Foca no campo de busca de serviço se for o último item
+                                  if (index === fields.length - 1) {
+                                    const serviceInput = document.getElementById('service-search-input');
+                                    if (serviceInput) {
+                                      serviceInput.focus();
+                                    }
+                                  } else {
+                                    // Senão, foca no próximo campo de quantidade
+                                    const nextInput = document.querySelector(`input[name="items.${index + 1}.quantity"]`) as HTMLInputElement;
+                                    if (nextInput) {
+                                      nextInput.focus();
+                                    }
+                                  }
+                                }
+                              }}
                             />
                           </div>
                           <div className="col-span-1">
