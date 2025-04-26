@@ -1327,18 +1327,19 @@ export class DatabaseStorage implements IStorage {
         
         console.log(`💰 PRESERVAÇÃO DE DATA: Parcela #${installment.installmentNumber}, Data original: ${installment.dueDate}, Formato final: ${formattedDueDate}`);
         
-        // Usar SQL direto com parâmetros para inserir cada parcela
+        // Usar SQL direto com parâmetros para inserir cada parcela e garantir o tipo correto
         // Especificar explicitamente valores ao invés de confiar no ORM
+        // CORREÇÃO CRÍTICA: Usar ::date para garantir que a data seja tratada corretamente
         const result = await pool.query(
           `INSERT INTO sale_installments 
            (sale_id, installment_number, amount, due_date, status, notes, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+           VALUES ($1, $2, $3, $4::date, $5, $6, NOW(), NOW())
            RETURNING *`,
           [
             installment.saleId,
             installment.installmentNumber,
             installment.amount,
-            formattedDueDate, // Usar a data exatamente como formatada
+            formattedDueDate, // Usar a data exatamente como formatada com o cast para date
             installment.status || 'pending',
             installment.notes || null
           ]
