@@ -174,7 +174,10 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   // em vez de criar funcionalidades para recriar as parcelas
   
   // Verificar se todas as parcelas estão pagas
+  // Não verificamos mais se TODAS as parcelas estão pagas, apenas se existem parcelas
   const allPaid = installments.length > 0 && installments.every((item: any) => item.status === 'paid');
+  // Flag para controlar se há pelo menos uma parcela pendente
+  const hasPendingInstallments = installments.some((item: any) => item.status === 'pending');
   
   if (isLoading) {
     return (
@@ -313,7 +316,13 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
               </span>
             )}
           </div>
-          {/* Removido botão de recriar parcelas - estamos focando na exibição correta das parcelas existentes */}
+          {/* Aviso explicativo sobre parcelas pendentes */}
+          {hasPendingInstallments && (
+            <div className="text-amber-600 text-sm flex items-center">
+              <AlertCircle className="h-4 w-4 mr-1" />
+              Clique em "Confirmar" para cada parcela pendente
+            </div>
+          )}
         </CardFooter>
       </Card>
       
