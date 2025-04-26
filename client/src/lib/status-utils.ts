@@ -8,6 +8,8 @@ export function getStatusLabel(status: string) {
     case 'completed': return 'Concluída';
     case 'canceled': return 'Cancelada';
     case 'corrected': return 'Corrigida Aguardando Operacional';
+    case 'paid': return 'Pago';
+    case 'partial': return 'Parcialmente Pago';
     default: return status;
   }
 }
@@ -20,6 +22,8 @@ export function getStatusVariant(status: string) {
     case 'completed': return 'success';
     case 'canceled': return 'outline';
     case 'corrected': return 'primary';
+    case 'paid': return 'success';
+    case 'partial': return 'secondary';
     default: return 'default';
   }
 }

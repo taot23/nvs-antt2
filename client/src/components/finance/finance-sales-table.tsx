@@ -336,7 +336,7 @@ export default function FinanceSalesTable({
                     {usesFinancialStatus && (
                       <Badge 
                         variant="outline" 
-                        className={`uppercase text-xs font-semibold ${getStatusBadgeStyle(sale.financialStatus || 'pending')}`}
+                        className={`text-xs font-semibold ${getStatusBadgeStyle(sale.financialStatus || 'pending')}`}
                       >
                         {getStatusLabel(sale.financialStatus || 'pending')}
                       </Badge>
@@ -344,7 +344,7 @@ export default function FinanceSalesTable({
                     {!usesFinancialStatus && (
                       <Badge 
                         variant="outline" 
-                        className={`uppercase text-xs font-semibold ${getStatusBadgeStyle(sale.status)}`}
+                        className={`text-xs font-semibold ${getStatusBadgeStyle(sale.status)}`}
                       >
                         {getStatusLabel(sale.status)}
                       </Badge>
