@@ -675,23 +675,37 @@ export class DatabaseStorage implements IStorage {
           console.log(`⚠️ Mantendo as datas informadas pelo usuário sem modificação`);
         }
         
-        // REVISÃO FINAL (26/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
-        const installmentsToCreate = datesToUse.map((dueDate: string, index: number) => {
+        // REVISÃO FINAL ABSOLUTA (26/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
+        const installmentsToCreate = datesToUse.map((dueDate: string | Date, index: number) => {
           // Verificar se a data já está no formato ISO YYYY-MM-DD
           // Se já estiver nesse formato, usamos diretamente sem conversão adicional
-          let formattedDate = dueDate;
+          let formattedDate = '';
           
-          console.log(`🚨 REVISÃO FINAL - Parcela ${index+1}: Data recebida: [${dueDate}], tipo: ${typeof dueDate}`);
+          console.log(`🚨 REVISÃO FINAL ABSOLUTA - Parcela ${index+1}: Data recebida: [${String(dueDate)}], tipo: ${typeof dueDate}`);
           
-          // Remover qualquer parte T00:00:00.000Z da data
-          if (typeof dueDate === 'string' && dueDate.includes('T')) {
-            formattedDate = dueDate.split('T')[0];
-            console.log(`🚨 REVISÃO FINAL - Removido T00:00:00.000Z da data: [${formattedDate}]`);
+          // Tratamento por tipo de dados
+          if (typeof dueDate === 'string') {
+            // Remover qualquer parte T00:00:00.000Z da data
+            if (dueDate.includes('T')) {
+              formattedDate = dueDate.split('T')[0];
+              console.log(`🚨 REVISÃO FINAL ABSOLUTA - Removido T00:00:00.000Z da data: [${formattedDate}]`);
+            } else {
+              // Já está no formato desejado
+              formattedDate = dueDate;
+              console.log(`🚨 REVISÃO FINAL ABSOLUTA - Data já está no formato correto: [${formattedDate}]`);
+            }
           } 
           // Se for um objeto Date, converter para YYYY-MM-DD manualmente
           else if (dueDate instanceof Date) {
             formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-            console.log(`🚨 REVISÃO FINAL - Convertido Date para string: [${formattedDate}]`);
+            console.log(`🚨 REVISÃO FINAL ABSOLUTA - Convertido Date para string: [${formattedDate}]`);
+          } 
+          // Para outros tipos ou valores inválidos (como undefined/null)
+          else {
+            // Usar data atual como fallback
+            const today = new Date();
+            formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            console.log(`🚨 REVISÃO FINAL ABSOLUTA - Usando data atual como fallback: [${formattedDate}]`);
           }
           
           console.log(`🔍 Parcela ${index+1}: Data original: [${dueDate}], Data final: [${formattedDate}]`);
@@ -829,18 +843,40 @@ export class DatabaseStorage implements IStorage {
           if (installments > 1) {
             console.log(`🔒 Usando ${installmentDates.length} datas EXATAMENTE como definido pelo usuário (atualização)`);
             
-            // CORREÇÃO CRÍTICA: Preservar a data exatamente como recebida, sem converter para Date
-            const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => {
+            // REVISÃO FINAL ABSOLUTA (26/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
+            const installmentsToCreate = installmentDates.map((dueDate: string | Date, index: number) => {
               // Verificar se a data já está no formato ISO YYYY-MM-DD
               // Se já estiver nesse formato, usamos diretamente sem conversão adicional
-              let formattedDate = dueDate;
+              let formattedDate = '';
               
-              // Se a data contiver o componente de tempo (T), remover esse componente
-              if (dueDate.includes('T')) {
-                formattedDate = dueDate.split('T')[0];
+              console.log(`🚨 REVISÃO FINAL ABSOLUTA - Parcela ${index+1}: Data recebida: [${String(dueDate)}], tipo: ${typeof dueDate}`);
+              
+              // Tratamento por tipo de dados
+              if (typeof dueDate === 'string') {
+                // Remover qualquer parte T00:00:00.000Z da data
+                if (dueDate.includes('T')) {
+                  formattedDate = dueDate.split('T')[0];
+                  console.log(`🚨 REVISÃO FINAL ABSOLUTA - Removido T00:00:00.000Z da data: [${formattedDate}]`);
+                } else {
+                  // Já está no formato desejado
+                  formattedDate = dueDate;
+                  console.log(`🚨 REVISÃO FINAL ABSOLUTA - Data já está no formato correto: [${formattedDate}]`);
+                }
+              } 
+              // Se for um objeto Date, converter para YYYY-MM-DD manualmente
+              else if (dueDate instanceof Date) {
+                formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                console.log(`🚨 REVISÃO FINAL ABSOLUTA - Convertido Date para string: [${formattedDate}]`);
+              }
+              // Para outros tipos ou valores inválidos (como undefined/null)
+              else {
+                // Usar data atual como fallback
+                const today = new Date();
+                formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                console.log(`🚨 REVISÃO FINAL ABSOLUTA - Usando data atual como fallback: [${formattedDate}]`);
               }
               
-              console.log(`🔍 Parcela ${index+1} (atualização): Data original: ${dueDate}, Data preservada: ${formattedDate}`);
+              console.log(`🔍 Parcela ${index+1} (atualização): Data original: ${dueDate}, Data final: ${formattedDate}`);
               
               return {
                 saleId: id,

@@ -401,20 +401,59 @@ export default function SaleDialog({
         // Ordenamos as parcelas por número da parcela
         const sortedInstallments = [...saleInstallments].sort((a: any, b: any) => a.installmentNumber - b.installmentNumber);
         
+        // CORREÇÃO FINAL - HARD CODED - 26/04/2025
         // A primeira parcela define a data inicial de vencimento
         const firstInstallment = sortedInstallments.find((i: any) => i.installmentNumber === 1);
         if (firstInstallment) {
-          // Converter para formato YYYY-MM-DD sem ajustes de timezone
-          const rawDate = new Date(firstInstallment.dueDate);
-          const isoDate = `${rawDate.getFullYear()}-${String(rawDate.getMonth() + 1).padStart(2, '0')}-${String(rawDate.getDate()).padStart(2, '0')}`;
-          setFirstDueDate(isoDate);
+          console.log("🛑 CORREÇÃO FINAL - Data do banco (primeira parcela):", firstInstallment.dueDate);
+          
+          // Usar a data exatamente como está no banco ou converter manualmente sem timezone
+          if (typeof firstInstallment.dueDate === 'string') {
+            // Se já for string, usar diretamente (pode ser YYYY-MM-DD ou com T)
+            let rawDate = firstInstallment.dueDate;
+            
+            // Se tiver T00:00:00, remover
+            if (rawDate.includes('T')) {
+              rawDate = rawDate.split('T')[0];
+            }
+            
+            console.log("🛑 CORREÇÃO FINAL - Usando data do banco (string):", rawDate);
+            setFirstDueDate(rawDate);
+          } else {
+            // Se for um objeto Date, converter manualmente para evitar problemas de timezone
+            const date = new Date(firstInstallment.dueDate);
+            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            console.log("🛑 CORREÇÃO FINAL - Convertendo data do banco (Date):", formattedDate);
+            setFirstDueDate(formattedDate);
+          }
         }
         
-        // Carregamos todas as datas de vencimento das parcelas existentes no formato string YYYY-MM-DD
+        // Carregamos todas as datas de vencimento das parcelas existentes como strings YYYY-MM-DD
         const dates = sortedInstallments.map((installment: any) => {
-          const rawDate = new Date(installment.dueDate);
-          return `${rawDate.getFullYear()}-${String(rawDate.getMonth() + 1).padStart(2, '0')}-${String(rawDate.getDate()).padStart(2, '0')}`;
+          console.log("🛑 CORREÇÃO FINAL - Data do banco (parcela):", installment.dueDate);
+          
+          // Usar a data exatamente como está no banco ou converter manualmente sem timezone
+          if (typeof installment.dueDate === 'string') {
+            // Se já for string, usar diretamente (pode ser YYYY-MM-DD ou com T)
+            let rawDate = installment.dueDate;
+            
+            // Se tiver T00:00:00, remover
+            if (rawDate.includes('T')) {
+              rawDate = rawDate.split('T')[0];
+            }
+            
+            console.log("🛑 CORREÇÃO FINAL - Usando data do banco (string):", rawDate);
+            return rawDate;
+          } else {
+            // Se for um objeto Date, converter manualmente para evitar problemas de timezone
+            const date = new Date(installment.dueDate);
+            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            console.log("🛑 CORREÇÃO FINAL - Convertendo data do banco (Date):", formattedDate);
+            return formattedDate;
+          }
         });
+        
+        console.log("🛑 CORREÇÃO FINAL - Datas das parcelas após processamento:", dates);
         setInstallmentDates(dates);
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
