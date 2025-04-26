@@ -94,11 +94,10 @@ export default function FinancePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
-  // Exportar para Excel - Implementação completamente nova que gera o Excel
-  // diretamente com dados fixos e não depende do backend
+  // Exportar para Excel - Implementação minimalista usando um componente separado
   const exportToExcel = async () => {
     try {
-      // Só vamos usar os dados para saber quais vendas existem, mas vamos gerar os valores manualmente
+      // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
@@ -108,69 +107,28 @@ export default function FinancePage() {
         return;
       }
       
-      // Clonar os dados para não modificar os originais
-      const vendas = JSON.parse(JSON.stringify(salesData.data));
-      console.log('Exportando Excel com método fixo:', vendas.length, 'vendas');
+      // Importar a função de exportação 
+      const { exportFinanceToExcel } = await import('@/components/finance/simple-export-excel');
       
-      // Processar cada venda e calcular os valores financeiros na hora
-      const dadosParaExcel = vendas.map((venda: any) => {
-        // Obter o valor total da venda
-        const valorTotal = parseFloat(venda.totalAmount || "0");
-        
-        // Calcular valores financeiros manualmente
-        // Se possível usar dados das parcelas ou custos operacionais, senão usar valores default
-        let valorPago = 0;
-        let custos = 0;
-        
-        // Tentar calcular valores pagos a partir das parcelas
-        if (venda.installments && Array.isArray(venda.installments)) {
-          valorPago = venda.installments
-            .filter((parcela: any) => parcela.status === 'paid' || parcela.paymentDate)
-            .reduce((soma: number, parcela: any) => soma + parseFloat(parcela.amount || '0'), 0);
-        }
-        
-        // Tentar calcular custos a partir dos custos operacionais
-        if (venda.operationalCosts && Array.isArray(venda.operationalCosts)) {
-          custos = venda.operationalCosts
-            .reduce((soma: number, custo: any) => soma + parseFloat(custo.amount || '0'), 0);
-        }
-        
-        // Calcular resultado líquido
-        const resultadoLiquido = valorPago - custos;
-        
-        // Formatar todos os valores monetários
-        const valorTotalFormatado = valorTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        const valorPagoFormatado = valorPago.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        const custosFormatados = custos.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        const resultadoFormatado = resultadoLiquido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        
-        // Retornar objeto formatado para Excel
-        return {
-          'Nº OS': venda.orderNumber,
-          'Vendedor': venda.sellerName || `Vendedor #${venda.sellerId}`,
-          'Cliente': venda.customerName || `Cliente #${venda.customerId}`,
-          'Data': venda.date ? format(new Date(venda.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-          'Valor Total': valorTotalFormatado,
-          'Valor Pago': valorPagoFormatado,
-          'Custos': custosFormatados,
-          'Resultado Líquido': resultadoFormatado,
-          'Status Financeiro': getFinancialStatusLabel(venda.financialStatus),
-          'Criado em': venda.createdAt ? format(new Date(venda.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A',
-        };
-      });
-
-      // Criar planilha e exportar
-      const worksheet = XLSX.utils.json_to_sheet(dadosParaExcel);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Financeiro");
+      // Preparar dados simplificados para exportação
+      const exportData = salesData.data.map((sale: any) => ({
+        orderNumber: sale.orderNumber || '',
+        sellerName: sale.sellerName || `Vendedor #${sale.sellerId}`,
+        customerName: sale.customerName || `Cliente #${sale.customerId}`,
+        date: sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+        totalAmount: parseFloat(sale.totalAmount || "0").toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}),
+        status: getFinancialStatusLabel(sale.financialStatus)
+      }));
       
-      // Exportar para o usuário
-      const fileName = `financeiro_${getFinancialStatusForActiveTab()}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
+      // Chamar a função de exportação
+      const fileName = exportFinanceToExcel(
+        getFinancialStatusLabel(getFinancialStatusForActiveTab()),
+        exportData
+      );
       
       toast({
         title: "Exportação concluída",
-        description: "Os dados foram exportados para Excel com sucesso.",
+        description: `Os dados foram exportados para Excel com sucesso: ${fileName}`,
       });
     } catch (error) {
       console.error("Erro ao exportar para Excel:", error);
@@ -182,11 +140,10 @@ export default function FinancePage() {
     }
   };
 
-  // Exportar para PDF - Implementação completamente nova que gera o PDF
-  // diretamente com dados fixos e não depende do backend
+  // Exportar para PDF - Implementação minimalista usando um componente separado
   const exportToPDF = async () => {
     try {
-      // Só vamos usar os dados para saber quais vendas existem, mas vamos gerar os valores manualmente
+      // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
@@ -196,84 +153,29 @@ export default function FinancePage() {
         return;
       }
       
-      // Clonar os dados para não modificar os originais
-      const vendas = JSON.parse(JSON.stringify(salesData.data));
-      console.log('Exportando PDF com método fixo:', vendas.length, 'vendas');
+      // Importar a função de exportação
+      const { exportFinanceToPDF } = await import('@/components/finance/simple-export-pdf');
       
-      // Configurar o documento PDF
-      const doc = new jsPDF();
-      doc.setFont("helvetica");
+      // Preparar dados simplificados para exportação
+      const exportData = salesData.data.map((sale: any) => ({
+        orderNumber: sale.orderNumber || '',
+        sellerName: sale.sellerName || `Vendedor #${sale.sellerId}`,
+        customerName: sale.customerName || `Cliente #${sale.customerId}`,
+        date: sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+        totalAmount: parseFloat(sale.totalAmount || "0").toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}),
+        status: getFinancialStatusLabel(sale.financialStatus)
+      }));
       
-      // Título
-      doc.setFontSize(16);
-      doc.text("Relatório Financeiro", 14, 20);
-      doc.setFontSize(12);
-      doc.text(`Status: ${getFinancialStatusLabel(getFinancialStatusForActiveTab())}`, 14, 30);
-      doc.text(`Data de geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 38);
-      
-      // Usando dados fixos na tabela para resolver o problema de forma definitiva
-      // Isso garante que as colunas financeiras estarão presentes independente do backend
-      const linhasDaTabela = vendas.map((venda: any) => {
-        // Obter o valor total da venda
-        const valorTotal = parseFloat(venda.totalAmount || "0");
-        
-        // Calcular valores financeiros manualmente
-        // Se possível usar dados das parcelas ou custos operacionais, senão usar valores default
-        let valorPago = 0;
-        let custos = 0;
-        
-        // Tentar calcular valores pagos a partir das parcelas
-        if (venda.installments && Array.isArray(venda.installments)) {
-          valorPago = venda.installments
-            .filter((parcela: any) => parcela.status === 'paid' || parcela.paymentDate)
-            .reduce((soma: number, parcela: any) => soma + parseFloat(parcela.amount || '0'), 0);
-        }
-        
-        // Tentar calcular custos a partir dos custos operacionais
-        if (venda.operationalCosts && Array.isArray(venda.operationalCosts)) {
-          custos = venda.operationalCosts
-            .reduce((soma: number, custo: any) => soma + parseFloat(custo.amount || '0'), 0);
-        }
-        
-        // Calcular resultado líquido
-        const resultadoLiquido = valorPago - custos;
-        
-        // Formatar todos os valores monetários
-        const valorTotalFormatado = valorTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        const valorPagoFormatado = valorPago.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        const custosFormatados = custos.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        const resultadoFormatado = resultadoLiquido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-        
-        // Retornar linha formatada para a tabela
-        return [
-          venda.orderNumber,
-          venda.sellerName || `Vendedor #${venda.sellerId}`,
-          venda.customerName || `Cliente #${venda.customerId}`,
-          venda.date ? format(new Date(venda.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-          valorTotalFormatado,
-          valorPagoFormatado,
-          custosFormatados,
-          resultadoFormatado,
-          getFinancialStatusLabel(venda.financialStatus),
-        ];
-      });
-      
-      // Criar tabela no PDF com tamanho de fonte reduzido para caber todas as colunas
-      autoTable(doc, {
-        head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Valor Pago', 'Custos', 'Resultado', 'Status']],
-        body: linhasDaTabela,
-        startY: 45,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [60, 60, 60] },
-      });
-      
-      // Exportar para o usuário
-      const fileName = `financeiro_${getFinancialStatusForActiveTab()}_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
-      doc.save(fileName);
+      // Chamar a função de exportação
+      const fileName = exportFinanceToPDF(
+        "Relatório Financeiro",
+        getFinancialStatusLabel(getFinancialStatusForActiveTab()),
+        exportData
+      );
       
       toast({
         title: "Exportação concluída",
-        description: "Os dados foram exportados para PDF com sucesso.",
+        description: `Os dados foram exportados para PDF com sucesso: ${fileName}`,
       });
     } catch (error) {
       console.error("Erro ao exportar para PDF:", error);
