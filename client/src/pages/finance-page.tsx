@@ -94,10 +94,11 @@ export default function FinancePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
-  // Exportar para Excel - Nova implementação simplificada que não depende dos dados do backend
+  // Exportar para Excel - Implementação completamente nova que gera o Excel
+  // diretamente com dados fixos e não depende do backend
   const exportToExcel = async () => {
     try {
-      // Usar diretamente os dados da tabela atualmente exibida
+      // Só vamos usar os dados para saber quais vendas existem, mas vamos gerar os valores manualmente
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
@@ -108,68 +109,58 @@ export default function FinancePage() {
       }
       
       // Clonar os dados para não modificar os originais
-      const sales = JSON.parse(JSON.stringify(salesData.data));
-      console.log('Exportando dados a partir da tabela atual:', sales.length, 'vendas');
+      const vendas = JSON.parse(JSON.stringify(salesData.data));
+      console.log('Exportando Excel com método fixo:', vendas.length, 'vendas');
       
-      // Processar cada venda para garantir que tenha informações financeiras
-      const exportData = sales.map((sale: any) => {
-        // Se não tiver resumo financeiro, calcular valores default
-        if (!sale.financialSummary) {
-          console.log(`Recriando dados financeiros para a venda ${sale.id}`);
-          
-          // Obter todos os pagamentos dessa venda se disponíveis
-          let totalPaid = 0;
-          if (sale.installments && Array.isArray(sale.installments)) {
-            // Somar todos os pagamentos confirmados
-            totalPaid = sale.installments
-              .filter((inst: any) => inst.status === 'paid' || inst.paymentDate)
-              .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || '0'), 0);
-          }
-          
-          // Obter todos os custos operacionais se disponíveis
-          let totalCosts = 0;
-          if (sale.operationalCosts && Array.isArray(sale.operationalCosts)) {
-            totalCosts = sale.operationalCosts
-              .reduce((sum: number, cost: any) => sum + parseFloat(cost.amount || '0'), 0);
-          }
-          
-          // Valor total da venda
-          const totalAmount = parseFloat(sale.totalAmount || '0');
-          
-          // Calculando resultado líquido
-          const netResult = totalPaid - totalCosts;
-          
-          // Criando o resumo financeiro manualmente
-          sale.financialSummary = {
-            totalPaid,
-            totalCosts,
-            netResult
-          };
+      // Processar cada venda e calcular os valores financeiros na hora
+      const dadosParaExcel = vendas.map((venda: any) => {
+        // Obter o valor total da venda
+        const valorTotal = parseFloat(venda.totalAmount || "0");
+        
+        // Calcular valores financeiros manualmente
+        // Se possível usar dados das parcelas ou custos operacionais, senão usar valores default
+        let valorPago = 0;
+        let custos = 0;
+        
+        // Tentar calcular valores pagos a partir das parcelas
+        if (venda.installments && Array.isArray(venda.installments)) {
+          valorPago = venda.installments
+            .filter((parcela: any) => parcela.status === 'paid' || parcela.paymentDate)
+            .reduce((soma: number, parcela: any) => soma + parseFloat(parcela.amount || '0'), 0);
         }
         
-        // Extraindo valores financeiros com validação
-        const totalAmount = parseFloat(sale.totalAmount || "0");
-        const totalPaid = sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid?.toString() || "0") : 0; 
-        const totalCosts = sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts?.toString() || "0") : 0;
-        const netResult = sale.financialSummary ? parseFloat(sale.financialSummary.netResult?.toString() || "0") : totalAmount;
+        // Tentar calcular custos a partir dos custos operacionais
+        if (venda.operationalCosts && Array.isArray(venda.operationalCosts)) {
+          custos = venda.operationalCosts
+            .reduce((soma: number, custo: any) => soma + parseFloat(custo.amount || '0'), 0);
+        }
         
-        // Retornando objeto formatado para Excel
+        // Calcular resultado líquido
+        const resultadoLiquido = valorPago - custos;
+        
+        // Formatar todos os valores monetários
+        const valorTotalFormatado = valorTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        const valorPagoFormatado = valorPago.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        const custosFormatados = custos.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        const resultadoFormatado = resultadoLiquido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        
+        // Retornar objeto formatado para Excel
         return {
-          'Nº OS': sale.orderNumber,
-          'Vendedor': sale.sellerName || `Vendedor #${sale.sellerId}`,
-          'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
-          'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-          'Valor Total': totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          'Valor Pago': totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          'Custos': totalCosts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          'Resultado Líquido': netResult.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          'Status Financeiro': getFinancialStatusLabel(sale.financialStatus),
-          'Criado em': sale.createdAt ? format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A',
+          'Nº OS': venda.orderNumber,
+          'Vendedor': venda.sellerName || `Vendedor #${venda.sellerId}`,
+          'Cliente': venda.customerName || `Cliente #${venda.customerId}`,
+          'Data': venda.date ? format(new Date(venda.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+          'Valor Total': valorTotalFormatado,
+          'Valor Pago': valorPagoFormatado,
+          'Custos': custosFormatados,
+          'Resultado Líquido': resultadoFormatado,
+          'Status Financeiro': getFinancialStatusLabel(venda.financialStatus),
+          'Criado em': venda.createdAt ? format(new Date(venda.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A',
         };
       });
 
       // Criar planilha e exportar
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const worksheet = XLSX.utils.json_to_sheet(dadosParaExcel);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Financeiro");
       
@@ -191,10 +182,11 @@ export default function FinancePage() {
     }
   };
 
-  // Exportar para PDF - Nova implementação simplificada que não depende dos dados do backend
+  // Exportar para PDF - Implementação completamente nova que gera o PDF
+  // diretamente com dados fixos e não depende do backend
   const exportToPDF = async () => {
     try {
-      // Usar diretamente os dados da tabela atualmente exibida
+      // Só vamos usar os dados para saber quais vendas existem, mas vamos gerar os valores manualmente
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
@@ -205,46 +197,9 @@ export default function FinancePage() {
       }
       
       // Clonar os dados para não modificar os originais
-      const sales = JSON.parse(JSON.stringify(salesData.data));
-      console.log('Exportando dados PDF a partir da tabela atual:', sales.length, 'vendas');
+      const vendas = JSON.parse(JSON.stringify(salesData.data));
+      console.log('Exportando PDF com método fixo:', vendas.length, 'vendas');
       
-      // Processar cada venda para garantir que tenha informações financeiras
-      sales.forEach((sale: any) => {
-        // Se não tiver resumo financeiro, calcular valores default
-        if (!sale.financialSummary) {
-          console.log(`Recriando dados financeiros para a venda ${sale.id} no PDF`);
-          
-          // Obter todos os pagamentos dessa venda se disponíveis
-          let totalPaid = 0;
-          if (sale.installments && Array.isArray(sale.installments)) {
-            // Somar todos os pagamentos confirmados
-            totalPaid = sale.installments
-              .filter((inst: any) => inst.status === 'paid' || inst.paymentDate)
-              .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || '0'), 0);
-          }
-          
-          // Obter todos os custos operacionais se disponíveis
-          let totalCosts = 0;
-          if (sale.operationalCosts && Array.isArray(sale.operationalCosts)) {
-            totalCosts = sale.operationalCosts
-              .reduce((sum: number, cost: any) => sum + parseFloat(cost.amount || '0'), 0);
-          }
-          
-          // Valor total da venda
-          const totalAmount = parseFloat(sale.totalAmount || '0');
-          
-          // Calculando resultado líquido
-          const netResult = totalPaid - totalCosts;
-          
-          // Criando o resumo financeiro manualmente
-          sale.financialSummary = {
-            totalPaid,
-            totalCosts,
-            netResult
-          };
-        }
-      });
-
       // Configurar o documento PDF
       const doc = new jsPDF();
       doc.setFont("helvetica");
@@ -256,45 +211,59 @@ export default function FinancePage() {
       doc.text(`Status: ${getFinancialStatusLabel(getFinancialStatusForActiveTab())}`, 14, 30);
       doc.text(`Data de geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 38);
       
-      // Primeiro garantir que todos os itens tenham financialSummary
-      sales.forEach(sale => {
-        if (!sale.financialSummary) {
-          console.log(`Forçando financialSummary para a venda ${sale.id} durante exportação PDF`);
-          sale.financialSummary = {
-            totalPaid: 0,
-            totalCosts: 0,
-            netResult: parseFloat(sale.totalAmount || "0")
-          };
+      // Usando dados fixos na tabela para resolver o problema de forma definitiva
+      // Isso garante que as colunas financeiras estarão presentes independente do backend
+      const linhasDaTabela = vendas.map((venda: any) => {
+        // Obter o valor total da venda
+        const valorTotal = parseFloat(venda.totalAmount || "0");
+        
+        // Calcular valores financeiros manualmente
+        // Se possível usar dados das parcelas ou custos operacionais, senão usar valores default
+        let valorPago = 0;
+        let custos = 0;
+        
+        // Tentar calcular valores pagos a partir das parcelas
+        if (venda.installments && Array.isArray(venda.installments)) {
+          valorPago = venda.installments
+            .filter((parcela: any) => parcela.status === 'paid' || parcela.paymentDate)
+            .reduce((soma: number, parcela: any) => soma + parseFloat(parcela.amount || '0'), 0);
         }
-      });
         
-      // Preparar dados para a tabela, com financialSummary garantido em todos os itens
-      const tableData = sales.map((sale: any) => {
-        // Assegurar que os valores financeiros estão presentes
-        const totalAmount = parseFloat(sale.totalAmount || "0");
-        const totalPaid = sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString() || "0") : 0;
-        const totalCosts = sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString() || "0") : 0; 
-        const netResult = sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString() || "0") : totalAmount;
+        // Tentar calcular custos a partir dos custos operacionais
+        if (venda.operationalCosts && Array.isArray(venda.operationalCosts)) {
+          custos = venda.operationalCosts
+            .reduce((soma: number, custo: any) => soma + parseFloat(custo.amount || '0'), 0);
+        }
         
+        // Calcular resultado líquido
+        const resultadoLiquido = valorPago - custos;
+        
+        // Formatar todos os valores monetários
+        const valorTotalFormatado = valorTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        const valorPagoFormatado = valorPago.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        const custosFormatados = custos.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        const resultadoFormatado = resultadoLiquido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        
+        // Retornar linha formatada para a tabela
         return [
-          sale.orderNumber,
-          sale.sellerName || `Vendedor #${sale.sellerId}`,
-          sale.customerName || `Cliente #${sale.customerId}`,
-          sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-          totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          totalCosts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          netResult.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-          getFinancialStatusLabel(sale.financialStatus),
+          venda.orderNumber,
+          venda.sellerName || `Vendedor #${venda.sellerId}`,
+          venda.customerName || `Cliente #${venda.customerId}`,
+          venda.date ? format(new Date(venda.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+          valorTotalFormatado,
+          valorPagoFormatado,
+          custosFormatados,
+          resultadoFormatado,
+          getFinancialStatusLabel(venda.financialStatus),
         ];
       });
       
-      // Criar tabela no PDF
+      // Criar tabela no PDF com tamanho de fonte reduzido para caber todas as colunas
       autoTable(doc, {
         head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Valor Pago', 'Custos', 'Resultado', 'Status']],
-        body: tableData,
+        body: linhasDaTabela,
         startY: 45,
-        styles: { fontSize: 8, cellPadding: 2 }, // Reduzido um pouco para caber mais colunas
+        styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [60, 60, 60] },
       });
       
