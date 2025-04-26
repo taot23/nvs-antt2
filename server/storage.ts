@@ -1955,38 +1955,14 @@ export class DatabaseStorage implements IStorage {
     return cost || undefined;
   }
 
-  async createSaleOperationalCost(
-    costData: InsertSaleOperationalCost,
-  ): Promise<SaleOperationalCost> {
-    const [createdCost] = await db
-      .insert(saleOperationalCosts)
-      .values(costData)
-      .returning();
-    return createdCost;
-  }
+  // Implementação removida para evitar duplicação
+  // O método createSaleOperationalCost é implementado mais abaixo com SQL nativo
 
-  async updateSaleOperationalCost(
-    id: number,
-    costData: Partial<InsertSaleOperationalCost>,
-  ): Promise<SaleOperationalCost | undefined> {
-    const [updatedCost] = await db
-      .update(saleOperationalCosts)
-      .set({
-        ...costData,
-        updatedAt: new Date(),
-      })
-      .where(eq(saleOperationalCosts.id, id))
-      .returning();
-    return updatedCost || undefined;
-  }
-
-  async deleteSaleOperationalCost(id: number): Promise<boolean> {
-    const [deletedCost] = await db
-      .delete(saleOperationalCosts)
-      .where(eq(saleOperationalCosts.id, id))
-      .returning();
-    return !!deletedCost;
-  }
+  // Implementação removida para evitar duplicação
+  // O método updateSaleOperationalCost é implementado mais abaixo com SQL nativo
+  
+  // Implementação removida para evitar duplicação
+  // O método deleteSaleOperationalCost é implementado mais abaixo com SQL nativo
 
   // Implementação dos métodos de comprovantes de pagamento
   async getSalePaymentReceipts(
