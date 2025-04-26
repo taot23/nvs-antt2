@@ -1382,7 +1382,6 @@ export default function SaleDialog({
                         <TableHead>Parcela</TableHead>
                         <TableHead>Data de Vencimento</TableHead>
                         <TableHead>Valor</TableHead>
-                        <TableHead>Calendário</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1428,30 +1427,6 @@ export default function SaleDialog({
                               />
                             </TableCell>
                             <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
-                            <TableCell>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" size="sm" className="h-9 px-2">
-                                    <Calendar className="h-4 w-4" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <CalendarComponent
-                                    mode="single"
-                                    selected={date}
-                                    onSelect={(newDate) => {
-                                      if (newDate) {
-                                        // Atualiza apenas a data específica dessa parcela
-                                        const newDates = [...installmentDates];
-                                        newDates[index] = newDate;
-                                        setInstallmentDates(newDates);
-                                      }
-                                    }}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </TableCell>
                           </TableRow>
                         );
                       })}
