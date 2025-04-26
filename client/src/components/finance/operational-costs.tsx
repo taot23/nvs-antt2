@@ -406,67 +406,68 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
             )}
           </div>
         ) : (
-          <ScrollArea className="max-h-[300px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo de Custo</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {operationalCosts.map((cost) => {
-                  // Encontrar nome do tipo de custo
-                  const costType = costTypes.find(t => t.id === cost.costTypeId);
-                  
-                  return (
-                    <TableRow key={cost.id}>
-                      <TableCell className="font-medium">
-                        {costType?.name || `Tipo #${cost.costTypeId}`}
-                      </TableCell>
-                      <TableCell>{formatCurrency(cost.amount)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">
-                        <span title={cost.description || undefined}>
-                          {cost.description || "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell>{formatDate(cost.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        {canManage && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteCost(cost.id)}
-                            title="Excluir custo"
-                            disabled={deleteCostMutation.isPending}
-                          >
-                            {deleteCostMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            )}
-                          </Button>
-                        )}
-                      </TableCell>
+          <div className="overflow-auto">
+            <ScrollArea className="max-h-[400px]">
+              <div className="w-full min-w-[600px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[25%]">Tipo de Custo</TableHead>
+                      <TableHead className="w-[15%]">Valor</TableHead>
+                      <TableHead className="w-[35%]">Descrição</TableHead>
+                      <TableHead className="w-[15%]">Data</TableHead>
+                      <TableHead className="w-[10%] text-right">Ações</TableHead>
                     </TableRow>
-                  );
-                })}
-                
-                {/* Linha de total */}
-                <TableRow>
-                  <TableCell colSpan={1} className="font-bold">
-                    Total
-                  </TableCell>
-                  <TableCell colSpan={4} className="font-bold">
-                    {formatCurrency(calculateTotal())}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                  </TableHeader>
+                  <TableBody>
+                    {operationalCosts.map((cost) => {
+                      // Encontrar nome do tipo de custo
+                      const costType = costTypes.find(t => t.id === cost.costTypeId);
+                      
+                      return (
+                        <TableRow key={cost.id}>
+                          <TableCell className="font-medium">
+                            {costType?.name || `Tipo #${cost.costTypeId}`}
+                          </TableCell>
+                          <TableCell>{formatCurrency(cost.amount)}</TableCell>
+                          <TableCell>
+                            <div className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap" 
+                                 title={cost.description || "Sem descrição"}>
+                              {cost.description || "-"}
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatDate(cost.date || cost.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            {canManage && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteCost(cost.id)}
+                                title="Excluir custo"
+                                disabled={deleteCostMutation.isPending}
+                              >
+                                {deleteCostMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </ScrollArea>
+            
+            {/* Totais fora da ScrollArea para ficar sempre visível */}
+            <div className="mt-4 border-t pt-2 flex justify-between items-center">
+              <span className="font-bold text-base">Total:</span>
+              <span className="font-bold text-base">{formatCurrency(calculateTotal())}</span>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
