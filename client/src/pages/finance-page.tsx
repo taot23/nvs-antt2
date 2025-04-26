@@ -94,11 +94,11 @@ export default function FinancePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
-  // Exportar para Excel - Implementação direta integrada
+  // Exportar para Excel - Implementação com novo utilitário separado
   const exportToExcel = async () => {
     try {
-      // Importando o XLSX diretamente aqui
-      const XLSX = await import('xlsx');
+      // Importar os utilitários criados especificamente para exportação
+      const { prepareFinanceDataForExport, exportFinanceToExcel } = await import('@/components/finance/new-export-utils');
       
       // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
@@ -110,45 +110,49 @@ export default function FinancePage() {
         return;
       }
 
-      console.log("Início da exportação Excel com dados:", salesData.data);
+      console.log("Obtendo dados completos para exportação Excel...");
       
-      // Preparar dados em formato simples para Excel
-      const excelData = salesData.data.map((sale: any) => {
-        console.log("Processando item para Excel:", sale);
-        return {
-          'Número': sale.orderNumber || '',
-          'Vendedor': sale.sellerName || `Vendedor #${sale.sellerId}`,
-          'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
-          'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-          'Valor Total': sale.totalAmount ? parseFloat(sale.totalAmount).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : 'R$ 0,00',
-          'Status': getFinancialStatusLabel(sale.financialStatus)
-        };
-      });
-      
-      // Criar planilha
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Financeiro');
-      
-      // Ajustar largura das colunas
-      const wscols = [
-        {wch: 10}, // Número
-        {wch: 20}, // Vendedor
-        {wch: 20}, // Cliente
-        {wch: 12}, // Data
-        {wch: 15}, // Valor Total
-        {wch: 15}, // Status
-      ];
-      worksheet['!cols'] = wscols;
-      
-      // Definir nome do arquivo e exportar
-      const fileName = `financeiro_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-      
-      toast({
-        title: "Exportação concluída",
-        description: `Os dados foram exportados para Excel com sucesso: ${fileName}`,
-      });
+      // Fazer um fetch separado para obter todos os dados (até 1000 registros)
+      try {
+        const params = new URLSearchParams();
+        params.append('limit', '1000');
+        params.append('financialStatus', getFinancialStatusForActiveTab());
+        params.append('includeSummary', 'true');
+        
+        const response = await fetch(`/api/sales?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Falha ao buscar dados completos para exportação');
+        }
+        
+        const completeData = await response.json();
+        console.log(`Obtidos ${completeData.data.length} registros para exportação`);
+        
+        // Preparar dados com a função especializada
+        const exportData = prepareFinanceDataForExport(completeData.data);
+        
+        // Chamar a função especializada de exportação Excel
+        const fileName = await exportFinanceToExcel(
+          exportData, 
+          // Verificar se algum dos registros tem dados financeiros extras
+          completeData.data.some((sale: any) => sale.financialSummary)
+        );
+        
+        toast({
+          title: "Exportação concluída",
+          description: `Os dados foram exportados para Excel com sucesso: ${fileName}`,
+        });
+      } catch (error) {
+        console.error("Erro ao buscar dados completos:", error);
+        // Fallback para os dados que já temos se não conseguir buscar todos
+        const { prepareFinanceDataForExport, exportFinanceToExcel } = await import('@/components/finance/new-export-utils');
+        const exportData = prepareFinanceDataForExport(salesData.data);
+        const fileName = await exportFinanceToExcel(exportData, false);
+        
+        toast({
+          title: "Exportação parcial concluída",
+          description: `Os dados atuais foram exportados para Excel: ${fileName}`,
+        });
+      }
     } catch (error) {
       console.error("Erro ao exportar para Excel:", error);
       toast({
@@ -159,13 +163,11 @@ export default function FinancePage() {
     }
   };
 
-  // Exportar para PDF - Implementação direta integrada
+  // Exportar para PDF - Implementação com novo utilitário separado
   const exportToPDF = async () => {
     try {
-      // Importar jsPDF diretamente aqui
-      const jsPDFModule = await import('jspdf');
-      const jsPDF = jsPDFModule.default;
-      const autoTable = (await import('jspdf-autotable')).default;
+      // Importar os utilitários criados especificamente para exportação
+      const { prepareFinanceDataForExport, exportFinanceToPDF } = await import('@/components/finance/new-export-utils');
       
       // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
@@ -177,51 +179,49 @@ export default function FinancePage() {
         return;
       }
 
-      console.log("Início da exportação PDF com dados:", salesData.data);
+      console.log("Obtendo dados completos para exportação PDF...");
       
-      // Criar novo documento PDF em modo paisagem (landscape)
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      // Adicionar título
-      doc.setFontSize(16);
-      doc.text('Relatório Financeiro', 14, 15);
-      doc.setFontSize(12);
-      doc.text(`Status: ${getFinancialStatusLabel(getFinancialStatusForActiveTab())}`, 14, 23);
-      doc.text(`Data de Geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 30);
-      
-      // Preparar dados para a tabela
-      const tableData = salesData.data.map((sale: any) => [
-        sale.orderNumber || '',
-        sale.sellerName || `Vendedor #${sale.sellerId}`,
-        sale.customerName || `Cliente #${sale.customerId}`,
-        sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-        sale.totalAmount ? parseFloat(sale.totalAmount).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : 'R$ 0,00',
-        getFinancialStatusLabel(sale.financialStatus)
-      ]);
-      
-      // Criar tabela
-      autoTable(doc, {
-        startY: 40,
-        head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Status']],
-        body: tableData,
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        alternateRowStyles: { fillColor: [240, 240, 240] },
-        margin: { top: 40 },
-        styles: { fontSize: 10, cellPadding: 5 }
-      });
-      
-      // Definir nome do arquivo e salvar
-      const fileName = `relatorio_financeiro_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
-      doc.save(fileName);
-      
-      toast({
-        title: "Exportação concluída",
-        description: `Os dados foram exportados para PDF com sucesso: ${fileName}`,
-      });
+      // Fazer um fetch separado para obter todos os dados (até 1000 registros)
+      try {
+        const params = new URLSearchParams();
+        params.append('limit', '1000');
+        params.append('financialStatus', getFinancialStatusForActiveTab());
+        params.append('includeSummary', 'true');
+        
+        const response = await fetch(`/api/sales?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Falha ao buscar dados completos para exportação');
+        }
+        
+        const completeData = await response.json();
+        console.log(`Obtidos ${completeData.data.length} registros para exportação`);
+        
+        // Preparar dados com a função especializada
+        const exportData = prepareFinanceDataForExport(completeData.data);
+        
+        // Chamar a função especializada de exportação PDF
+        const fileName = await exportFinanceToPDF(
+          exportData,
+          // Verificar se algum dos registros tem dados financeiros extras
+          completeData.data.some((sale: any) => sale.financialSummary)
+        );
+        
+        toast({
+          title: "Exportação concluída",
+          description: `Os dados foram exportados para PDF com sucesso: ${fileName}`,
+        });
+      } catch (error) {
+        console.error("Erro ao buscar dados completos:", error);
+        // Fallback para os dados que já temos se não conseguir buscar todos
+        const { prepareFinanceDataForExport, exportFinanceToPDF } = await import('@/components/finance/new-export-utils');
+        const exportData = prepareFinanceDataForExport(salesData.data);
+        const fileName = await exportFinanceToPDF(exportData, false);
+        
+        toast({
+          title: "Exportação parcial concluída",
+          description: `Os dados atuais foram exportados para PDF: ${fileName}`,
+        });
+      }
     } catch (error) {
       console.error("Erro ao exportar para PDF:", error);
       toast({
