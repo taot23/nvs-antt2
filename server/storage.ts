@@ -836,78 +836,88 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Se houve alteração no número de parcelas ou no valor da parcela e foram fornecidas novas datas
-      if (
-        (saleData.installments !== undefined || saleData.installmentValue !== undefined) && 
-        installmentDates && 
-        Array.isArray(installmentDates)
-      ) {
+      // ⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA (28/04/2025): Se temos datas de parcelas, sempre usamos elas independente de outras condições
+      if (installmentDates && Array.isArray(installmentDates)) {
         try {
           // Remover parcelas existentes
           await this.deleteSaleInstallments(id);
           
-          console.log(`Recriando ${installmentDates.length} parcelas para a venda ${id}`);
+          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Recriando ${installmentDates.length} parcelas para a venda ${id} com as datas definidas pelo usuário`);
           
-          // Usar o novo valor de parcelas da venda atualizada
-          const installments = updatedSale.installments;
-          const installmentValue = updatedSale.installmentValue || '0'; // Garantir valor não nulo
+          // ⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Sempre ajustar o número de parcelas para corresponder às datas fornecidas
+          if (installmentDates.length !== updatedSale.installments) {
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Número de datas (${installmentDates.length}) é diferente do número de parcelas (${updatedSale.installments})`);
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Ajustando o número de parcelas para ${installmentDates.length} para corresponder às datas fornecidas`);
+            
+            // Atualizar o número de parcelas na venda para corresponder às datas fornecidas
+            await db
+              .update(sales)
+              .set({ installments: installmentDates.length })
+              .where(eq(sales.id, id));
+              
+            // Atualizar também o objeto em memória para refletir a correção
+            updatedSale.installments = installmentDates.length;
+          }
           
-          // Importante: Usamos EXATAMENTE as datas fornecidas pelo usuário sem alterações
-          if (installments > 1) {
-            console.log(`🔒 Usando ${installmentDates.length} datas EXATAMENTE como definido pelo usuário (atualização)`);
+          // Calcular o valor de cada parcela (valor igual para todas as parcelas)
+          const totalAmount = parseFloat(updatedSale.totalAmount);
+          const installmentAmount = (totalAmount / installmentDates.length).toFixed(2);
             
-            // REVISÃO FINAL ABSOLUTA (26/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
-            const installmentsToCreate = installmentDates.map((dueDate: string | Date, index: number) => {
-              // Verificar se a data já está no formato ISO YYYY-MM-DD
-              // Se já estiver nesse formato, usamos diretamente sem conversão adicional
-              let formattedDate = '';
-              
-              console.log(`🚨 REVISÃO FINAL ABSOLUTA - Parcela ${index+1}: Data recebida: [${String(dueDate)}], tipo: ${typeof dueDate}`);
-              
-              // Tratamento por tipo de dados
-              if (typeof dueDate === 'string') {
-                // Remover qualquer parte T00:00:00.000Z da data
-                if (dueDate.includes('T')) {
-                  formattedDate = dueDate.split('T')[0];
-                  console.log(`🚨 REVISÃO FINAL ABSOLUTA - Removido T00:00:00.000Z da data: [${formattedDate}]`);
-                } else {
-                  // Já está no formato desejado
-                  formattedDate = dueDate;
-                  console.log(`🚨 REVISÃO FINAL ABSOLUTA - Data já está no formato correto: [${formattedDate}]`);
-                }
-              } 
-              // Se for um objeto Date, converter para YYYY-MM-DD manualmente
-              else if (dueDate instanceof Date) {
-                formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                console.log(`🚨 REVISÃO FINAL ABSOLUTA - Convertido Date para string: [${formattedDate}]`);
-              }
-              // Para outros tipos ou valores inválidos (como undefined/null)
-              else {
-                // Usar data atual como fallback
-                const today = new Date();
-                formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                console.log(`🚨 REVISÃO FINAL ABSOLUTA - Usando data atual como fallback: [${formattedDate}]`);
-              }
-              
-              console.log(`🔍 Parcela ${index+1} (atualização): Data original: ${dueDate}, Data final: ${formattedDate}`);
-              
-              return {
-                saleId: id,
-                installmentNumber: index + 1,
-                dueDate: formattedDate, // Usar a data exatamente como recebida (ou com T removido)
-                amount: installmentValue,
-                status: 'pending',
-                notes: null
-              };
-            });
+          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Total ${totalAmount} dividido em ${installmentDates.length} parcelas de ${installmentAmount}`);
+          
+          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Usando ${installmentDates.length} datas EXATAMENTE como definido pelo usuário (atualização)`);
             
-            if (installmentsToCreate.length > 0) {
-              await this.createSaleInstallments(installmentsToCreate);
-              console.log(`Parcelas recriadas com sucesso para a venda ${id}`);
+          // SOLUÇÃO DEFINITIVA (28/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
+          const installmentsToCreate = installmentDates.map((dueDate: string | Date, index: number) => {
+            // Verificar se a data já está no formato ISO YYYY-MM-DD
+            let formattedDate = '';
+            
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA - Parcela ${index+1}: Data recebida: [${String(dueDate)}], tipo: ${typeof dueDate}`);
+            
+            // Tratamento por tipo de dados
+            if (typeof dueDate === 'string') {
+              // Remover qualquer parte T00:00:00.000Z da data
+              if (dueDate.includes('T')) {
+                formattedDate = dueDate.split('T')[0];
+                console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA - Removido T00:00:00.000Z da data: [${formattedDate}]`);
+              } else {
+                // Já está no formato desejado
+                formattedDate = dueDate;
+                console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA - Data já está no formato correto: [${formattedDate}]`);
+              }
+            } 
+            // Se for um objeto Date, converter para YYYY-MM-DD manualmente
+            else if (dueDate instanceof Date) {
+              formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+              console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA - Convertido Date para string: [${formattedDate}]`);
             }
+            // Para outros tipos ou valores inválidos (como undefined/null)
+            else {
+              // Usar data atual como fallback
+              const today = new Date();
+              formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA - Usando data atual como fallback: [${formattedDate}]`);
+            }
+            
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA - Parcela ${index+1} (atualização): Data original: ${dueDate}, Data final: ${formattedDate}`);
+            
+            return {
+              saleId: id,
+              installmentNumber: index + 1,
+              dueDate: formattedDate, // Usar a data exatamente como formatada
+              amount: installmentAmount,
+              status: 'pending',
+              notes: null
+            };
+          });
+            
+          // Criar as parcelas se tiver alguma
+          if (installmentsToCreate.length > 0) {
+            await this.createSaleInstallments(installmentsToCreate);
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: ${installmentsToCreate.length} parcelas recriadas com sucesso para a venda ${id}`);
           }
         } catch (error) {
-          console.error(`Erro ao atualizar parcelas da venda #${id}:`, error);
+          console.error(`⚠️⚠️⚠️ ERRO: Falha ao atualizar parcelas da venda #${id}:`, error);
         }
       }
       
