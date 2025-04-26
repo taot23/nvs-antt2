@@ -44,8 +44,11 @@ export function currencyToNumber(value: string): number {
 export function formatDate(date: Date | string | null): string {
   if (!date) return '';
   
+  console.log(`📅 formatDate recebeu: "${date}", tipo: ${typeof date}`);
+  
   // Se for string no formato 'YYYY-MM-DD' (ISO sem tempo)
-  if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    console.log(`📅 Detectado formato ISO YYYY-MM-DD: ${date}`);
     const [year, month, day] = date.split('-');
     return `${day}/${month}/${year}`;
   }
