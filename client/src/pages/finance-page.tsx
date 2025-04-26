@@ -8,9 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown, Loader2 } from "lucide-react";
 import { DateRange } from "react-day-picker";
-import * as XLSX from "xlsx";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import PaginatedFinanceTable from "@/components/finance/paginated-finance-table";
@@ -20,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { convertToSafeUser } from "@/components/finance/finance-types";
+import { exportToExcel, exportToPDF } from "@/components/finance/final-export";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -97,43 +95,6 @@ export default function FinancePage() {
   // Exportador de tabela para uso durante a exportação
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
-
-  // Import da exportação diretamente - evita problemas com import dinâmico
-  import { exportToExcel as exportExcel, exportToPDF as exportPdf } from '@/components/finance/minimal-export';
-  
-  // Exportação para Excel - solução ultra simplificada
-  const exportToExcel = () => {
-    try {
-      // Verificar se há dados disponíveis
-      if (!salesData || !salesData.data || salesData.data.length === 0) {
-        alert("Não há dados para exportar");
-        return;
-      }
-      
-      // Chamar função de exportação diretamente
-      exportExcel(salesData.data);
-    } catch (error) {
-      console.error("Erro na exportação:", error);
-      alert("Erro na exportação: " + error);
-    }
-  };
-
-  // Exportação para PDF - solução ultra simplificada
-  const exportToPDF = () => {
-    try {
-      // Verificar se há dados disponíveis
-      if (!salesData || !salesData.data || salesData.data.length === 0) {
-        alert("Não há dados para exportar");
-        return;
-      }
-      
-      // Chamar função de exportação diretamente
-      exportPdf(salesData.data);
-    } catch (error) {
-      console.error("Erro na exportação:", error);
-      alert("Erro na exportação: " + error);
-    }
-  };
 
   // Obter o status financeiro correspondente à aba ativa
   // Estamos usando o financialStatus ao invés do status operacional da venda
@@ -269,11 +230,11 @@ export default function FinancePage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Escolha o formato</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={exportToExcel}>
+                <DropdownMenuItem onClick={() => exportToExcel(salesData?.data || [])}>
                   <FileText className="h-4 w-4 mr-2" />
                   Excel
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToPDF}>
+                <DropdownMenuItem onClick={() => exportToPDF(salesData?.data || [])}>
                   <FileText className="h-4 w-4 mr-2" />
                   PDF
                 </DropdownMenuItem>

@@ -1,231 +1,181 @@
 /**
- * Solução final de exportação - extremamente simples e direta
+ * Implementação final da exportação de dados para Excel e PDF
+ * Utilizando bibliotecas oficiais e estáveis: xlsx e jspdf
  */
 
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
-export interface ExportData {
+// Tipo para representar os dados formatados
+interface FormattedData {
+  id: number;
   orderNumber: string;
-  sellerName: string;
-  customerName: string;
-  date: string;
-  totalAmount: string;
+  vendedor: string;
+  cliente: string;
+  data: string;
+  valor: string;
   status: string;
-  totalPaid?: string;
-  totalCosts?: string;
-  netResult?: string;
 }
 
-// Função para formatar valores financeiros
-function formatCurrency(value: any): string {
+/**
+ * Formata os dados brutos para um formato adequado para exportação
+ */
+function formatarDados(dadosBrutos: any[]): FormattedData[] {
+  return dadosBrutos.map(item => ({
+    id: item.id || 0,
+    orderNumber: item.orderNumber || '',
+    vendedor: item.sellerName || '',
+    cliente: item.customerName || '',
+    data: item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '',
+    valor: typeof item.totalAmount === 'number' 
+      ? item.totalAmount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+      : item.totalAmount || '0',
+    status: item.financialStatus || item.status || ''
+  }));
+}
+
+/**
+ * Exporta os dados para Excel usando a biblioteca xlsx
+ */
+export function exportToExcel(dados: any[]): void {
   try {
-    if (value === undefined || value === null) return 'R$ 0,00';
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    return numValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-  } catch (error) {
-    console.error('Erro ao formatar valor monetário:', error);
-    return 'R$ 0,00';
-  }
-}
-
-// Função para formatar data
-function formatDate(dateStr: string): string {
-  try {
-    if (!dateStr) return 'N/A';
-    return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
-  } catch (error) {
-    console.error('Erro ao formatar data:', error);
-    return 'Data inválida';
-  }
-}
-
-// Função para obter status formatado
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'pending': return 'Aguardando Pagamento';
-    case 'in_progress': return 'Em Execução';
-    case 'completed': return 'Executado';
-    case 'paid': return 'Pago';
-    default: return status || 'Desconhecido';
-  }
-}
-
-// Função para preparar os dados para exportação
-export function prepareDataForExport(data: any[]): ExportData[] {
-  return data.map(sale => {
-    const result: ExportData = {
-      orderNumber: sale.orderNumber || '',
-      sellerName: sale.sellerName || `Vendedor #${sale.sellerId || ''}`,
-      customerName: sale.customerName || `Cliente #${sale.customerId || ''}`,
-      date: sale.date ? formatDate(sale.date) : 'N/A',
-      totalAmount: formatCurrency(sale.totalAmount),
-      status: getStatusLabel(sale.financialStatus || sale.status)
-    };
-
-    // Adicionar campos financeiros se disponíveis
-    if (sale.financialSummary) {
-      result.totalPaid = formatCurrency(sale.financialSummary.totalPaid);
-      result.totalCosts = formatCurrency(sale.financialSummary.totalCosts);
-      result.netResult = formatCurrency(sale.financialSummary.netResult);
+    console.log('Iniciando exportação para Excel...');
+    
+    // Verificar dados
+    if (!dados || dados.length === 0) {
+      alert('Não há dados para exportar');
+      return;
     }
-
-    return result;
-  });
-}
-
-// Função para exportar para Excel
-export async function finalExportToExcel(data: any[], includeFinancialData: boolean = false): Promise<string> {
-  try {
-    // Importar XLSX dinamicamente
-    const XLSX = await import('xlsx');
-
-    // Preparar os dados
-    const exportData = prepareDataForExport(data);
-
-    // Definir as colunas conforme os dados disponíveis
-    const columns = [
-      { header: 'Nº OS', key: 'orderNumber', width: 15 },
-      { header: 'Vendedor', key: 'sellerName', width: 25 },
-      { header: 'Cliente', key: 'customerName', width: 25 },
-      { header: 'Data', key: 'date', width: 15 },
-      { header: 'Valor Total', key: 'totalAmount', width: 15 },
-      { header: 'Status', key: 'status', width: 20 },
-    ];
-
-    // Adicionar colunas financeiras se necessário
-    if (includeFinancialData) {
-      columns.push(
-        { header: 'Valor Pago', key: 'totalPaid', width: 15 },
-        { header: 'Custos', key: 'totalCosts', width: 15 },
-        { header: 'Resultado', key: 'netResult', width: 15 }
-      );
-    }
-
-    // Criar uma planilha diretamente dos dados JSON
-    const worksheet = XLSX.utils.json_to_sheet(exportData.map(row => {
-      const result: any = {};
-      columns.forEach(col => {
-        if (row[col.key as keyof ExportData] !== undefined) {
-          result[col.header] = row[col.key as keyof ExportData];
-        } else {
-          result[col.header] = '';
-        }
-      });
-      return result;
+    
+    // Formatar dados
+    const dadosFormatados = formatarDados(dados);
+    
+    // Preparar dados para o formato que a biblioteca xlsx espera
+    const dadosParaWorksheet = dadosFormatados.map(item => ({
+      'Nº OS': item.orderNumber,
+      'Vendedor': item.vendedor,
+      'Cliente': item.cliente, 
+      'Data': item.data,
+      'Valor': item.valor,
+      'Status': item.status
     }));
-
-    // Definir larguras das colunas
-    const colWidths = columns.map(col => ({ wch: col.width }));
-    worksheet['!cols'] = colWidths;
-
-    // Criar workbook e adicionar a planilha
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório Financeiro');
-
-    // Gerar nome de arquivo único
-    const fileName = `relatorio_financeiro_${format(new Date(), 'dd-MM-yyyy_HH-mm')}.xlsx`;
-
-    // Salvar arquivo
-    XLSX.writeFile(workbook, fileName);
-
-    return fileName;
+    
+    // Criar workbook e worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(dadosParaWorksheet);
+    
+    // Adicionar formatação (largura das colunas)
+    const wscols = [
+      { wch: 10 }, // Nº OS
+      { wch: 20 }, // Vendedor
+      { wch: 25 }, // Cliente
+      { wch: 12 }, // Data 
+      { wch: 15 }, // Valor
+      { wch: 20 }  // Status
+    ];
+    ws['!cols'] = wscols;
+    
+    // Adicionar worksheet ao workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+    
+    // Gerar arquivo e baixar
+    XLSX.writeFile(wb, 'relatorio_financeiro.xlsx');
+    
+    console.log('Exportação para Excel concluída com sucesso!');
   } catch (error) {
-    console.error('Erro ao exportar para Excel:', error);
-    throw error;
+    console.error('Erro na exportação para Excel:', error);
+    alert(`Erro ao exportar para Excel: ${error}`);
   }
 }
 
-// Função para exportar para PDF
-export async function finalExportToPDF(data: any[], includeFinancialData: boolean = false): Promise<string> {
+/**
+ * Exporta os dados para PDF usando jsPDF
+ */
+export function exportToPDF(dados: any[]): void {
   try {
-    // Importar jsPDF dinamicamente
-    const jsPDFModule = await import('jspdf');
-    const jsPDF = jsPDFModule.default;
-    const autoTable = (await import('jspdf-autotable')).default;
-
-    // Preparar os dados
-    const exportData = prepareDataForExport(data);
-
-    // Definir as colunas conforme os dados disponíveis
-    const columns = [
-      { header: 'Nº OS', key: 'orderNumber' },
-      { header: 'Vendedor', key: 'sellerName' },
-      { header: 'Cliente', key: 'customerName' },
-      { header: 'Data', key: 'date' },
-      { header: 'Valor Total', key: 'totalAmount' },
-      { header: 'Status', key: 'status' },
-    ];
-
-    // Adicionar colunas financeiras se necessário
-    if (includeFinancialData) {
-      columns.push(
-        { header: 'Valor Pago', key: 'totalPaid' },
-        { header: 'Custos', key: 'totalCosts' },
-        { header: 'Resultado', key: 'netResult' }
-      );
+    console.log('Iniciando exportação para PDF...');
+    
+    // Verificar dados
+    if (!dados || dados.length === 0) {
+      alert('Não há dados para exportar');
+      return;
     }
-
-    // Extrair cabeçalhos e dados para o formato que o autoTable espera
-    const headers = columns.map(col => col.header);
-    const rows = exportData.map(row => 
-      columns.map(col => {
-        const key = col.key as keyof ExportData;
-        return row[key] !== undefined ? row[key] : '';
-      })
-    );
-
-    // Criar documento PDF em modo paisagem
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-
+    
+    // Formatar dados
+    const dadosFormatados = formatarDados(dados);
+    
+    // Criar documento PDF (orientação paisagem para caber mais colunas)
+    const doc = new jsPDF('landscape');
+    
     // Adicionar título
-    doc.setFontSize(16);
-    doc.text('Relatório Financeiro', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Data de Geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 22);
-
-    // Criar tabela no PDF
+    doc.setFontSize(18);
+    doc.text('Relatório Financeiro', 14, 22);
+    
+    // Adicionar data de geração
+    doc.setFontSize(11);
+    doc.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+    
+    // Preparar dados para a tabela
+    const dadosTabela = dadosFormatados.map(item => [
+      item.orderNumber,
+      item.vendedor,
+      item.cliente,
+      item.data,
+      item.valor,
+      item.status
+    ]);
+    
+    // Criar tabela com autotable
     autoTable(doc, {
-      head: [headers],
-      body: rows,
-      startY: 25,
+      head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor', 'Status']],
+      body: dadosTabela,
+      startY: 35,
       theme: 'grid',
       styles: {
-        fontSize: 8,
+        fontSize: 10,
         cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1
       },
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: 255,
-        fontSize: 9,
-        halign: 'left'
+        fontStyle: 'bold'
       },
       alternateRowStyles: {
         fillColor: [240, 240, 240]
       },
       columnStyles: {
-        0: { halign: 'center' }, // Nº OS centralizado
-        3: { halign: 'center' }, // Data centralizada
-        4: { halign: 'right' },  // Valor Total à direita
-        6: { halign: 'right' },  // Valor Pago à direita
-        7: { halign: 'right' },  // Custos à direita
-        8: { halign: 'right' }   // Resultado à direita
+        0: { cellWidth: 30 },    // Nº OS
+        1: { cellWidth: 50 },    // Vendedor
+        2: { cellWidth: 50 },    // Cliente
+        3: { cellWidth: 30 },    // Data
+        4: { cellWidth: 40 },    // Valor
+        5: { cellWidth: 40 }     // Status
       }
     });
-
-    // Gerar nome de arquivo único
-    const fileName = `relatorio_financeiro_${format(new Date(), 'dd-MM-yyyy_HH-mm')}.pdf`;
-
-    // Salvar arquivo
-    doc.save(fileName);
-
-    return fileName;
+    
+    // Adicionar rodapé
+    const totalPaginas = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPaginas; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.text(
+        `Página ${i} de ${totalPaginas}`, 
+        doc.internal.pageSize.getWidth() / 2, 
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+    
+    // Salvar o PDF
+    doc.save('relatorio_financeiro.pdf');
+    
+    console.log('Exportação para PDF concluída com sucesso!');
   } catch (error) {
-    console.error('Erro ao exportar para PDF:', error);
-    throw error;
+    console.error('Erro na exportação para PDF:', error);
+    alert(`Erro ao exportar para PDF: ${error}`);
   }
 }
