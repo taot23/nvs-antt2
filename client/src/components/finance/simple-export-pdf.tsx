@@ -13,9 +13,14 @@ interface ExportPDFData {
 }
 
 export function exportFinanceToPDF(title: string, status: string, data: ExportPDFData[]) {
-  const doc = new jsPDF();
+  // Criar documento PDF diretamente com a configuração correta
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
   
-  // Configurações iniciais
+  // Configurações de texto
   doc.setFont("helvetica");
   doc.setFontSize(16);
   doc.text(title, 14, 20);
@@ -24,33 +29,31 @@ export function exportFinanceToPDF(title: string, status: string, data: ExportPD
   doc.text(`Status: ${status}`, 14, 30);
   doc.text(`Data de geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 38);
   
-  // Definindo colunas e dados para a tabela
-  const tableColumns = [
-    'Nº OS', 
-    'Vendedor', 
-    'Cliente', 
-    'Data', 
-    'Valor Total',
-    'Status'
-  ];
+  // Mapear vendas para formato exato da tabela
+  const tableHeaders = ["Número", "Vendedor", "Cliente", "Data", "Valor Total", "Status"];
   
-  // Preparando linhas da tabela
-  const tableRows = data.map(item => [
-    item.orderNumber,
-    item.sellerName,
-    item.customerName,
-    item.date,
-    item.totalAmount,
-    item.status
-  ]);
+  // Mapear dados para o formato correto
+  const tableRows = data.map(item => {
+    // Forçar uso dos dados disponíveis
+    console.log("Item para exportação PDF:", item);
+    
+    return [
+      item.orderNumber || '',
+      item.sellerName || '',
+      item.customerName || '',
+      item.date || '',
+      item.totalAmount || '',
+      item.status || ''
+    ];
+  });
   
   // Adicionar tabela ao PDF
   autoTable(doc, {
-    head: [tableColumns],
+    head: [tableHeaders],
     body: tableRows,
     startY: 45,
     styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [60, 60, 60] },
+    headStyles: { fillColor: [51, 51, 51] }
   });
   
   // Salvar o PDF

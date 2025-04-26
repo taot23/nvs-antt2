@@ -94,7 +94,7 @@ export default function FinancePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
-  // Exportar para Excel - Implementação minimalista usando um componente separado
+  // Exportar para Excel - Implementação usando uma abordagem direta
   const exportToExcel = async () => {
     try {
       // Verificar se há dados disponíveis
@@ -110,7 +110,7 @@ export default function FinancePage() {
       // Importar a função de exportação 
       const { exportFinanceToExcel } = await import('@/components/finance/simple-export-excel');
       
-      // Preparar dados simplificados para exportação
+      // Preparar dados simplificados do que já temos na tabela
       const exportData = salesData.data.map((sale: any) => ({
         orderNumber: sale.orderNumber || '',
         sellerName: sale.sellerName || `Vendedor #${sale.sellerId}`,
@@ -140,7 +140,7 @@ export default function FinancePage() {
     }
   };
 
-  // Exportar para PDF - Implementação minimalista usando um componente separado
+  // Exportar para PDF - Implementação usando abordagem direta como no Excel
   const exportToPDF = async () => {
     try {
       // Verificar se há dados disponíveis
@@ -156,15 +156,24 @@ export default function FinancePage() {
       // Importar a função de exportação
       const { exportFinanceToPDF } = await import('@/components/finance/simple-export-pdf');
       
-      // Preparar dados simplificados para exportação
-      const exportData = salesData.data.map((sale: any) => ({
-        orderNumber: sale.orderNumber || '',
-        sellerName: sale.sellerName || `Vendedor #${sale.sellerId}`,
-        customerName: sale.customerName || `Cliente #${sale.customerId}`,
-        date: sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-        totalAmount: parseFloat(sale.totalAmount || "0").toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}),
-        status: getFinancialStatusLabel(sale.financialStatus)
-      }));
+      // Fazendo um fetch separado para garantir que temos os dados completos
+      try {
+        const response = await fetch(`/api/sales?limit=1000&financialStatus=${getFinancialStatusForActiveTab()}`);
+        if (!response.ok) {
+          throw new Error('Falha ao buscar dados para exportação');
+        }
+        const fullData = await response.json();
+        console.log("Dados completos obtidos para PDF:", fullData);
+        
+        // Preparar dados para exportação a partir dos dados completos
+        const exportData = fullData.data.map((sale: any) => ({
+          orderNumber: sale.orderNumber || '',
+          sellerName: sale.sellerName || `Vendedor #${sale.sellerId}`,
+          customerName: sale.customerName || `Cliente #${sale.customerId}`,
+          date: sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+          totalAmount: parseFloat(sale.totalAmount || "0").toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}),
+          status: getFinancialStatusLabel(sale.financialStatus)
+        }));
       
       // Chamar a função de exportação
       const fileName = exportFinanceToPDF(
