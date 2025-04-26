@@ -663,27 +663,16 @@ export class DatabaseStorage implements IStorage {
         
         console.log(`🔄 SUPER CORREÇÃO V3: Total ${totalAmount} dividido em ${requestedInstallments} parcelas de ${installmentAmount}`);
         
-        // Garantir que temos o número correto de datas
+        // Usar EXATAMENTE as datas fornecidas pelo usuário
         let datesToUse = [...installmentDates];
         
-        // Se temos mais datas que parcelas, cortamos o excesso
-        if (datesToUse.length > requestedInstallments) {
-          console.log(`✂️ Recortando excesso de datas: ${datesToUse.length} para ${requestedInstallments}`);
-          datesToUse = datesToUse.slice(0, requestedInstallments);
-        }
+        // Importante: não modificamos as datas escolhidas pelo usuário
+        console.log(`🔒 Usando ${datesToUse.length} datas EXATAMENTE como definido pelo usuário`);
         
-        // Se temos menos datas que parcelas, geramos as faltantes
-        if (datesToUse.length < requestedInstallments) {
-          console.log(`➕ Gerando datas adicionais: ${datesToUse.length} para ${requestedInstallments}`);
-          while (datesToUse.length < requestedInstallments) {
-            // Calcular a próxima data (30 dias após a última)
-            const lastDate = datesToUse.length > 0 
-              ? new Date(datesToUse[datesToUse.length - 1])
-              : new Date();
-            
-            lastDate.setMonth(lastDate.getMonth() + 1);
-            datesToUse.push(lastDate.toISOString());
-          }
+        // Se por alguma razão temos número diferente de datas e parcelas, loga mas mantém as datas informadas
+        if (datesToUse.length !== requestedInstallments) {
+          console.log(`⚠️ ALERTA: Número de datas (${datesToUse.length}) é diferente do número de parcelas (${requestedInstallments})`);
+          console.log(`⚠️ Mantendo as datas informadas pelo usuário sem modificação`);
         }
         
         // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
@@ -816,7 +805,10 @@ export class DatabaseStorage implements IStorage {
           const installments = updatedSale.installments;
           const installmentValue = updatedSale.installmentValue || '0'; // Garantir valor não nulo
           
+          // Importante: Usamos EXATAMENTE as datas fornecidas pelo usuário sem alterações
           if (installments > 1) {
+            console.log(`🔒 Usando ${installmentDates.length} datas EXATAMENTE como definido pelo usuário (atualização)`);
+            
             // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
             const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => {
               // Converter a string ISO para objeto Date e extrair apenas a parte da data (sem o tempo)
