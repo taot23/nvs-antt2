@@ -25,7 +25,6 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DateRange } from "react-day-picker";
 import SaleDialog from "@/components/sales/sale-dialog";
-import SimpleSaleDialog from "@/components/sales/simple-sale-dialog";
 import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
@@ -1832,14 +1831,15 @@ export default function SalesPage() {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Novo diálogo dedicado para criação de vendas - usando SimpleSaleDialog */}
+      {/* Novo diálogo dedicado para criação de vendas */}
       {showCreateVendaDialog && (
-        <SimpleSaleDialog 
+        <SaleDialog 
           open={showCreateVendaDialog} 
           onClose={() => {
             console.log("Fechando diálogo de criação de venda");
             setShowCreateVendaDialog(false);
           }}
+          sale={null}
           onSaveSuccess={() => {
             setShowCreateVendaDialog(false);
             toast({

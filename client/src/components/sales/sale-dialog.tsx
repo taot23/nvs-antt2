@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,30 +42,6 @@ type Sale = {
   createdAt: string;
   updatedAt: string;
 };
-
-// Interface para dados formatados da venda, incluindo installmentDates
-interface FormattedSaleData {
-  orderNumber: string;
-  date: string;
-  customerId: number;
-  paymentMethodId: number;
-  serviceTypeId: number;
-  sellerId: number;
-  totalAmount: string;
-  installments: number;
-  installmentValue?: string | null;
-  notes: string;
-  installmentDates: string[];
-  items: {
-    serviceId: number;
-    serviceTypeId: number;
-    quantity: number;
-    price?: string;
-    totalPrice?: string;
-    status?: string;
-    notes?: string | null;
-  }[];
-}
 
 // Esquema de validação para itens da venda
 const saleItemSchema = z.object({
@@ -525,25 +500,7 @@ export default function SaleDialog({
       // Garantia absoluta de que é um número válido
       const installmentsToSend = isNaN(finalInstallmentsNumber) ? 1 : finalInstallmentsNumber;
       
-      // Definindo o objeto formatado com campos extras em TypeScript
-      interface FormattedSaleData {
-        // Campos padrão que já existem no objeto data
-        date: string;
-        totalAmount: string;
-        installments: number;
-        orderNumber: string;
-        customerId: number;
-        paymentMethodId: number;
-        serviceTypeId: number;
-        sellerId: number;
-        items: any[];
-        notes?: string;
-        // Campos adicionais
-        installmentValue: string | null;
-        installmentDates?: string[]; // Adicionado para as datas em formato de string
-      }
-      
-      const formattedData: FormattedSaleData = {
+      const formattedData = {
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
@@ -551,8 +508,6 @@ export default function SaleDialog({
         installments: installmentsToSend,
         // Calculamos o valor da parcela com base no valor total e número de parcelas
         installmentValue: installmentValueCalculated,
-        // Inicializamos com um array vazio que será preenchido mais tarde
-        installmentDates: [],
       };
       
       // Log especial para verificação final antes do envio
@@ -652,35 +607,87 @@ export default function SaleDialog({
           }
           
           console.log(`✓ Usando ${datesToUse.length} datas após ajustes`);
-          // CORREÇÃO: As datas já estão no formato string correto, enviar diretamente
-          formattedData.installmentDates = datesToUse;
+          formattedData.installmentDates = datesToUse.map(date => {
+            let isoDate;
+            
+            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
+            if (date instanceof Date) {
+              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
+              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
+            } else if (typeof date === 'string') {
+              // Se já é uma string no formato de data, usar diretamente
+              isoDate = date.includes('T') ? date.split('T')[0] : date;
+              console.log(`🛠️ Data preservada (string): ${isoDate}`);
+            } else {
+              // Fallback seguro
+              const tempDate = new Date(date);
+              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
+            }
+            
+            return isoDate;
+          });
         } else {
           console.log(`✓ Usando ${installmentDates.length} datas editadas pelo usuário`);
-          // CORREÇÃO: As datas já estão no formato string correto, enviar diretamente
-          formattedData.installmentDates = installmentDates;
+          formattedData.installmentDates = installmentDates.map(date => {
+            let isoDate;
+            
+            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
+            if (date instanceof Date) {
+              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
+              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
+            } else if (typeof date === 'string') {
+              // Se já é uma string no formato de data, usar diretamente
+              isoDate = date.includes('T') ? date.split('T')[0] : date;
+              console.log(`🛠️ Data preservada (string): ${isoDate}`);
+            } else {
+              // Fallback seguro
+              const tempDate = new Date(date);
+              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
+            }
+            
+            return isoDate;
+          });
         }
       } 
       // Se não temos datas editadas, gerar automaticamente
       else {
         console.log("⚠️ Nenhuma data editada pelo usuário encontrada, gerando automaticamente");
         
-        // CORREÇÃO: Gerando datas como strings YYYY-MM-DD
-        const generatedDates: string[] = [];
+        const generatedDates = [];
         const baseDate = new Date();
         
         for (let i = 0; i < numInstalments; i++) {
           const dueDate = new Date(baseDate);
           dueDate.setMonth(baseDate.getMonth() + i);
-          
-          // Formato YYYY-MM-DD
-          const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-          generatedDates.push(isoDate);
+          generatedDates.push(dueDate);
         }
         
         console.log(`🔄 Geradas ${generatedDates.length} datas automáticas para ${numInstalments} parcelas`);
-        // CORREÇÃO: Como já estamos gerando strings no formato YYYY-MM-DD, 
-        // enviamos diretamente sem processamento adicional
-        formattedData.installmentDates = generatedDates;
+        formattedData.installmentDates = generatedDates.map(date => {
+          let isoDate;
+            
+          // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
+          if (date instanceof Date) {
+            // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
+            isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            console.log(`🛠️ Data gerada (objeto Date): ${isoDate}`);
+          } else if (typeof date === 'string') {
+            // Se já é uma string no formato de data, usar diretamente
+            isoDate = date.includes('T') ? date.split('T')[0] : date;
+            console.log(`🛠️ Data gerada (string): ${isoDate}`);
+          } else {
+            // Fallback seguro
+            const tempDate = new Date(date);
+            isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+            console.log(`🛠️ Data gerada (fallback): ${isoDate}`);
+          }
+          
+          return isoDate;
+        });
       }
       
       console.log("📆 Datas de parcelas finais:", formattedData.installmentDates);
@@ -691,8 +698,13 @@ export default function SaleDialog({
       // Log para debug do payload
       console.log("Payload completo da venda:", JSON.stringify(formattedData, null, 2));
       
-      // Usar apiRequest em vez de fetch para manter a autenticação
-      const response = await apiRequest(method, url, formattedData);
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formattedData),
+      });
       
       if (!response.ok) {
         const error = await response.json();
@@ -878,35 +890,24 @@ export default function SaleDialog({
       
       // CORREÇÃO CRÍTICA: Trata e valida todos os campos numéricos para garantir tipos corretos
       // Objeto para envio ao servidor com valores convertidos e validados
-      // Utilizamos a interface FormattedSaleData para tipar corretamente o objeto
-      const correctedValues: FormattedSaleData = {
+      const correctedValues = {
+        ...values,
         // Garante que o número da OS esteja definido
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
         // Garante que a data seja válida
-        date: values.date instanceof Date ? values.date.toISOString() : String(values.date || new Date().toISOString()),
-        // Garante que o cliente esteja definido
-        customerId: Number(values.customerId),
-        // Garante que a forma de pagamento esteja definida
-        paymentMethodId: Number(values.paymentMethodId),
-        // Garante que o tipo de serviço esteja definido
-        serviceTypeId: Number(values.serviceTypeId),
-        // Garante que o vendedor esteja definido - fallback para o ID do usuário atual
-        sellerId: Number(values.sellerId || user?.id || 1),
+        date: values.date || new Date(),
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
         // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
         // Observe que estamos usando validatedInstallments diretamente e não values.installments
         installments: Number(validatedInstallments),
-        // Notas (opcional)
-        notes: values.notes || "",
-        // CORREÇÃO: Incluir o campo de datas das parcelas, inicialmente vazio
-        installmentDates: installmentDates,
+        // Também garantimos que qualquer valor de parcela seja formato corretamente
+        installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
         // Corrige os itens
         items: values.items.map(item => ({
-          serviceId: Number(item.serviceId),
-          serviceTypeId: Number(values.serviceTypeId), // Usa o serviceTypeId da venda para todos os itens
-          quantity: Number(item.quantity) || 1, // Garante que quantidade seja número
-          notes: item.notes || null
+          ...item,
+          serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
+          quantity: Number(item.quantity) || 1 // Garante que quantidade seja número
         }))
       };
       
@@ -964,71 +965,7 @@ export default function SaleDialog({
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={(e) => {
-              e.preventDefault();
-              if (!isSubmitting) {
-                setIsSubmitting(true);
-                
-                // Obter os valores do formulário
-                const values = form.getValues();
-                
-                // Preparar o payload para a API
-                const payload = {
-                  orderNumber: values.orderNumber || `OS-${Date.now()}`,
-                  date: values.date.toISOString(),
-                  customerId: Number(values.customerId),
-                  paymentMethodId: Number(values.paymentMethodId),
-                  serviceTypeId: Number(values.serviceTypeId),
-                  sellerId: Number(values.sellerId || user?.id || 1),
-                  totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
-                  installments: Number(values.installments || 1),
-                  notes: values.notes || "",
-                  installmentDates,
-                  items: values.items.map(item => ({
-                    serviceId: Number(item.serviceId),
-                    serviceTypeId: Number(values.serviceTypeId),
-                    quantity: Number(item.quantity || 1),
-                    notes: item.notes || null
-                  }))
-                };
-                
-                console.log("Enviando dados:", payload);
-                
-                // Enviar os dados para a API diretamente com apiRequest
-                apiRequest("POST", "/api/sales", payload)
-                  .then(response => {
-                    if (!response.ok) {
-                      throw new Error("Erro ao salvar venda");
-                    }
-                    return response.json();
-                  })
-                  .then(data => {
-                    console.log("Venda salva com sucesso:", data);
-                    toast({
-                      title: "Venda criada",
-                      description: "Venda criada com sucesso",
-                    });
-                    
-                    // Atualizar o cache
-                    queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-                    
-                    // Fechar o diálogo
-                    if (onSaveSuccess) onSaveSuccess();
-                    onClose();
-                  })
-                  .catch(error => {
-                    console.error("Erro ao salvar venda:", error);
-                    toast({
-                      title: "Erro ao salvar venda",
-                      description: error.message,
-                      variant: "destructive",
-                    });
-                  })
-                  .finally(() => {
-                    setIsSubmitting(false);
-                  });
-              }
-            }} className="space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Número de OS */}
               <FormField
@@ -2049,12 +1986,22 @@ export default function SaleDialog({
                   
                   console.log("Dados de venda preparados:", saleData);
                   
-                  // Usa a mutation para salvar a venda (isso garante que a autenticação seja mantida)
-                  // IMPORTANTE: Indica que a submissão está em andamento
+                  // Chama diretamente a API para salvar a venda
                   setIsSubmitting(true);
-                  
-                  saveMutation.mutate(saleData, {
-                    onSuccess: (data) => {
+                  fetch("/api/sales", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(saleData),
+                  })
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error("Erro ao salvar venda");
+                      }
+                      return response.json();
+                    })
+                    .then(data => {
                       console.log("Venda salva com sucesso:", data);
                       
                       // SOLUÇÃO ESPECIAL: Verificar se o valor total foi salvo corretamente
@@ -2066,9 +2013,21 @@ export default function SaleDialog({
                         console.log(`Valor total da venda não foi salvo corretamente. Atualizando usando rota especial...`);
                         console.log(`Valor atual: ${data.totalAmount}, Valor esperado: ${saleData.totalAmount}`);
                         
-                        // Usar apiRequest em vez de fetch direto para manter autenticação
-                        apiRequest("POST", `/api/sales/${data.id}/update-total`, { totalAmount: saleData.totalAmount })
-                          .then(response => response.json())
+                        // Chamar API especial para atualizar o valor total
+                        fetch(`/api/sales/${data.id}/update-total`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({ totalAmount: saleData.totalAmount }),
+                        })
+                          .then(response => {
+                            if (!response.ok) {
+                              console.error("Erro ao atualizar valor total:", response.statusText);
+                              return;
+                            }
+                            return response.json();
+                          })
                           .then(updatedSale => {
                             console.log("Valor total atualizado com sucesso:", updatedSale);
                             // Atualizar o cache para refletir o novo valor
@@ -2079,25 +2038,25 @@ export default function SaleDialog({
                           });
                       }
                       
-                      // Aciona as callbacks de sucesso
-                      if (onSaveSuccess) onSaveSuccess();
+                      toast({
+                        title: "Venda criada",
+                        description: "Venda criada com sucesso",
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+                      onSaveSuccess();
                       onClose();
-                      
-                      // Finaliza o estado de submissão
-                      setIsSubmitting(false);
-                    },
-                    onError: (error) => {
+                    })
+                    .catch(error => {
                       console.error("Erro ao salvar venda:", error);
                       toast({
                         title: "Erro ao salvar venda",
                         description: error.message,
                         variant: "destructive",
                       });
-                      
-                      // Finaliza o estado de submissão mesmo com erro
+                    })
+                    .finally(() => {
                       setIsSubmitting(false);
-                    }
-                  });
+                    });
                 }}
               >
                 <Save className="mr-2 h-4 w-4" />
