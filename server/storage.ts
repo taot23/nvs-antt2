@@ -15,7 +15,7 @@ import {
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db, pool } from "./db";
 
 const PostgresSessionStore = connectPg(session);
@@ -511,8 +511,59 @@ export class DatabaseStorage implements IStorage {
     return allSales.find(sale => sale.orderNumber === orderNumber);
   }
 
+  async getLatestSales(limit: number): Promise<Sale[]> {
+    try {
+      // Busca as vendas mais recentes com base na data de criação
+      const result = await db
+        .select()
+        .from(sales)
+        .orderBy(desc(sales.createdAt))
+        .limit(limit);
+      
+      return result;
+    } catch (error) {
+      console.error("Erro ao buscar vendas mais recentes:", error);
+      return []; // Retorna array vazio em caso de erro
+    }
+  }
+
   async createSale(saleData: InsertSale): Promise<Sale> {
     console.log("Criando venda com dados:", JSON.stringify(saleData, null, 2));
+
+    // Verificar se o número da ordem de serviço já existe
+    const orderNumberExists = await this.getSaleByOrderNumber(saleData.orderNumber);
+    
+    if (orderNumberExists) {
+      console.log(`🔄 ATENÇÃO: Número de ordem de serviço '${saleData.orderNumber}' já existe. Gerando novo número...`);
+      
+      try {
+        // Buscar as últimas vendas para encontrar o maior número
+        const latestSales = await this.getLatestSales(10);
+        
+        // Tentar encontrar o maior número numérico
+        let highestNumber = 0;
+        
+        for (const sale of latestSales) {
+          // Verificar se o número da ordem é numérico
+          const numericValue = parseInt(sale.orderNumber);
+          if (!isNaN(numericValue) && numericValue > highestNumber) {
+            highestNumber = numericValue;
+          }
+        }
+        
+        // Gerar novo número incrementando o maior encontrado
+        const newOrderNumber = (highestNumber + 1).toString();
+        console.log(`🔄 Gerado novo número sequencial: ${newOrderNumber}`);
+        
+        // Atualizar o número da ordem na venda
+        saleData.orderNumber = newOrderNumber;
+      } catch (error) {
+        console.error("🔄 Erro ao gerar novo número de ordem:", error);
+        // Gerar um número baseado em timestamp como fallback
+        saleData.orderNumber = `${Date.now()}`;
+        console.log(`🔄 Gerado número de emergência baseado em timestamp: ${saleData.orderNumber}`);
+      }
+    }
 
     // Precisamos garantir que o totalAmount seja preservado
     // Vamos extrair ele antes da inserção
