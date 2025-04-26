@@ -238,28 +238,29 @@ export default function FinanceSalesTable({
 
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-4 overflow-auto">
-        <div className="rounded-md border overflow-x-auto max-w-full">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead 
-                  className="w-[80px] cursor-pointer whitespace-nowrap" 
-                  onClick={() => toggleSort('orderNumber')}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Ordem de Serviço</span>
-                    {sortField === 'orderNumber' ? (
-                      sortDirection === 'asc' ? (
-                        <ArrowUpAZ className="h-4 w-4" />
+      <CardContent className="p-4">
+        <div className="rounded-md border overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead 
+                    className="w-[80px] cursor-pointer whitespace-nowrap" 
+                    onClick={() => toggleSort('orderNumber')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Nº OS</span>
+                      {sortField === 'orderNumber' ? (
+                        sortDirection === 'asc' ? (
+                          <ArrowUpAZ className="h-4 w-4" />
+                        ) : (
+                          <ArrowDownAZ className="h-4 w-4" />
+                        )
                       ) : (
-                        <ArrowDownAZ className="h-4 w-4" />
-                      )
-                    ) : (
-                      <div className="w-4" />
-                    )}
-                  </div>
-                </TableHead>
+                        <div className="w-4" />
+                      )}
+                    </div>
+                  </TableHead>
                 <TableHead 
                   className="cursor-pointer whitespace-nowrap"
                   onClick={() => toggleSort('customerName')}
@@ -465,6 +466,7 @@ export default function FinanceSalesTable({
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
         
         {/* Paginação */}
