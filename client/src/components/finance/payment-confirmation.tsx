@@ -152,15 +152,9 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const openConfirmDialog = (installment: any) => {
     setSelectedInstallment(installment);
     
-    // Atualizar a data atual
-    const today = new Date();
-    // Formato ISO (YYYY-MM-DD)
-    const isoDate = today.toISOString().split('T')[0];
-    // Formatar a data no padrão brasileiro dd/mm/aaaa
-    const brDate = formatDateToBR(today);
-    
-    setPaymentDate(isoDate);
-    setPaymentDateStr(brDate);
+    // Inicializar com string vazia para forçar a digitação manual
+    setPaymentDate("");
+    setPaymentDateStr("");
     setPaymentNotes("");
     
     // Definir primeiro método de pagamento como padrão, se disponível
@@ -181,20 +175,12 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const handleConfirmPayment = () => {
     if (!selectedInstallment || !paymentDateStr || !paymentMethodId) return;
     
-    // Converter data do formato BR (DD/MM/YYYY) para o formato ISO (YYYY-MM-DD)
-    let formattedDate = paymentDateStr;
-    
-    // Se o formato for dd/mm/aaaa, convertemos para YYYY-MM-DD
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(paymentDateStr)) {
-      const [day, month, year] = paymentDateStr.split('/');
-      formattedDate = `${year}-${month}-${day}`;
-    }
-    
-    console.log(`📅 Data para enviar: ${formattedDate} (original: ${paymentDateStr})`);
+    // Usar exatamente o que o usuário digitou sem conversões automáticas
+    console.log(`📅 Enviando data exatamente como digitada: "${paymentDateStr}"`);
     
     confirmPaymentMutation.mutate({
       installmentId: selectedInstallment.id,
-      paymentDate: formattedDate, // Enviar a data formatada
+      paymentDate: paymentDateStr, // Enviar exatamente o que o usuário digitou
       notes: paymentNotes,
       paymentMethodId
     });
