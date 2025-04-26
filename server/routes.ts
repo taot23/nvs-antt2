@@ -2298,18 +2298,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Buscando parcelas para venda #${id}, número de parcelas na venda: ${sale.installments}`);
       
-      // SOLUÇÃO DEFINITIVA: Buscar parcelas diretamente do banco via SQL nativo para evitar conversões
+      // SOLUÇÃO DEFINITIVA SIMPLIFICADA: Buscar direto do banco com SQL puro
       try {
-        // Buscar do banco via SQL nativo para manter o formato exato das datas
         const { pool } = await import('./db');
+        
+        // Query SQL simples que recupera todas as parcelas para a venda
         const sql = `
           SELECT 
             id, 
             sale_id AS "saleId", 
             installment_number AS "installmentNumber", 
             amount, 
-            due_date, -- Manter o formato exato do banco
-            payment_date, 
+            to_char(due_date, 'YYYY-MM-DD') AS "dueDate", 
+            to_char(payment_date, 'YYYY-MM-DD') AS "paymentDate", 
             status, 
             notes, 
             created_at AS "createdAt", 
@@ -2322,117 +2323,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
             installment_number
         `;
         
-        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Buscando parcelas via SQL nativo para venda #${id}`);
+        console.log(`🔵 Buscando parcelas via SQL direto para venda #${id}`);
         const result = await pool.query(sql, [id]);
+        const installments = result.rows;
         
-        // Transformar para manter o formato correto das datas
-        let installments = result.rows.map(row => {
-          // Converter a data para o formato exato YYYY-MM-DD (sem timezone)
-          const dueDate = row.due_date;
+        console.log(`🔵 Encontradas ${installments.length} parcelas para a venda #${id}`);
+        
+        // Se encontrou parcelas, retorna elas
+        if (installments.length > 0) {
+          console.log("🔵 Retornando parcelas encontradas no banco");
+          return res.json(installments);
+        }
+        
+        // Se não encontrou parcelas, criar conforme necessário
+        if (sale.installments > 1) {
+          console.log(`🔵 Venda #${id} deveria ter ${sale.installments} parcelas, mas não tem parcelas no banco. Criando parcelas.`);
           
-          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Parcela ${row.installmentNumber}, data original: ${dueDate}, tipo: ${typeof dueDate}`);
+          // Calcular o valor de cada parcela
+          const totalAmount = parseFloat(sale.totalAmount);
+          const numInstallments = sale.installments;
+          const installmentValue = (totalAmount / numInstallments).toFixed(2);
           
-          // Se for um objeto Date, converter para string no formato YYYY-MM-DD
-          let formattedDueDate;
-          if (dueDate instanceof Date) {
-            formattedDueDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Convertendo data para formato YYYY-MM-DD: ${formattedDueDate}`);
-          } 
-          // Se já for string, usar diretamente
-          else if (typeof dueDate === 'string') {
-            formattedDueDate = dueDate;
-            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Usando data já formatada como string: ${formattedDueDate}`);
-          } 
-          // Caso seja outro formato (improvável), usar a data como está
-          else {
-            formattedDueDate = dueDate;
-            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Usando data em formato desconhecido: ${formattedDueDate}`);
+          // Criar parcelas para essa venda
+          const today = new Date();
+          const installmentsToCreate = [];
+          
+          for (let i = 1; i <= numInstallments; i++) {
+            // Definir data de vencimento (30 dias após o mês anterior)
+            const dueDate = new Date(today);
+            dueDate.setMonth(today.getMonth() + (i - 1));
+            const formattedDueDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+            
+            installmentsToCreate.push({
+              saleId: id,
+              installmentNumber: i,
+              amount: installmentValue,
+              dueDate: formattedDueDate,
+              status: "pending",
+              paymentDate: null
+            });
           }
           
-          return {
-            ...row,
-            dueDate: formattedDueDate
-          };
-        });
+          console.log(`🔵 Criando ${installmentsToCreate.length} parcelas automaticamente`);
+          
+          // Inserir direto no banco via SQL
+          let insertQuery = 'INSERT INTO sale_installments (sale_id, installment_number, amount, due_date, status) VALUES ';
+          const queryParams = [];
+          let paramCount = 1;
+          
+          installmentsToCreate.forEach((installment, index) => {
+            if (index > 0) {
+              insertQuery += ", ";
+            }
+            
+            insertQuery += `($${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++})`;
+            
+            queryParams.push(
+              installment.saleId,
+              installment.installmentNumber,
+              installment.amount,
+              installment.dueDate,
+              installment.status
+            );
+          });
+          
+          insertQuery += ' RETURNING *';
+          
+          console.log(`🔵 Executando query SQL para criar parcelas`);
+          const createResult = await pool.query(insertQuery, queryParams);
+          const createdInstallments = createResult.rows;
+          
+          console.log(`🔵 ${createdInstallments.length} parcelas criadas com sucesso`);
+          
+          // Transformar os resultados para o formato esperado
+          const formattedInstallments = createdInstallments.map(row => ({
+            id: row.id,
+            saleId: row.sale_id,
+            installmentNumber: row.installment_number,
+            amount: row.amount,
+            dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
+            paymentDate: row.payment_date ? new Date(row.payment_date).toISOString().split('T')[0] : null,
+            status: row.status,
+            notes: row.notes,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+          }));
+          
+          return res.json(formattedInstallments);
+        } 
+        // Se a venda for à vista (1 parcela) e não tiver parcelas no banco, criar uma parcela
+        else if (sale.installments <= 1) {
+          console.log(`🔵 Venda #${id} é à vista e não tem parcelas no banco. Criando parcela única.`);
+          
+          // Inserir direto no banco via SQL
+          const today = new Date();
+          const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          
+          const insertQuery = `
+            INSERT INTO sale_installments (sale_id, installment_number, amount, due_date, status) 
+            VALUES ($1, $2, $3, $4, $5) 
+            RETURNING *
+          `;
+          
+          const result = await pool.query(insertQuery, [
+            id,
+            1,
+            sale.totalAmount || "0",
+            formattedDate,
+            "pending"
+          ]);
+          
+          if (result.rows.length > 0) {
+            console.log(`🔵 Parcela única criada com sucesso para a venda à vista #${id}`);
+            
+            // Transformar para o formato esperado
+            const installment = {
+              id: result.rows[0].id,
+              saleId: result.rows[0].sale_id,
+              installmentNumber: result.rows[0].installment_number,
+              amount: result.rows[0].amount,
+              dueDate: formattedDate,
+              paymentDate: null,
+              status: result.rows[0].status,
+              notes: result.rows[0].notes,
+              createdAt: result.rows[0].created_at,
+              updatedAt: result.rows[0].updated_at
+            };
+            
+            return res.json([installment]);
+          }
+        }
         
-        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Encontradas ${installments.length} parcelas via SQL nativo para a venda #${id}`);
-        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Primeira parcela:`, installments.length > 0 ? installments[0] : 'nenhuma parcela');
+        // Se chegou aqui é porque não conseguiu criar as parcelas
+        console.error(`🔵 Não foi possível criar parcelas para a venda #${id}`);
+        return res.json([]);
       } 
-      catch (sqlError) {
-        console.error(`⚠️⚠️⚠️ ERRO ao buscar parcelas via SQL nativo: ${sqlError}`);
-        console.log(`⚠️⚠️⚠️ FALLBACK: Buscando parcelas via Drizzle ORM`);
-        
-        // Fallback: Usar o método Drizzle normal
-        let installments = await storage.getSaleInstallments(id);
-        console.log(`Encontradas ${installments.length} parcelas no banco para a venda #${id} via Drizzle ORM`);
+      catch (error) {
+        console.error(`🔵 ERRO ao processar parcelas: ${error}`);
+        res.status(500).json({ error: "Erro ao processar parcelas da venda" });
       }
-      
-      // Se a venda tiver múltiplas parcelas mas não estiver no banco, vamos criar com base no total e número de parcelas
-      if (sale.installments > 1 && installments.length === 0) {
-        console.log(`CORREÇÃO: Venda #${id} deveria ter ${sale.installments} parcelas, mas não tem parcelas no banco. Criando parcelas.`);
-        
-        // Calcular o valor de cada parcela
-        const totalAmount = parseFloat(sale.totalAmount);
-        const numInstallments = sale.installments;
-        const installmentValue = (totalAmount / numInstallments).toFixed(2);
-        
-        // Criar parcelas para essa venda
-        const today = new Date();
-        const installmentsToCreate = [];
-        
-        for (let i = 1; i <= numInstallments; i++) {
-          // Definir data de vencimento (30 dias após o mês anterior)
-          const dueDate = new Date(today);
-          dueDate.setMonth(today.getMonth() + (i - 1));
-          
-          installmentsToCreate.push({
-            saleId: id,
-            installmentNumber: i,
-            amount: installmentValue,
-            dueDate: dueDate.toISOString().split('T')[0],
-            status: "pending",
-            paymentDate: null
-          });
-        }
-        
-        console.log(`Criando ${installmentsToCreate.length} parcelas automaticamente`);
-        
-        // Criar parcelas em massa
-        try {
-          await storage.deleteSaleInstallments(id); // Remover se houver alguma
-          const createdInstallments = await storage.createSaleInstallments(installmentsToCreate);
-          installments = createdInstallments; // Atualizar para retornar as parcelas criadas
-          console.log(`${createdInstallments.length} parcelas criadas com sucesso`);
-        } catch (error) {
-          console.error("Erro ao criar parcelas automaticamente:", error);
-        }
-      }
-      // Se a venda for à vista (1 parcela) e não tiver parcelas no banco, criar uma parcela virtual
-      else if (sale.installments <= 1 && installments.length === 0) {
-        console.log(`Venda #${id} é à vista e não tem parcelas no banco. Criando parcela virtual.`);
-        
-        // Tenta criar uma parcela real para essa venda à vista
-        try {
-          // Criar parcela única para venda à vista
-          const installment = await storage.createSaleInstallment({
-            saleId: id,
-            installmentNumber: 1,
-            amount: sale.totalAmount || "0",
-            dueDate: new Date().toISOString().split('T')[0], // Vencimento na data atual
-            status: "pending",
-            paymentDate: null
-          });
-          
-          console.log(`Parcela criada com sucesso para a venda à vista #${id}`);
-          res.json([installment]);
-          return;
-        } catch (err) {
-          console.error(`Erro ao criar parcela para venda à vista #${id}:`, err);
-          // Em caso de erro, segue com o código normal
-        }
-      }
-      
-      res.json(installments);
     } catch (error) {
       console.error("Erro ao buscar parcelas da venda:", error);
       res.status(500).json({ error: "Erro ao buscar parcelas da venda" });
