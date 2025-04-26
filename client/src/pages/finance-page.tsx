@@ -94,24 +94,62 @@ export default function FinancePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
-  // Exportar para Excel usando a abordagem direta - exporta a tabela exatamente como está
+  // Exportador de tabela para uso durante a exportação
+  const [exportData, setExportData] = useState<any[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Exportar para Excel usando a abordagem robusta - constrói uma tabela dedicada para exportação
   const exportToExcel = async () => {
     try {
-      const { exportTableToExcel } = await import('@/components/finance/direct-export');
+      setIsExporting(true);
       
-      // Verificar se a tabela existe 
-      const financeTable = document.getElementById('finance-table');
-      if (!financeTable) {
+      // Verificar se há dados disponíveis
+      if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
-          title: "Tabela não encontrada",
-          description: "Não foi possível localizar a tabela para exportação.",
+          title: "Nenhum dado para exportar",
+          description: "Não há dados disponíveis para exportação no momento.",
           variant: "destructive",
         });
+        setIsExporting(false);
         return;
       }
       
-      console.log("Exportando tabela diretamente para Excel...");
-      const fileName = await exportTableToExcel('finance-table', 'Relatório Financeiro');
+      console.log("Obtendo dados completos para exportação...");
+      let dataToExport;
+      
+      try {
+        // Fazer uma requisição completa para obter todos os dados
+        const params = new URLSearchParams();
+        params.append('limit', '1000');
+        params.append('financialStatus', getFinancialStatusForActiveTab());
+        params.append('includeSummary', 'true');
+        
+        const response = await fetch(`/api/sales?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Falha ao buscar dados completos');
+        }
+        
+        const completeData = await response.json();
+        dataToExport = completeData.data;
+        console.log(`Obtidos ${dataToExport.length} registros para exportação`);
+      } catch (error) {
+        console.error("Erro ao buscar dados completos:", error);
+        // Fallback: usar os dados já carregados na tabela atual
+        dataToExport = salesData.data;
+        console.log("Usando dados já carregados para exportação");
+      }
+      
+      // Atualizar estado para que o componente de exportação seja renderizado
+      setExportData(dataToExport);
+      
+      // Importar função de exportação
+      const { exportToExcel } = await import('@/components/finance/robust-export');
+      
+      // Aguardar para que o componente seja renderizado
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Executar exportação
+      const fileName = await exportToExcel(dataToExport, activeTab === 'all');
       
       toast({
         title: "Exportação concluída",
@@ -124,27 +162,63 @@ export default function FinancePage() {
         description: "Não foi possível exportar os dados para Excel: " + (error as Error).message,
         variant: "destructive",
       });
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  // Exportar para PDF usando a abordagem direta - exporta a tabela exatamente como está
+  // Exportar para PDF usando a abordagem robusta - constrói uma tabela dedicada para exportação
   const exportToPDF = async () => {
     try {
-      const { exportTableToPDF } = await import('@/components/finance/direct-export');
+      setIsExporting(true);
       
-      // Verificar se a tabela existe 
-      const financeTable = document.getElementById('finance-table');
-      if (!financeTable) {
+      // Verificar se há dados disponíveis
+      if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
-          title: "Tabela não encontrada",
-          description: "Não foi possível localizar a tabela para exportação.",
+          title: "Nenhum dado para exportar",
+          description: "Não há dados disponíveis para exportação no momento.",
           variant: "destructive",
         });
+        setIsExporting(false);
         return;
       }
       
-      console.log("Exportando tabela diretamente para PDF...");
-      const fileName = await exportTableToPDF('finance-table', 'Relatório Financeiro');
+      console.log("Obtendo dados completos para exportação...");
+      let dataToExport;
+      
+      try {
+        // Fazer uma requisição completa para obter todos os dados
+        const params = new URLSearchParams();
+        params.append('limit', '1000');
+        params.append('financialStatus', getFinancialStatusForActiveTab());
+        params.append('includeSummary', 'true');
+        
+        const response = await fetch(`/api/sales?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Falha ao buscar dados completos');
+        }
+        
+        const completeData = await response.json();
+        dataToExport = completeData.data;
+        console.log(`Obtidos ${dataToExport.length} registros para exportação`);
+      } catch (error) {
+        console.error("Erro ao buscar dados completos:", error);
+        // Fallback: usar os dados já carregados na tabela atual
+        dataToExport = salesData.data;
+        console.log("Usando dados já carregados para exportação");
+      }
+      
+      // Atualizar estado para que o componente de exportação seja renderizado
+      setExportData(dataToExport);
+      
+      // Importar função de exportação
+      const { exportToPDF } = await import('@/components/finance/robust-export');
+      
+      // Aguardar para que o componente seja renderizado
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Executar exportação
+      const fileName = await exportToPDF(dataToExport, activeTab === 'all');
       
       toast({
         title: "Exportação concluída",
@@ -157,6 +231,8 @@ export default function FinancePage() {
         description: "Não foi possível exportar os dados para PDF: " + (error as Error).message,
         variant: "destructive",
       });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -245,8 +321,21 @@ export default function FinancePage() {
     }
   };
 
+  // Importando o componente de exportação
+  const { ExportTableRenderer } = React.lazy(() => import('@/components/finance/robust-export'));
+
   return (
     <div className="container py-6 max-w-7xl">
+      {/* Componente invisível para exportação */}
+      {isExporting && exportData.length > 0 && (
+        <React.Suspense fallback={<div />}>
+          <ExportTableRenderer 
+            data={exportData}
+            includeFinancialColumns={activeTab === 'all'} 
+          />
+        </React.Suspense>
+      )}
+      
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div>
