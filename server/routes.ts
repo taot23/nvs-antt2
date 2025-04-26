@@ -1055,6 +1055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           s.*, 
           c.name as customer_name,
+          u.username as seller_name,
           (
             SELECT COALESCE(SUM(amount::numeric), 0)
             FROM sale_installments
@@ -1067,6 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ) as total_costs
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
+        LEFT JOIN users u ON s.seller_id = u.id
         WHERE 1=1
       `;
       
@@ -1144,6 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           orderNumber: row.order_number,
           customerId: row.customer_id,
           customerName: row.customer_name,
+          sellerName: row.seller_name,
           paymentMethodId: row.payment_method_id,
           sellerId: row.seller_id,
           serviceTypeId: row.service_type_id,

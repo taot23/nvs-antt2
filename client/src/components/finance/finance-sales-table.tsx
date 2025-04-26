@@ -263,6 +263,23 @@ export default function FinanceSalesTable({
                   </TableHead>
                 <TableHead 
                   className="cursor-pointer whitespace-nowrap"
+                  onClick={() => toggleSort('sellerId')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Vendedor</span>
+                    {sortField === 'sellerId' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUpAZ className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownAZ className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => toggleSort('customerName')}
                 >
                   <div className="flex items-center space-x-1">
@@ -364,6 +381,11 @@ export default function FinanceSalesTable({
               {sales.map((sale) => (
                 <TableRow key={sale.id} data-status={usesFinancialStatus ? sale.financialStatus : sale.status}>
                   <TableCell className="font-medium whitespace-nowrap">{sale.orderNumber}</TableCell>
+                  <TableCell className="max-w-[120px] truncate">
+                    <span title={sale.sellerName || `Vendedor #${sale.sellerId}`}>
+                      {sale.sellerName || `Vendedor #${sale.sellerId}`}
+                    </span>
+                  </TableCell>
                   <TableCell className="max-w-[150px] truncate">
                     <span title={sale.customerName || `Cliente #${sale.customerId}`}>
                       {sale.customerName || `Cliente #${sale.customerId}`}
