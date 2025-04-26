@@ -98,7 +98,10 @@ export default function FinancePage() {
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Exportação para Excel - solução final estável
+  // Import da exportação diretamente - evita problemas com import dinâmico
+  import { exportToExcel as exportExcel, exportToPDF as exportPdf } from '@/components/finance/minimal-export';
+  
+  // Exportação para Excel - solução ultra simplificada
   const exportToExcel = () => {
     try {
       // Verificar se há dados disponíveis
@@ -107,20 +110,15 @@ export default function FinancePage() {
         return;
       }
       
-      // Usar a exportação independente
-      import('@/components/finance/standalone-export').then(module => {
-        module.exportToExcel(salesData.data);
-      }).catch(error => {
-        console.error("Erro ao importar módulo de exportação:", error);
-        alert("Erro ao carregar recursos para exportação");
-      });
+      // Chamar função de exportação diretamente
+      exportExcel(salesData.data);
     } catch (error) {
       console.error("Erro na exportação:", error);
       alert("Erro na exportação: " + error);
     }
   };
 
-  // Exportação para PDF - solução final estável
+  // Exportação para PDF - solução ultra simplificada
   const exportToPDF = () => {
     try {
       // Verificar se há dados disponíveis
@@ -129,13 +127,8 @@ export default function FinancePage() {
         return;
       }
       
-      // Usar a exportação independente
-      import('@/components/finance/standalone-export').then(module => {
-        module.exportToPDF(salesData.data);
-      }).catch(error => {
-        console.error("Erro ao importar módulo de exportação:", error);
-        alert("Erro ao carregar recursos para exportação");
-      });
+      // Chamar função de exportação diretamente
+      exportPdf(salesData.data);
     } catch (error) {
       console.error("Erro na exportação:", error);
       alert("Erro na exportação: " + error);
