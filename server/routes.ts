@@ -1038,6 +1038,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate as string || undefined;
       const endDate = req.query.endDate as string || undefined;
       
+      // Log para depuração da exportação
+      console.log(`API /api/sales: incluir resumo financeiro = ${includeSummary}, financialStatus = ${financialStatus || 'não definido'}`);
+      console.log(`Parâmetros completos:`, {
+        page, limit, status, financialStatus,
+        includeSummary, searchTerm, sortField, sortDirection
+      });
+      
       // Verificar se existe um parâmetro sellerId na query
       let sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
       

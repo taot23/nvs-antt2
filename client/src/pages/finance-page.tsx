@@ -116,9 +116,42 @@ export default function FinancePage() {
       const result = await response.json();
       const sales = result.data || [];
       
-      // Log para depuração
+      // Log detalhado para depuração 
       console.log('Dados para exportação Excel:', sales.length, 'vendas com dados:', 
         sales[0] ? `Venda #${sales[0].id} tem financialSummary: ${!!sales[0].financialSummary}` : 'Sem vendas');
+        
+      // Verificar a estrutura detalhada da primeira venda para diagnóstico
+      if (sales[0]) {
+        console.log('Detalhes da primeira venda para diagnóstico:');
+        console.log({
+          id: sales[0].id,
+          financialSummary: sales[0].financialSummary,
+          totalAmount: sales[0].totalAmount,
+          sellerName: sales[0].sellerName,
+          customerName: sales[0].customerName
+        });
+        
+        // Para garantir que o objeto financialSummary será usado mesmo se estiver ausente, forçar a adição aqui
+        if (!sales[0].financialSummary) {
+          console.log('Adicionando financialSummary em tempo de exportação...');
+          sales[0].financialSummary = {
+            totalPaid: 0,
+            totalCosts: 0,
+            netResult: parseFloat(sales[0].totalAmount || "0")
+          };
+          
+          // Se o primeiro item precisou de correção, provavelmente todos precisam
+          sales.forEach(sale => {
+            if (!sale.financialSummary) {
+              sale.financialSummary = {
+                totalPaid: 0,
+                totalCosts: 0,
+                netResult: parseFloat(sale.totalAmount || "0")
+              };
+            }
+          });
+        }
+      }
 
       if (!sales || sales.length === 0) {
         toast({
@@ -191,6 +224,39 @@ export default function FinancePage() {
       // Log para depuração
       console.log('Dados para exportação PDF:', sales.length, 'vendas com dados:', 
         sales[0] ? `Venda #${sales[0].id} tem financialSummary: ${!!sales[0].financialSummary}` : 'Sem vendas');
+        
+      // Verificar a estrutura detalhada da primeira venda para diagnóstico
+      if (sales[0]) {
+        console.log('Detalhes da primeira venda para diagnóstico PDF:');
+        console.log({
+          id: sales[0].id,
+          financialSummary: sales[0].financialSummary,
+          totalAmount: sales[0].totalAmount,
+          sellerName: sales[0].sellerName,
+          customerName: sales[0].customerName
+        });
+        
+        // Para garantir que o objeto financialSummary será usado mesmo se estiver ausente, forçar a adição aqui
+        if (!sales[0].financialSummary) {
+          console.log('Adicionando financialSummary em tempo de exportação PDF...');
+          sales[0].financialSummary = {
+            totalPaid: 0,
+            totalCosts: 0,
+            netResult: parseFloat(sales[0].totalAmount || "0")
+          };
+          
+          // Se o primeiro item precisou de correção, provavelmente todos precisam
+          sales.forEach(sale => {
+            if (!sale.financialSummary) {
+              sale.financialSummary = {
+                totalPaid: 0,
+                totalCosts: 0,
+                netResult: parseFloat(sale.totalAmount || "0")
+              };
+            }
+          });
+        }
+      }
 
       if (!sales || sales.length === 0) {
         toast({
