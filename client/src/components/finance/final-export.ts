@@ -8,7 +8,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 
-// Tipo para representar os dados formatados
+// Tipo para representar os dados formatados completos
 interface FormattedData {
   id: number;
   orderNumber: string;
@@ -16,24 +16,70 @@ interface FormattedData {
   cliente: string;
   data: string;
   valor: string;
+  totalPago: string;
+  totalEmAberto: string;
+  custosOperacionais: string;
+  resultadoLiquido: string;
+  metodo: string;
+  tipoServico: string;
+  parcelas: number;
+  ultimoStatus: string;
+  statusFinanceiro: string;
   status: string;
+  observacoes: string;
 }
 
 /**
- * Formata os dados brutos para um formato adequado para exportação
+ * Formata os dados brutos para um formato mais completo adequado para exportação
  */
 function formatarDados(dadosBrutos: any[]): FormattedData[] {
-  return dadosBrutos.map(item => ({
-    id: item.id || 0,
-    orderNumber: item.orderNumber || '',
-    vendedor: item.sellerName || '',
-    cliente: item.customerName || '',
-    data: item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '',
-    valor: typeof item.totalAmount === 'number' 
-      ? item.totalAmount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
-      : item.totalAmount || '0',
-    status: item.financialStatus || item.status || ''
-  }));
+  return dadosBrutos.map(item => {
+    // Calcular informações financeiras 
+    const totalPago = item.installments ? 
+      item.installments
+        .filter((inst: any) => inst.status === 'paid')
+        .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || 0), 0) : 0;
+    
+    const totalEmAberto = item.installments ?
+      item.installments
+        .filter((inst: any) => inst.status !== 'paid')
+        .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || 0), 0) : 0;
+    
+    // Calcular custos operacionais
+    const custoTotal = item.operationalCosts ? 
+      item.operationalCosts.reduce((sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0) : 0;
+    
+    // Calcular resultado líquido
+    const totalVenda = parseFloat(item.totalAmount || 0);
+    const resultadoLiquido = totalVenda - custoTotal;
+    
+    // Formatação de valores monetários
+    const formatarMoeda = (valor: number) => {
+      return valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    };
+
+    return {
+      id: item.id || 0,
+      orderNumber: item.orderNumber || '',
+      vendedor: item.sellerName || '',
+      cliente: item.customerName || '',
+      data: item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '',
+      valor: typeof item.totalAmount === 'number' 
+        ? formatarMoeda(item.totalAmount)
+        : item.totalAmount || '0',
+      totalPago: formatarMoeda(totalPago),
+      totalEmAberto: formatarMoeda(totalEmAberto),
+      custosOperacionais: formatarMoeda(custoTotal),
+      resultadoLiquido: formatarMoeda(resultadoLiquido),
+      metodo: item.paymentMethodName || '',
+      tipoServico: item.serviceTypeName || '',
+      parcelas: item.installments?.length || 0,
+      ultimoStatus: item.lastStatusUpdate ? new Date(item.lastStatusUpdate).toLocaleDateString('pt-BR') : '',
+      statusFinanceiro: item.financialStatus || '',
+      status: item.status || '',
+      observacoes: item.notes || ''
+    };
+  });
 }
 
 /**
@@ -58,8 +104,18 @@ export function exportToExcel(dados: any[]): void {
       'Vendedor': item.vendedor,
       'Cliente': item.cliente, 
       'Data': item.data,
-      'Valor': item.valor,
-      'Status': item.status
+      'Valor Total': item.valor,
+      'Valor Pago': item.totalPago,
+      'Valor em Aberto': item.totalEmAberto,
+      'Custos Operacionais': item.custosOperacionais,
+      'Resultado Líquido': item.resultadoLiquido,
+      'Forma de Pagamento': item.metodo,
+      'Tipo de Serviço': item.tipoServico,
+      'Parcelas': item.parcelas,
+      'Última Atualização': item.ultimoStatus,
+      'Status Financeiro': item.statusFinanceiro,
+      'Status Operacional': item.status,
+      'Observações': item.observacoes
     }));
     
     // Criar workbook e worksheet
@@ -72,8 +128,18 @@ export function exportToExcel(dados: any[]): void {
       { wch: 20 }, // Vendedor
       { wch: 25 }, // Cliente
       { wch: 12 }, // Data 
-      { wch: 15 }, // Valor
-      { wch: 20 }  // Status
+      { wch: 15 }, // Valor Total
+      { wch: 15 }, // Valor Pago
+      { wch: 15 }, // Valor em Aberto
+      { wch: 15 }, // Custos Operacionais
+      { wch: 15 }, // Resultado Líquido
+      { wch: 20 }, // Forma de Pagamento
+      { wch: 20 }, // Tipo de Serviço
+      { wch: 10 }, // Parcelas
+      { wch: 15 }, // Última Atualização
+      { wch: 20 }, // Status Financeiro
+      { wch: 20 }, // Status Operacional
+      { wch: 30 }  // Observações
     ];
     ws['!cols'] = wscols;
     
@@ -107,7 +173,8 @@ export function exportToPDF(dados: any[]): void {
     const dadosFormatados = formatarDados(dados);
     
     // Criar documento PDF (orientação paisagem para caber mais colunas)
-    const doc = new jsPDF('landscape');
+    // Utilizamos tamanho A3 para caber mais dados
+    const doc = new jsPDF('landscape', 'mm', 'a3');
     
     // Adicionar título
     doc.setFontSize(18);
@@ -117,19 +184,28 @@ export function exportToPDF(dados: any[]): void {
     doc.setFontSize(11);
     doc.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
     
-    // Preparar dados para a tabela
+    // Preparar dados para a tabela - incluindo todas as informações disponíveis
     const dadosTabela = dadosFormatados.map(item => [
       item.orderNumber,
       item.vendedor,
       item.cliente,
       item.data,
       item.valor,
+      item.totalPago,
+      item.totalEmAberto,
+      item.custosOperacionais,
+      item.resultadoLiquido,
+      item.metodo,
+      item.tipoServico,
+      item.parcelas.toString(),
+      item.statusFinanceiro,
       item.status
     ]);
     
-    // Criar tabela com autotable
+    // Criar tabela com autotable - cabeçalhos completos
     autoTable(doc, {
-      head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor', 'Status']],
+      head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Valor Pago', 'Valor em Aberto', 
+              'Custos', 'Resultado', 'Forma Pgto', 'Tipo Serviço', 'Parcelas', 'Status Fin.', 'Status Op.']],
       body: dadosTabela,
       startY: 35,
       theme: 'grid',
@@ -148,12 +224,20 @@ export function exportToPDF(dados: any[]): void {
         fillColor: [240, 240, 240]
       },
       columnStyles: {
-        0: { cellWidth: 30 },    // Nº OS
-        1: { cellWidth: 50 },    // Vendedor
-        2: { cellWidth: 50 },    // Cliente
-        3: { cellWidth: 30 },    // Data
-        4: { cellWidth: 40 },    // Valor
-        5: { cellWidth: 40 }     // Status
+        0: { cellWidth: 15 },    // Nº OS
+        1: { cellWidth: 25 },    // Vendedor
+        2: { cellWidth: 25 },    // Cliente
+        3: { cellWidth: 15 },    // Data
+        4: { cellWidth: 18 },    // Valor Total
+        5: { cellWidth: 18 },    // Valor Pago
+        6: { cellWidth: 18 },    // Valor em Aberto
+        7: { cellWidth: 15 },    // Custos
+        8: { cellWidth: 15 },    // Resultado
+        9: { cellWidth: 20 },    // Forma Pgto
+        10: { cellWidth: 20 },   // Tipo Serviço
+        11: { cellWidth: 15 },   // Parcelas
+        12: { cellWidth: 18 },   // Status Fin.
+        13: { cellWidth: 18 }    // Status Op.
       }
     });
     
