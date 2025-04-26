@@ -1716,16 +1716,22 @@ export default function SaleDialog({
                                       const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
                                       
                                       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                        // CORREÇÃO CRÍTICA: Preservar os números exatos sem ajustes de timezone
+                                        // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
                                         // Armazena a data como string YYYY-MM-DD para evitar problemas de timezone
                                         const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                        console.log(`✅ Data preservada exatamente como digitada: ${fixedDate}`);
+                                        console.log(`✅ SOLUÇÃO FINAL: Data preservada exatamente como digitada: ${fixedDate}`);
+                                        
+                                        // Marcador especial para debug no console
+                                        console.log(`📋 DATA_DEBUG: parcela=${index+1}, valor=${fixedDate}, origem=input_direto`);
                                         
                                         // Atualiza apenas a data específica dessa parcela
                                         const newDates = [...installmentDates];
                                         // Armazenar como string, não como objeto Date
                                         newDates[index] = fixedDate;
                                         setInstallmentDates(newDates);
+                                        
+                                        // Atualizar diretamente o atributo para captura
+                                        e.target.setAttribute('data-final-date', fixedDate);
                                       } else {
                                         console.log(`⚠️ Números inválidos: dia=${day}, mês=${month+1}, ano=${year}`);
                                       }
@@ -1738,14 +1744,20 @@ export default function SaleDialog({
                                         const day = parseInt(parts[2]);
                                         
                                         if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                          // CORREÇÃO CRÍTICA: Preservar exatamente a data digitada
+                                          // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
                                           const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                          console.log(`✅ Data preservada do formato ISO: ${fixedDate}`);
+                                          console.log(`✅ SOLUÇÃO FINAL: Data preservada do formato ISO: ${fixedDate}`);
+                                          
+                                          // Marcador especial para debug no console
+                                          console.log(`📋 DATA_DEBUG: parcela=${index+1}, valor=${fixedDate}, origem=input_formato_iso`);
                                           
                                           // Atualiza apenas a data específica dessa parcela
                                           const newDates = [...installmentDates];
                                           newDates[index] = fixedDate;
                                           setInstallmentDates(newDates);
+                                          
+                                          // Atualizar diretamente o atributo para captura
+                                          e.target.setAttribute('data-final-date', fixedDate);
                                         }
                                       }
                                     }
@@ -2066,24 +2078,48 @@ export default function SaleDialog({
                   // Obter o número correto de parcelas
                   const numberOfInstallments = Number(values.installments) || 1;
                   
-                  // CORREÇÃO CRÍTICA: Usar as datas das parcelas editadas pelo usuário
+                  // SOLUÇÃO FINAL 26/04/2025: Priorizar os atributos data-final-date para máxima precisão
                   const datesForApi: string[] = [];
                   
-                  // Verificar se temos o número correto de datas para as parcelas
-                  if (installmentDates.length === numberOfInstallments) {
-                    // Usar as datas exatas que o usuário editou na interface
-                    console.log("✓ Usando datas específicas editadas pelo usuário");
+                  // PRIORIDADE 1: Tentar obter as datas diretamente dos inputs com data-final-date
+                  const dateInputs = document.querySelectorAll('[data-installment-date]');
+                  const datesFromInputs: string[] = [];
+                  
+                  // Coletar datas dos inputs, priorizando o atributo data-final-date que contém o valor processado
+                  dateInputs.forEach((input: Element) => {
+                    const inputElement = input as HTMLInputElement;
+                    const installmentNumber = inputElement.getAttribute('data-installment-number');
+                    const finalDate = inputElement.getAttribute('data-final-date');
+                    
+                    if (installmentNumber && finalDate) {
+                      const idx = parseInt(installmentNumber) - 1;
+                      if (idx >= 0 && idx < numberOfInstallments) {
+                        datesFromInputs[idx] = finalDate;
+                        console.log(`🔍 SOLUÇÃO FINAL: Data obtida do atributo data-final-date para parcela #${idx+1}: ${finalDate}`);
+                      }
+                    }
+                  });
+                  
+                  // Verificar se capturamos todas as datas dos inputs
+                  const allDatesFromInputs = datesFromInputs.filter(Boolean).length === numberOfInstallments;
+                  
+                  if (allDatesFromInputs) {
+                    console.log(`✅ SOLUÇÃO FINAL: Usando ${datesFromInputs.length} datas capturadas diretamente dos inputs`);
+                    datesForApi.push(...datesFromInputs);
+                  }
+                  // PRIORIDADE 2: Cair para o estado do componente se não conseguimos capturar todas as datas
+                  else if (installmentDates.length === numberOfInstallments) {
+                    console.log(`✓ SOLUÇÃO FINAL: Usando ${installmentDates.length} datas do estado do componente`);
                     for (let i = 0; i < numberOfInstallments; i++) {
                       const date = installmentDates[i];
-                      // CORREÇÃO CRÍTICA: Formatar sem ajustes de timezone para preservar a data exata
                       if (date instanceof Date) {
                         // Formato YYYY-MM-DD sem ajustes de timezone
                         const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                         datesForApi.push(isoDate);
-                        console.log(`🛠️ Data preservada #${i+1}: ${isoDate}`);
+                        console.log(`📅 SOLUÇÃO FINAL: Data convertida de Date para parcela #${i+1}: ${isoDate}`);
                       } else {
                         datesForApi.push(date);
-                        console.log(`🛠️ Data preservada #${i+1} (já string): ${date}`);
+                        console.log(`📅 SOLUÇÃO FINAL: Data já em formato string para parcela #${i+1}: ${date}`);
                       }
                     }
                   } else {

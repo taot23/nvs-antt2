@@ -1210,21 +1210,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validação básica dos dados enviados - convertendo a data para o formato correto
       const today = new Date(); // Obter a data atual
       
-      // Vamos garantir que a data esteja no formato correto para ser salva no banco
+      // SOLUÇÃO FINAL 26/04/2025: Melhorar tratamento de data
       let saleDate = today; // Por padrão, usamos a data de hoje
+      
+      // Log de debug para investigação
+      console.log(`🔍 SOLUÇÃO FINAL: Debug de data - tipo=${typeof userData.date}, valor=${userData.date}`);
       
       if (userData.date) {
         if (typeof userData.date === 'string') {
-          // Se for string, convertemos para Date
-          saleDate = new Date(userData.date);
-          
-          // Verificamos se a data é válida
-          if (isNaN(saleDate.getTime())) {
-            saleDate = today; // Se for inválida, usamos hoje
+          try {
+            // APRIMORAMENTO: Se for string no formato ISO (YYYY-MM-DD), usamos diretamente
+            if (userData.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              // Formato ISO YYYY-MM-DD - preservar exatamente como está
+              console.log(`✅ SOLUÇÃO FINAL: Data preservada no formato ISO: ${userData.date}`);
+              saleDate = userData.date;
+            } else {
+              // Se for outro formato de string, tentamos converter para Date
+              const tempDate = new Date(userData.date);
+              
+              // Verificamos se a data é válida
+              if (!isNaN(tempDate.getTime())) {
+                // Normalizamos para o formato ISO
+                saleDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+                console.log(`✅ SOLUÇÃO FINAL: Data convertida para formato ISO: ${saleDate}`);
+              } else {
+                console.log(`⚠️ SOLUÇÃO FINAL: Data inválida, usando hoje: ${saleDate}`);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ SOLUÇÃO FINAL: Erro ao processar data: ${error}`);
+            // Em caso de erro, mantemos a data padrão (hoje)
           }
-        } else {
-          // Se já for um objeto Date, usamos diretamente
-          saleDate = userData.date;
+        } else if (userData.date instanceof Date) {
+          // Se já for um objeto Date, formatamos para ISO
+          saleDate = `${userData.date.getFullYear()}-${String(userData.date.getMonth() + 1).padStart(2, '0')}-${String(userData.date.getDate()).padStart(2, '0')}`;
+          console.log(`✅ SOLUÇÃO FINAL: Data convertida de objeto para ISO: ${saleDate}`);
         }
       }
       
