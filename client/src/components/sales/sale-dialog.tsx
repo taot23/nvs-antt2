@@ -1782,17 +1782,36 @@ export default function SaleDialog({
                   // CORREÇÃO CRÍTICA: Gerar um número de ordem de serviço único com timestamp
                   const uniqueOrderNumber = `OS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                   
-                  // Gerar as datas das parcelas para o número correto de parcelas
+                  // Obter o número correto de parcelas
                   const numberOfInstallments = Number(values.installments) || 1;
-                  const currentDate = new Date();
-                  const generatedDates: string[] = [];
                   
-                  // Gerar datas para cada parcela (um mês após a outra)
-                  for (let i = 0; i < numberOfInstallments; i++) {
-                    const dueDate = new Date(currentDate);
-                    dueDate.setMonth(currentDate.getMonth() + i);
-                    generatedDates.push(dueDate.toISOString());
+                  // CORREÇÃO CRÍTICA: Usar as datas das parcelas editadas pelo usuário
+                  const datesForApi: string[] = [];
+                  
+                  // Verificar se temos o número correto de datas para as parcelas
+                  if (installmentDates.length === numberOfInstallments) {
+                    // Usar as datas exatas que o usuário editou na interface
+                    console.log("✓ Usando datas específicas editadas pelo usuário");
+                    for (let i = 0; i < numberOfInstallments; i++) {
+                      datesForApi.push(installmentDates[i].toISOString());
+                    }
+                  } else {
+                    // Se não tivermos o número correto de datas (caso raro), gerar automaticamente
+                    console.log("⚠️ Gerando datas automaticamente porque o número não corresponde");
+                    const currentDate = new Date();
+                    for (let i = 0; i < numberOfInstallments; i++) {
+                      const dueDate = new Date(currentDate);
+                      dueDate.setMonth(currentDate.getMonth() + i);
+                      datesForApi.push(dueDate.toISOString());
+                    }
                   }
+                  
+                  // Log para debug
+                  console.log(`🔄 VERIFICANDO DATAS DE PARCELAS:
+                  - Parcelas solicitadas: ${numberOfInstallments}
+                  - Datas armazenadas na interface: ${installmentDates.length}
+                  - Datas a serem enviadas: ${datesForApi.length}
+                  `);
                   
                   // Monta o objeto manualmente ignorando a validação do Zod
                   const saleData = {
@@ -1807,8 +1826,8 @@ export default function SaleDialog({
                     notes: values.notes || "",
                     // CORREÇÃO CRÍTICA: Incluir o número de parcelas (installments)
                     installments: numberOfInstallments,
-                    // Enviar as datas de parcelas para o backend
-                    installmentDates: generatedDates,
+                    // CORREÇÃO CRÍTICA: Usar as datas efetivamente editadas pelo usuário
+                    installmentDates: datesForApi,
                     items: values.items.map(item => ({
                       serviceId: item.serviceId,
                       serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
