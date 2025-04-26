@@ -500,7 +500,25 @@ export default function SaleDialog({
       // Garantia absoluta de que é um número válido
       const installmentsToSend = isNaN(finalInstallmentsNumber) ? 1 : finalInstallmentsNumber;
       
-      const formattedData = {
+      // Definindo o objeto formatado com campos extras em TypeScript
+      interface FormattedSaleData {
+        // Campos padrão que já existem no objeto data
+        date: string;
+        totalAmount: string;
+        installments: number;
+        orderNumber: string;
+        customerId: number;
+        paymentMethodId: number;
+        serviceTypeId: number;
+        sellerId: number;
+        items: any[];
+        notes?: string;
+        // Campos adicionais
+        installmentValue: string | null;
+        installmentDates?: string[]; // Adicionado para as datas em formato de string
+      }
+      
+      const formattedData: FormattedSaleData = {
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
@@ -508,6 +526,8 @@ export default function SaleDialog({
         installments: installmentsToSend,
         // Calculamos o valor da parcela com base no valor total e número de parcelas
         installmentValue: installmentValueCalculated,
+        // Inicializamos com um array vazio que será preenchido mais tarde
+        installmentDates: [],
       };
       
       // Log especial para verificação final antes do envio
@@ -607,87 +627,35 @@ export default function SaleDialog({
           }
           
           console.log(`✓ Usando ${datesToUse.length} datas após ajustes`);
-          formattedData.installmentDates = datesToUse.map(date => {
-            let isoDate;
-            
-            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
-            if (date instanceof Date) {
-              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
-              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
-            } else if (typeof date === 'string') {
-              // Se já é uma string no formato de data, usar diretamente
-              isoDate = date.includes('T') ? date.split('T')[0] : date;
-              console.log(`🛠️ Data preservada (string): ${isoDate}`);
-            } else {
-              // Fallback seguro
-              const tempDate = new Date(date);
-              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
-            }
-            
-            return isoDate;
-          });
+          // CORREÇÃO: As datas já estão no formato string correto, enviar diretamente
+          formattedData.installmentDates = datesToUse;
         } else {
           console.log(`✓ Usando ${installmentDates.length} datas editadas pelo usuário`);
-          formattedData.installmentDates = installmentDates.map(date => {
-            let isoDate;
-            
-            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
-            if (date instanceof Date) {
-              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
-              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
-            } else if (typeof date === 'string') {
-              // Se já é uma string no formato de data, usar diretamente
-              isoDate = date.includes('T') ? date.split('T')[0] : date;
-              console.log(`🛠️ Data preservada (string): ${isoDate}`);
-            } else {
-              // Fallback seguro
-              const tempDate = new Date(date);
-              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
-            }
-            
-            return isoDate;
-          });
+          // CORREÇÃO: As datas já estão no formato string correto, enviar diretamente
+          formattedData.installmentDates = installmentDates;
         }
       } 
       // Se não temos datas editadas, gerar automaticamente
       else {
         console.log("⚠️ Nenhuma data editada pelo usuário encontrada, gerando automaticamente");
         
-        const generatedDates = [];
+        // CORREÇÃO: Gerando datas como strings YYYY-MM-DD
+        const generatedDates: string[] = [];
         const baseDate = new Date();
         
         for (let i = 0; i < numInstalments; i++) {
           const dueDate = new Date(baseDate);
           dueDate.setMonth(baseDate.getMonth() + i);
-          generatedDates.push(dueDate);
+          
+          // Formato YYYY-MM-DD
+          const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+          generatedDates.push(isoDate);
         }
         
         console.log(`🔄 Geradas ${generatedDates.length} datas automáticas para ${numInstalments} parcelas`);
-        formattedData.installmentDates = generatedDates.map(date => {
-          let isoDate;
-            
-          // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
-          if (date instanceof Date) {
-            // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
-            isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            console.log(`🛠️ Data gerada (objeto Date): ${isoDate}`);
-          } else if (typeof date === 'string') {
-            // Se já é uma string no formato de data, usar diretamente
-            isoDate = date.includes('T') ? date.split('T')[0] : date;
-            console.log(`🛠️ Data gerada (string): ${isoDate}`);
-          } else {
-            // Fallback seguro
-            const tempDate = new Date(date);
-            isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-            console.log(`🛠️ Data gerada (fallback): ${isoDate}`);
-          }
-          
-          return isoDate;
-        });
+        // CORREÇÃO: Como já estamos gerando strings no formato YYYY-MM-DD, 
+        // enviamos diretamente sem processamento adicional
+        formattedData.installmentDates = generatedDates;
       }
       
       console.log("📆 Datas de parcelas finais:", formattedData.installmentDates);
@@ -890,19 +858,22 @@ export default function SaleDialog({
       
       // CORREÇÃO CRÍTICA: Trata e valida todos os campos numéricos para garantir tipos corretos
       // Objeto para envio ao servidor com valores convertidos e validados
-      const correctedValues = {
+      // Utilizamos a interface FormattedSaleData para tipar corretamente o objeto
+      const correctedValues: FormattedSaleData = {
         ...values,
         // Garante que o número da OS esteja definido
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
         // Garante que a data seja válida
-        date: values.date || new Date(),
+        date: values.date instanceof Date ? values.date.toISOString() : String(values.date || new Date().toISOString()),
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
         // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
         // Observe que estamos usando validatedInstallments diretamente e não values.installments
         installments: Number(validatedInstallments),
-        // Também garantimos que qualquer valor de parcela seja formato corretamente
+        // Também garantimos que qualquer valor de parcela seja formatado corretamente
         installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
+        // CORREÇÃO: Incluir o campo de datas das parcelas, inicialmente vazio
+        installmentDates: installmentDates,
         // Corrige os itens
         items: values.items.map(item => ({
           ...item,
