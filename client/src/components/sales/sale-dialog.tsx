@@ -509,27 +509,26 @@ export default function SaleDialog({
       
       console.log("Debug - Dados formatados a serem enviados:", JSON.stringify(formattedData, null, 2));
       
-      // CORREÇÃO CRÍTICA: Garantir que as datas de parcelas sejam enviadas 
-      // Forçar a geração das datas mesmo que não estejam definidas no estado
+      // SUPER CORREÇÃO V2: Garantir que as datas de parcelas sejam enviadas 
+      // Forçar a geração das datas para qualquer número de parcelas maior que zero
       let installmentDatesToSend = installmentDates;
       
-      if (data.installments > 1) {
-        // Se não temos datas suficientes ou nenhuma data, geramos novas
-        if (installmentDatesToSend.length !== data.installments) {
-          console.log("⚠️ CORREÇÃO: Número de datas não corresponde ao número de parcelas!");
-          const firstDate = new Date(); // Usa a data atual se não tivermos primeira data
-          installmentDatesToSend = generateInstallmentDates(firstDate, data.installments);
-          console.log(`⚠️ CORREÇÃO: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
-        }
-        
-        // Adiciona as datas formatadas em ISO para envio ao servidor
-        console.log("⚠️ CORREÇÃO: Incluindo datas de vencimento:", installmentDatesToSend);
-        
-        // Definir diretamente a propriedade no objeto
-        formattedData.installmentDates = installmentDatesToSend.map(date => date.toISOString());
-        
-        console.log("⚠️ CORREÇÃO: Datas formatadas em ISO:", formattedData.installmentDates);
+      // Independente do número de parcelas, sempre enviamos as datas
+      // Se não temos datas suficientes ou nenhuma data, geramos novas
+      if (installmentDatesToSend.length !== data.installments) {
+        console.log("⚠️ CORREÇÃO V2: Número de datas não corresponde ao número de parcelas!");
+        const firstDate = firstDueDate || new Date(); // Usa a data selecionada ou a atual
+        installmentDatesToSend = generateInstallmentDates(firstDate, data.installments);
+        console.log(`⚠️ CORREÇÃO V2: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
       }
+      
+      // Adiciona as datas formatadas em ISO para envio ao servidor
+      console.log("⚠️ CORREÇÃO V2: Incluindo datas de vencimento:", installmentDatesToSend);
+      
+      // Adiciona ao objeto diretamente como uma string para evitar problemas de tipagem
+      formattedData.installmentDates = installmentDatesToSend.map(date => date.toISOString());
+      
+      console.log("⚠️ CORREÇÃO V2: Datas formatadas em ISO:", formattedData.installmentDates);
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
       const method = sale ? "PATCH" : "POST";

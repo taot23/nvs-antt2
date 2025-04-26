@@ -552,22 +552,42 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Se a venda tiver mais de uma parcela e as datas de vencimento foram fornecidas
-    if (createdSale.installments > 1 && installmentDates && Array.isArray(installmentDates)) {
+    // CORREÇÃO V2: Processar parcelas independente das datas de vencimento
+    // Verificar o número de parcelas 
+    const numInstallments = createdSale.installments || 1;
+    console.log(`💰 CORREÇÃO V2: Venda ${createdSale.id} com ${numInstallments} parcelas`);
+    
+    // Se temos datas de vencimento, usamos elas
+    if (installmentDates && Array.isArray(installmentDates)) {
       try {
-        console.log(`Criando ${installmentDates.length} parcelas para a venda ${createdSale.id}`);
-        
-        // Mesmo se haver mais de uma parcela, temos que calcular o valor das parcelas
-        // Vamos dividir o valor total pelo número de parcelas
-        const totalAmount = parseFloat(createdSale.totalAmount);
-        const numInstallments = createdSale.installments;
+        console.log(`💰 CORREÇÃO V2: Usando ${installmentDates.length} datas recebidas para criar parcelas`);
         
         // Calcular o valor de cada parcela (valor igual para todas as parcelas)
+        const totalAmount = parseFloat(createdSale.totalAmount);
         const installmentAmount = (totalAmount / numInstallments).toFixed(2);
         
-        console.log(`PARCELAS: Total ${totalAmount} dividido em ${numInstallments} parcelas de ${installmentAmount}`);
+        console.log(`💰 CORREÇÃO V2: Total ${totalAmount} dividido em ${numInstallments} parcelas de ${installmentAmount}`);
         
-        const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => ({
+        // Garantir que temos o número correto de datas
+        let datesToUse = [...installmentDates];
+        
+        // Se temos mais datas que parcelas, cortamos o excesso
+        if (datesToUse.length > numInstallments) {
+          datesToUse = datesToUse.slice(0, numInstallments);
+        }
+        
+        // Se temos menos datas que parcelas, geramos as faltantes
+        while (datesToUse.length < numInstallments) {
+          // Calcular a próxima data (30 dias após a última)
+          const lastDate = datesToUse.length > 0 
+            ? new Date(datesToUse[datesToUse.length - 1])
+            : new Date();
+          
+          lastDate.setMonth(lastDate.getMonth() + 1);
+          datesToUse.push(lastDate.toISOString());
+        }
+        
+        const installmentsToCreate = datesToUse.map((dueDate: string, index: number) => ({
           saleId: createdSale.id,
           installmentNumber: index + 1,
           dueDate,
@@ -576,35 +596,43 @@ export class DatabaseStorage implements IStorage {
           notes: null
         }));
         
-        if (installmentsToCreate.length > 0) {
-          await this.createSaleInstallments(installmentsToCreate);
-          console.log(`Parcelas criadas com sucesso para a venda ${createdSale.id}`);
-        }
+        // Sempre criamos as parcelas
+        await this.createSaleInstallments(installmentsToCreate);
+        console.log(`💰 CORREÇÃO V2: ${installmentsToCreate.length} parcelas criadas com sucesso para a venda ${createdSale.id}`);
+        
       } catch (error) {
-        console.error("Erro ao criar parcelas:", error);
+        console.error("💰 CORREÇÃO V2: Erro ao criar parcelas:", error);
       }
-    } else if (createdSale.installments > 0) {
-      // Se for pelo menos uma parcela, precisamos criar pelo menos uma parcela
+    } else {
+      // Se não temos datas de vencimento, criamos com datas automáticas
       try {
-        console.log(`Criando parcela única para venda ${createdSale.id}`);
+        console.log(`💰 CORREÇÃO V2: Sem datas de vencimento, criando ${numInstallments} parcelas automaticamente`);
         
-        // Para uma única parcela, o valor da parcela é o valor total
-        const today = new Date();
-        const formattedDate = today.toISOString().split('T')[0];
+        const totalAmount = parseFloat(createdSale.totalAmount);
+        const installmentAmount = (totalAmount / numInstallments).toFixed(2);
         
-        const installmentsToCreate = [{
-          saleId: createdSale.id,
-          installmentNumber: 1,
-          dueDate: formattedDate,
-          amount: createdSale.totalAmount,
-          status: 'pending',
-          notes: null
-        }];
+        // Criar parcelas com vencimentos mensais
+        const installmentsToCreate = [];
+        const baseDate = new Date();
+        
+        for (let i = 0; i < numInstallments; i++) {
+          const dueDate = new Date(baseDate);
+          dueDate.setMonth(baseDate.getMonth() + i);
+          
+          installmentsToCreate.push({
+            saleId: createdSale.id,
+            installmentNumber: i + 1,
+            dueDate: dueDate.toISOString().split('T')[0],
+            amount: installmentAmount,
+            status: 'pending',
+            notes: null
+          });
+        }
         
         await this.createSaleInstallments(installmentsToCreate);
-        console.log(`Parcela única criada com valor ${createdSale.totalAmount} e vencimento hoje`);
+        console.log(`💰 CORREÇÃO V2: ${installmentsToCreate.length} parcelas automáticas criadas com sucesso`);
       } catch (error) {
-        console.error("Erro ao criar parcela única:", error);
+        console.error("💰 CORREÇÃO V2: Erro ao criar parcelas automáticas:", error);
       }
     }
     
