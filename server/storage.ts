@@ -1345,10 +1345,10 @@ export class DatabaseStorage implements IStorage {
   
   async createSaleInstallments(installmentsData: InsertSaleInstallment[]): Promise<SaleInstallment[]> {
     try {
-      console.log("💰 CRIANDO PARCELAS:", JSON.stringify(installmentsData, null, 2));
+      console.log("⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: CRIANDO PARCELAS COM DATAS PRESERVADAS:", JSON.stringify(installmentsData, null, 2));
       
       if (installmentsData.length === 0) {
-        console.log("💰 ERRO: Nenhuma parcela fornecida para criação");
+        console.log("⚠️⚠️⚠️ ERRO: Nenhuma parcela fornecida para criação");
         return [];
       }
       
@@ -1356,7 +1356,12 @@ export class DatabaseStorage implements IStorage {
       const saleId = installmentsData[0].saleId;
       const numInstallments = installmentsData.length;
       
-      console.log(`💰 Verificando venda #${saleId} para garantir valor correto de ${numInstallments} parcelas`);
+      console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Verificando venda #${saleId} para garantir valor correto de ${numInstallments} parcelas`);
+      
+      // Debug das datas para verificar o formato exato que está chegando
+      installmentsData.forEach((installment, index) => {
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Parcela #${index + 1} com data ${installment.dueDate} (${typeof installment.dueDate})`);
+      });
       
       // Atualizar o campo de parcelas na venda para garantir consistência
       try {
@@ -1368,22 +1373,79 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(sales.id, saleId));
         
-        console.log(`💰 Venda #${saleId} atualizada com ${numInstallments} parcelas`);
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Venda #${saleId} atualizada com ${numInstallments} parcelas`);
       } catch (updateError) {
-        console.error("💰 ERRO ao atualizar número de parcelas na venda:", updateError);
+        console.error("⚠️⚠️⚠️ ERRO ao atualizar número de parcelas na venda:", updateError);
       }
       
-      // Usar inserção em lote para melhor performance
-      const createdInstallments = await db
-        .insert(saleInstallments)
-        .values(installmentsData)
-        .returning();
-      
-      console.log(`💰 ${createdInstallments.length} parcelas criadas com sucesso`);
-      
-      return createdInstallments;
+      // SOLUÇÃO DEFINITIVA: Garantir que as datas sejam mantidas exatamente como enviadas
+      // Aplicar inserção direta via SQL nativo para evitar qualquer conversão automática de data
+      try {
+        const { pool } = await import('./db');
+        
+        // Deletar quaisquer parcelas existentes para esta venda para evitar duplicidades
+        await pool.query('DELETE FROM sale_installments WHERE sale_id = $1', [saleId]);
+        
+        // Construir a query de inserção em lote
+        let insertQuery = 'INSERT INTO sale_installments (sale_id, installment_number, due_date, amount, status, notes) VALUES ';
+        const queryParams = [];
+        let paramIndex = 1;
+        
+        installmentsData.forEach((installment, index) => {
+          if (index > 0) {
+            insertQuery += ', ';
+          }
+          
+          insertQuery += `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`;
+          
+          queryParams.push(
+            installment.saleId,
+            installment.installmentNumber,
+            installment.dueDate, // Manter a data exatamente como recebida
+            installment.amount,
+            installment.status || 'pending',
+            installment.notes
+          );
+        });
+        
+        insertQuery += ' RETURNING *';
+        
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Executando query SQL direta para preservar datas`);
+        
+        const result = await pool.query(insertQuery, queryParams);
+        const createdInstallments = result.rows;
+        
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: ${createdInstallments.length} parcelas criadas com sucesso via SQL nativo`);
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Datas das parcelas:`, createdInstallments.map(i => i.due_date));
+        
+        // Mapear o resultado para o formato esperado
+        return createdInstallments.map(row => ({
+          id: row.id,
+          saleId: row.sale_id,
+          installmentNumber: row.installment_number,
+          dueDate: row.due_date,
+          amount: row.amount,
+          status: row.status,
+          notes: row.notes,
+          createdAt: row.created_at
+        }));
+      } catch (sqlError) {
+        console.error("⚠️⚠️⚠️ ERRO CRÍTICO ao criar parcelas via SQL nativo:", sqlError);
+        
+        // Fallback para o método Drizzle padrão caso ocorra erro no SQL nativo
+        console.log("⚠️⚠️⚠️ FALLBACK: Tentando criar parcelas via Drizzle ORM");
+        
+        const createdInstallments = await db
+          .insert(saleInstallments)
+          .values(installmentsData)
+          .returning();
+        
+        console.log(`⚠️⚠️⚠️ FALLBACK: ${createdInstallments.length} parcelas criadas com sucesso via Drizzle`);
+        
+        return createdInstallments;
+      }
     } catch (error) {
-      console.error("💰 ERRO CRÍTICO ao criar parcelas:", error);
+      console.error("⚠️⚠️⚠️ ERRO CRÍTICO ao criar parcelas:", error);
       throw error;
     }
   }
