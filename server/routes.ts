@@ -1120,7 +1120,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financialStatus: "s.financial_status",
         customerName: "c.name",
         date: "s.date",
-        id: "s.id"
+        id: "s.id",
+        // Adicionando campos financeiros para ordenação
+        totalPaid: "(SELECT COALESCE(SUM(amount::numeric), 0) FROM sale_installments WHERE sale_id = s.id AND status = 'paid')",
+        totalCosts: "(SELECT COALESCE(SUM(amount::numeric), 0) FROM sale_operational_costs WHERE sale_id = s.id)",
+        netResult: "(s.total_amount::numeric - (SELECT COALESCE(SUM(amount::numeric), 0) FROM sale_operational_costs WHERE sale_id = s.id))"
       };
       
       const orderField = fieldMap[sortField] || "s.created_at";

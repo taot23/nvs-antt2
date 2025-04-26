@@ -335,23 +335,53 @@ export default function FinanceSalesTable({
                   <>
                     <TableHead 
                       className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      onClick={() => toggleSort('totalPaid')}
                     >
                       <div className="flex items-center space-x-1">
                         <span>Valor Pago</span>
+                        {sortField === 'totalPaid' ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp01 className="h-4 w-4" />
+                          ) : (
+                            <ArrowDown01 className="h-4 w-4" />
+                          )
+                        ) : (
+                          <div className="w-4" />
+                        )}
                       </div>
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      onClick={() => toggleSort('totalCosts')}
                     >
                       <div className="flex items-center space-x-1">
                         <span>Custos</span>
+                        {sortField === 'totalCosts' ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp01 className="h-4 w-4" />
+                          ) : (
+                            <ArrowDown01 className="h-4 w-4" />
+                          )
+                        ) : (
+                          <div className="w-4" />
+                        )}
                       </div>
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      onClick={() => toggleSort('netResult')}
                     >
                       <div className="flex items-center space-x-1">
                         <span>Resultado</span>
+                        {sortField === 'netResult' ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp01 className="h-4 w-4" />
+                          ) : (
+                            <ArrowDown01 className="h-4 w-4" />
+                          )
+                        ) : (
+                          <div className="w-4" />
+                        )}
                       </div>
                     </TableHead>
                   </>
