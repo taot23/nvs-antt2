@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ChevronDown } from "lucide-react";
+import { Edit, Trash2, Plus, Search, FileText, Download, SortAsc, SortDesc, Eye, CornerDownRight, CheckCircle2, XCircle, AlertTriangle, SendHorizontal, CornerUpLeft, DollarSign, RefreshCw, ClipboardList, ArrowLeft, DatabaseBackup, Database, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ChevronDown, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1334,7 +1334,7 @@ export default function SalesPage() {
           >
             <SelectTrigger className="w-full">
               <div className="flex items-center space-x-2">
-                <UserIcon className="h-4 w-4" />
+                <User className="h-4 w-4" />
                 <SelectValue placeholder="Filtrar por vendedor" />
               </div>
             </SelectTrigger>
