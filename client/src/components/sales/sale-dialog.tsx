@@ -964,7 +964,71 @@ export default function SaleDialog({
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!isSubmitting) {
+                setIsSubmitting(true);
+                
+                // Obter os valores do formulário
+                const values = form.getValues();
+                
+                // Preparar o payload para a API
+                const payload = {
+                  orderNumber: values.orderNumber || `OS-${Date.now()}`,
+                  date: values.date.toISOString(),
+                  customerId: Number(values.customerId),
+                  paymentMethodId: Number(values.paymentMethodId),
+                  serviceTypeId: Number(values.serviceTypeId),
+                  sellerId: Number(values.sellerId || user?.id || 1),
+                  totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
+                  installments: Number(values.installments || 1),
+                  notes: values.notes || "",
+                  installmentDates,
+                  items: values.items.map(item => ({
+                    serviceId: Number(item.serviceId),
+                    serviceTypeId: Number(values.serviceTypeId),
+                    quantity: Number(item.quantity || 1),
+                    notes: item.notes || null
+                  }))
+                };
+                
+                console.log("Enviando dados:", payload);
+                
+                // Enviar os dados para a API diretamente com apiRequest
+                apiRequest("POST", "/api/sales", payload)
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error("Erro ao salvar venda");
+                    }
+                    return response.json();
+                  })
+                  .then(data => {
+                    console.log("Venda salva com sucesso:", data);
+                    toast({
+                      title: "Venda criada",
+                      description: "Venda criada com sucesso",
+                    });
+                    
+                    // Atualizar o cache
+                    queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+                    
+                    // Fechar o diálogo
+                    if (onSaveSuccess) onSaveSuccess();
+                    onClose();
+                  })
+                  .catch(error => {
+                    console.error("Erro ao salvar venda:", error);
+                    toast({
+                      title: "Erro ao salvar venda",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  })
+                  .finally(() => {
+                    setIsSubmitting(false);
+                  });
+              }
+            }} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Número de OS */}
               <FormField
