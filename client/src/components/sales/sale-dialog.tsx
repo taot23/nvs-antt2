@@ -1779,9 +1779,6 @@ export default function SaleDialog({
                     return;
                   }
                   
-                  // CORREÇÃO CRÍTICA: Gerar um número de ordem de serviço único com timestamp
-                  const uniqueOrderNumber = `OS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                  
                   // Obter o número correto de parcelas
                   const numberOfInstallments = Number(values.installments) || 1;
                   
@@ -1813,10 +1810,22 @@ export default function SaleDialog({
                   - Datas a serem enviadas: ${datesForApi.length}
                   `);
                   
+                  // Verificar se o usuário forneceu um número de ordem ou se precisa gerar um
+                  // CORREÇÃO CRÍTICA: Usar o número da ordem definido pelo usuário
+                  let orderNumberToUse = values.orderNumber;
+                  
+                  // Apenas se o campo estiver vazio, gerar um número automático
+                  if (!orderNumberToUse || orderNumberToUse.trim() === '') {
+                    orderNumberToUse = `OS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    console.log("⚠️ Número de ordem não fornecido, gerando automaticamente:", orderNumberToUse);
+                  } else {
+                    console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
+                  }
+                  
                   // Monta o objeto manualmente ignorando a validação do Zod
                   const saleData = {
-                    // CORREÇÃO CRÍTICA: Usar sempre ordem de serviço única para evitar conflitos
-                    orderNumber: uniqueOrderNumber,
+                    // CORREÇÃO CRÍTICA: Usar o número da ordem definido pelo usuário
+                    orderNumber: orderNumberToUse,
                     date: values.date || new Date(),
                     customerId: values.customerId,
                     paymentMethodId: values.paymentMethodId || 1,
