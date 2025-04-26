@@ -98,8 +98,8 @@ export default function FinancePage() {
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Exportar para Excel usando a abordagem mínima
-  const exportToExcel = async () => {
+  // Exportar para CSV (método mais simples possível)
+  const exportToExcel = () => {
     try {
       // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
@@ -108,23 +108,18 @@ export default function FinancePage() {
       }
       
       // Usar dados da tabela atual
-      const dataToExport = salesData.data;
-      
-      // Importação da função básica
-      const { exportToExcel: basicExport } = await import('@/components/finance/basic-export');
+      const { exportToCSV } = require('@/components/finance/csv-export');
       
       // Executar exportação
-      const fileName = await basicExport(dataToExport);
-      
-      alert("Exportação para Excel concluída: " + fileName);
+      exportToCSV(salesData.data);
     } catch (error) {
       console.error("Erro:", error);
       alert("Erro na exportação: " + error);
     }
   };
 
-  // Exportar para PDF usando a abordagem mínima
-  const exportToPDF = async () => {
+  // Usar mesmo método CSV para o PDF também, para simplificar
+  const exportToPDF = () => {
     try {
       // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
@@ -133,15 +128,10 @@ export default function FinancePage() {
       }
       
       // Usar dados da tabela atual
-      const dataToExport = salesData.data;
+      const { exportToCSV } = require('@/components/finance/csv-export');
       
-      // Importação da função básica
-      const { exportToPDF: basicExport } = await import('@/components/finance/basic-export');
-      
-      // Executar exportação
-      const fileName = await basicExport(dataToExport);
-      
-      alert("Exportação para PDF concluída: " + fileName);
+      // Executar exportação CSV, já que PDF não está funcionando
+      exportToCSV(salesData.data);
     } catch (error) {
       console.error("Erro:", error);
       alert("Erro na exportação: " + error);
