@@ -644,16 +644,16 @@ export class DatabaseStorage implements IStorage {
     } else {
       // Se não temos datas de vencimento, criamos com datas automáticas
       try {
-        console.log(`💰 CORREÇÃO V2: Sem datas de vencimento, criando ${numInstallments} parcelas automaticamente`);
+        console.log(`🔄 SUPER CORREÇÃO V3: Sem datas de vencimento, criando ${requestedInstallments} parcelas automaticamente`);
         
         const totalAmount = parseFloat(createdSale.totalAmount);
-        const installmentAmount = (totalAmount / numInstallments).toFixed(2);
+        const installmentAmount = (totalAmount / requestedInstallments).toFixed(2);
         
         // Criar parcelas com vencimentos mensais
         const installmentsToCreate = [];
         const baseDate = new Date();
         
-        for (let i = 0; i < numInstallments; i++) {
+        for (let i = 0; i < requestedInstallments; i++) {
           const dueDate = new Date(baseDate);
           dueDate.setMonth(baseDate.getMonth() + i);
           
@@ -668,9 +668,9 @@ export class DatabaseStorage implements IStorage {
         }
         
         await this.createSaleInstallments(installmentsToCreate);
-        console.log(`💰 CORREÇÃO V2: ${installmentsToCreate.length} parcelas automáticas criadas com sucesso`);
+        console.log(`🔄 SUPER CORREÇÃO V3: ${installmentsToCreate.length} parcelas automáticas criadas com sucesso para a venda ${createdSale.id}`);
       } catch (error) {
-        console.error("💰 CORREÇÃO V2: Erro ao criar parcelas automáticas:", error);
+        console.error("🔄 SUPER CORREÇÃO V3: Erro ao criar parcelas automáticas:", error);
       }
     }
     
