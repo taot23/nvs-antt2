@@ -390,7 +390,7 @@ export default function FinanceTransactionDialog({
           <TabsContent value="payments" className="space-y-4">
             <PaymentConfirmation 
               saleId={saleId} 
-              canManage={sale.financialStatus === 'in_progress'} 
+              canManage={sale.financialStatus === 'in_progress' || sale.financialStatus === 'partial'} 
             />
           </TabsContent>
           

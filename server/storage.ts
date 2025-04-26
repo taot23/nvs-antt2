@@ -2190,13 +2190,28 @@ export class DatabaseStorage implements IStorage {
 
       // Se todas estiverem pagas, atualizar o status financeiro da venda
       if (allPaid) {
+        // Todas as parcelas estão pagas
+        console.log(`✅ Todas as parcelas da venda #${saleId} estão pagas. Marcando venda como paga.`);
         await this.markSaleAsPaid(saleId, userId);
       } else {
-        // Caso contrário, definir como parcialmente pago
+        // Algumas parcelas ainda estão pendentes - definir como parcialmente pago
+        // e MANTER o status de tratativa em andamento
+        console.log(`⏳ Algumas parcelas da venda #${saleId} ainda estão pendentes. Marcando venda como parcialmente paga.`);
+        
+        // Buscar venda atual para verificar seu status
+        const currentSale = await this.getSale(saleId);
+        
+        let targetStatus = "partial";
+        // Se a venda já estava em andamento, preservar esse status para permitir
+        // confirmações futuras
+        if (currentSale && currentSale.financialStatus === "in_progress") {
+          targetStatus = "in_progress";
+        }
+        
         await db
           .update(sales)
           .set({
-            financialStatus: "partial",
+            financialStatus: targetStatus,
             updatedAt: new Date(),
           })
           .where(eq(sales.id, saleId));
