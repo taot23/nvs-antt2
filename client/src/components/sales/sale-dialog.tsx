@@ -1779,9 +1779,25 @@ export default function SaleDialog({
                     return;
                   }
                   
+                  // CORREÇÃO CRÍTICA: Gerar um número de ordem de serviço único com timestamp
+                  const uniqueOrderNumber = `OS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                  
+                  // Gerar as datas das parcelas para o número correto de parcelas
+                  const numberOfInstallments = Number(values.installments) || 1;
+                  const currentDate = new Date();
+                  const generatedDates: string[] = [];
+                  
+                  // Gerar datas para cada parcela (um mês após a outra)
+                  for (let i = 0; i < numberOfInstallments; i++) {
+                    const dueDate = new Date(currentDate);
+                    dueDate.setMonth(currentDate.getMonth() + i);
+                    generatedDates.push(dueDate.toISOString());
+                  }
+                  
                   // Monta o objeto manualmente ignorando a validação do Zod
                   const saleData = {
-                    orderNumber: values.orderNumber || `OS-${Date.now()}`,
+                    // CORREÇÃO CRÍTICA: Usar sempre ordem de serviço única para evitar conflitos
+                    orderNumber: uniqueOrderNumber,
                     date: values.date || new Date(),
                     customerId: values.customerId,
                     paymentMethodId: values.paymentMethodId || 1,
@@ -1789,6 +1805,10 @@ export default function SaleDialog({
                     sellerId: values.sellerId || user?.id,
                     totalAmount: values.totalAmount ? values.totalAmount.replace(",", ".") : "0",
                     notes: values.notes || "",
+                    // CORREÇÃO CRÍTICA: Incluir o número de parcelas (installments)
+                    installments: numberOfInstallments,
+                    // Enviar as datas de parcelas para o backend
+                    installmentDates: generatedDates,
                     items: values.items.map(item => ({
                       serviceId: item.serviceId,
                       serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
@@ -1799,6 +1819,14 @@ export default function SaleDialog({
                       notes: item.notes || ""
                     }))
                   };
+                  
+                  // Debug adicional para certificar que o número de parcelas está sendo enviado
+                  console.log("🔎 VERIFICAÇÃO DE PARCELAS:", {
+                    valorOriginal: values.installments,
+                    tipoOriginal: typeof values.installments,
+                    valorProcessado: Number(values.installments) || 1,
+                    tipoProcessado: typeof (Number(values.installments) || 1)
+                  });
                   
                   console.log("Dados de venda preparados:", saleData);
                   
