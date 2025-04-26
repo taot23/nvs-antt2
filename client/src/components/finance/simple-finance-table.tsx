@@ -77,9 +77,9 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
   };
 
   return (
-    <div className="w-full overflow-auto">
-      <div className="min-w-[1400px]">
-        <Table>
+    <div className="w-full overflow-x-auto border rounded-md">
+      <div className="min-w-full">
+        <Table className="w-full table-fixed">
           <TableCaption>
             {isLoading ? (
               "Carregando dados..."
@@ -94,7 +94,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
           
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px] cursor-pointer" onClick={() => toggleSort('orderNumber')}>
+              <TableHead className="w-[8%] cursor-pointer" onClick={() => toggleSort('orderNumber')}>
                 <div className="flex items-center">
                   Nº OS
                   {sortField === 'orderNumber' && (
@@ -104,7 +104,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   )}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer w-[150px]" onClick={() => toggleSort('sellerId')}>
+              <TableHead className="w-[12%] cursor-pointer" onClick={() => toggleSort('sellerId')}>
                 <div className="flex items-center">
                   Vendedor
                   {sortField === 'sellerId' && (
@@ -114,7 +114,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   )}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer w-[200px]" onClick={() => toggleSort('customerName')}>
+              <TableHead className="w-[15%] cursor-pointer" onClick={() => toggleSort('customerName')}>
                 <div className="flex items-center">
                   Cliente
                   {sortField === 'customerName' && (
@@ -124,7 +124,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   )}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer w-[100px]" onClick={() => toggleSort('date')}>
+              <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('date')}>
                 <div className="flex items-center">
                   Data
                   {sortField === 'date' && (
@@ -134,7 +134,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   )}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer w-[120px]" onClick={() => toggleSort('totalAmount')}>
+              <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('totalAmount')}>
                 <div className="flex items-center">
                   Valor Total
                   {sortField === 'totalAmount' && (
@@ -147,7 +147,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
 
               {usesFinancialStatus && (
                 <>
-                  <TableHead className="cursor-pointer w-[120px]" onClick={() => toggleSort('totalPaid')}>
+                  <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('totalPaid')}>
                     <div className="flex items-center">
                       Valor Pago
                       {sortField === 'totalPaid' && (
@@ -157,7 +157,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer w-[100px]" onClick={() => toggleSort('totalCosts')}>
+                  <TableHead className="w-[9%] cursor-pointer" onClick={() => toggleSort('totalCosts')}>
                     <div className="flex items-center">
                       Custos
                       {sortField === 'totalCosts' && (
@@ -167,7 +167,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer w-[120px]" onClick={() => toggleSort('netResult')}>
+                  <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('netResult')}>
                     <div className="flex items-center">
                       Resultado
                       {sortField === 'netResult' && (
@@ -180,7 +180,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                 </>
               )}
               
-              <TableHead className="cursor-pointer w-[140px]" onClick={() => toggleSort(usesFinancialStatus ? 'financialStatus' : 'status')}>
+              <TableHead className="w-[8%] cursor-pointer" onClick={() => toggleSort(usesFinancialStatus ? 'financialStatus' : 'status')}>
                 <div className="flex items-center">
                   Status
                   {sortField === (usesFinancialStatus ? 'financialStatus' : 'status') && (
@@ -190,7 +190,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   )}
                 </div>
               </TableHead>
-              <TableHead className="text-right w-[130px]">Ações</TableHead>
+              <TableHead className="text-right w-[8%]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           
