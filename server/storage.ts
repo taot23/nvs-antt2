@@ -77,6 +77,7 @@ export interface IStorage {
   getSalesBySellerAndStatus(sellerId: number, status: string): Promise<Sale[]>;
   getSale(id: number): Promise<Sale | undefined>;
   getSaleByOrderNumber(orderNumber: string): Promise<Sale | undefined>;
+  getLatestSales(limit: number): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
   updateSale(id: number, sale: Partial<InsertSale>): Promise<Sale | undefined>;
   deleteSale(id: number): Promise<boolean>;
