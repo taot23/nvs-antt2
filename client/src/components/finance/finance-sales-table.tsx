@@ -240,8 +240,8 @@ export default function FinanceSalesTable({
     <Card className="overflow-hidden">
       <CardContent className="p-4">
         <div className="rounded-md border overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="overflow-x-auto w-full" style={{ maxWidth: '100%' }}>
+            <Table className="w-full min-w-[800px]">
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead 
@@ -334,7 +334,7 @@ export default function FinanceSalesTable({
                 {usesFinancialStatus && (
                   <>
                     <TableHead 
-                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      className="cursor-pointer whitespace-nowrap"
                       onClick={() => toggleSort('totalPaid')}
                     >
                       <div className="flex items-center space-x-1">
@@ -351,7 +351,7 @@ export default function FinanceSalesTable({
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      className="cursor-pointer whitespace-nowrap"
                       onClick={() => toggleSort('totalCosts')}
                     >
                       <div className="flex items-center space-x-1">
@@ -368,7 +368,7 @@ export default function FinanceSalesTable({
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      className="cursor-pointer whitespace-nowrap"
                       onClick={() => toggleSort('netResult')}
                     >
                       <div className="flex items-center space-x-1">
@@ -430,17 +430,17 @@ export default function FinanceSalesTable({
                   {usesFinancialStatus && (
                     <>
                       {/* Versão para desktop - colunas separadas */}
-                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                      <TableCell className="font-medium whitespace-nowrap">
                         <span className="text-green-600">
                           {sale.financialSummary ? formatCurrency(sale.financialSummary.totalPaid) : formatCurrency(0)}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                      <TableCell className="font-medium whitespace-nowrap">
                         <span className="text-red-600">
                           {sale.financialSummary ? formatCurrency(sale.financialSummary.totalCosts) : formatCurrency(0)}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                      <TableCell className="font-medium whitespace-nowrap">
                         <div className="flex items-center">
                           {sale.financialSummary ? (
                             <>
@@ -481,7 +481,7 @@ export default function FinanceSalesTable({
                     
                     {/* Versão resumida para mobile - resumo financeiro */}
                     {usesFinancialStatus && (
-                      <div className="flex flex-col gap-1 text-xs mt-2 md:hidden">
+                      <div className="flex flex-col gap-1 text-xs mt-2 hidden">
                         {sale.financialSummary ? (
                           <>
                             <div className="flex items-center">
