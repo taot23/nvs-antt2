@@ -94,94 +94,66 @@ export default function FinancePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
   };
 
-  // Exportar para Excel
+  // Exportar para Excel - Nova implementação simplificada que não depende dos dados do backend
   const exportToExcel = async () => {
     try {
-      // Buscar os dados para exportação diretamente 
-      // Adicionando financialSummary explicitamente para garantir que o servidor inclua esses dados
-      const url = new URL('/api/sales', window.location.origin);
-      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
-      url.searchParams.append('includeSummary', 'true');
-      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
-      if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
-      if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
-      // Buscar todos os registros sem paginação para exportação
-      url.searchParams.append('limit', '1000');
-      
-      console.log('URL de exportação:', url.toString());
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error('Erro ao carregar dados para exportação');
-      }
-      const result = await response.json();
-      const sales = result.data || [];
-      
-      // Log detalhado para depuração 
-      console.log('Dados para exportação Excel:', sales.length, 'vendas com dados:', 
-        sales[0] ? `Venda #${sales[0].id} tem financialSummary: ${!!sales[0].financialSummary}` : 'Sem vendas');
-        
-      // Verificar a estrutura detalhada da primeira venda para diagnóstico
-      if (sales[0]) {
-        console.log('Detalhes da primeira venda para diagnóstico:');
-        console.log({
-          id: sales[0].id,
-          financialSummary: sales[0].financialSummary,
-          totalAmount: sales[0].totalAmount,
-          sellerName: sales[0].sellerName,
-          customerName: sales[0].customerName
-        });
-        
-        // Para garantir que o objeto financialSummary será usado mesmo se estiver ausente, forçar a adição aqui
-        if (!sales[0].financialSummary) {
-          console.log('Adicionando financialSummary em tempo de exportação...');
-          sales[0].financialSummary = {
-            totalPaid: 0,
-            totalCosts: 0,
-            netResult: parseFloat(sales[0].totalAmount || "0")
-          };
-          
-          // Se o primeiro item precisou de correção, provavelmente todos precisam
-          sales.forEach(sale => {
-            if (!sale.financialSummary) {
-              sale.financialSummary = {
-                totalPaid: 0,
-                totalCosts: 0,
-                netResult: parseFloat(sale.totalAmount || "0")
-              };
-            }
-          });
-        }
-      }
-
-      if (!sales || sales.length === 0) {
+      // Usar diretamente os dados da tabela atualmente exibida
+      if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
-          description: "Não há vendas para exportar com os filtros selecionados.",
+          description: "Não há dados disponíveis para exportação no momento.",
           variant: "destructive",
         });
         return;
       }
-
-      // Primeiro garantir que todos os itens tenham financialSummary para Excel
-      sales.forEach(sale => {
+      
+      // Clonar os dados para não modificar os originais
+      const sales = JSON.parse(JSON.stringify(salesData.data));
+      console.log('Exportando dados a partir da tabela atual:', sales.length, 'vendas');
+      
+      // Processar cada venda para garantir que tenha informações financeiras
+      const exportData = sales.map((sale: any) => {
+        // Se não tiver resumo financeiro, calcular valores default
         if (!sale.financialSummary) {
-          console.log(`Forçando financialSummary para a venda ${sale.id} durante exportação Excel`);
+          console.log(`Recriando dados financeiros para a venda ${sale.id}`);
+          
+          // Obter todos os pagamentos dessa venda se disponíveis
+          let totalPaid = 0;
+          if (sale.installments && Array.isArray(sale.installments)) {
+            // Somar todos os pagamentos confirmados
+            totalPaid = sale.installments
+              .filter((inst: any) => inst.status === 'paid' || inst.paymentDate)
+              .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || '0'), 0);
+          }
+          
+          // Obter todos os custos operacionais se disponíveis
+          let totalCosts = 0;
+          if (sale.operationalCosts && Array.isArray(sale.operationalCosts)) {
+            totalCosts = sale.operationalCosts
+              .reduce((sum: number, cost: any) => sum + parseFloat(cost.amount || '0'), 0);
+          }
+          
+          // Valor total da venda
+          const totalAmount = parseFloat(sale.totalAmount || '0');
+          
+          // Calculando resultado líquido
+          const netResult = totalPaid - totalCosts;
+          
+          // Criando o resumo financeiro manualmente
           sale.financialSummary = {
-            totalPaid: 0,
-            totalCosts: 0,
-            netResult: parseFloat(sale.totalAmount || "0")
+            totalPaid,
+            totalCosts,
+            netResult
           };
         }
-      });
-      
-      // Formatar os dados para exportação com financialSummary garantido
-      const exportData = sales.map((sale: any) => {
-        // Assegurar que os valores financeiros estão presentes
-        const totalAmount = parseFloat(sale.totalAmount || "0");
-        const totalPaid = sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString() || "0") : 0; 
-        const totalCosts = sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString() || "0") : 0;
-        const netResult = sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString() || "0") : totalAmount;
         
+        // Extraindo valores financeiros com validação
+        const totalAmount = parseFloat(sale.totalAmount || "0");
+        const totalPaid = sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid?.toString() || "0") : 0; 
+        const totalCosts = sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts?.toString() || "0") : 0;
+        const netResult = sale.financialSummary ? parseFloat(sale.financialSummary.netResult?.toString() || "0") : totalAmount;
+        
+        // Retornando objeto formatado para Excel
         return {
           'Nº OS': sale.orderNumber,
           'Vendedor': sale.sellerName || `Vendedor #${sale.sellerId}`,
@@ -192,7 +164,7 @@ export default function FinancePage() {
           'Custos': totalCosts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
           'Resultado Líquido': netResult.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
           'Status Financeiro': getFinancialStatusLabel(sale.financialStatus),
-          'Criado em': format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+          'Criado em': sale.createdAt ? format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A',
         };
       });
 
@@ -219,86 +191,59 @@ export default function FinancePage() {
     }
   };
 
-  // Exportar para PDF
+  // Exportar para PDF - Nova implementação simplificada que não depende dos dados do backend
   const exportToPDF = async () => {
     try {
-      // Em vez de buscar dados novamente, usar os dados da tabela atual
-      // Isso garante consistência e evita problemas de recuperação de dados do backend
-      let sales = [];
-      
-      if (salesData && salesData.data) {
-        console.log("Usando dados já carregados para exportação PDF");
-        sales = [...salesData.data];
-      } else {
-        // Buscar os dados para exportação diretamente como fallback
-        console.log("Buscando novos dados para exportação PDF");
-        const url = new URL('/api/sales', window.location.origin);
-        
-        // Se não for "all", incluir o filtro de status
-        if (getFinancialStatusForActiveTab() !== 'all') {
-          url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
-        }
-        
-        url.searchParams.append('includeSummary', 'true');
-        if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
-        if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
-        if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
-        // Buscar todos os registros sem paginação para exportação
-        url.searchParams.append('limit', '1000');
-      
-      console.log('URL de exportação PDF:', url.toString());
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error('Erro ao carregar dados para exportação');
-      }
-      const result = await response.json();
-      sales = result.data || [];
-      
-      // Log para depuração
-      console.log('Dados para exportação PDF:', sales.length, 'vendas com dados:', 
-        sales[0] ? `Venda #${sales[0].id} tem financialSummary: ${!!sales[0].financialSummary}` : 'Sem vendas');
-        
-      // Verificar a estrutura detalhada da primeira venda para diagnóstico
-      if (sales[0]) {
-        console.log('Detalhes da primeira venda para diagnóstico PDF:');
-        console.log({
-          id: sales[0].id,
-          financialSummary: sales[0].financialSummary,
-          totalAmount: sales[0].totalAmount,
-          sellerName: sales[0].sellerName,
-          customerName: sales[0].customerName
-        });
-        
-        // Para garantir que o objeto financialSummary será usado mesmo se estiver ausente, forçar a adição aqui
-        if (!sales[0].financialSummary) {
-          console.log('Adicionando financialSummary em tempo de exportação PDF...');
-          sales[0].financialSummary = {
-            totalPaid: 0,
-            totalCosts: 0,
-            netResult: parseFloat(sales[0].totalAmount || "0")
-          };
-          
-          // Se o primeiro item precisou de correção, provavelmente todos precisam
-          sales.forEach(sale => {
-            if (!sale.financialSummary) {
-              sale.financialSummary = {
-                totalPaid: 0,
-                totalCosts: 0,
-                netResult: parseFloat(sale.totalAmount || "0")
-              };
-            }
-          });
-        }
-      }
-
-      if (!sales || sales.length === 0) {
+      // Usar diretamente os dados da tabela atualmente exibida
+      if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
-          description: "Não há vendas para exportar com os filtros selecionados.",
+          description: "Não há dados disponíveis para exportação no momento.",
           variant: "destructive",
         });
         return;
       }
+      
+      // Clonar os dados para não modificar os originais
+      const sales = JSON.parse(JSON.stringify(salesData.data));
+      console.log('Exportando dados PDF a partir da tabela atual:', sales.length, 'vendas');
+      
+      // Processar cada venda para garantir que tenha informações financeiras
+      sales.forEach((sale: any) => {
+        // Se não tiver resumo financeiro, calcular valores default
+        if (!sale.financialSummary) {
+          console.log(`Recriando dados financeiros para a venda ${sale.id} no PDF`);
+          
+          // Obter todos os pagamentos dessa venda se disponíveis
+          let totalPaid = 0;
+          if (sale.installments && Array.isArray(sale.installments)) {
+            // Somar todos os pagamentos confirmados
+            totalPaid = sale.installments
+              .filter((inst: any) => inst.status === 'paid' || inst.paymentDate)
+              .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || '0'), 0);
+          }
+          
+          // Obter todos os custos operacionais se disponíveis
+          let totalCosts = 0;
+          if (sale.operationalCosts && Array.isArray(sale.operationalCosts)) {
+            totalCosts = sale.operationalCosts
+              .reduce((sum: number, cost: any) => sum + parseFloat(cost.amount || '0'), 0);
+          }
+          
+          // Valor total da venda
+          const totalAmount = parseFloat(sale.totalAmount || '0');
+          
+          // Calculando resultado líquido
+          const netResult = totalPaid - totalCosts;
+          
+          // Criando o resumo financeiro manualmente
+          sale.financialSummary = {
+            totalPaid,
+            totalCosts,
+            netResult
+          };
+        }
+      });
 
       // Configurar o documento PDF
       const doc = new jsPDF();
