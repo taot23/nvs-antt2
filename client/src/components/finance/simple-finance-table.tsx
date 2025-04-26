@@ -319,9 +319,9 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                         strokeLinejoin="round"
                         className="h-4 w-4"
                       >
-                        <path d="M2 17a5 5 0 0 1 10 0c0 2.5-2.5 3-2.5 5" />
-                        <path d="M12 17a5 5 0 0 1 10 0c0 2.5-2.5 3-2.5 5" />
-                        <path d="M7 21h10" />
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="16" />
+                        <line x1="8" y1="12" x2="16" y2="12" />
                       </svg>
                     </Button>
                   </TableCell>
