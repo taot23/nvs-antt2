@@ -1285,7 +1285,7 @@ export default function SaleDialog({
                       </FormControl>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((parcela) => (
-                          <SelectItem key={parcela} value={parcela.toString()}>
+                          <SelectItem key={parcela} value={String(parcela)}>
                             {parcela === 1 ? 'À vista' : `${parcela}x`}
                           </SelectItem>
                         ))}
