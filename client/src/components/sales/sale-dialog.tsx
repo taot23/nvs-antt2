@@ -117,7 +117,8 @@ export default function SaleDialog({
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
   
   // Estados para controle das parcelas e datas de vencimento
-  const [installmentDates, setInstallmentDates] = useState<Date[]>([]);
+  // CORREÇÃO: Mudando o tipo de Date[] para string[] para armazenar datas no formato YYYY-MM-DD
+  const [installmentDates, setInstallmentDates] = useState<string[]>([]);
   const [firstDueDate, setFirstDueDate] = useState<Date>(addMonths(new Date(), 1));
   
 
@@ -310,13 +311,19 @@ export default function SaleDialog({
   );
 
   // Função para gerar as datas de vencimento com base na data do primeiro vencimento
+  // CORREÇÃO: Retornando strings YYYY-MM-DD em vez de objetos Date
   const generateInstallmentDates = (firstDate: Date, numberOfInstallments: number) => {
-    const dates = [];
-    dates.push(new Date(firstDate)); // A primeira data é a própria data fornecida
+    const dates: string[] = [];
+    
+    // Formatar a primeira data como YYYY-MM-DD
+    const firstDateFormatted = `${firstDate.getFullYear()}-${String(firstDate.getMonth() + 1).padStart(2, '0')}-${String(firstDate.getDate()).padStart(2, '0')}`;
+    dates.push(firstDateFormatted);
     
     for (let i = 1; i < numberOfInstallments; i++) {
       // Adiciona um mês para cada parcela subsequente
-      dates.push(addMonths(new Date(firstDate), i));
+      const nextDate = addMonths(new Date(firstDate), i);
+      const formattedDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+      dates.push(formattedDate);
     }
     
     return dates;
@@ -379,8 +386,11 @@ export default function SaleDialog({
           setFirstDueDate(new Date(firstInstallment.dueDate));
         }
         
-        // Carregamos todas as datas de vencimento das parcelas existentes
-        const dates = sortedInstallments.map((installment: any) => new Date(installment.dueDate));
+        // CORREÇÃO: Formatar as datas como strings YYYY-MM-DD em vez de objetos Date
+        const dates = sortedInstallments.map((installment: any) => {
+          const date = new Date(installment.dueDate);
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        });
         setInstallmentDates(dates);
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
@@ -563,15 +573,36 @@ export default function SaleDialog({
           // Se temos menos datas que parcelas, gerar as faltantes
           else {
             console.log("➕ Gerando datas adicionais para completar");
-            const baseDate = datesToUse.length > 0 
-              ? new Date(datesToUse[datesToUse.length - 1])
-              : new Date();
+            // CORREÇÃO: Trabalhar com strings no formato YYYY-MM-DD
+            let baseDate: Date;
+            
+            if (datesToUse.length > 0) {
+              // Converter a última data string para objeto Date
+              const lastDateStr = datesToUse[datesToUse.length - 1];
+              const lastDateParts = typeof lastDateStr === 'string' && lastDateStr.includes('-') 
+                ? lastDateStr.split('-') 
+                : null;
+                
+              if (lastDateParts && lastDateParts.length === 3) {
+                const year = parseInt(lastDateParts[0]);
+                const month = parseInt(lastDateParts[1]) - 1; // JS usa mês 0-indexado
+                const day = parseInt(lastDateParts[2]);
+                baseDate = new Date(year, month, day);
+              } else {
+                baseDate = new Date(); // Fallback para data atual
+              }
+            } else {
+              baseDate = new Date(); // Começar da data atual se não tivermos datas
+            }
             
             // Começar a gerar a partir da última data existente
             for (let i = datesToUse.length; i < numInstalments; i++) {
               const dueDate = new Date(baseDate);
               dueDate.setMonth(baseDate.getMonth() + (i - datesToUse.length + 1));
-              datesToUse.push(dueDate);
+              
+              // Converter para string no formato YYYY-MM-DD
+              const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+              datesToUse.push(isoDate);
             }
           }
           
