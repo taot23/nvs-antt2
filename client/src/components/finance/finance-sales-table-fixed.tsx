@@ -21,12 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { getStatusLabel } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -42,13 +36,8 @@ import {
   ArrowUpAZ,
   ArrowDown01,
   ArrowUp01,
-  Calendar,
-  Hash,
-  User,
-  MoreHorizontal,
   ArrowDown,
   ArrowUp,
-  CircleDollarSign
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
@@ -80,7 +69,7 @@ interface SalesResponse {
   totalPages: number;
 }
 
-export default function FinanceSalesTable({ 
+export default function FinanceSalesTableFixed({ 
   status, 
   searchTerm, 
   onViewFinancials,
@@ -239,28 +228,27 @@ export default function FinanceSalesTable({
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="rounded-md border">
-          <div className="overflow-x-auto">
-            <Table className="w-full min-w-[1200px]">
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead 
-                    className="w-[80px] cursor-pointer whitespace-nowrap" 
-                    onClick={() => toggleSort('orderNumber')}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>Nº OS</span>
-                      {sortField === 'orderNumber' ? (
-                        sortDirection === 'asc' ? (
-                          <ArrowUpAZ className="h-4 w-4" />
-                        ) : (
-                          <ArrowDownAZ className="h-4 w-4" />
-                        )
+        <div className="overflow-auto rounded-md border" style={{ maxWidth: "100%" }}>
+          <Table className="w-full min-w-[1200px] border-collapse">
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead 
+                  className="w-[80px] cursor-pointer whitespace-nowrap" 
+                  onClick={() => toggleSort('orderNumber')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Nº OS</span>
+                    {sortField === 'orderNumber' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUpAZ className="h-4 w-4" />
                       ) : (
-                        <div className="w-4" />
-                      )}
-                    </div>
-                  </TableHead>
+                        <ArrowDownAZ className="h-4 w-4" />
+                      )
+                    ) : (
+                      <div className="w-4" />
+                    )}
+                  </div>
+                </TableHead>
                 <TableHead 
                   className="cursor-pointer whitespace-nowrap"
                   onClick={() => toggleSort('sellerId')}
@@ -407,7 +395,7 @@ export default function FinanceSalesTable({
                 <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody style={{ width: '100%' }}>
+            <TableBody>
               {sales.map((sale) => (
                 <TableRow key={sale.id} data-status={usesFinancialStatus ? sale.financialStatus : sale.status}>
                   <TableCell className="font-medium whitespace-nowrap">{sale.orderNumber}</TableCell>
@@ -478,41 +466,6 @@ export default function FinanceSalesTable({
                         {getStatusLabel(sale.status)}
                       </Badge>
                     )}
-                    
-                    {/* Versão resumida para mobile - resumo financeiro */}
-                    {usesFinancialStatus && (
-                      <div className="flex flex-col gap-1 text-xs mt-2 hidden">
-                        {sale.financialSummary ? (
-                          <>
-                            <div className="flex items-center">
-                              <span className="text-muted-foreground mr-1">Pago:</span>
-                              <span className="text-green-600 font-medium">
-                                {formatCurrency(sale.financialSummary.totalPaid)}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-muted-foreground mr-1">Custos:</span>
-                              <span className="text-red-600 font-medium">
-                                {formatCurrency(sale.financialSummary.totalCosts)}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-muted-foreground mr-1">Resultado:</span>
-                              <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                                {formatCurrency(sale.financialSummary.netResult)}
-                                {sale.financialSummary.netResult >= 0 ? (
-                                  <ArrowUp className="h-3 w-3 ml-1 inline text-green-600" />
-                                ) : (
-                                  <ArrowDown className="h-3 w-3 ml-1 inline text-red-600" />
-                                )}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-muted-foreground italic">Sem dados financeiros</div>
-                        )}
-                      </div>
-                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -530,7 +483,6 @@ export default function FinanceSalesTable({
               ))}
             </TableBody>
           </Table>
-          </div>
         </div>
         
         {/* Paginação */}
