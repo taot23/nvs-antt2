@@ -182,6 +182,7 @@ export default function SalesPage() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined); // Estado para filtro de intervalo de datas
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("all"); // Estado para filtro de vendedor
   
   // Configuração para staleTime e gcTime globais para reduzir chamadas de API
   const staleTime = 5 * 60 * 1000; // 5 minutos 
@@ -228,9 +229,17 @@ export default function SalesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   
+  // Função para lidar com a mudança no filtro de vendedor
+  const handleSellerFilterChange = (value: string) => {
+    setSelectedSellerId(value);
+    setPage(1); // Voltar para a primeira página quando mudar o filtro
+    // Atualiza as queries para refletir o novo filtro
+    queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+  };
+
   // Para o perfil vendedor, carregamos apenas suas próprias vendas, agora com paginação
   const { data: salesData = { data: [], total: 0, page: 1, totalPages: 1 }, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all", page, limit, statusFilter, searchTerm, sortField, sortDirection, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryKey: ["/api/sales", user?.role === "vendedor" ? user?.id : "all", page, limit, statusFilter, searchTerm, sortField, sortDirection, dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedSellerId],
     queryFn: async ({ queryKey }) => {
       // Preparar a URL com os parâmetros de paginação e filtros
       const baseUrl = "/api/sales";
@@ -256,8 +265,12 @@ export default function SalesPage() {
         queryParams.append("endDate", dateRange.to.toISOString().split('T')[0]);
       }
       
-      // Vendedor só pode ver suas próprias vendas
-      if (user?.role === "vendedor") {
+      // Aplicar filtro de vendedor específico
+      if (selectedSellerId && selectedSellerId !== 'all') {
+        queryParams.append("sellerId", selectedSellerId);
+      }
+      // Ou se for vendedor, só pode ver suas próprias vendas
+      else if (user?.role === "vendedor") {
         console.log("Carregando vendas específicas para o vendedor:", user.id);
         queryParams.append("sellerId", user.id.toString());
       }
@@ -1314,6 +1327,27 @@ export default function SalesPage() {
             className="w-full"
           />
           
+          {/* Filtro de vendedor (versão mobile) */}
+          <Select
+            value={selectedSellerId}
+            onValueChange={handleSellerFilterChange}
+          >
+            <SelectTrigger className="w-full">
+              <div className="flex items-center space-x-2">
+                <UserIcon className="h-4 w-4" />
+                <SelectValue placeholder="Filtrar por vendedor" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os vendedores</SelectItem>
+              {users.map((user: any) => (
+                <SelectItem key={user.id} value={user.id.toString()}>
+                  {user.username}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           {/* Menu dropdown para filtro de status em mobile */}
           <div className="flex items-center">
             <DropdownMenu>
@@ -1615,6 +1649,29 @@ export default function SalesPage() {
               &times;
             </Button>
           )}
+        </div>
+        
+        {/* Filtro de vendedor (versão desktop) */}
+        <div className="w-64">
+          <Select
+            value={selectedSellerId}
+            onValueChange={handleSellerFilterChange}
+          >
+            <SelectTrigger>
+              <div className="flex items-center space-x-2">
+                <UserIcon className="h-4 w-4" />
+                <SelectValue placeholder="Filtrar por vendedor" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os vendedores</SelectItem>
+              {users.map((user: any) => (
+                <SelectItem key={user.id} value={user.id.toString()}>
+                  {user.username}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
         <div className="flex gap-3">
