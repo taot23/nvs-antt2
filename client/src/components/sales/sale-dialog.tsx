@@ -524,9 +524,22 @@ export default function SaleDialog({
       // Garantia absoluta de que é um número válido
       const installmentsToSend = isNaN(finalInstallmentsNumber) ? 1 : finalInstallmentsNumber;
       
+      // CORREÇÃO FINAL PARA DATAS - 26/04/2025
+      // Formatação manual das datas para evitar QUALQUER problema de timezone
+      let formattedDate;
+      if (data.date instanceof Date) {
+        // Formato YYYY-MM-DD sem timezone
+        formattedDate = `${data.date.getFullYear()}-${String(data.date.getMonth() + 1).padStart(2, '0')}-${String(data.date.getDate()).padStart(2, '0')}`;
+        console.log("🛑 DATA VENDA FORMATADA MANUALMENTE:", formattedDate);
+      } else {
+        // Se já for string, mantém como está
+        formattedDate = data.date;
+        console.log("🛑 DATA VENDA JÁ É STRING:", formattedDate);
+      }
+
       const formattedData = {
         ...data,
-        date: data.date instanceof Date ? data.date.toISOString() : data.date,
+        date: formattedDate,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
         // SOLUÇÃO DEFINITIVA: Garantir que installments seja um número com várias camadas de segurança
         installments: installmentsToSend,

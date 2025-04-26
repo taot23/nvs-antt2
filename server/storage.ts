@@ -675,18 +675,26 @@ export class DatabaseStorage implements IStorage {
           console.log(`⚠️ Mantendo as datas informadas pelo usuário sem modificação`);
         }
         
-        // CORREÇÃO CRÍTICA: Preservar a data exatamente como recebida, sem converter para Date
+        // REVISÃO FINAL (26/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
         const installmentsToCreate = datesToUse.map((dueDate: string, index: number) => {
           // Verificar se a data já está no formato ISO YYYY-MM-DD
           // Se já estiver nesse formato, usamos diretamente sem conversão adicional
           let formattedDate = dueDate;
           
-          // Se a data contiver o componente de tempo (T), remover esse componente
-          if (dueDate.includes('T')) {
+          console.log(`🚨 REVISÃO FINAL - Parcela ${index+1}: Data recebida: [${dueDate}], tipo: ${typeof dueDate}`);
+          
+          // Remover qualquer parte T00:00:00.000Z da data
+          if (typeof dueDate === 'string' && dueDate.includes('T')) {
             formattedDate = dueDate.split('T')[0];
+            console.log(`🚨 REVISÃO FINAL - Removido T00:00:00.000Z da data: [${formattedDate}]`);
+          } 
+          // Se for um objeto Date, converter para YYYY-MM-DD manualmente
+          else if (dueDate instanceof Date) {
+            formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+            console.log(`🚨 REVISÃO FINAL - Convertido Date para string: [${formattedDate}]`);
           }
           
-          console.log(`🔍 Parcela ${index+1}: Data original: ${dueDate}, Data preservada: ${formattedDate}`);
+          console.log(`🔍 Parcela ${index+1}: Data original: [${dueDate}], Data final: [${formattedDate}]`);
           
           return {
             saleId: createdSale.id,
