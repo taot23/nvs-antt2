@@ -666,13 +666,8 @@ export default function SaleDialog({
       // Log para debug do payload
       console.log("Payload completo da venda:", JSON.stringify(formattedData, null, 2));
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formattedData),
-      });
+      // Usar apiRequest em vez de fetch para manter a autenticação
+      const response = await apiRequest(method, url, formattedData);
       
       if (!response.ok) {
         const error = await response.json();
@@ -1957,22 +1952,9 @@ export default function SaleDialog({
                   
                   console.log("Dados de venda preparados:", saleData);
                   
-                  // Chama diretamente a API para salvar a venda
-                  setIsSubmitting(true);
-                  fetch("/api/sales", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(saleData),
-                  })
-                    .then(response => {
-                      if (!response.ok) {
-                        throw new Error("Erro ao salvar venda");
-                      }
-                      return response.json();
-                    })
-                    .then(data => {
+                  // Usa a mutation para salvar a venda (isso garante que a autenticação seja mantida)
+                  saveSaleMutation.mutate(saleData, {
+                    onSuccess: (data) => {
                       console.log("Venda salva com sucesso:", data);
                       
                       // SOLUÇÃO ESPECIAL: Verificar se o valor total foi salvo corretamente
@@ -1984,21 +1966,9 @@ export default function SaleDialog({
                         console.log(`Valor total da venda não foi salvo corretamente. Atualizando usando rota especial...`);
                         console.log(`Valor atual: ${data.totalAmount}, Valor esperado: ${saleData.totalAmount}`);
                         
-                        // Chamar API especial para atualizar o valor total
-                        fetch(`/api/sales/${data.id}/update-total`, {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({ totalAmount: saleData.totalAmount }),
-                        })
-                          .then(response => {
-                            if (!response.ok) {
-                              console.error("Erro ao atualizar valor total:", response.statusText);
-                              return;
-                            }
-                            return response.json();
-                          })
+                        // Usar apiRequest em vez de fetch direto para manter autenticação
+                        apiRequest("POST", `/api/sales/${data.id}/update-total`, { totalAmount: saleData.totalAmount })
+                          .then(response => response.json())
                           .then(updatedSale => {
                             console.log("Valor total atualizado com sucesso:", updatedSale);
                             // Atualizar o cache para refletir o novo valor
@@ -2009,25 +1979,10 @@ export default function SaleDialog({
                           });
                       }
                       
-                      toast({
-                        title: "Venda criada",
-                        description: "Venda criada com sucesso",
-                      });
-                      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
                       onSaveSuccess();
                       onClose();
-                    })
-                    .catch(error => {
-                      console.error("Erro ao salvar venda:", error);
-                      toast({
-                        title: "Erro ao salvar venda",
-                        description: error.message,
-                        variant: "destructive",
-                      });
-                    })
-                    .finally(() => {
-                      setIsSubmitting(false);
-                    });
+                    }
+                  });
                 }}
               >
                 <Save className="mr-2 h-4 w-4" />
