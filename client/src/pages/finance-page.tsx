@@ -98,7 +98,7 @@ export default function FinancePage() {
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Exportar para CSV (método mais simples possível)
+  // Exportação para Excel - solução final estável
   const exportToExcel = () => {
     try {
       // Verificar se há dados disponíveis
@@ -107,18 +107,20 @@ export default function FinancePage() {
         return;
       }
       
-      // Usar dados da tabela atual
-      const { exportToCSV } = require('@/components/finance/csv-export');
-      
-      // Executar exportação
-      exportToCSV(salesData.data);
+      // Usar a exportação independente
+      import('@/components/finance/standalone-export').then(module => {
+        module.exportToExcel(salesData.data);
+      }).catch(error => {
+        console.error("Erro ao importar módulo de exportação:", error);
+        alert("Erro ao carregar recursos para exportação");
+      });
     } catch (error) {
-      console.error("Erro:", error);
+      console.error("Erro na exportação:", error);
       alert("Erro na exportação: " + error);
     }
   };
 
-  // Usar mesmo método CSV para o PDF também, para simplificar
+  // Exportação para PDF - solução final estável
   const exportToPDF = () => {
     try {
       // Verificar se há dados disponíveis
@@ -127,13 +129,15 @@ export default function FinancePage() {
         return;
       }
       
-      // Usar dados da tabela atual
-      const { exportToCSV } = require('@/components/finance/csv-export');
-      
-      // Executar exportação CSV, já que PDF não está funcionando
-      exportToCSV(salesData.data);
+      // Usar a exportação independente
+      import('@/components/finance/standalone-export').then(module => {
+        module.exportToPDF(salesData.data);
+      }).catch(error => {
+        console.error("Erro ao importar módulo de exportação:", error);
+        alert("Erro ao carregar recursos para exportação");
+      });
     } catch (error) {
-      console.error("Erro:", error);
+      console.error("Erro na exportação:", error);
       alert("Erro na exportação: " + error);
     }
   };
