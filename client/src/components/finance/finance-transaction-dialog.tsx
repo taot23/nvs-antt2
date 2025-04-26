@@ -170,6 +170,17 @@ export default function FinanceTransactionDialog({
   
   // Verificar se é possível finalizar
   const canComplete = sale?.financialStatus === 'in_progress' && allPaymentsConfirmed;
+
+  // Buscar custos operacionais para o resumo financeiro
+  const { data: operationalCosts = [] } = useQuery<SaleOperationalCost[]>({
+    queryKey: ['/api/sales', saleId, 'operational-costs'],
+    queryFn: async () => {
+      if (!saleId) return [];
+      const res = await apiRequest("GET", `/api/sales/${saleId}/operational-costs`);
+      return res.json();
+    },
+    enabled: !!saleId && open,
+  });
   
   if (!open || !saleId) return null;
   
@@ -356,6 +367,13 @@ export default function FinanceTransactionDialog({
                 </div>
               </CardContent>
             </Card>
+            
+            {/* Resumo Financeiro */}
+            <SaleFinancialSummary 
+              totalAmount={sale.totalAmount} 
+              operationalCosts={operationalCosts} 
+              installments={installments || []} 
+            />
             
             {/* Status Operacional */}
             <Card>

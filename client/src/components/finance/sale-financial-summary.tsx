@@ -1,7 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/formatters";
 import { SaleInstallment, SaleOperationalCost } from "@shared/schema";
-import { BadgeDelta } from "@/components/ui/badge-delta";
+import { Badge } from "@/components/ui/badge";
+import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 
 interface SaleFinancialSummaryProps {
   totalAmount: string | number;
@@ -86,7 +87,19 @@ export default function SaleFinancialSummary({
                 <span className={`font-bold ${netResult >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(netResult)}
                 </span>
-                <BadgeDelta deltaType={resultType} size="sm" />
+                <Badge 
+                  variant="outline" 
+                  className={`${
+                    netResult >= 0 
+                      ? 'bg-green-100 text-green-800 border-green-200' 
+                      : 'bg-red-100 text-red-800 border-red-200'
+                  }`}
+                >
+                  {netResult >= 0 
+                    ? <><ArrowUp className="h-3 w-3 mr-1" /> Positivo</> 
+                    : <><ArrowDown className="h-3 w-3 mr-1" /> Negativo</>
+                  }
+                </Badge>
               </div>
             </div>
           </div>
