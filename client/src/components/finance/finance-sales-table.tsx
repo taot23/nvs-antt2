@@ -239,9 +239,9 @@ export default function FinanceSalesTable({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
-        <div className="rounded-md border overflow-hidden">
-          <div className="overflow-x-auto w-full" style={{ maxWidth: '100%' }}>
-            <Table className="w-full min-w-[800px]">
+        <div className="rounded-md border">
+          <div className="overflow-x-auto" style={{ width: '100%' }}>
+            <Table className="w-full min-w-[1200px]">
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead 
