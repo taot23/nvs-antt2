@@ -131,10 +131,49 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
       queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
       
-      toast({
-        title: "Pagamento confirmado",
-        description: "O pagamento foi confirmado com sucesso.",
-      });
+      // Verificar se estamos no modo de confirmação múltipla
+      if (showMultiConfirm && selectedInstallments.length > 0) {
+        // Remover a parcela atual da lista de parcelas selecionadas
+        const updatedInstallments = [...selectedInstallments];
+        updatedInstallments.shift(); // Remove o primeiro item (que acabamos de confirmar)
+        setSelectedInstallments(updatedInstallments);
+        
+        // Verificar se ainda há mais parcelas para confirmar
+        if (updatedInstallments.length > 0) {
+          toast({
+            title: "Parcela confirmada",
+            description: `Confirmada com sucesso. Processando próxima parcela (${updatedInstallments.length} restantes)...`,
+          });
+          
+          // Processar a próxima parcela automaticamente
+          const nextInstallment = pendingInstallments.find(inst => inst.id === updatedInstallments[0]);
+          if (nextInstallment) {
+            // Usar setTimeout para dar um pequeno atraso antes de confirmar a próxima,
+            // permitindo que a interface se atualize primeiro
+            setTimeout(() => {
+              confirmPaymentMutation.mutate({
+                installmentId: nextInstallment.id,
+                paymentDate: paymentDateStr,
+                notes: paymentNotes,
+                paymentMethodId
+              });
+            }, 500);
+          }
+          return;
+        } else {
+          // Todas as parcelas foram confirmadas
+          toast({
+            title: "Todas as parcelas confirmadas",
+            description: "Todas as parcelas pendentes foram confirmadas com sucesso.",
+          });
+        }
+      } else {
+        // Confirmação única
+        toast({
+          title: "Pagamento confirmado",
+          description: "O pagamento foi confirmado com sucesso.",
+        });
+      }
       
       // Fechar o diálogo
       closeConfirmDialog();
@@ -146,6 +185,16 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
         description: error.message || "Não foi possível confirmar o pagamento.",
         variant: "destructive",
       });
+      
+      // Se estamos no modo de confirmação múltipla, cancelar todo o processo
+      if (showMultiConfirm) {
+        closeConfirmDialog();
+        toast({
+          title: "Processo interrompido",
+          description: "O processo de confirmação em lote foi interrompido devido a um erro.",
+          variant: "destructive",
+        });
+      }
     }
   });
   
@@ -412,11 +461,38 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
           <DialogHeader>
             <DialogTitle>Confirmar Pagamento</DialogTitle>
             <DialogDescription>
-              Confirme o recebimento do pagamento da parcela {selectedInstallment?.installmentNumber}.
+              {showMultiConfirm 
+                ? `Confirme os pagamentos de ${pendingInstallments.length} parcelas pendentes.`
+                : `Confirme o recebimento do pagamento da parcela ${selectedInstallment?.installmentNumber}.`
+              }
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            {showMultiConfirm && selectedInstallments.length > 0 && (
+              <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
+                <p className="text-sm text-amber-800 flex items-center mb-2">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Confirmação em lote
+                </p>
+                <p className="text-sm text-amber-700">
+                  Você está prestes a confirmar o pagamento de todas as {pendingInstallments.length} parcelas pendentes 
+                  com a mesma data de pagamento e método de pagamento.
+                </p>
+                
+                <div className="mt-3 p-2 bg-white rounded border border-amber-100">
+                  <p className="text-xs font-medium mb-1">Parcelas a serem confirmadas:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {pendingInstallments.map(inst => (
+                      <span key={inst.id} className="inline-flex items-center px-2 py-1 rounded text-xs bg-amber-100 text-amber-800">
+                        Parcela {inst.installmentNumber}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="grid gap-2">
               <Label htmlFor="payment-method">Método de Pagamento</Label>
               <Select 
@@ -476,7 +552,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
             </Button>
             <Button 
               onClick={handleConfirmPayment}
-              disabled={!paymentDate || !paymentMethodId || confirmPaymentMutation.isPending}
+              disabled={!paymentDateStr || !paymentMethodId || confirmPaymentMutation.isPending}
               variant="default"
               className="bg-green-600 hover:bg-green-700"
             >
@@ -485,7 +561,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
               ) : (
                 <Check className="h-4 w-4 mr-2" />
               )}
-              Confirmar Pagamento
+              {showMultiConfirm ? "Confirmar Parcelas" : "Confirmar Pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
