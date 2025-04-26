@@ -262,7 +262,10 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
               {installments.map((installment: any) => (
                 <TableRow key={installment.id}>
                   <TableCell>{installment.installmentNumber}</TableCell>
-                  <TableCell>{formatDate(installment.dueDate)}</TableCell>
+                  <TableCell>
+                    {console.log(`🔍 DEPURAÇÃO: Parcela #${installment.installmentNumber}, data: ${installment.dueDate}, tipo: ${typeof installment.dueDate}`)}
+                    {formatDate(installment.dueDate)}
+                  </TableCell>
                   <TableCell>{formatCurrency(installment.amount)}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
