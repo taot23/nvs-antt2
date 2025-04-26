@@ -97,17 +97,15 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Mutation para confirmar pagamento
   const confirmPaymentMutation = useMutation({
-    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: Date, notes: string, paymentMethodId: string }) => {
+    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: string, notes: string, paymentMethodId: string }) => {
       // Buscar o método de pagamento selecionado para usar seu nome
       const selectedMethod = paymentMethods.find(m => String(m.id) === paymentMethodId);
       
-      // Formatar a data no formato YYYY-MM-DD para garantir consistência
-      const formattedDate = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}-${String(paymentDate.getDate()).padStart(2, '0')}`;
-      
-      console.log(`🔍 Confirmação de pagamento: Data a ser enviada: ${formattedDate}`);
+      // Usar a data exatamente como foi fornecida pelo usuário
+      console.log(`🔍 Confirmação de pagamento: Data a ser enviada: ${paymentDate}`);
       
       const res = await apiRequest("POST", `/api/installments/${installmentId}/confirm-payment`, {
-        paymentDate: formattedDate, // Enviar apenas a data formatada sem o componente de tempo
+        paymentDate, // Enviar a data exatamente como está para preservar o formato
         paymentMethodId: Number(paymentMethodId), // ID do método de pagamento
         receiptType: "manual", // "manual" é o tipo de comprovante
         notes: notes,
@@ -175,11 +173,22 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Confirmar pagamento
   const handleConfirmPayment = () => {
-    if (!selectedInstallment || !paymentDate || !paymentMethodId) return;
+    if (!selectedInstallment || !paymentDateStr || !paymentMethodId) return;
+    
+    // Converter data do formato BR (DD/MM/YYYY) para o formato ISO (YYYY-MM-DD)
+    let formattedDate = paymentDateStr;
+    
+    // Se o formato for dd/mm/aaaa, convertemos para YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(paymentDateStr)) {
+      const [day, month, year] = paymentDateStr.split('/');
+      formattedDate = `${year}-${month}-${day}`;
+    }
+    
+    console.log(`📅 Data para enviar: ${formattedDate} (original: ${paymentDateStr})`);
     
     confirmPaymentMutation.mutate({
       installmentId: selectedInstallment.id,
-      paymentDate,
+      paymentDate: formattedDate, // Enviar a data formatada
       notes: paymentNotes,
       paymentMethodId
     });
