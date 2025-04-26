@@ -6,14 +6,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown, Loader2 } from "lucide-react";
+import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown, Loader2, UserIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import PaginatedFinanceTable from "@/components/finance/paginated-finance-table";
 import FinanceTransactionDialog from "@/components/finance/finance-transaction-dialog";
 import { DateRangePicker } from "@/components/date-range-picker";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { convertToSafeUser } from "@/components/finance/finance-types";
@@ -31,6 +45,7 @@ export default function FinancePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isMobile = useIsMobile();
   const { lastEvent, isConnected } = useWebSocket();
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
   
   // Estados para paginação
   const [page, setPage] = useState(1);
@@ -127,13 +142,33 @@ export default function FinancePage() {
     }
   }
 
+  // Consulta para obter vendedores (usuarios)
+  const { data: users = [] } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: async () => {
+      const response = await fetch('/api/users');
+      if (!response.ok) {
+        throw new Error('Erro ao buscar vendedores');
+      }
+      return response.json();
+    },
+  });
+
+  // Manipular mudança no filtro de vendedor
+  const handleSellerFilterChange = (value: string) => {
+    setSelectedSellerId(value);
+    setPage(1); // Voltar para a primeira página quando mudar o filtro
+    // Atualiza as queries para refletir o novo filtro
+    queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
+  };
+
   // Consulta para obter os dados das vendas com paginação
   const {
     data: salesData,
     isLoading,
     error
   } = useQuery({
-    queryKey: ['/api/sales', page, limit, sortField, sortDirection, activeTab, searchTerm, dateRange],
+    queryKey: ['/api/sales', page, limit, sortField, sortDirection, activeTab, searchTerm, dateRange, selectedSellerId],
     queryFn: async () => {
       const url = new URL('/api/sales', window.location.origin);
       
@@ -149,6 +184,11 @@ export default function FinancePage() {
       // Adicionar termo de busca se houver
       if (searchTerm) {
         url.searchParams.append('searchTerm', searchTerm);
+      }
+      
+      // Adicionar filtro de vendedor se não for "all"
+      if (selectedSellerId && selectedSellerId !== 'all') {
+        url.searchParams.append('sellerId', selectedSellerId);
       }
       
       // Adicionar intervalo de datas se houver
@@ -244,7 +284,28 @@ export default function FinancePage() {
         </div>
         
         <div className="flex flex-col md:flex-row justify-between gap-4">
-          <div className="flex-1"></div>
+          <div className="flex-1 flex flex-col sm:flex-row gap-3">
+            {/* Filtro de vendedor */}
+            <Select
+              value={selectedSellerId}
+              onValueChange={handleSellerFilterChange}
+            >
+              <SelectTrigger className="max-w-[240px]">
+                <div className="flex items-center space-x-2">
+                  <UserIcon className="h-4 w-4" />
+                  <SelectValue placeholder="Filtrar por vendedor" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os vendedores</SelectItem>
+                {users.map((user: any) => (
+                  <SelectItem key={user.id} value={user.id.toString()}>
+                    {user.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
               placeholder="Buscar vendas por número, cliente..."
