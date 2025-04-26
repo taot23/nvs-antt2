@@ -1306,13 +1306,65 @@ export class DatabaseStorage implements IStorage {
         console.error("💰 ERRO ao atualizar número de parcelas na venda:", updateError);
       }
       
-      // Usar inserção em lote para melhor performance
-      const createdInstallments = await db
-        .insert(saleInstallments)
-        .values(installmentsData)
-        .returning();
+      // 🔒 CORREÇÃO CRÍTICA 🔒
+      // Usar SQL direto para preservar exatamente as datas como foram informadas
+      // Evita qualquer conversão automática de fuso horário pelo PostgreSQL
+      const { pool } = await import('./db');
       
-      console.log(`💰 ${createdInstallments.length} parcelas criadas com sucesso`);
+      // Criar arrays para armazenar os valores e as parcelas criadas
+      const createdInstallments: SaleInstallment[] = [];
+      
+      // Iterar sobre cada parcela para garantir controle preciso sobre os dados
+      for (const installment of installmentsData) {
+        // Garantir que a data está no formato YYYY-MM-DD sem qualquer componente de tempo
+        // Isso é crítico para preservar a data exatamente como digitada pelo usuário
+        let formattedDueDate = installment.dueDate;
+        
+        // Se a data contém o componente T (ISO), remover
+        if (typeof formattedDueDate === 'string' && formattedDueDate.includes('T')) {
+          formattedDueDate = formattedDueDate.split('T')[0];
+        }
+        
+        console.log(`💰 PRESERVAÇÃO DE DATA: Parcela #${installment.installmentNumber}, Data original: ${installment.dueDate}, Formato final: ${formattedDueDate}`);
+        
+        // Usar SQL direto com parâmetros para inserir cada parcela
+        // Especificar explicitamente valores ao invés de confiar no ORM
+        const result = await pool.query(
+          `INSERT INTO sale_installments 
+           (sale_id, installment_number, amount, due_date, status, notes, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+           RETURNING *`,
+          [
+            installment.saleId,
+            installment.installmentNumber,
+            installment.amount,
+            formattedDueDate, // Usar a data exatamente como formatada
+            installment.status || 'pending',
+            installment.notes || null
+          ]
+        );
+        
+        if (result.rows && result.rows.length > 0) {
+          // Mapear o resultado SQL para nosso tipo SaleInstallment
+          const createdInstallment = {
+            id: result.rows[0].id,
+            saleId: result.rows[0].sale_id,
+            installmentNumber: result.rows[0].installment_number,
+            amount: result.rows[0].amount,
+            dueDate: result.rows[0].due_date,
+            status: result.rows[0].status,
+            paymentDate: result.rows[0].payment_date,
+            notes: result.rows[0].notes,
+            createdAt: new Date(result.rows[0].created_at),
+            updatedAt: new Date(result.rows[0].updated_at)
+          } as SaleInstallment;
+          
+          createdInstallments.push(createdInstallment);
+          console.log(`💰 Parcela #${installment.installmentNumber} criada com data ${result.rows[0].due_date}`);
+        }
+      }
+      
+      console.log(`💰 ${createdInstallments.length} parcelas criadas com sucesso usando SQL direto`);
       
       return createdInstallments;
     } catch (error) {
@@ -1322,12 +1374,118 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateSaleInstallment(id: number, installmentData: Partial<InsertSaleInstallment>): Promise<SaleInstallment | undefined> {
-    const [updatedInstallment] = await db
-      .update(saleInstallments)
-      .set(installmentData)
-      .where(eq(saleInstallments.id, id))
-      .returning();
-    return updatedInstallment || undefined;
+    try {
+      // 🔒 CORREÇÃO CRÍTICA 🔒
+      // Usar SQL direto para preservar exatamente as datas como foram informadas
+      // Evita qualquer conversão automática de fuso horário pelo PostgreSQL
+      const { pool } = await import('./db');
+      
+      console.log(`🔄 Atualizando parcela #${id} com dados:`, JSON.stringify(installmentData, null, 2));
+      
+      // Primeiro, buscar a parcela atual para manter os valores existentes
+      const currentInstallment = await this.getSaleInstallment(id);
+      if (!currentInstallment) {
+        console.log(`❌ Parcela #${id} não encontrada para atualização`);
+        return undefined;
+      }
+      
+      // Preparar as condições SET do SQL
+      const updateParts: string[] = [];
+      const updateValues: any[] = [id]; // Primeiro parâmetro é o ID
+      let paramIndex = 2; // Começa do parâmetro 2
+      
+      // Processar cada campo a ser atualizado
+      if (installmentData.amount !== undefined) {
+        updateParts.push(`amount = $${paramIndex++}`);
+        updateValues.push(installmentData.amount);
+      }
+      
+      if (installmentData.status !== undefined) {
+        updateParts.push(`status = $${paramIndex++}`);
+        updateValues.push(installmentData.status);
+      }
+      
+      if (installmentData.notes !== undefined) {
+        updateParts.push(`notes = $${paramIndex++}`);
+        updateValues.push(installmentData.notes);
+      }
+      
+      // CRÍTICO: Processar datas especialmente para preservar o formato YYYY-MM-DD
+      if (installmentData.dueDate !== undefined) {
+        let formattedDueDate = installmentData.dueDate;
+        
+        // Se a data contém o componente T (ISO), remover
+        if (typeof formattedDueDate === 'string' && formattedDueDate.includes('T')) {
+          formattedDueDate = formattedDueDate.split('T')[0];
+        }
+        
+        console.log(`🔍 DueDate - Original: ${installmentData.dueDate}, Formatada: ${formattedDueDate}`);
+        
+        updateParts.push(`due_date = $${paramIndex++}`);
+        updateValues.push(formattedDueDate);
+      }
+      
+      // Processar data de pagamento (também crítico para preservação de formato)
+      if (installmentData.paymentDate !== undefined) {
+        let formattedPaymentDate = installmentData.paymentDate;
+        
+        // Se a data contém o componente T (ISO), remover
+        if (formattedPaymentDate !== null && typeof formattedPaymentDate === 'string' && formattedPaymentDate.includes('T')) {
+          formattedPaymentDate = formattedPaymentDate.split('T')[0];
+        }
+        
+        console.log(`🔍 PaymentDate - Original: ${installmentData.paymentDate}, Formatada: ${formattedPaymentDate}`);
+        
+        updateParts.push(`payment_date = $${paramIndex++}`);
+        updateValues.push(formattedPaymentDate);
+      }
+      
+      // Sempre atualizar o timestamp de atualização
+      updateParts.push(`updated_at = NOW()`);
+      
+      // Se não há campos para atualizar, retornar a parcela atual
+      if (updateParts.length === 0) {
+        console.log(`ℹ️ Nenhum campo para atualizar na parcela #${id}`);
+        return currentInstallment;
+      }
+      
+      // Construir e executar a query SQL
+      const updateQuery = `
+        UPDATE sale_installments
+        SET ${updateParts.join(', ')}
+        WHERE id = $1
+        RETURNING *
+      `;
+      
+      const result = await pool.query(updateQuery, updateValues);
+      
+      if (result.rows && result.rows.length > 0) {
+        // Mapear o resultado SQL para nosso tipo SaleInstallment
+        const updatedInstallment = {
+          id: result.rows[0].id,
+          saleId: result.rows[0].sale_id,
+          installmentNumber: result.rows[0].installment_number,
+          amount: result.rows[0].amount,
+          dueDate: result.rows[0].due_date,
+          status: result.rows[0].status,
+          paymentDate: result.rows[0].payment_date,
+          notes: result.rows[0].notes,
+          createdAt: new Date(result.rows[0].created_at),
+          updatedAt: new Date(result.rows[0].updated_at)
+        } as SaleInstallment;
+        
+        console.log(`✅ Parcela #${id} atualizada com sucesso`);
+        console.log(`🗓️ Data de vencimento: ${updatedInstallment.dueDate}`);
+        console.log(`💰 Data de pagamento: ${updatedInstallment.paymentDate || 'não definida'}`);
+        
+        return updatedInstallment;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error(`❌ ERRO ao atualizar parcela #${id}:`, error);
+      return undefined;
+    }
   }
   
   async deleteSaleInstallments(saleId: number): Promise<boolean> {
