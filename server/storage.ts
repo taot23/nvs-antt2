@@ -675,17 +675,23 @@ export class DatabaseStorage implements IStorage {
           console.log(`⚠️ Mantendo as datas informadas pelo usuário sem modificação`);
         }
         
-        // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
+        // CORREÇÃO CRÍTICA: Preservar a data exatamente como recebida, sem converter para Date
         const installmentsToCreate = datesToUse.map((dueDate: string, index: number) => {
-          // Converter a string ISO para objeto Date e extrair apenas a parte da data (sem o tempo)
-          const formattedDate = new Date(dueDate).toISOString().split('T')[0];
+          // Verificar se a data já está no formato ISO YYYY-MM-DD
+          // Se já estiver nesse formato, usamos diretamente sem conversão adicional
+          let formattedDate = dueDate;
           
-          console.log(`🔍 Parcela ${index+1}: Data original: ${dueDate}, Data formatada: ${formattedDate}`);
+          // Se a data contiver o componente de tempo (T), remover esse componente
+          if (dueDate.includes('T')) {
+            formattedDate = dueDate.split('T')[0];
+          }
+          
+          console.log(`🔍 Parcela ${index+1}: Data original: ${dueDate}, Data preservada: ${formattedDate}`);
           
           return {
             saleId: createdSale.id,
             installmentNumber: index + 1,
-            dueDate: formattedDate, // Usar a data formatada
+            dueDate: formattedDate, // Usar a data exatamente como recebida (ou com T removido)
             amount: installmentAmount,
             status: 'pending',
             notes: null
@@ -712,13 +718,19 @@ export class DatabaseStorage implements IStorage {
         const baseDate = new Date();
         
         for (let i = 0; i < requestedInstallments; i++) {
+          // Criar data de vencimento para a parcela
           const dueDate = new Date(baseDate);
           dueDate.setMonth(baseDate.getMonth() + i);
+          
+          // Formatar em YYYY-MM-DD sem componente de tempo
+          const formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+          
+          console.log(`🔍 Parcela automática ${i+1}: Data formatada: ${formattedDate}`);
           
           installmentsToCreate.push({
             saleId: createdSale.id,
             installmentNumber: i + 1,
-            dueDate: dueDate.toISOString().split('T')[0],
+            dueDate: formattedDate,
             amount: installmentAmount,
             status: 'pending',
             notes: null
@@ -809,17 +821,23 @@ export class DatabaseStorage implements IStorage {
           if (installments > 1) {
             console.log(`🔒 Usando ${installmentDates.length} datas EXATAMENTE como definido pelo usuário (atualização)`);
             
-            // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
+            // CORREÇÃO CRÍTICA: Preservar a data exatamente como recebida, sem converter para Date
             const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => {
-              // Converter a string ISO para objeto Date e extrair apenas a parte da data (sem o tempo)
-              const formattedDate = new Date(dueDate).toISOString().split('T')[0];
+              // Verificar se a data já está no formato ISO YYYY-MM-DD
+              // Se já estiver nesse formato, usamos diretamente sem conversão adicional
+              let formattedDate = dueDate;
               
-              console.log(`🔍 Parcela ${index+1} (atualização): Data original: ${dueDate}, Data formatada: ${formattedDate}`);
+              // Se a data contiver o componente de tempo (T), remover esse componente
+              if (dueDate.includes('T')) {
+                formattedDate = dueDate.split('T')[0];
+              }
+              
+              console.log(`🔍 Parcela ${index+1} (atualização): Data original: ${dueDate}, Data preservada: ${formattedDate}`);
               
               return {
                 saleId: id,
                 installmentNumber: index + 1,
-                dueDate: formattedDate, // Usar a data formatada
+                dueDate: formattedDate, // Usar a data exatamente como recebida (ou com T removido)
                 amount: installmentValue,
                 status: 'pending',
                 notes: null
