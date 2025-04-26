@@ -1182,8 +1182,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userData = req.body;
       
       // CORREÇÃO: Não forçar mais o número de parcelas - usar o que foi informado pelo usuário
-      // Apenas garantir que o valor seja numérico
-      userData.installments = Number(userData.installments);
+      // Garantir que o valor seja numérico e válido (1 parcela se for nulo ou inválido)
+      userData.installments = userData.installments === null || userData.installments === undefined ? 
+        1 : // Valor padrão seguro se for nulo
+        isNaN(Number(userData.installments)) ? 1 : Number(userData.installments);
+      
+      // Garantir que seja um número inteiro maior que zero
+      userData.installments = Math.max(1, Math.floor(userData.installments));
+      
       console.log("🆘 NÚMERO DE PARCELAS RECEBIDO DO FORMULÁRIO: " + userData.installments);
       
       // Debug - exibir os dados recebidos
@@ -1373,7 +1379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 🛠️ SOLUÇÃO ULTRA-DEFINITIVA: Esta é a implementação mais robusta possível
         // Garantia absoluta de processamento correto das parcelas em qualquer cenário
-        let numInstallments = Number(userData.installments); // Usar o valor informado pelo usuário
+        let numInstallments = userData.installments; // Já convertido e validado anteriormente
         
         // Log ultra-detalhado com todas as informações possíveis para diagnóstico
         console.log("🛠️ INÍCIO DA SOLUÇÃO ULTRA-DEFINITIVA PARA PARCELAS 🛠️");
