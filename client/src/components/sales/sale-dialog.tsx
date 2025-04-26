@@ -595,17 +595,30 @@ export default function SaleDialog({
       
       console.log("Debug - Dados formatados a serem enviados:", JSON.stringify(formattedData, null, 2));
       
-      // SUPER CORREÇÃO V2: Garantir que as datas de parcelas sejam enviadas 
-      // Forçar a geração das datas para qualquer número de parcelas maior que zero
-      let installmentDatesToSend = installmentDates;
+      // 🔥 SOLUÇÃO DEFINITIVA 27/04/2025: Garantir que as datas das parcelas sejam exatamente as que o usuário informou
+      // Pegamos as datas dos inputs de data diretamente
+      let installmentDatesToSend = [];
       
-      // Independente do número de parcelas, sempre enviamos as datas
-      // Se não temos datas suficientes ou nenhuma data, geramos novas
-      if (installmentDatesToSend.length !== data.installments) {
-        console.log("⚠️ CORREÇÃO V2: Número de datas não corresponde ao número de parcelas!");
+      // Obter todas as datas diretamente dos inputs (eles já estão no formato YYYY-MM-DD)
+      const allDateInputs = document.querySelectorAll('[data-installment-date]');
+      
+      console.log(`🔥 SOLUÇÃO DEFINITIVA: Encontrados ${allDateInputs.length} inputs de data para parcelas`);
+      
+      // Converter para array e mapear para obter os valores
+      installmentDatesToSend = Array.from(allDateInputs).map(input => {
+        const value = (input as HTMLInputElement).value;
+        console.log(`🔥 SOLUÇÃO DEFINITIVA: Data lida do input: ${value}`);
+        return value;
+      });
+      
+      console.log(`🔥 SOLUÇÃO DEFINITIVA: Total de ${installmentDatesToSend.length} datas coletadas diretamente dos inputs`);
+      
+      // Se mesmo assim não temos datas suficientes, geramos novas como fallback
+      if (installmentDatesToSend.length === 0 || installmentDatesToSend.length !== data.installments) {
+        console.log("⚠️ SOLUÇÃO DEFINITIVA: Preciso gerar datas porque os inputs não forneceram o necessário");
         const firstDate = firstDueDate || new Date(); // Usa a data selecionada ou a atual
         installmentDatesToSend = generateInstallmentDates(firstDate, data.installments);
-        console.log(`⚠️ CORREÇÃO V2: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
+        console.log(`⚠️ SOLUÇÃO DEFINITIVA: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
       }
       
       // 🛑🛑🛑 SUPER CORREÇÃO - 26/04/2025
