@@ -163,8 +163,8 @@ export default function FinancePage() {
   const exportToPDF = async () => {
     try {
       // Importar jsPDF diretamente aqui
-      const jspdf = await import('jspdf');
-      const { jsPDF } = jspdf.default;
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.default;
       const autoTable = (await import('jspdf-autotable')).default;
       
       // Verificar se há dados disponíveis
@@ -179,8 +179,12 @@ export default function FinancePage() {
 
       console.log("Início da exportação PDF com dados:", salesData.data);
       
-      // Criar novo documento PDF
-      const doc = new jsPDF();
+      // Criar novo documento PDF em modo paisagem (landscape)
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
       
       // Adicionar título
       doc.setFontSize(16);
