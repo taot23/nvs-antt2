@@ -541,23 +541,65 @@ export default function SaleDialog({
       // Verificação final para garantir consistência
       console.log("🔄 DADOS FINAIS DO FORMULÁRIO:", "Parcelas:", data.installments, "Tipo esperado:", "number", "Valor atual no form:", formattedData.installments, "Tipo atual no form:", typeof formattedData.installments);
       
-      // 🛑 GERAÇÃO DE DATAS DE PARCELAS - Forçar a criação correta
-      // Garantir que temos exatamente o número certo de datas para as parcelas
-      const requiredInstallments = numInstalments;
-      const installmentDates = [];
+      // 🛑 CORREÇÃO CRÍTICA: Usar as datas editadas pelo usuário
+      // Verificar se temos datas já salvas pelos inputs de data
+      console.log("Verificando datas de parcelas disponíveis na interface...");
       
-      // Gerar datas para cada parcela (independente do que foi selecionado na interface)
-      const baseDate = new Date();
-      for (let i = 0; i < requiredInstallments; i++) {
-        const dueDate = new Date(baseDate);
-        dueDate.setMonth(baseDate.getMonth() + i);
-        installmentDates.push(dueDate);
+      // SUPER CORREÇÃO: Sempre usar as datas que o usuário editou via interface
+      if (installmentDates && installmentDates.length > 0) {
+        console.log(`✅ ENCONTRADO: ${installmentDates.length} datas editadas pelo usuário`);
+          
+        // Verificar se temos o número correto de datas
+        if (installmentDates.length !== numInstalments) {
+          console.log(`⚠️ ALERTA: Número de datas editadas (${installmentDates.length}) diferente do número de parcelas (${numInstalments})`);
+          
+          // Se temos mais datas que parcelas, usar apenas as primeiras
+          let datesToUse = [...installmentDates]; // Criar uma cópia para não modificar o original
+          
+          if (datesToUse.length > numInstalments) {
+            console.log("✂️ Recortando excesso de datas");
+            datesToUse = datesToUse.slice(0, numInstalments);
+          } 
+          // Se temos menos datas que parcelas, gerar as faltantes
+          else {
+            console.log("➕ Gerando datas adicionais para completar");
+            const baseDate = datesToUse.length > 0 
+              ? new Date(datesToUse[datesToUse.length - 1])
+              : new Date();
+            
+            // Começar a gerar a partir da última data existente
+            for (let i = datesToUse.length; i < numInstalments; i++) {
+              const dueDate = new Date(baseDate);
+              dueDate.setMonth(baseDate.getMonth() + (i - datesToUse.length + 1));
+              datesToUse.push(dueDate);
+            }
+          }
+          
+          console.log(`✓ Usando ${datesToUse.length} datas após ajustes`);
+          formattedData.installmentDates = datesToUse.map(date => date.toISOString());
+        } else {
+          console.log(`✓ Usando ${installmentDates.length} datas editadas pelo usuário`);
+          formattedData.installmentDates = installmentDates.map(date => date.toISOString());
+        }
+      } 
+      // Se não temos datas editadas, gerar automaticamente
+      else {
+        console.log("⚠️ Nenhuma data editada pelo usuário encontrada, gerando automaticamente");
+        
+        const generatedDates = [];
+        const baseDate = new Date();
+        
+        for (let i = 0; i < numInstalments; i++) {
+          const dueDate = new Date(baseDate);
+          dueDate.setMonth(baseDate.getMonth() + i);
+          generatedDates.push(dueDate);
+        }
+        
+        console.log(`🔄 Geradas ${generatedDates.length} datas automáticas para ${numInstalments} parcelas`);
+        formattedData.installmentDates = generatedDates.map(date => date.toISOString());
       }
       
-      console.log("🛑 SUPER CORREÇÃO - Geradas", installmentDates.length, "datas para", requiredInstallments, "parcelas");
-      
-      // Adiciona ao objeto diretamente como uma string para evitar problemas de tipagem
-      formattedData.installmentDates = installmentDates.map(date => date.toISOString());
+      console.log("📆 Datas de parcelas finais:", formattedData.installmentDates);
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
       const method = sale ? "PATCH" : "POST";

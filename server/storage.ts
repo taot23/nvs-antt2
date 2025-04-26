@@ -600,6 +600,11 @@ export class DatabaseStorage implements IStorage {
       try {
         console.log(`🔄 SUPER CORREÇÃO V3: Usando ${installmentDates.length} datas recebidas para criar ${requestedInstallments} parcelas`);
         
+        // Verificar o formato das datas para debug
+        installmentDates.forEach((date, idx) => {
+          console.log(`🔍 VERIFICAÇÃO DA DATA #${idx+1}:`, date, "tipo:", typeof date);
+        });
+        
         // Calcular o valor de cada parcela (valor igual para todas as parcelas)
         const totalAmount = parseFloat(createdSale.totalAmount);
         const installmentAmount = (totalAmount / requestedInstallments).toFixed(2);
@@ -611,18 +616,22 @@ export class DatabaseStorage implements IStorage {
         
         // Se temos mais datas que parcelas, cortamos o excesso
         if (datesToUse.length > requestedInstallments) {
+          console.log(`✂️ Recortando excesso de datas: ${datesToUse.length} para ${requestedInstallments}`);
           datesToUse = datesToUse.slice(0, requestedInstallments);
         }
         
         // Se temos menos datas que parcelas, geramos as faltantes
-        while (datesToUse.length < requestedInstallments) {
-          // Calcular a próxima data (30 dias após a última)
-          const lastDate = datesToUse.length > 0 
-            ? new Date(datesToUse[datesToUse.length - 1])
-            : new Date();
-          
-          lastDate.setMonth(lastDate.getMonth() + 1);
-          datesToUse.push(lastDate.toISOString());
+        if (datesToUse.length < requestedInstallments) {
+          console.log(`➕ Gerando datas adicionais: ${datesToUse.length} para ${requestedInstallments}`);
+          while (datesToUse.length < requestedInstallments) {
+            // Calcular a próxima data (30 dias após a última)
+            const lastDate = datesToUse.length > 0 
+              ? new Date(datesToUse[datesToUse.length - 1])
+              : new Date();
+            
+            lastDate.setMonth(lastDate.getMonth() + 1);
+            datesToUse.push(lastDate.toISOString());
+          }
         }
         
         // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
