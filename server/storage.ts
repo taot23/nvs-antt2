@@ -650,29 +650,42 @@ export class DatabaseStorage implements IStorage {
     // 4. Processar datas de vencimento e criar parcelas
     if (installmentDates && Array.isArray(installmentDates)) {
       try {
-        console.log(`🔄 SUPER CORREÇÃO V3: Usando ${installmentDates.length} datas recebidas para criar ${requestedInstallments} parcelas`);
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA (28/04/2025): Usando ${installmentDates.length} datas definidas pelo usuário`);
         
         // Verificar o formato das datas para debug
         installmentDates.forEach((date, idx) => {
-          console.log(`🔍 VERIFICAÇÃO DA DATA #${idx+1}:`, date, "tipo:", typeof date);
+          console.log(`⚠️⚠️⚠️ DATA DEFINIDA PELO USUÁRIO #${idx+1}:`, date, "tipo:", typeof date);
         });
         
         // Calcular o valor de cada parcela (valor igual para todas as parcelas)
         const totalAmount = parseFloat(createdSale.totalAmount);
-        const installmentAmount = (totalAmount / requestedInstallments).toFixed(2);
+        const installmentAmount = (totalAmount / installmentDates.length).toFixed(2); // Usar o número de datas recebidas
         
-        console.log(`🔄 SUPER CORREÇÃO V3: Total ${totalAmount} dividido em ${requestedInstallments} parcelas de ${installmentAmount}`);
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Total ${totalAmount} dividido em ${installmentDates.length} parcelas de ${installmentAmount}`);
         
         // Usar EXATAMENTE as datas fornecidas pelo usuário
         let datesToUse = [...installmentDates];
         
         // Importante: não modificamos as datas escolhidas pelo usuário
-        console.log(`🔒 Usando ${datesToUse.length} datas EXATAMENTE como definido pelo usuário`);
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Usando ${datesToUse.length} datas EXATAMENTE como definido pelo usuário`);
         
-        // Se por alguma razão temos número diferente de datas e parcelas, loga mas mantém as datas informadas
+        // SOLUÇÃO DEFINITIVA: Se o número de datas for diferente do número de parcelas, ajustamos o número de parcelas
+        // para corresponder às datas fornecidas pelo usuário
         if (datesToUse.length !== requestedInstallments) {
-          console.log(`⚠️ ALERTA: Número de datas (${datesToUse.length}) é diferente do número de parcelas (${requestedInstallments})`);
-          console.log(`⚠️ Mantendo as datas informadas pelo usuário sem modificação`);
+          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Número de datas (${datesToUse.length}) é diferente do número de parcelas (${requestedInstallments})`);
+          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Ajustando o número de parcelas para ${datesToUse.length} para corresponder às datas fornecidas`);
+          
+          // Atualizar o número de parcelas na venda para corresponder às datas fornecidas
+          requestedInstallments = datesToUse.length;
+          
+          // Atualizar também no banco de dados
+          await db
+            .update(sales)
+            .set({ installments: requestedInstallments })
+            .where(eq(sales.id, createdSale.id));
+            
+          // E atualizar também o objeto em memória
+          createdSale.installments = requestedInstallments;
         }
         
         // REVISÃO FINAL ABSOLUTA (26/04/2025): Garantir formato YYYY-MM-DD sem nenhuma informação de timezone 
