@@ -3198,63 +3198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Criar um novo custo operacional
-  app.post("/api/sales/:id/operational-costs", canManageSaleOperations, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "ID inválido" });
-      }
-      
-      // Verificar se a venda existe
-      const sale = await storage.getSale(id);
-      if (!sale) {
-        return res.status(404).json({ error: "Venda não encontrada" });
-      }
-      
-      // Validar os dados do custo operacional
-      if (!req.body.costTypeId || !req.body.amount) {
-        return res.status(400).json({ 
-          error: "Dados incompletos. Os campos costTypeId e amount são obrigatórios" 
-        });
-      }
-      
-      // Adicionar o ID da venda e do usuário responsável aos dados
-      // Garantir que description tenha ao menos um valor texto (não pode ser null)
-      // Usando " " (espaço em branco) para evitar erro de validação no banco
-      const operationalCostData = {
-        ...req.body,
-        saleId: id,
-        responsibleId: req.user?.id || 1,
-        description: req.body.description || " " // Usando espaço em branco em vez de string vazia
-      };
-      
-      console.log("Criando custo operacional com dados:", JSON.stringify(operationalCostData));
-      
-      // Criar o custo operacional
-      const operationalCost = await storage.createSaleOperationalCost(operationalCostData);
-      
-      // Notificar via WebSocket
-      broadcastEvent({ 
-        type: 'sales_update', 
-        payload: { action: 'operational-cost-added', saleId: id, operationalCost } 
-      });
-      
-      res.status(201).json(operationalCost);
-    } catch (error) {
-      console.error("Erro ao criar custo operacional:", error);
-      
-      // Fornecer detalhes mais específicos sobre o erro
-      if (error instanceof Error) {
-        return res.status(400).json({ 
-          error: "Erro ao criar custo operacional", 
-          message: error.message 
-        });
-      }
-      
-      res.status(500).json({ error: "Erro ao criar custo operacional" });
-    }
-  });
+  // Rota para criar custo operacional já está definida na linha 2733
   
   // Atualizar um custo operacional
   app.put("/api/sales/:saleId/operational-costs/:id", canManageSaleOperations, async (req, res) => {

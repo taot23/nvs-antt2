@@ -100,16 +100,22 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
       // Converter o valor para o formato esperado pela API
       const parsedAmount = data.amount.replace(/\./g, '').replace(',', '.');
       
+      // Garantir que costTypeId seja enviado mesmo se for zero
+      const dataToSend = {
+        ...data,
+        amount: parsedAmount,
+        saleId,
+        costTypeId: data.costTypeId || null // Enviar explicitamente null se não houver valor
+      };
+      
+      console.log("Enviando dados para criar custo operacional:", dataToSend);
+      
       const response = await fetch(`/api/sales/${saleId}/operational-costs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...data,
-          amount: parsedAmount,
-          saleId
-        }),
+        body: JSON.stringify(dataToSend),
       });
       
       if (!response.ok) {
