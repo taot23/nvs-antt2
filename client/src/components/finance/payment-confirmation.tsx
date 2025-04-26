@@ -80,7 +80,17 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     queryFn: async () => {
       if (!saleId) return [];
       const res = await apiRequest("GET", `/api/sales/${saleId}/installments`);
-      return res.json();
+      const data = await res.json();
+      
+      // Debug: Verificar o formato das datas das parcelas
+      if (data && data.length > 0) {
+        console.log("Parcelas recebidas do servidor:", data);
+        data.forEach((installment, index) => {
+          console.log(`Parcela #${index+1} (${installment.installmentNumber}): dueDate=${installment.dueDate}, tipo=${typeof installment.dueDate}`);
+        });
+      }
+      
+      return data;
     },
     enabled: !!saleId,
   });

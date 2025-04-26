@@ -44,10 +44,20 @@ export function currencyToNumber(value: string): number {
 export function formatDate(date: Date | string | null): string {
   if (!date) return '';
   
+  // Se for string no formato 'YYYY-MM-DD' (ISO sem tempo)
+  if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = date.split('-');
+    return `${day}/${month}/${year}`;
+  }
+  
+  // Para outros formatos, tenta converter para Date
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   
   // Verifica se é uma data válida
-  if (isNaN(dateObj.getTime())) return '';
+  if (isNaN(dateObj.getTime())) {
+    console.log(`⚠️ Data inválida recebida: ${date}, tipo: ${typeof date}`);
+    return '';
+  }
   
   // Formata como dd/mm/yyyy
   const day = String(dateObj.getDate()).padStart(2, '0');
