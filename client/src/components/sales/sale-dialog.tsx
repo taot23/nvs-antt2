@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,6 +43,30 @@ type Sale = {
   createdAt: string;
   updatedAt: string;
 };
+
+// Interface para dados formatados da venda, incluindo installmentDates
+interface FormattedSaleData {
+  orderNumber: string;
+  date: string;
+  customerId: number;
+  paymentMethodId: number;
+  serviceTypeId: number;
+  sellerId: number;
+  totalAmount: string;
+  installments: number;
+  installmentValue?: string | null;
+  notes: string;
+  installmentDates: string[];
+  items: {
+    serviceId: number;
+    serviceTypeId: number;
+    quantity: number;
+    price?: string;
+    totalPrice?: string;
+    status?: string;
+    notes?: string | null;
+  }[];
+}
 
 // Esquema de validação para itens da venda
 const saleItemSchema = z.object({
@@ -855,25 +880,33 @@ export default function SaleDialog({
       // Objeto para envio ao servidor com valores convertidos e validados
       // Utilizamos a interface FormattedSaleData para tipar corretamente o objeto
       const correctedValues: FormattedSaleData = {
-        ...values,
         // Garante que o número da OS esteja definido
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
         // Garante que a data seja válida
         date: values.date instanceof Date ? values.date.toISOString() : String(values.date || new Date().toISOString()),
+        // Garante que o cliente esteja definido
+        customerId: Number(values.customerId),
+        // Garante que a forma de pagamento esteja definida
+        paymentMethodId: Number(values.paymentMethodId),
+        // Garante que o tipo de serviço esteja definido
+        serviceTypeId: Number(values.serviceTypeId),
+        // Garante que o vendedor esteja definido - fallback para o ID do usuário atual
+        sellerId: Number(values.sellerId || user?.id || 1),
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
         // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
         // Observe que estamos usando validatedInstallments diretamente e não values.installments
         installments: Number(validatedInstallments),
-        // Também garantimos que qualquer valor de parcela seja formatado corretamente
-        installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
+        // Notas (opcional)
+        notes: values.notes || "",
         // CORREÇÃO: Incluir o campo de datas das parcelas, inicialmente vazio
         installmentDates: installmentDates,
         // Corrige os itens
         items: values.items.map(item => ({
-          ...item,
-          serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
-          quantity: Number(item.quantity) || 1 // Garante que quantidade seja número
+          serviceId: Number(item.serviceId),
+          serviceTypeId: Number(values.serviceTypeId), // Usa o serviceTypeId da venda para todos os itens
+          quantity: Number(item.quantity) || 1, // Garante que quantidade seja número
+          notes: item.notes || null
         }))
       };
       
@@ -1953,7 +1986,10 @@ export default function SaleDialog({
                   console.log("Dados de venda preparados:", saleData);
                   
                   // Usa a mutation para salvar a venda (isso garante que a autenticação seja mantida)
-                  saveSaleMutation.mutate(saleData, {
+                  // IMPORTANTE: Indica que a submissão está em andamento
+                  setIsSubmitting(true);
+                  
+                  saveMutation.mutate(saleData, {
                     onSuccess: (data) => {
                       console.log("Venda salva com sucesso:", data);
                       
@@ -1979,8 +2015,23 @@ export default function SaleDialog({
                           });
                       }
                       
-                      onSaveSuccess();
+                      // Aciona as callbacks de sucesso
+                      if (onSaveSuccess) onSaveSuccess();
                       onClose();
+                      
+                      // Finaliza o estado de submissão
+                      setIsSubmitting(false);
+                    },
+                    onError: (error) => {
+                      console.error("Erro ao salvar venda:", error);
+                      toast({
+                        title: "Erro ao salvar venda",
+                        description: error.message,
+                        variant: "destructive",
+                      });
+                      
+                      // Finaliza o estado de submissão mesmo com erro
+                      setIsSubmitting(false);
                     }
                   });
                 }}
