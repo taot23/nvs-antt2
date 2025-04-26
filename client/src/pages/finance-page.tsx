@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { convertToSafeUser } from "@/components/finance/finance-types";
-import { exportToExcel, exportToPDF } from "@/components/finance/final-export";
+import { exportToExcel, exportToPDF } from "@/components/finance/direct-table-export";
 
 export default function FinancePage() {
   const { toast } = useToast();
