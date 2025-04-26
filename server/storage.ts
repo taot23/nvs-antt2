@@ -1739,10 +1739,11 @@ export class DatabaseStorage implements IStorage {
     console.log(`🔍 Confirmação de pagamento: Data original recebida: ${paymentDate}, Data formatada: ${formattedPaymentDate}`);
     
     // Usar SQL direto para evitar problemas com a conversão de datas
+    // É necessário fazer um cast para date porque a coluna payment_date é do tipo date
     const result = await pool.query(
       `UPDATE sale_installments 
        SET status = 'paid', 
-           payment_date = $1::text, 
+           payment_date = $1::date, 
            updated_at = NOW() 
        WHERE id = $2 
        RETURNING *`,
