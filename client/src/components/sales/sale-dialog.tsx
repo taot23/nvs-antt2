@@ -599,27 +599,74 @@ export default function SaleDialog({
       // Pegamos as datas dos inputs de data diretamente
       let installmentDatesToSend = [];
       
-      // Obter todas as datas diretamente dos inputs (eles já estão no formato YYYY-MM-DD)
+      // Obter todas as datas diretamente dos inputs no formato DD/MM/AAAA e converter para YYYY-MM-DD
       const allDateInputs = document.querySelectorAll('[data-installment-date]');
       
       console.log(`🔥 SOLUÇÃO DEFINITIVA: Encontrados ${allDateInputs.length} inputs de data para parcelas`);
       
-      // Converter para array e mapear para obter os valores
+      // Converter para array e mapear para obter os valores, convertendo de DD/MM/AAAA para YYYY-MM-DD
       installmentDatesToSend = Array.from(allDateInputs).map(input => {
-        const value = (input as HTMLInputElement).value;
-        console.log(`🔥 SOLUÇÃO DEFINITIVA: Data lida do input: ${value}`);
+        const inputElement = input as HTMLInputElement;
+        const value = inputElement.value;
+        const installmentNumber = inputElement.getAttribute('data-installment-number');
+        
+        console.log(`🔥 SOLUÇÃO DEFINITIVA: Parcela #${installmentNumber} - Data lida do input: "${value}"`);
+        
+        // Converter de DD/MM/AAAA para YYYY-MM-DD
+        if (value && value.includes('/')) {
+          const parts = value.split('/');
+          if (parts.length === 3) {
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            // Aceitar tanto anos com 2 dígitos quanto com 4
+            const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+            
+            // Formatar como YYYY-MM-DD para o banco de dados
+            const isoDate = `${year}-${month}-${day}`;
+            console.log(`✅ Data convertida de "${value}" para "${isoDate}"`);
+            return isoDate;
+          }
+        }
+        
+        // Verificar se já está no formato YYYY-MM-DD
+        if (value && value.includes('-') && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          return value; // Já está no formato correto
+        }
+        
+        // Se não conseguiu converter, retorna o valor original para tratamento posterior
         return value;
       });
       
       console.log(`🔥 SOLUÇÃO DEFINITIVA: Total de ${installmentDatesToSend.length} datas coletadas diretamente dos inputs`);
       
-      // Se mesmo assim não temos datas suficientes, geramos novas como fallback
-      if (installmentDatesToSend.length === 0 || installmentDatesToSend.length !== data.installments) {
+      // Verificar se todas as datas foram convertidas corretamente para o formato YYYY-MM-DD
+      const validDates = installmentDatesToSend.filter(date => 
+        typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)
+      );
+      
+      console.log(`🔥 SOLUÇÃO DEFINITIVA: ${validDates.length} de ${installmentDatesToSend.length} datas estão no formato correto`);
+      
+      // Se mesmo assim não temos datas suficientes ou válidas, geramos novas como fallback
+      if (validDates.length === 0 || validDates.length !== data.installments) {
         console.log("⚠️ SOLUÇÃO DEFINITIVA: Preciso gerar datas porque os inputs não forneceram o necessário");
         const firstDate = firstDueDate || new Date(); // Usa a data selecionada ou a atual
-        installmentDatesToSend = generateInstallmentDates(firstDate, data.installments);
+        installmentDatesToSend = generateInstallmentDates(firstDate, data.installments).map(date => {
+          if (typeof date === 'string') {
+            return date;
+          } else {
+            // Converter Date para string YYYY-MM-DD sem ajuste de timezone
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          }
+        });
         console.log(`⚠️ SOLUÇÃO DEFINITIVA: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
+      } else {
+        // Usar apenas as datas válidas
+        installmentDatesToSend = validDates;
       }
+      
+      // SOLUÇÃO FINAL: Adicionar as datas das parcelas no formato correto para o backend
+      // @ts-ignore - Ignoramos o erro de tipo porque sabemos que o backend espera essa propriedade
+      formattedData.installmentDates = installmentDatesToSend;
       
       // 🛑🛑🛑 SUPER CORREÇÃO - 26/04/2025
       // Verificação extrema do tipo e valor das parcelas
@@ -1556,6 +1603,8 @@ export default function SaleDialog({
                               <Input
                                 type="text"
                                 size={10}
+                                data-installment-date
+                                data-installment-number={index + 1}
                                 placeholder="DD/MM/AAAA"
                                 defaultValue={typeof date === 'string' ? 
                                   // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
