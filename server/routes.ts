@@ -1030,7 +1030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = req.query.page ? parseInt(req.query.page as string) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const status = req.query.status as string || undefined;
-      const financialStatus = req.query.financialStatus as string || undefined; // Novo: Suporte para filtro por status financeiro
+      const financialStatus = req.query.financialStatus as string || undefined;
       const searchTerm = req.query.searchTerm as string || undefined;
       const sortField = req.query.sortField as string || 'createdAt';
       const sortDirection = req.query.sortDirection as 'asc' | 'desc' || 'desc';
@@ -1038,44 +1038,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = req.query.endDate as string || undefined;
       
       // Verificar se existe um parâmetro sellerId na query
-      const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
+      let sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
       
-      let result;
-      
-      // Se for admin, supervisor, operacional ou financeiro, pode ver todas as vendas
-      // OU filtrar por vendedor específico se o sellerId for fornecido
-      if (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
-        console.log(`Buscando vendas paginadas (página ${page}, limite ${limit})`);
-        result = await storage.getSalesPaginated({
-          page,
-          limit,
-          status,
-          financialStatus, // Adicionado suporte para filtro por status financeiro
-          sellerId,
-          searchTerm,
-          sortField,
-          sortDirection,
-          startDate,
-          endDate
-        });
+      // Se não for admin/supervisor/etc, forçar filtro pelo ID do próprio vendedor
+      if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "")) {
+        sellerId = req.user!.id;
+        console.log(`Vendedor ${req.user!.id} visualizando apenas suas vendas`);
       } else {
-        // Se for vendedor, só vê as próprias vendas
-        console.log(`Vendedor visualizando apenas suas vendas (página ${page}, limite ${limit}):`, req.user!.id);
-        result = await storage.getSalesPaginated({
-          page,
-          limit,
-          status,
-          financialStatus, // Adicionado suporte para filtro por status financeiro
-          sellerId: req.user!.id, // Força o filtro pelo ID do vendedor
-          searchTerm,
-          sortField,
-          sortDirection,
-          startDate,
-          endDate
-        });
+        console.log(`Usuário com perfil ${req.user?.role} buscando vendas paginadas`);
       }
       
-      res.json(result);
+      // Iniciar consulta SQL básica
+      const { pool } = await import("./db");
+      
+      let query = `
+        SELECT s.*, c.name as customer_name
+        FROM sales s
+        LEFT JOIN customers c ON s.customer_id = c.id
+        WHERE 1=1
+      `;
+      
+      const params: any[] = [];
+      
+      // Adicionar filtros à consulta
+      if (status) {
+        params.push(status);
+        query += ` AND s.status = $${params.length}`;
+      }
+      
+      if (financialStatus && financialStatus !== 'all') {
+        params.push(financialStatus);
+        query += ` AND s.financial_status = $${params.length}`;
+      }
+      
+      if (sellerId) {
+        params.push(sellerId);
+        query += ` AND s.seller_id = $${params.length}`;
+      }
+      
+      // Busca por termo (número da ordem ou nome do cliente)
+      if (searchTerm && searchTerm.trim()) {
+        const term = `%${searchTerm.trim().toLowerCase()}%`;
+        params.push(term);
+        params.push(term);
+        query += ` AND (LOWER(s.order_number) LIKE $${params.length-1} OR LOWER(c.name) LIKE $${params.length})`;
+      }
+      
+      // Contar total antes de aplicar paginação
+      const countQuery = `SELECT COUNT(*) FROM (${query}) AS count_query`;
+      const countResult = await pool.query(countQuery, params);
+      const total = parseInt(countResult.rows[0].count);
+      
+      // Adicionar ordenação à consulta principal
+      const fieldMap: Record<string, string> = {
+        createdAt: "s.created_at",
+        updatedAt: "s.updated_at",
+        totalAmount: "s.total_amount",
+        orderNumber: "s.order_number",
+        customerId: "s.customer_id",
+        paymentMethodId: "s.payment_method_id",
+        sellerId: "s.seller_id",
+        serviceTypeId: "s.service_type_id",
+        serviceProviderId: "s.service_provider_id",
+        financialStatus: "s.financial_status",
+        customerName: "c.name",
+        date: "s.date",
+        id: "s.id"
+      };
+      
+      const orderField = fieldMap[sortField] || "s.created_at";
+      query += ` ORDER BY ${orderField} ${sortDirection.toUpperCase()}`;
+      
+      // Adicionar paginação
+      params.push(limit);
+      params.push((page - 1) * limit);
+      query += ` LIMIT $${params.length-1} OFFSET $${params.length}`;
+      
+      // Executar consulta principal
+      const result = await pool.query(query, params);
+      
+      // Mapear resultados para o formato esperado
+      const sales = result.rows.map(row => ({
+        id: row.id,
+        orderNumber: row.order_number,
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        paymentMethodId: row.payment_method_id,
+        sellerId: row.seller_id,
+        serviceTypeId: row.service_type_id,
+        serviceProviderId: row.service_provider_id,
+        totalAmount: row.total_amount,
+        installments: row.installments,
+        installmentValue: row.installment_value,
+        status: row.status,
+        financialStatus: row.financial_status,
+        notes: row.notes,
+        date: row.date,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }));
+      
+      // Calcular total de páginas
+      const totalPages = Math.ceil(total / limit) || 1;
+      
+      console.log(`Retornando ${sales.length} vendas de um total de ${total}`);
+      
+      // Retornar resultados
+      res.json({
+        data: sales,
+        total,
+        page,
+        totalPages
+      });
     } catch (error) {
       console.error("Erro ao buscar vendas:", error);
       res.status(500).json({ error: "Erro ao buscar vendas" });
