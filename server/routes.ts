@@ -2298,9 +2298,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Buscando parcelas para venda #${id}, número de parcelas na venda: ${sale.installments}`);
       
-      // Buscar parcelas no banco de dados
-      let installments = await storage.getSaleInstallments(id);
-      console.log(`Encontradas ${installments.length} parcelas no banco para a venda #${id}`);
+      // SOLUÇÃO DEFINITIVA: Buscar parcelas diretamente do banco via SQL nativo para evitar conversões
+      try {
+        // Buscar do banco via SQL nativo para manter o formato exato das datas
+        const { pool } = await import('./db');
+        const sql = `
+          SELECT 
+            id, 
+            sale_id AS "saleId", 
+            installment_number AS "installmentNumber", 
+            amount, 
+            due_date, -- Manter o formato exato do banco
+            payment_date, 
+            status, 
+            notes, 
+            created_at AS "createdAt", 
+            updated_at AS "updatedAt"
+          FROM 
+            sale_installments 
+          WHERE 
+            sale_id = $1 
+          ORDER BY 
+            installment_number
+        `;
+        
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Buscando parcelas via SQL nativo para venda #${id}`);
+        const result = await pool.query(sql, [id]);
+        
+        // Transformar para manter o formato correto das datas
+        let installments = result.rows.map(row => {
+          // Converter a data para o formato exato YYYY-MM-DD (sem timezone)
+          const dueDate = row.due_date;
+          
+          console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Parcela ${row.installmentNumber}, data original: ${dueDate}, tipo: ${typeof dueDate}`);
+          
+          // Se for um objeto Date, converter para string no formato YYYY-MM-DD
+          let formattedDueDate;
+          if (dueDate instanceof Date) {
+            formattedDueDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Convertendo data para formato YYYY-MM-DD: ${formattedDueDate}`);
+          } 
+          // Se já for string, usar diretamente
+          else if (typeof dueDate === 'string') {
+            formattedDueDate = dueDate;
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Usando data já formatada como string: ${formattedDueDate}`);
+          } 
+          // Caso seja outro formato (improvável), usar a data como está
+          else {
+            formattedDueDate = dueDate;
+            console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Usando data em formato desconhecido: ${formattedDueDate}`);
+          }
+          
+          return {
+            ...row,
+            dueDate: formattedDueDate
+          };
+        });
+        
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Encontradas ${installments.length} parcelas via SQL nativo para a venda #${id}`);
+        console.log(`⚠️⚠️⚠️ SOLUÇÃO DEFINITIVA: Primeira parcela:`, installments.length > 0 ? installments[0] : 'nenhuma parcela');
+      } 
+      catch (sqlError) {
+        console.error(`⚠️⚠️⚠️ ERRO ao buscar parcelas via SQL nativo: ${sqlError}`);
+        console.log(`⚠️⚠️⚠️ FALLBACK: Buscando parcelas via Drizzle ORM`);
+        
+        // Fallback: Usar o método Drizzle normal
+        let installments = await storage.getSaleInstallments(id);
+        console.log(`Encontradas ${installments.length} parcelas no banco para a venda #${id} via Drizzle ORM`);
+      }
       
       // Se a venda tiver múltiplas parcelas mas não estiver no banco, vamos criar com base no total e número de parcelas
       if (sale.installments > 1 && installments.length === 0) {
