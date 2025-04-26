@@ -1181,16 +1181,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const userData = req.body;
       
-      // CORREÇÃO: Não forçar mais o número de parcelas - usar o que foi informado pelo usuário
-      // Garantir que o valor seja numérico e válido (1 parcela se for nulo ou inválido)
-      userData.installments = userData.installments === null || userData.installments === undefined ? 
-        1 : // Valor padrão seguro se for nulo
-        isNaN(Number(userData.installments)) ? 1 : Number(userData.installments);
+      // SUPER CORREÇÃO V2: Processar o número de parcelas novamente para garantir que seja um número
+      // Verificar e logar o tipo de dados
+      console.log("🆘 CORREÇÃO CRÍTICA - Tipo original de installments:", typeof userData.installments);
+      console.log("🆘 CORREÇÃO CRÍTICA - Valor original:", userData.installments);
       
-      // Garantir que seja um número inteiro maior que zero
+      // Se for string, converter explicitamente para número
+      if (typeof userData.installments === 'string') {
+        userData.installments = parseInt(userData.installments, 10);
+        console.log("🆘 CORREÇÃO CRÍTICA - Convertido para número:", userData.installments);
+      }
+      
+      // Garantir que seja um número inteiro válido maior que zero
+      if (userData.installments === null || userData.installments === undefined || isNaN(userData.installments)) {
+        userData.installments = 1; // Valor padrão seguro
+        console.log("🆘 CORREÇÃO CRÍTICA - Valor inválido ou nulo, usando padrão:", userData.installments);
+      }
+      
+      // Aplicar Math.floor e Math.max para garantir número inteiro positivo
       userData.installments = Math.max(1, Math.floor(userData.installments));
       
-      console.log("🆘 NÚMERO DE PARCELAS RECEBIDO DO FORMULÁRIO: " + userData.installments);
+      console.log("🆘 NÚMERO FINAL DE PARCELAS APÓS VERIFICAÇÕES: " + userData.installments);
       
       // Debug - exibir os dados recebidos
       console.log("Dados da venda recebidos:", JSON.stringify(userData, null, 2));
