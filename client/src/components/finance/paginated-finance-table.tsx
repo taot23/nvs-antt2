@@ -8,12 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sale } from "@shared/schema";
 import SimpleFinanceTable from "./simple-finance-table";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { FinanceSale, SafeUser } from "./finance-types";
 
 interface PaginatedFinanceTableProps {
-  data: Sale[];
+  data: FinanceSale[];
   isLoading: boolean;
   error: Error | null;
   sortField: string;
@@ -25,7 +25,7 @@ interface PaginatedFinanceTableProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onViewFinancials: (saleId: number) => void;
-  user: { id: number; username: string; role: string } | null;
+  user: SafeUser | null;
   totalItems: number;
   usesFinancialStatus?: boolean;
 }

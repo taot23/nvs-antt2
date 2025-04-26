@@ -19,6 +19,7 @@ import { DateRangePicker } from "@/components/date-range-picker";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { convertToSafeUser } from "@/components/finance/finance-types";
 
 export default function FinancePage() {
   const { toast } = useToast();

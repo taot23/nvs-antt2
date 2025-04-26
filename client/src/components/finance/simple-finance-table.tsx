@@ -20,17 +20,17 @@ import {
 } from "lucide-react";
 import { getStatusLabel } from "@/lib/status-utils";
 import { cn } from "@/lib/utils";
-import { Sale } from "@shared/schema";
+import { FinanceSale, SafeUser } from "./finance-types";
 
 interface SimpleFinanceTableProps {
-  data: Sale[];
+  data: FinanceSale[];
   isLoading: boolean;
   error: Error | null;
   sortField: string;
   sortDirection: string;
   onSort: (field: string) => void;
   onViewFinancials: (saleId: number) => void;
-  user: { id: number; username: string; role: string } | null;
+  user: SafeUser | null;
   usesFinancialStatus?: boolean;
 }
 
