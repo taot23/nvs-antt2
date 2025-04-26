@@ -8,41 +8,29 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 
-// Tipo para representar os dados formatados completos
+// Tipo para representar os dados formatados, exatamente como na tabela
 interface FormattedData {
   id: number;
   orderNumber: string;
   vendedor: string;
   cliente: string;
   data: string;
-  valor: string;
-  totalPago: string;
-  totalEmAberto: string;
-  custosOperacionais: string;
-  resultadoLiquido: string;
-  metodo: string;
-  tipoServico: string;
-  parcelas: number;
-  ultimoStatus: string;
-  statusFinanceiro: string;
+  valorTotal: string;
+  valorPago: string;
+  custos: string;
+  resultado: string;
   status: string;
-  observacoes: string;
 }
 
 /**
- * Formata os dados brutos para um formato mais completo adequado para exportação
+ * Formata os dados brutos para um formato simplificado, exatamente como na tabela da interface
  */
 function formatarDados(dadosBrutos: any[]): FormattedData[] {
   return dadosBrutos.map(item => {
-    // Calcular informações financeiras 
+    // Calcular informações financeiras conforme mostrado na tabela
     const totalPago = item.installments ? 
       item.installments
         .filter((inst: any) => inst.status === 'paid')
-        .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || 0), 0) : 0;
-    
-    const totalEmAberto = item.installments ?
-      item.installments
-        .filter((inst: any) => inst.status !== 'paid')
         .reduce((sum: number, inst: any) => sum + parseFloat(inst.amount || 0), 0) : 0;
     
     // Calcular custos operacionais
@@ -53,9 +41,9 @@ function formatarDados(dadosBrutos: any[]): FormattedData[] {
     const totalVenda = parseFloat(item.totalAmount || 0);
     const resultadoLiquido = totalVenda - custoTotal;
     
-    // Formatação de valores monetários
+    // Formatação de valores monetários - mesmo estilo da tabela (R$ XX,XX)
     const formatarMoeda = (valor: number) => {
-      return valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+      return `R$ ${valor.toFixed(2).replace('.', ',')}`;
     };
 
     return {
@@ -64,20 +52,13 @@ function formatarDados(dadosBrutos: any[]): FormattedData[] {
       vendedor: item.sellerName || '',
       cliente: item.customerName || '',
       data: item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '',
-      valor: typeof item.totalAmount === 'number' 
+      valorTotal: typeof item.totalAmount === 'number' 
         ? formatarMoeda(item.totalAmount)
-        : item.totalAmount || '0',
-      totalPago: formatarMoeda(totalPago),
-      totalEmAberto: formatarMoeda(totalEmAberto),
-      custosOperacionais: formatarMoeda(custoTotal),
-      resultadoLiquido: formatarMoeda(resultadoLiquido),
-      metodo: item.paymentMethodName || '',
-      tipoServico: item.serviceTypeName || '',
-      parcelas: item.installments?.length || 0,
-      ultimoStatus: item.lastStatusUpdate ? new Date(item.lastStatusUpdate).toLocaleDateString('pt-BR') : '',
-      statusFinanceiro: item.financialStatus || '',
-      status: item.status || '',
-      observacoes: item.notes || ''
+        : item.totalAmount || 'R$ 0,00',
+      valorPago: formatarMoeda(totalPago),
+      custos: formatarMoeda(custoTotal),
+      resultado: formatarMoeda(resultadoLiquido),
+      status: item.status || ''
     };
   });
 }
@@ -98,31 +79,24 @@ export function exportToExcel(dados: any[]): void {
     // Formatar dados
     const dadosFormatados = formatarDados(dados);
     
-    // Preparar dados para o formato que a biblioteca xlsx espera
+    // Preparar dados para o formato que a biblioteca xlsx espera (exatamente como na tabela)
     const dadosParaWorksheet = dadosFormatados.map(item => ({
       'Nº OS': item.orderNumber,
       'Vendedor': item.vendedor,
       'Cliente': item.cliente, 
       'Data': item.data,
-      'Valor Total': item.valor,
-      'Valor Pago': item.totalPago,
-      'Valor em Aberto': item.totalEmAberto,
-      'Custos Operacionais': item.custosOperacionais,
-      'Resultado Líquido': item.resultadoLiquido,
-      'Forma de Pagamento': item.metodo,
-      'Tipo de Serviço': item.tipoServico,
-      'Parcelas': item.parcelas,
-      'Última Atualização': item.ultimoStatus,
-      'Status Financeiro': item.statusFinanceiro,
-      'Status Operacional': item.status,
-      'Observações': item.observacoes
+      'Valor Total': item.valorTotal,
+      'Valor Pago': item.valorPago,
+      'Custos': item.custos,
+      'Resultado': item.resultado,
+      'Status': item.status
     }));
     
     // Criar workbook e worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(dadosParaWorksheet);
     
-    // Adicionar formatação (largura das colunas)
+    // Adicionar formatação (largura das colunas) - exatamente como na tabela
     const wscols = [
       { wch: 10 }, // Nº OS
       { wch: 20 }, // Vendedor
@@ -130,16 +104,9 @@ export function exportToExcel(dados: any[]): void {
       { wch: 12 }, // Data 
       { wch: 15 }, // Valor Total
       { wch: 15 }, // Valor Pago
-      { wch: 15 }, // Valor em Aberto
-      { wch: 15 }, // Custos Operacionais
-      { wch: 15 }, // Resultado Líquido
-      { wch: 20 }, // Forma de Pagamento
-      { wch: 20 }, // Tipo de Serviço
-      { wch: 10 }, // Parcelas
-      { wch: 15 }, // Última Atualização
-      { wch: 20 }, // Status Financeiro
-      { wch: 20 }, // Status Operacional
-      { wch: 30 }  // Observações
+      { wch: 15 }, // Custos
+      { wch: 15 }, // Resultado
+      { wch: 15 }  // Status
     ];
     ws['!cols'] = wscols;
     
@@ -173,8 +140,8 @@ export function exportToPDF(dados: any[]): void {
     const dadosFormatados = formatarDados(dados);
     
     // Criar documento PDF (orientação paisagem para caber mais colunas)
-    // Utilizamos tamanho A3 para caber mais dados
-    const doc = new jsPDF('landscape', 'mm', 'a3');
+    // Ajustamos para tamanho A4 que é o padrão mais comum
+    const doc = new jsPDF('landscape');
     
     // Adicionar título
     doc.setFontSize(18);
@@ -184,28 +151,22 @@ export function exportToPDF(dados: any[]): void {
     doc.setFontSize(11);
     doc.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
     
-    // Preparar dados para a tabela - incluindo todas as informações disponíveis
+    // Preparar dados para a tabela - exatamente como na tabela da interface
     const dadosTabela = dadosFormatados.map(item => [
       item.orderNumber,
       item.vendedor,
       item.cliente,
       item.data,
-      item.valor,
-      item.totalPago,
-      item.totalEmAberto,
-      item.custosOperacionais,
-      item.resultadoLiquido,
-      item.metodo,
-      item.tipoServico,
-      item.parcelas.toString(),
-      item.statusFinanceiro,
+      item.valorTotal,
+      item.valorPago,
+      item.custos,
+      item.resultado,
       item.status
     ]);
     
-    // Criar tabela com autotable - cabeçalhos completos
+    // Criar tabela com autotable - cabeçalhos idênticos aos da tabela na interface
     autoTable(doc, {
-      head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Valor Pago', 'Valor em Aberto', 
-              'Custos', 'Resultado', 'Forma Pgto', 'Tipo Serviço', 'Parcelas', 'Status Fin.', 'Status Op.']],
+      head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Valor Pago', 'Custos', 'Resultado', 'Status']],
       body: dadosTabela,
       startY: 35,
       theme: 'grid',
@@ -224,20 +185,15 @@ export function exportToPDF(dados: any[]): void {
         fillColor: [240, 240, 240]
       },
       columnStyles: {
-        0: { cellWidth: 15 },    // Nº OS
-        1: { cellWidth: 25 },    // Vendedor
-        2: { cellWidth: 25 },    // Cliente
-        3: { cellWidth: 15 },    // Data
-        4: { cellWidth: 18 },    // Valor Total
-        5: { cellWidth: 18 },    // Valor Pago
-        6: { cellWidth: 18 },    // Valor em Aberto
-        7: { cellWidth: 15 },    // Custos
-        8: { cellWidth: 15 },    // Resultado
-        9: { cellWidth: 20 },    // Forma Pgto
-        10: { cellWidth: 20 },   // Tipo Serviço
-        11: { cellWidth: 15 },   // Parcelas
-        12: { cellWidth: 18 },   // Status Fin.
-        13: { cellWidth: 18 }    // Status Op.
+        0: { cellWidth: 20 },    // Nº OS
+        1: { cellWidth: 30 },    // Vendedor
+        2: { cellWidth: 30 },    // Cliente
+        3: { cellWidth: 20 },    // Data
+        4: { cellWidth: 25 },    // Valor Total
+        5: { cellWidth: 25 },    // Valor Pago
+        6: { cellWidth: 25 },    // Custos
+        7: { cellWidth: 25 },    // Resultado
+        8: { cellWidth: 25 }     // Status
       }
     });
     
