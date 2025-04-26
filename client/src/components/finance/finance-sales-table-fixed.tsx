@@ -6,38 +6,17 @@ import {
   CardContent
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getStatusLabel } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Eye, 
-  Loader2, 
   DollarSign, 
   ChevronLeft, 
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight, 
   InfoIcon,
-  ArrowDownAZ,
-  ArrowUpAZ,
-  ArrowDown01,
-  ArrowUp01,
-  ArrowDown,
   ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
@@ -214,265 +193,155 @@ export default function FinanceSalesTableFixed({
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="w-full overflow-auto">
-          <div className="min-w-[1200px]">
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="w-[80px] cursor-pointer" 
-                      onClick={() => toggleSort('orderNumber')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Nº OS</span>
-                        {sortField === 'orderNumber' ? (
-                          sortDirection === 'asc' ? (
-                            <ArrowUpAZ className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownAZ className="h-4 w-4" />
-                          )
-                        ) : null}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('sellerId')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Vendedor</span>
-                        {sortField === 'sellerId' ? (
-                          sortDirection === 'asc' ? (
-                            <ArrowUpAZ className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownAZ className="h-4 w-4" />
-                          )
-                        ) : null}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('customerName')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Cliente</span>
-                        {sortField === 'customerName' ? (
-                          sortDirection === 'asc' ? (
-                            <ArrowUpAZ className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownAZ className="h-4 w-4" />
-                          )
-                        ) : null}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('date')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Data</span>
-                        {sortField === 'date' ? (
-                          sortDirection === 'asc' ? (
-                            <ArrowUpAZ className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownAZ className="h-4 w-4" />
-                          )
-                        ) : null}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('totalAmount')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Valor Total</span>
-                        {sortField === 'totalAmount' ? (
-                          sortDirection === 'asc' ? (
-                            <ArrowUp01 className="h-4 w-4" />
-                          ) : (
-                            <ArrowDown01 className="h-4 w-4" />
-                          )
-                        ) : null}
-                      </div>
-                    </TableHead>
-
-                    {usesFinancialStatus && (
-                      <>
-                        <TableHead 
-                          className="cursor-pointer"
-                          onClick={() => toggleSort('totalPaid')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Valor Pago</span>
-                            {sortField === 'totalPaid' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp01 className="h-4 w-4" />
-                              ) : (
-                                <ArrowDown01 className="h-4 w-4" />
-                              )
-                            ) : null}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer"
-                          onClick={() => toggleSort('totalCosts')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Custos</span>
-                            {sortField === 'totalCosts' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp01 className="h-4 w-4" />
-                              ) : (
-                                <ArrowDown01 className="h-4 w-4" />
-                              )
-                            ) : null}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer"
-                          onClick={() => toggleSort('netResult')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Resultado</span>
-                            {sortField === 'netResult' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp01 className="h-4 w-4" />
-                              ) : (
-                                <ArrowDown01 className="h-4 w-4" />
-                              )
-                            ) : null}
-                          </div>
-                        </TableHead>
-                      </>
-                    )}
-                    
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort(usesFinancialStatus ? 'financialStatus' : 'status')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Status</span>
-                        {sortField === (usesFinancialStatus ? 'financialStatus' : 'status') ? (
-                          sortDirection === 'asc' ? (
-                            <ArrowUpAZ className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownAZ className="h-4 w-4" />
-                          )
-                        ) : null}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-medium">{sale.orderNumber}</TableCell>
-                      <TableCell>
-                        <span title={sale.sellerName || `Vendedor #${sale.sellerId}`}>
-                          {sale.sellerName || `Vendedor #${sale.sellerId}`}
+        <div className="w-full overflow-x-auto">
+          <table className="min-w-full border-collapse border rounded-lg overflow-hidden" style={{ borderSpacing: 0 }}>
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '80px' }}>
+                  Nº OS
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                  Vendedor
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                  Cliente
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                  Data
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                  Valor Total
+                </th>
+                
+                {usesFinancialStatus && (
+                  <>
+                    <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                      Valor Pago
+                    </th>
+                    <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                      Custos
+                    </th>
+                    <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                      Resultado
+                    </th>
+                  </>
+                )}
+                
+                <th className="border border-gray-300 px-4 py-2 text-left" style={{ width: '120px' }}>
+                  Status
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-center" style={{ width: '100px' }}>
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.map((sale) => (
+                <tr key={sale.id} className="hover:bg-gray-50">
+                  <td className="border border-gray-300 px-4 py-2 font-medium">
+                    {sale.orderNumber}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    <span title={sale.sellerName || `Vendedor #${sale.sellerId}`}>
+                      {sale.sellerName || `Vendedor #${sale.sellerId}`}
+                    </span>
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    <span title={sale.customerName || `Cliente #${sale.customerId}`}>
+                      {sale.customerName || `Cliente #${sale.customerId}`}
+                    </span>
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {formatDate(sale.date)}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {formatCurrency(sale.totalAmount)}
+                  </td>
+                  
+                  {usesFinancialStatus && (
+                    <>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <span className="text-green-600">
+                          {sale.financialSummary ? formatCurrency(sale.financialSummary.totalPaid) : formatCurrency(0)}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <span title={sale.customerName || `Cliente #${sale.customerId}`}>
-                          {sale.customerName || `Cliente #${sale.customerId}`}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <span className="text-red-600">
+                          {sale.financialSummary ? formatCurrency(sale.financialSummary.totalCosts) : formatCurrency(0)}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(sale.date)}
-                      </TableCell>
-                      <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
-                      
-                      {usesFinancialStatus && (
-                        <>
-                          <TableCell>
-                            <span className="text-green-600">
-                              {sale.financialSummary ? formatCurrency(sale.financialSummary.totalPaid) : formatCurrency(0)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-red-600">
-                              {sale.financialSummary ? formatCurrency(sale.financialSummary.totalCosts) : formatCurrency(0)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              {sale.financialSummary ? (
-                                <>
-                                  <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                    {formatCurrency(sale.financialSummary.netResult)}
-                                  </span>
-                                  {sale.financialSummary.netResult >= 0 ? (
-                                    <ArrowUp className="h-3 w-3 ml-1 text-green-600" />
-                                  ) : (
-                                    <ArrowDown className="h-3 w-3 ml-1 text-red-600" />
-                                  )}
-                                </>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <div className="flex items-center">
+                          {sale.financialSummary ? (
+                            <>
+                              <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                {formatCurrency(sale.financialSummary.netResult)}
+                              </span>
+                              {sale.financialSummary.netResult >= 0 ? (
+                                <ArrowUp className="h-3 w-3 ml-1 text-green-600" />
                               ) : (
-                                <span className="text-muted-foreground italic">Sem dados</span>
+                                <ArrowDown className="h-3 w-3 ml-1 text-red-600" />
                               )}
-                            </div>
-                          </TableCell>
-                        </>
-                      )}
-                      
-                      <TableCell>
-                        {usesFinancialStatus && (
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs font-semibold ${getStatusBadgeStyle(sale.financialStatus || 'pending')}`}
-                          >
-                            {getStatusLabel(sale.financialStatus || 'pending')}
-                          </Badge>
-                        )}
-                        {!usesFinancialStatus && (
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs font-semibold ${getStatusBadgeStyle(sale.status)}`}
-                          >
-                            {getStatusLabel(sale.status)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="default" 
-                          size="sm" 
-                          onClick={() => onViewFinancials(sale.id)}
-                        >
-                          <DollarSign className="h-3.5 w-3.5 mr-1" />
-                          <span>Financeiro</span>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground italic">Sem dados</span>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
+                  
+                  <td className="border border-gray-300 px-4 py-2">
+                    {usesFinancialStatus && (
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs font-semibold ${getStatusBadgeStyle(sale.financialStatus || 'pending')}`}
+                      >
+                        {getStatusLabel(sale.financialStatus || 'pending')}
+                      </Badge>
+                    )}
+                    {!usesFinancialStatus && (
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs font-semibold ${getStatusBadgeStyle(sale.status)}`}
+                      >
+                        {getStatusLabel(sale.status)}
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-center">
+                    <Button
+                      variant="default" 
+                      size="sm" 
+                      onClick={() => onViewFinancials(sale.id)}
+                    >
+                      <DollarSign className="h-3.5 w-3.5 mr-1" />
+                      <span>Financeiro</span>
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
           <div className="flex items-center gap-2">
-            <Select 
-              value={limit.toString()}
-              onValueChange={(value) => {
-                setLimit(parseInt(value));
-                setPage(1);
+            <select 
+              className="px-3 py-2 border border-gray-300 rounded-md"
+              value={limit}
+              onChange={(e) => {
+                setLimit(parseInt(e.target.value));
+                setPage(1); 
               }}
             >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="10 por página" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 por página</SelectItem>
-                <SelectItem value="10">10 por página</SelectItem>
-                <SelectItem value="25">25 por página</SelectItem>
-                <SelectItem value="50">50 por página</SelectItem>
-                <SelectItem value="100">100 por página</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-muted-foreground">
+              <option value="5">5 por página</option>
+              <option value="10">10 por página</option>
+              <option value="25">25 por página</option>
+              <option value="50">50 por página</option>
+              <option value="100">100 por página</option>
+            </select>
+            <span className="text-sm text-gray-500">
               Mostrando {sales.length} de {totalItems} registro(s)
             </span>
           </div>
