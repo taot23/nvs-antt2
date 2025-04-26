@@ -2745,10 +2745,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extrair dados do corpo da requisição
       const { description, amount, date, notes, serviceProviderId } = req.body;
       
-      // Validar dados
-      if (!description) {
-        return res.status(400).json({ error: "Descrição é obrigatória" });
-      }
+      // A descrição não é mais obrigatória, já que pode ser vazia
+      // Apenas garantir que seja uma string no restante do código
+      const descriptionText = description || " "; // Usando espaço em branco para evitar NULL no banco
       
       if (!amount || isNaN(parseFloat(amount))) {
         return res.status(400).json({ error: "Valor inválido" });
@@ -2764,7 +2763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Preparar dados do custo
       const costData: any = {
         saleId: id,
-        description,
+        description: descriptionText, // Usando a variável com valor padrão definido acima
         amount: amount.toString(),
         date: date ? date : new Date().toISOString(),
         responsibleId: req.user!.id,
@@ -2811,7 +2810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Preparar dados para atualização
       const updateData: Partial<InsertSaleOperationalCost> = {};
       
-      if (description !== undefined) updateData.description = description;
+      if (description !== undefined) updateData.description = description || " "; // Usando espaço em branco para evitar null
       if (amount !== undefined) updateData.amount = amount.toString();
       if (date !== undefined) updateData.date = date;
       if (notes !== undefined) updateData.notes = notes;
