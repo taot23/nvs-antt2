@@ -1830,7 +1830,17 @@ export default function SaleDialog({
                     // Usar as datas exatas que o usuário editou na interface
                     console.log("✓ Usando datas específicas editadas pelo usuário");
                     for (let i = 0; i < numberOfInstallments; i++) {
-                      datesForApi.push(installmentDates[i].toISOString());
+                      const date = installmentDates[i];
+                      // CORREÇÃO CRÍTICA: Formatar sem ajustes de timezone para preservar a data exata
+                      if (date instanceof Date) {
+                        // Formato YYYY-MM-DD sem ajustes de timezone
+                        const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                        datesForApi.push(isoDate);
+                        console.log(`🛠️ Data preservada #${i+1}: ${isoDate}`);
+                      } else {
+                        datesForApi.push(date);
+                        console.log(`🛠️ Data preservada #${i+1} (já string): ${date}`);
+                      }
                     }
                   } else {
                     // Se não tivermos o número correto de datas (caso raro), gerar automaticamente
@@ -1839,7 +1849,10 @@ export default function SaleDialog({
                     for (let i = 0; i < numberOfInstallments; i++) {
                       const dueDate = new Date(currentDate);
                       dueDate.setMonth(currentDate.getMonth() + i);
-                      datesForApi.push(dueDate.toISOString());
+                      // CORREÇÃO CRÍTICA: Formatar sem ajustes de timezone para preservar a data exata
+                      const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                      datesForApi.push(isoDate);
+                      console.log(`🛠️ Data gerada #${i+1}: ${isoDate}`);
                     }
                   }
                   
