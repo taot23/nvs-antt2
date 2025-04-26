@@ -260,6 +260,49 @@ export default function FinancePage() {
     }
   }
 
+  // Consulta para obter os dados das vendas com paginação
+  const {
+    data: salesData,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['/api/sales', page, limit, sortField, sortDirection, activeTab, searchTerm, dateRange],
+    queryFn: async () => {
+      const url = new URL('/api/sales', window.location.origin);
+      
+      // Adicionar parâmetros de paginação e ordenação
+      url.searchParams.append('page', page.toString());
+      url.searchParams.append('limit', limit.toString());
+      url.searchParams.append('sortField', sortField);
+      url.searchParams.append('sortDirection', sortDirection);
+      
+      // Adicionar status financeiro baseado na aba ativa
+      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+      
+      // Adicionar termo de busca se houver
+      if (searchTerm) {
+        url.searchParams.append('searchTerm', searchTerm);
+      }
+      
+      // Adicionar intervalo de datas se houver
+      if (dateRange?.from) {
+        url.searchParams.append('startDate', dateRange.from.toISOString());
+      }
+      if (dateRange?.to) {
+        url.searchParams.append('endDate', dateRange.to.toISOString());
+      }
+      
+      console.log(`Buscando vendas com financialStatus: ${getFinancialStatusForActiveTab()}, termo: ${searchTerm || "nenhum"}, url: ${url.toString()}`);
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Erro ao buscar as vendas');
+      }
+      
+      return response.json();
+    },
+  });
+  
   // Usado para atualizar dados via botão "Atualizar"
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -389,52 +432,117 @@ export default function FinancePage() {
           </div>
 
           <TabsContent value="all" className="space-y-4">
-            <FinanceSalesTable 
-              status={getFinancialStatusForActiveTab()}
-              searchTerm={searchTerm}
+            <PaginatedFinanceTable
+              data={salesData?.data || []}
+              isLoading={isLoading}
+              error={error as Error}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              currentPage={page}
+              totalPages={Math.ceil((salesData?.total || 0) / limit)}
+              pageSize={limit}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1); // Voltar para a primeira página ao alterar o tamanho
+              }}
               onViewFinancials={handleViewFinancials}
+              user={user}
+              totalItems={salesData?.total || 0}
               usesFinancialStatus={true}
-              dateRange={dateRange}
             />
           </TabsContent>
 
           <TabsContent value="pending" className="space-y-4">
-            <FinanceSalesTable 
-              status={getFinancialStatusForActiveTab()}
-              searchTerm={searchTerm}
+            <PaginatedFinanceTable
+              data={salesData?.data || []}
+              isLoading={isLoading}
+              error={error as Error}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              currentPage={page}
+              totalPages={Math.ceil((salesData?.total || 0) / limit)}
+              pageSize={limit}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1); // Voltar para a primeira página ao alterar o tamanho
+              }}
               onViewFinancials={handleViewFinancials}
+              user={user}
+              totalItems={salesData?.total || 0}
               usesFinancialStatus={true}
-              dateRange={dateRange}
             />
           </TabsContent>
 
           <TabsContent value="inProgress" className="space-y-4">
-            <FinanceSalesTable 
-              status={getFinancialStatusForActiveTab()}
-              searchTerm={searchTerm}
+            <PaginatedFinanceTable
+              data={salesData?.data || []}
+              isLoading={isLoading}
+              error={error as Error}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              currentPage={page}
+              totalPages={Math.ceil((salesData?.total || 0) / limit)}
+              pageSize={limit}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1); // Voltar para a primeira página ao alterar o tamanho
+              }}
               onViewFinancials={handleViewFinancials}
+              user={user}
+              totalItems={salesData?.total || 0}
               usesFinancialStatus={true}
-              dateRange={dateRange}
             />
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
-            <FinanceSalesTable 
-              status={getFinancialStatusForActiveTab()}
-              searchTerm={searchTerm}
+            <PaginatedFinanceTable
+              data={salesData?.data || []}
+              isLoading={isLoading}
+              error={error as Error}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              currentPage={page}
+              totalPages={Math.ceil((salesData?.total || 0) / limit)}
+              pageSize={limit}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1); // Voltar para a primeira página ao alterar o tamanho
+              }}
               onViewFinancials={handleViewFinancials}
+              user={user}
+              totalItems={salesData?.total || 0}
               usesFinancialStatus={true}
-              dateRange={dateRange}
             />
           </TabsContent>
 
           <TabsContent value="paid" className="space-y-4">
-            <FinanceSalesTable 
-              status={getFinancialStatusForActiveTab()}
-              searchTerm={searchTerm}
+            <PaginatedFinanceTable
+              data={salesData?.data || []}
+              isLoading={isLoading}
+              error={error as Error}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              currentPage={page}
+              totalPages={Math.ceil((salesData?.total || 0) / limit)}
+              pageSize={limit}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1); // Voltar para a primeira página ao alterar o tamanho
+              }}
               onViewFinancials={handleViewFinancials}
+              user={user}
+              totalItems={salesData?.total || 0}
               usesFinancialStatus={true}
-              dateRange={dateRange}
             />
           </TabsContent>
         </Tabs>
