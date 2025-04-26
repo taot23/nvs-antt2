@@ -188,9 +188,9 @@ export const saleInstallments = pgTable("sale_installments", {
   saleId: integer("sale_id").notNull().references(() => sales.id), // Venda relacionada
   installmentNumber: integer("installment_number").notNull(), // Número da parcela (1, 2, 3...)
   amount: numeric("amount").notNull(), // Valor da parcela
-  dueDate: date("due_date").notNull(), // Data de vencimento
+  dueDate: text("due_date").notNull(), // Data de vencimento como texto para preservar formato exato
   status: text("status").notNull().default("pending"), // Status: pending, paid
-  paymentDate: date("payment_date"), // Data do pagamento
+  paymentDate: text("payment_date"), // Data do pagamento como texto para preservar formato exato
   notes: text("notes"), // Observações
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
