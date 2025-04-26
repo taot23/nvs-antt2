@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import SimpleFinanceTable from "./simple-finance-table";
+import SimpleFinanceTable from "@/components/finance/simple-finance-table";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { FinanceSale, SafeUser } from "./finance-types";
 

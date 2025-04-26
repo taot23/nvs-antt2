@@ -79,7 +79,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
   return (
     <div className="w-full overflow-x-auto border rounded-md">
       <div className="min-w-full">
-        <Table className="w-full table-fixed">
+        <Table id="finance-table" className="w-full table-fixed">
           <TableCaption>
             {isLoading ? (
               "Carregando dados..."
