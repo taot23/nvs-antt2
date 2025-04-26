@@ -35,6 +35,7 @@ import { getStatusLabel, getStatusVariant } from "@/lib/status-utils";
 import { Badge } from "@/components/ui/badge";
 import { PaymentConfirmation } from "./payment-confirmation";
 import OperationalCosts from "./operational-costs";
+import SaleFinancialSummary from "./sale-financial-summary";
 
 interface FinanceTransactionDialogProps {
   open: boolean;
