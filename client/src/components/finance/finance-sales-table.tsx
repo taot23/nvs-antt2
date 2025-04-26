@@ -45,7 +45,10 @@ import {
   Calendar,
   Hash,
   User,
-  MoreHorizontal
+  MoreHorizontal,
+  ArrowDown,
+  ArrowUp,
+  CircleDollarSign
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Sale } from "@shared/schema";
@@ -62,7 +65,16 @@ interface FinanceSalesTableProps {
 
 // Tipo para definir a estrutura do retorno da API
 interface SalesResponse {
-  data: (Sale & { customerName?: string, sellerName?: string, paymentMethodName?: string })[];
+  data: (Sale & { 
+    customerName?: string, 
+    sellerName?: string, 
+    paymentMethodName?: string,
+    financialSummary?: {
+      totalPaid: number,
+      totalCosts: number,
+      netResult: number
+    }
+  })[];
   total: number;
   page: number;
   totalPages: number;
@@ -299,6 +311,34 @@ export default function FinanceSalesTable({
                     )}
                   </div>
                 </TableHead>
+
+                {/* Quando usar status financeiro, mostrar colunas financeiras */}
+                {usesFinancialStatus && (
+                  <>
+                    <TableHead 
+                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Valor Pago</span>
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Custos</span>
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Resultado</span>
+                      </div>
+                    </TableHead>
+                  </>
+                )}
+                
                 <TableHead 
                   className="cursor-pointer whitespace-nowrap"
                   onClick={() => toggleSort(usesFinancialStatus ? 'financialStatus' : 'status')}
@@ -332,6 +372,35 @@ export default function FinanceSalesTable({
                     {formatDate(sale.date)}
                   </TableCell>
                   <TableCell className="font-medium whitespace-nowrap">{formatCurrency(sale.totalAmount)}</TableCell>
+                  
+                  {/* Colunas financeiras */}
+                  {usesFinancialStatus && sale.financialSummary && (
+                    <>
+                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                        <span className="text-green-600">
+                          {formatCurrency(sale.financialSummary.totalPaid)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                        <span className="text-red-600">
+                          {formatCurrency(sale.financialSummary.totalCosts)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                        <div className="flex items-center">
+                          <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {formatCurrency(sale.financialSummary.netResult)}
+                          </span>
+                          {sale.financialSummary.netResult >= 0 ? (
+                            <ArrowUp className="h-3 w-3 ml-1 text-green-600" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 ml-1 text-red-600" />
+                          )}
+                        </div>
+                      </TableCell>
+                    </>
+                  )}
+                  
                   <TableCell className="whitespace-nowrap">
                     {usesFinancialStatus && (
                       <Badge 
