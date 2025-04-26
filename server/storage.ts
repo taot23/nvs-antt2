@@ -1244,7 +1244,7 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(`s.status = $${queryParams.length}`);
     }
 
-    if (financialStatus) {
+    if (financialStatus && financialStatus !== 'all') {
       queryParams.push(financialStatus);
       whereConditions.push(`s.financial_status = $${queryParams.length}`);
     }
@@ -1254,12 +1254,22 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(`s.seller_id = $${queryParams.length}`);
     }
 
+    // Adicionar busca por termo se foi fornecido
+    if (searchTerm && searchTerm.trim() !== "") {
+      const term = `%${searchTerm.toLowerCase().trim()}%`;
+      // Fix para garantir que o mesmo valor seja usado em ambos os parâmetros
+      whereConditions.push(
+        `(LOWER(s.order_number) LIKE $${queryParams.length + 1} OR LOWER(c.name) LIKE $${queryParams.length + 2})`
+      );
+      queryParams.push(term);
+      queryParams.push(term);
+    }
+
     // Adicionar cláusula WHERE se houver condições
     if (whereConditions.length > 0) {
       queryText += ` WHERE ${whereConditions.join(" AND ")}`;
     }
 
-    // Adicionar ordenação
     // Converter nomes de campos camelCase para snake_case para SQL
     const fieldMapping: Record<string, string> = {
       createdAt: "created_at",
@@ -1273,6 +1283,7 @@ export class DatabaseStorage implements IStorage {
       serviceProviderId: "service_provider_id",
       financialStatus: "financial_status",
       customerName: "customer_name",
+      date: "date"
     };
 
     // Usar o nome do campo mapeado ou o original se não tiver mapeamento
@@ -1298,15 +1309,17 @@ export class DatabaseStorage implements IStorage {
     let countQuery = `
       SELECT COUNT(*) AS total 
       FROM sales s
+      LEFT JOIN customers c ON s.customer_id = c.id
     `;
 
     if (whereConditions.length > 0) {
       countQuery += ` WHERE ${whereConditions.join(" AND ")}`;
     }
 
+    // Usar somente os parâmetros necessários para a contagem (excluir os 2 últimos, que são limit e offset)
     const countResult = await pool.query(
       countQuery,
-      queryParams.slice(0, whereConditions.length),
+      queryParams.slice(0, queryParams.length - 2),
     );
     const totalRecords = parseInt(countResult.rows[0].total);
 
@@ -1332,84 +1345,6 @@ export class DatabaseStorage implements IStorage {
         updatedAt: row.updated_at,
       };
     });
-
-    // Adicionar busca por termo se foi fornecido
-    if (searchTerm && searchTerm.trim() !== "") {
-      const term = searchTerm.toLowerCase();
-
-      // Construir condição para WHERE
-      whereConditions.push(
-        `(LOWER(s.order_number) LIKE $${queryParams.length + 1} OR LOWER(c.name) LIKE $${queryParams.length + 1})`,
-      );
-      queryParams.push(`%${term}%`);
-
-      // Refazer consulta com pesquisa
-      queryText = `
-        SELECT s.*, c.name as customer_name
-        FROM sales s
-        LEFT JOIN customers c ON s.customer_id = c.id
-        WHERE ${whereConditions.join(" AND ")}
-      `;
-
-      // Adicionar ordenação específica para o campo customerName
-      if (sortField === "customerName") {
-        queryText += ` ORDER BY c.name ${sortDirection.toUpperCase()}`;
-      } else {
-        queryText += ` ORDER BY s.${sqlFieldName} ${sortDirection.toUpperCase()}`;
-      }
-
-      queryText += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
-      `;
-
-      queryParams.push(limit);
-      queryParams.push((page - 1) * limit);
-
-      // Executar a consulta com o filtro
-      const searchResult = await pool.query(queryText, queryParams);
-
-      // Atualizar os resultados
-      const filteredSales = searchResult.rows.map((row) => ({
-        id: row.id,
-        orderNumber: row.order_number,
-        customerId: row.customer_id,
-        customerName: row.customer_name,
-        paymentMethodId: row.payment_method_id,
-        sellerId: row.seller_id,
-        serviceTypeId: row.service_type_id,
-        serviceProviderId: row.service_provider_id,
-        totalAmount: row.total_amount,
-        installments: row.installments,
-        installmentValue: row.installment_value,
-        status: row.status,
-        financialStatus: row.financial_status,
-        notes: row.notes,
-        date: row.date,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }));
-
-      // Atualizar contagem
-      const newCountResult = await pool.query(
-        `SELECT COUNT(*) AS total FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE ${whereConditions.join(" AND ")}`,
-        queryParams.slice(0, -2),
-      );
-
-      const filteredTotal = parseInt(newCountResult.rows[0].total);
-
-      // Calcular paginação
-      const totalPages = Math.ceil(filteredTotal / limit);
-
-      console.log(
-        `Retornando ${filteredSales.length} vendas de um total de ${filteredTotal}`,
-      );
-
-      return {
-        data: filteredSales,
-        total: filteredTotal,
-        page,
-        totalPages,
-      };
-    }
 
     // Calcular paginação
     const totalPages = Math.ceil(totalRecords / limit);
