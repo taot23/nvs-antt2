@@ -298,11 +298,18 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   <TableCell className="text-right">
                     <Button
                       variant="default" 
-                      size="sm" 
+                      size="sm"
                       onClick={() => onViewFinancials(sale.id)}
+                      className={cn(
+                        "mr-2",
+                        !user || (user.role !== 'admin' && user.role !== 'financeiro') 
+                          ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed" 
+                          : ""
+                      )}
+                      disabled={!user || (user.role !== 'admin' && user.role !== 'financeiro')}
                     >
                       <DollarSign className="h-3.5 w-3.5 mr-1" />
-                      <span>Financeiro</span>
+                      Financeiro
                     </Button>
                   </TableCell>
                 </TableRow>
