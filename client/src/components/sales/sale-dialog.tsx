@@ -116,9 +116,9 @@ export default function SaleDialog({
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
   
-  // Estados para controle das parcelas e datas de vencimento
-  const [installmentDates, setInstallmentDates] = useState<Date[]>([]);
-  const [firstDueDate, setFirstDueDate] = useState<Date>(addMonths(new Date(), 1));
+  // Estados para controle das parcelas e datas de vencimento - aceitamos tanto Date quanto string no formato YYYY-MM-DD
+  const [installmentDates, setInstallmentDates] = useState<(Date | string)[]>([]);
+  const [firstDueDate, setFirstDueDate] = useState<Date | string>(addMonths(new Date(), 1));
   
 
   // Consultas para obter dados relacionados
@@ -310,13 +310,41 @@ export default function SaleDialog({
   );
 
   // Função para gerar as datas de vencimento com base na data do primeiro vencimento
-  const generateInstallmentDates = (firstDate: Date, numberOfInstallments: number) => {
+  const generateInstallmentDates = (firstDate: Date | string, numberOfInstallments: number) => {
     const dates = [];
-    dates.push(new Date(firstDate)); // A primeira data é a própria data fornecida
     
-    for (let i = 1; i < numberOfInstallments; i++) {
-      // Adiciona um mês para cada parcela subsequente
-      dates.push(addMonths(new Date(firstDate), i));
+    // A primeira data pode ser um objeto Date ou uma string no formato YYYY-MM-DD
+    if (typeof firstDate === 'string') {
+      // Se for string, usar diretamente
+      dates.push(firstDate);
+      
+      // Para as próximas parcelas, precisamos converter para Date temporariamente para calcular
+      const parts = firstDate.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const day = parseInt(parts[2]);
+        
+        const tempDate = new Date(year, month, day);
+        
+        for (let i = 1; i < numberOfInstallments; i++) {
+          // Adiciona um mês para cada parcela subsequente
+          const nextDate = addMonths(tempDate, i);
+          // Converte de volta para string no formato YYYY-MM-DD
+          dates.push(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`);
+        }
+      }
+    } else {
+      // Se for objeto Date, converter para string YYYY-MM-DD para evitar problemas de timezone
+      const fixedDate = `${firstDate.getFullYear()}-${String(firstDate.getMonth() + 1).padStart(2, '0')}-${String(firstDate.getDate()).padStart(2, '0')}`;
+      dates.push(fixedDate);
+      
+      for (let i = 1; i < numberOfInstallments; i++) {
+        // Adiciona um mês para cada parcela subsequente
+        const nextDate = addMonths(firstDate, i);
+        // Converte para string no formato YYYY-MM-DD
+        dates.push(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`);
+      }
     }
     
     return dates;
@@ -376,11 +404,17 @@ export default function SaleDialog({
         // A primeira parcela define a data inicial de vencimento
         const firstInstallment = sortedInstallments.find((i: any) => i.installmentNumber === 1);
         if (firstInstallment) {
-          setFirstDueDate(new Date(firstInstallment.dueDate));
+          // Converter para formato YYYY-MM-DD sem ajustes de timezone
+          const rawDate = new Date(firstInstallment.dueDate);
+          const isoDate = `${rawDate.getFullYear()}-${String(rawDate.getMonth() + 1).padStart(2, '0')}-${String(rawDate.getDate()).padStart(2, '0')}`;
+          setFirstDueDate(isoDate);
         }
         
-        // Carregamos todas as datas de vencimento das parcelas existentes
-        const dates = sortedInstallments.map((installment: any) => new Date(installment.dueDate));
+        // Carregamos todas as datas de vencimento das parcelas existentes no formato string YYYY-MM-DD
+        const dates = sortedInstallments.map((installment: any) => {
+          const rawDate = new Date(installment.dueDate);
+          return `${rawDate.getFullYear()}-${String(rawDate.getMonth() + 1).padStart(2, '0')}-${String(rawDate.getDate()).padStart(2, '0')}`;
+        });
         setInstallmentDates(dates);
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
@@ -1458,10 +1492,15 @@ export default function SaleDialog({
                                 type="text"
                                 size={10}
                                 placeholder="DD/MM/AAAA"
-                                defaultValue={format(date, "dd/MM/yyyy")}
+                                defaultValue={typeof date === 'string' ? 
+                                  // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
+                                  date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
+                                  // Se for objeto Date, formatar normalmente
+                                  : format(date, "dd/MM/yyyy")}
                                 onChange={(e) => {
                                   try {
                                     console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
+                                    
                                     // Tentar converter a string para data
                                     const parts = e.target.value.split('/');
                                     if (parts.length === 3) {
@@ -1470,17 +1509,16 @@ export default function SaleDialog({
                                       const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
                                       
                                       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                        const newDate = new Date(year, month, day);
+                                        // CORREÇÃO CRÍTICA: Preservar os números exatos sem ajustes de timezone
+                                        // Armazena a data como string YYYY-MM-DD para evitar problemas de timezone
+                                        const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                        console.log(`✅ Data preservada exatamente como digitada: ${fixedDate}`);
                                         
-                                        if (isValid(newDate)) {
-                                          console.log(`✅ Data válida convertida: ${newDate.toISOString().split('T')[0]}`);
-                                          // Atualiza apenas a data específica dessa parcela
-                                          const newDates = [...installmentDates];
-                                          newDates[index] = newDate;
-                                          setInstallmentDates(newDates);
-                                        } else {
-                                          console.log(`❌ Data inválida: ${day}/${month+1}/${year}`);
-                                        }
+                                        // Atualiza apenas a data específica dessa parcela
+                                        const newDates = [...installmentDates];
+                                        // Armazenar como string, não como objeto Date
+                                        newDates[index] = fixedDate;
+                                        setInstallmentDates(newDates);
                                       } else {
                                         console.log(`⚠️ Números inválidos: dia=${day}, mês=${month+1}, ano=${year}`);
                                       }
@@ -1493,15 +1531,14 @@ export default function SaleDialog({
                                         const day = parseInt(parts[2]);
                                         
                                         if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                          const newDate = new Date(year, month, day);
+                                          // CORREÇÃO CRÍTICA: Preservar exatamente a data digitada
+                                          const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                          console.log(`✅ Data preservada do formato ISO: ${fixedDate}`);
                                           
-                                          if (isValid(newDate)) {
-                                            console.log(`✅ Data válida ISO convertida: ${newDate.toISOString().split('T')[0]}`);
-                                            // Atualiza apenas a data específica dessa parcela
-                                            const newDates = [...installmentDates];
-                                            newDates[index] = newDate;
-                                            setInstallmentDates(newDates);
-                                          }
+                                          // Atualiza apenas a data específica dessa parcela
+                                          const newDates = [...installmentDates];
+                                          newDates[index] = fixedDate;
+                                          setInstallmentDates(newDates);
                                         }
                                       }
                                     }
