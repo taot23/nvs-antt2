@@ -13,7 +13,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import FinanceSalesTable from "@/components/finance/finance-sales-table";
+import FinanceSalesTable from "@/components/finance/finance-sales-table-fixed";
 import FinanceTransactionDialog from "@/components/finance/finance-transaction-dialog";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
