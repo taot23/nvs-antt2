@@ -162,19 +162,39 @@ export default function FinancePage() {
         return;
       }
 
-      // Formatar os dados para exportação
-      const exportData = sales.map((sale: any) => ({
-        'Nº OS': sale.orderNumber,
-        'Vendedor': sale.sellerName || `Vendedor #${sale.sellerId}`,
-        'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
-        'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-        'Valor Total': parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-        'Valor Pago': sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
-        'Custos': sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
-        'Resultado Líquido': sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
-        'Status Financeiro': getFinancialStatusLabel(sale.financialStatus),
-        'Criado em': format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
-      }));
+      // Primeiro garantir que todos os itens tenham financialSummary para Excel
+      sales.forEach(sale => {
+        if (!sale.financialSummary) {
+          console.log(`Forçando financialSummary para a venda ${sale.id} durante exportação Excel`);
+          sale.financialSummary = {
+            totalPaid: 0,
+            totalCosts: 0,
+            netResult: parseFloat(sale.totalAmount || "0")
+          };
+        }
+      });
+      
+      // Formatar os dados para exportação com financialSummary garantido
+      const exportData = sales.map((sale: any) => {
+        // Assegurar que os valores financeiros estão presentes
+        const totalAmount = parseFloat(sale.totalAmount || "0");
+        const totalPaid = sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString() || "0") : 0; 
+        const totalCosts = sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString() || "0") : 0;
+        const netResult = sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString() || "0") : totalAmount;
+        
+        return {
+          'Nº OS': sale.orderNumber,
+          'Vendedor': sale.sellerName || `Vendedor #${sale.sellerId}`,
+          'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
+          'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+          'Valor Total': totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          'Valor Pago': totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          'Custos': totalCosts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          'Resultado Líquido': netResult.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          'Status Financeiro': getFinancialStatusLabel(sale.financialStatus),
+          'Criado em': format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        };
+      });
 
       // Criar planilha e exportar
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -202,16 +222,29 @@ export default function FinancePage() {
   // Exportar para PDF
   const exportToPDF = async () => {
     try {
-      // Buscar os dados para exportação diretamente
-      // Adicionando financialSummary explicitamente para garantir que o servidor inclua esses dados
-      const url = new URL('/api/sales', window.location.origin);
-      url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
-      url.searchParams.append('includeSummary', 'true');
-      if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
-      if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
-      if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
-      // Buscar todos os registros sem paginação para exportação
-      url.searchParams.append('limit', '1000');
+      // Em vez de buscar dados novamente, usar os dados da tabela atual
+      // Isso garante consistência e evita problemas de recuperação de dados do backend
+      let sales = [];
+      
+      if (salesData && salesData.data) {
+        console.log("Usando dados já carregados para exportação PDF");
+        sales = [...salesData.data];
+      } else {
+        // Buscar os dados para exportação diretamente como fallback
+        console.log("Buscando novos dados para exportação PDF");
+        const url = new URL('/api/sales', window.location.origin);
+        
+        // Se não for "all", incluir o filtro de status
+        if (getFinancialStatusForActiveTab() !== 'all') {
+          url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+        }
+        
+        url.searchParams.append('includeSummary', 'true');
+        if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
+        if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
+        if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
+        // Buscar todos os registros sem paginação para exportação
+        url.searchParams.append('limit', '1000');
       
       console.log('URL de exportação PDF:', url.toString());
       const response = await fetch(url.toString());
@@ -219,7 +252,7 @@ export default function FinancePage() {
         throw new Error('Erro ao carregar dados para exportação');
       }
       const result = await response.json();
-      const sales = result.data || [];
+      sales = result.data || [];
       
       // Log para depuração
       console.log('Dados para exportação PDF:', sales.length, 'vendas com dados:', 
@@ -278,18 +311,38 @@ export default function FinancePage() {
       doc.text(`Status: ${getFinancialStatusLabel(getFinancialStatusForActiveTab())}`, 14, 30);
       doc.text(`Data de geração: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 38);
       
-      // Preparar dados para a tabela
-      const tableData = sales.map((sale: any) => [
-        sale.orderNumber,
-        sale.sellerName || `Vendedor #${sale.sellerId}`,
-        sale.customerName || `Cliente #${sale.customerId}`,
-        sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
-        parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-        sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
-        sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
-        sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
-        getFinancialStatusLabel(sale.financialStatus),
-      ]);
+      // Primeiro garantir que todos os itens tenham financialSummary
+      sales.forEach(sale => {
+        if (!sale.financialSummary) {
+          console.log(`Forçando financialSummary para a venda ${sale.id} durante exportação PDF`);
+          sale.financialSummary = {
+            totalPaid: 0,
+            totalCosts: 0,
+            netResult: parseFloat(sale.totalAmount || "0")
+          };
+        }
+      });
+        
+      // Preparar dados para a tabela, com financialSummary garantido em todos os itens
+      const tableData = sales.map((sale: any) => {
+        // Assegurar que os valores financeiros estão presentes
+        const totalAmount = parseFloat(sale.totalAmount || "0");
+        const totalPaid = sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString() || "0") : 0;
+        const totalCosts = sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString() || "0") : 0; 
+        const netResult = sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString() || "0") : totalAmount;
+        
+        return [
+          sale.orderNumber,
+          sale.sellerName || `Vendedor #${sale.sellerId}`,
+          sale.customerName || `Cliente #${sale.customerId}`,
+          sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+          totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          totalCosts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          netResult.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          getFinancialStatusLabel(sale.financialStatus),
+        ];
+      });
       
       // Criar tabela no PDF
       autoTable(doc, {
