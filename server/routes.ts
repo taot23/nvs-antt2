@@ -1181,9 +1181,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const userData = req.body;
       
-      // INJEÇÃO IMEDIATA DE PARCELA - Esta é a solução mais direta possível
-      userData.installments = 3; // Força valor para ser fácil de verificar
-      console.log("🆘 PARCELAS FORÇADAS IMEDIATAMENTE PARA: " + userData.installments);
+      // CORREÇÃO: Não forçar mais o número de parcelas - usar o que foi informado pelo usuário
+      // Apenas garantir que o valor seja numérico
+      userData.installments = Number(userData.installments);
+      console.log("🆘 NÚMERO DE PARCELAS RECEBIDO DO FORMULÁRIO: " + userData.installments);
       
       // Debug - exibir os dados recebidos
       console.log("Dados da venda recebidos:", JSON.stringify(userData, null, 2));
@@ -1236,32 +1237,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdSale = await storage.createSale(validatedSaleData);
       console.log("Venda criada inicialmente:", createdSale);
       
-      // 💉 INJEÇÃO CRÍTICA DIRETAMENTE NO BANCO VIA SQL - Forçar o número de parcelas
+      // CORREÇÃO: Não forçar mais o número de parcelas via SQL - usar o que foi informado pelo usuário
       try {
         const { pool } = await import('./db');
         
-        // Definir parcelas para 3 como teste de força bruta
-        const forceInstallments = 3;
-        
-        const updateInstallmentsQuery = `
-          UPDATE sales 
-          SET installments = ${forceInstallments}, updated_at = NOW() 
-          WHERE id = ${createdSale.id}
-        `;
-        
-        console.log("💉 APLICANDO FORÇA BRUTA SQL - Query:", updateInstallmentsQuery);
-        await pool.query(updateInstallmentsQuery);
-        
-        // Verificar o resultado
+        // Verificar o número de parcelas na venda
         const checkInstallmentsResult = await pool.query(`SELECT installments FROM sales WHERE id = ${createdSale.id}`);
         if (checkInstallmentsResult.rows.length > 0) {
-          console.log("💉 PARCELAS INJETADAS NO BANCO VIA SQL:", checkInstallmentsResult.rows[0].installments);
+          console.log("Número de parcelas salvo no banco:", checkInstallmentsResult.rows[0].installments);
           
-          // Atualizar também o objeto em memória
-          createdSale.installments = forceInstallments;
+          // Verificar se o número de parcelas foi salvo corretamente
+          if (checkInstallmentsResult.rows[0].installments !== Number(userData.installments)) {
+            console.log("⚠️ CORREÇÃO: O número de parcelas não foi salvo corretamente. Atualizando...");
+            
+            const correctInstallments = Number(userData.installments);
+            // Apenas atualizar se for necessário
+            const updateInstallmentsQuery = `
+              UPDATE sales 
+              SET installments = ${correctInstallments}, updated_at = NOW() 
+              WHERE id = ${createdSale.id}
+            `;
+            
+            console.log("Executando query de correção:", updateInstallmentsQuery);
+            await pool.query(updateInstallmentsQuery);
+            
+            // Atualizar também o objeto em memória
+            createdSale.installments = correctInstallments;
+          }
         }
       } catch (sqlError) {
-        console.error("💉 ERRO NA FORÇA BRUTA SQL:", sqlError);
+        console.error("Erro ao verificar parcelas:", sqlError);
       }
       
       // Depois de criar a venda, atualizar manualmente o valor total
@@ -1368,7 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 🛠️ SOLUÇÃO ULTRA-DEFINITIVA: Esta é a implementação mais robusta possível
         // Garantia absoluta de processamento correto das parcelas em qualquer cenário
-        let numInstallments = 3; // FORÇAR valor padrão para testes - depois remover e deixar = 1
+        let numInstallments = Number(userData.installments); // Usar o valor informado pelo usuário
         
         // Log ultra-detalhado com todas as informações possíveis para diagnóstico
         console.log("🛠️ INÍCIO DA SOLUÇÃO ULTRA-DEFINITIVA PARA PARCELAS 🛠️");
@@ -1382,9 +1387,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("🛠️ ERRO CRÍTICO DETECTADO: Valor de parcelas está ausente no objeto recebido!");
           console.log("🛠️ Aplicando medidas emergenciais para forçar um valor...");
           
-          // Forçar um valor diretamente no objeto recebido
-          userData.installments = 3; // Forçar valor para testes - depois mudar para valor dinâmico
-          console.log("🛠️ VALOR DE PARCELAS INJEKTADO FORÇADAMENTE:", userData.installments);
+          // Em caso de valor ausente, usar 1 parcela como valor padrão (em vez de forçar 3)
+          userData.installments = 1; // Valor padrão mais seguro
+          console.log("🛠️ VALOR DE PARCELAS DEFINIDO COMO PADRÃO (1 parcela):", userData.installments);
         }
         
         // Análise detalhada do valor recebido - já com a correção aplicada
@@ -1503,59 +1508,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`⚠️ Tipo do valor de installments: ${typeof userData.installments}, valor bruto: ${userData.installments}`);
         console.log(`⚠️ Valor final validado para installments: ${numInstallments}`);
         
-        if (numInstallments === 1) {
-          // 🔴 MUDANÇA CRÍTICA - IGNORAR COMPLETAMENTE A VERIFICAÇÃO DE PARCELA ÚNICA
-          // Vamos criar parcelas múltiplas DE QUALQUER FORMA
-          console.log("🔴 IGNORANDO VERIFICAÇÃO DE PARCELA ÚNICA - FORÇANDO PARCELAS MÚLTIPLAS");
-          
-          // Verificar se já existem parcelas
-          const existingInstallments = await storage.getSaleInstallments(createdSale.id);
-          if (existingInstallments.length > 0) {
-            console.log("🔴 Parcelas já existem para esta venda, removendo parcelas existentes antes de criar novas");
-            // Remover parcelas existentes antes de criar novas
-            await storage.deleteSaleInstallments(createdSale.id);
-          }
-          
-          // Calcular o valor de cada parcela (3 PARCELAS FIXAS PARA TESTE)
-          const hardcodedInstallments = 3; // FIXO PARA TESTE
-          const totalAmount = parseFloat(createdSale.totalAmount.toString()) || 0;
-          const installmentValue = parseFloat((totalAmount / hardcodedInstallments).toFixed(2));
-          
-          // Ajustar a última parcela para garantir que a soma seja exata
-          const lastInstallmentValue = totalAmount - (installmentValue * (hardcodedInstallments - 1));
-          
-          // Criar as parcelas
-          console.log(`🔴 FORÇANDO CRIAÇÃO DE ${hardcodedInstallments} PARCELAS PARA VENDA #${createdSale.id}`);
-          const hoje = new Date();
-          for (let i = 1; i <= hardcodedInstallments; i++) {
-            // Definir data de vencimento (30 dias após o mês anterior)
-            const dueDate = new Date(hoje);
-            dueDate.setMonth(hoje.getMonth() + (i - 1));
-            
-            // Definir o valor, ajustando para a última parcela se necessário
-            const amount = i === hardcodedInstallments ? lastInstallmentValue : installmentValue;
-            
-            await storage.createSaleInstallment({
-              saleId: createdSale.id,
-              installmentNumber: i,
-              amount: amount.toString(),
-              dueDate: dueDate.toISOString().split('T')[0],
-              status: "pending",
-              paymentDate: null
-            });
-            
-            console.log(`🔴 Parcela #${i} criada com valor ${amount} e vencimento ${dueDate.toISOString().split('T')[0]}`);
-          }
-          
-          // Atualizar o campo installments na tabela de vendas para 3 (FIXO)
-          await db
-            .update(sales)
-            .set({ installments: hardcodedInstallments })
-            .where(eq(sales.id, createdSale.id));
-            
-          console.log(`🔴 Número de parcelas na venda atualizado para ${hardcodedInstallments}`);
-          
-        } else {
+        // Removemos a verificação de parcela única e o código que forçava 3 parcelas
+        // Agora sempre usamos o número de parcelas informado pelo usuário
+        {
           // Venda parcelada - criar múltiplas parcelas
           console.log(`Criando ${numInstallments} parcelas para a venda #${createdSale.id}`);
           
