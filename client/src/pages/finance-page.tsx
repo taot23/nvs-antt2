@@ -124,10 +124,14 @@ export default function FinancePage() {
 
       // Formatar os dados para exportação
       const exportData = sales.map((sale: any) => ({
-        'Número': sale.orderNumber,
+        'Nº OS': sale.orderNumber,
+        'Vendedor': sale.sellerName || `Vendedor #${sale.sellerId}`,
         'Cliente': sale.customerName || `Cliente #${sale.customerId}`,
         'Data': sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
         'Valor Total': parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        'Valor Pago': sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
+        'Custos': sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
+        'Resultado Líquido': sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
         'Status Financeiro': getFinancialStatusLabel(sale.financialStatus),
         'Criado em': format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
@@ -197,18 +201,22 @@ export default function FinancePage() {
       // Preparar dados para a tabela
       const tableData = sales.map((sale: any) => [
         sale.orderNumber,
+        sale.sellerName || `Vendedor #${sale.sellerId}`,
         sale.customerName || `Cliente #${sale.customerId}`,
         sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
         parseFloat(sale.totalAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        sale.financialSummary ? parseFloat(sale.financialSummary.totalPaid.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
+        sale.financialSummary ? parseFloat(sale.financialSummary.totalCosts.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
+        sale.financialSummary ? parseFloat(sale.financialSummary.netResult.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00',
         getFinancialStatusLabel(sale.financialStatus),
       ]);
       
       // Criar tabela no PDF
       autoTable(doc, {
-        head: [['Número', 'Cliente', 'Data', 'Valor Total', 'Status']],
+        head: [['Nº OS', 'Vendedor', 'Cliente', 'Data', 'Valor Total', 'Valor Pago', 'Custos', 'Resultado', 'Status']],
         body: tableData,
         startY: 45,
-        styles: { fontSize: 10, cellPadding: 3 },
+        styles: { fontSize: 8, cellPadding: 2 }, // Reduzido um pouco para caber mais colunas
         headStyles: { fillColor: [60, 60, 60] },
       });
       
