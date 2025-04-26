@@ -1738,16 +1738,18 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`🔍 Confirmação de pagamento: Data original recebida: ${paymentDate}, Data formatada: ${formattedPaymentDate}`);
     
-    // Atualizar status da parcela para paga com a data formatada
-    const [updatedInstallment] = await db
-      .update(saleInstallments)
-      .set({
-        status: 'paid',
-        paymentDate: formattedPaymentDate, // Usar a data formatada corretamente
-        updatedAt: new Date()
-      })
-      .where(eq(saleInstallments.id, installmentId))
-      .returning();
+    // Usar SQL direto para evitar problemas com a conversão de datas
+    const result = await pool.query(
+      `UPDATE sale_installments 
+       SET status = 'paid', 
+           payment_date = $1::text, 
+           updated_at = NOW() 
+       WHERE id = $2 
+       RETURNING *`,
+      [formattedPaymentDate, installmentId]
+    );
+    
+    const updatedInstallment = result.rows[0];
     
     // Se temos dados de comprovante, registrá-lo
     if (receiptData) {
