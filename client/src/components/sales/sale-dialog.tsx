@@ -894,48 +894,9 @@ export default function SaleDialog({
       
       const savedSale = await response.json();
       
-      // Agora precisamos criar as parcelas explicitamente enviando-as para o endpoint específico
-      console.log("Criando parcelas separadamente para garantir preservação das datas");
-      
-      if (data.installments > 1) {
-        try {
-          // Criar array com os dados das parcelas
-          const installmentsToCreate = [];
-          for (let i = 0; i < formattedData.installmentDates.length; i++) {
-            installmentsToCreate.push({
-              number: i + 1,
-              amount: parseFloat(data.totalAmount) / formattedData.installmentDates.length,
-              dueDate: formattedData.installmentDates[i],
-              status: 'pending'
-            });
-          }
-          
-          console.log("Enviando parcelas para criação:", installmentsToCreate);
-          
-          // Enviar as parcelas para o endpoint de criação de parcelas
-          const installmentsResponse = await fetch(`/api/sales/${savedSale.id}/installments`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(installmentsToCreate)
-          });
-          
-          if (!installmentsResponse.ok) {
-            console.error("Erro ao criar parcelas:", await installmentsResponse.text());
-          } else {
-            const createdInstallments = await installmentsResponse.json();
-            console.log(`${createdInstallments.length} parcelas criadas com sucesso para a venda #${savedSale.id}`);
-            
-            // Verificar as datas das parcelas criadas
-            createdInstallments.forEach((installment, idx) => {
-              console.log(`Parcela #${idx + 1} - Data salva: ${installment.dueDate}`);
-            });
-          }
-        } catch (err) {
-          console.error("Erro ao criar parcelas:", err);
-        }
-      }
+      // IMPLEMENTAÇÃO RADICAL (27/04/2025): 
+      // Não precisamos mais criar parcelas separadamente, já que a rota POST /api/sales agora cuida disso
+      console.log("✅ IMPLEMENTAÇÃO RADICAL: Parcelas são criadas automaticamente pelo backend");
       
       return savedSale;
     },

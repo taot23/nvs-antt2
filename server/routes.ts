@@ -1172,276 +1172,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para criar uma nova venda
   app.post("/api/sales", isAuthenticated, async (req, res) => {
     try {
-      // SOLUÇÃO DE EMERGÊNCIA - Contador global para diagnóstico
-      global.salesCount = (global.salesCount || 0) + 1;
-      console.log("🆘 CHAMADA #" + global.salesCount + " AO ENDPOINT POST /api/sales");
+      // IMPLEMENTAÇÃO RADICAL DO ZERO (27/04/2025)
+      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Iniciando cadastro de venda simplificado");
       
-      // Debug completo
-      console.log("🆘 CORPO BRUTO DA REQUISIÇÃO: " + JSON.stringify(req.body));
-      console.log("🆘 HEADERS: " + JSON.stringify(req.headers));
-      
-      const userData = req.body;
-      
-      // SUPER CORREÇÃO V2: Processar o número de parcelas novamente para garantir que seja um número
-      // Verificar e logar o tipo de dados
-      console.log("🆘 CORREÇÃO CRÍTICA - Tipo original de installments:", typeof userData.installments);
-      console.log("🆘 CORREÇÃO CRÍTICA - Valor original:", userData.installments);
-      
-      // Se for string, converter explicitamente para número
-      if (typeof userData.installments === 'string') {
-        userData.installments = parseInt(userData.installments, 10);
-        console.log("🆘 CORREÇÃO CRÍTICA - Convertido para número:", userData.installments);
+      // 1. Dados essenciais para a venda (usamos diretamente o req.body)
+      const { 
+        orderNumber, 
+        customerId,
+        paymentMethodId,
+        serviceTypeId,
+        sellerId,
+        totalAmount,
+        installments = 1, // Padrão: 1 parcela
+        installmentDates = [], // Array de datas de vencimento (formato string: YYYY-MM-DD)
+        notes,
+        items = []
+      } = req.body;
+
+      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Dados de venda recebidos:", {
+        orderNumber,
+        customerId,
+        installments,
+        installmentDates
+      });
+
+      // 2. Validar dados mínimos necessários
+      if (!customerId || !serviceTypeId) {
+        return res.status(400).json({ 
+          error: "Dados incompletos", 
+          message: "Cliente e tipo de serviço são obrigatórios" 
+        });
       }
-      
-      // Garantir que seja um número inteiro válido maior que zero
-      if (userData.installments === null || userData.installments === undefined || isNaN(userData.installments)) {
-        userData.installments = 1; // Valor padrão seguro
-        console.log("🆘 CORREÇÃO CRÍTICA - Valor inválido ou nulo, usando padrão:", userData.installments);
-      }
-      
-      // Aplicar Math.floor e Math.max para garantir número inteiro positivo
-      userData.installments = Math.max(1, Math.floor(userData.installments));
-      
-      console.log("🆘 NÚMERO FINAL DE PARCELAS APÓS VERIFICAÇÕES: " + userData.installments);
-      
-      // Debug - exibir os dados recebidos
-      console.log("Dados da venda recebidos:", JSON.stringify(userData, null, 2));
-      
-      // Validação básica dos dados enviados - convertendo a data para o formato correto
-      const today = new Date(); // Obter a data atual
-      
-      // SOLUÇÃO FINAL 26/04/2025: Melhorar tratamento de data
-      let saleDate = today; // Por padrão, usamos a data de hoje
-      
-      // Log de debug para investigação
-      console.log(`🔍 SOLUÇÃO FINAL: Debug de data - tipo=${typeof userData.date}, valor=${userData.date}`);
-      
-      if (userData.date) {
-        if (typeof userData.date === 'string') {
-          try {
-            // APRIMORAMENTO: Se for string no formato ISO (YYYY-MM-DD), usamos diretamente
-            if (userData.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              // Formato ISO YYYY-MM-DD - preservar exatamente como está
-              console.log(`✅ SOLUÇÃO FINAL: Data preservada no formato ISO: ${userData.date}`);
-              saleDate = userData.date;
-            } else {
-              // Se for outro formato de string, tentamos converter para Date
-              const tempDate = new Date(userData.date);
-              
-              // Verificamos se a data é válida
-              if (!isNaN(tempDate.getTime())) {
-                // Normalizamos para o formato ISO
-                saleDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-                console.log(`✅ SOLUÇÃO FINAL: Data convertida para formato ISO: ${saleDate}`);
-              } else {
-                console.log(`⚠️ SOLUÇÃO FINAL: Data inválida, usando hoje: ${saleDate}`);
-              }
-            }
-          } catch (error) {
-            console.error(`❌ SOLUÇÃO FINAL: Erro ao processar data: ${error}`);
-            // Em caso de erro, mantemos a data padrão (hoje)
-          }
-        } else if (userData.date instanceof Date) {
-          // Se já for um objeto Date, formatamos para ISO
-          saleDate = `${userData.date.getFullYear()}-${String(userData.date.getMonth() + 1).padStart(2, '0')}-${String(userData.date.getDate()).padStart(2, '0')}`;
-          console.log(`✅ SOLUÇÃO FINAL: Data convertida de objeto para ISO: ${saleDate}`);
-        }
-      }
-      
-      // ⚠️ SOLUÇÃO 26/04/2025 - NOVA ABORDAGEM: Bypass da validação Zod para datas
-      console.log(`🔎 SOLUÇÃO DEFINITIVA: Ignorando validação Zod temporariamente para data`);
-      
-      // Vamos usar um clone do objeto userData para não modificar o original
-      // E tratar a inserção no banco diretamente sem usar o parse do Zod
-      const saleDataForDb = {
-        ...userData,
-        date: new Date(), // Forçamos um novo objeto Date para bypass da validação
+
+      // 3. Determinar o vendedor (atual ou especificado)
+      const effectiveSellerId = (
+        (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && sellerId) 
+          ? sellerId 
+          : req.user!.id
+      );
+
+      // 4. Preparar o objeto para inserção no banco (SEM ZOD)
+      const saleData = {
+        orderNumber: orderNumber || `OS-${Date.now()}`, // Gerar número de ordem se não fornecido
+        date: new Date(), // Usar sempre um objeto Date para a data da venda
+        customerId,
+        paymentMethodId: paymentMethodId || 1, // Valor padrão
+        serviceTypeId,
+        sellerId: effectiveSellerId,
+        installments: Number(installments),
+        totalAmount: totalAmount ? String(totalAmount).replace(',', '.') : "0",
         status: "pending",
         financialStatus: "pending",
-        // Se for admin, supervisor, operacional ou financeiro, pode especificar o vendedor
-        // Caso contrário, o vendedor será o próprio usuário logado
-        sellerId: (["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && userData.sellerId) 
-          ? userData.sellerId 
-          : req.user!.id
+        notes: notes || ""
       };
-      
-      console.log(`🔎 SOLUÇÃO DEFINITIVA: Dados preparados para salvar:`, JSON.stringify(saleDataForDb, null, 2));
-      
-      // Vamos pular a validação Zod para evitar problemas de tipo string/Date
-      // const validatedSaleData = insertSaleSchema.parse(saleDataForDb);
-      
-      // Em vez disso, usamos diretamente o objeto saleDataForDb para o storage
-      const validatedSaleData = saleDataForDb;
-      
-      // ✅ NOTA: A verificação e geração automática de números já está implementada
-      // na função createSale no storage.ts, então podemos remover esta duplicação de código
-      // para evitar potenciais conflitos na geração dos números.
-      
-      // O storage agora gerencia automaticamente a verificação de números duplicados
-      // e a geração de novos números sequenciais.
-      console.log(`ℹ️ Delegando verificação de número de ordem ${validatedSaleData.orderNumber} para o storage`);
-      
-      // Criar a venda normal usando o Drizzle
-      const createdSale = await storage.createSale(validatedSaleData);
-      console.log("Venda criada inicialmente:", createdSale);
-      
-      // CORREÇÃO: Não forçar mais o número de parcelas via SQL - usar o que foi informado pelo usuário
+
+      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Objeto de venda preparado:", saleData);
+
+      // 5. INSERÇÃO MANUAL DIRETO NO BANCO para evitar problemas com tipos
+      let createdSale;
+      try {
+        const { pool } = await import('./db');
+        const insertResult = await pool.query(`
+          INSERT INTO sales (
+            order_number, date, customer_id, payment_method_id, service_type_id, 
+            seller_id, installments, total_amount, status, financial_status, notes, 
+            created_at, updated_at
+          ) 
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
+          )
+          RETURNING *
+        `, [
+          saleData.orderNumber,
+          saleData.date,
+          saleData.customerId,
+          saleData.paymentMethodId,
+          saleData.serviceTypeId,
+          saleData.sellerId,
+          saleData.installments,
+          saleData.totalAmount,
+          saleData.status,
+          saleData.financialStatus,
+          saleData.notes
+        ]);
+
+        createdSale = insertResult.rows[0];
+        console.log("🔄 IMPLEMENTAÇÃO RADICAL: Venda criada via SQL direto:", createdSale);
+      } catch (dbError) {
+        console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao inserir venda:", dbError);
+        return res.status(500).json({ error: "Erro ao salvar venda no banco de dados" });
+      }
+
+      // 6. Criar itens da venda
+      if (items && Array.isArray(items) && items.length > 0) {
+        for (const item of items) {
+          try {
+            const { pool } = await import('./db');
+            await pool.query(`
+              INSERT INTO sale_items (
+                sale_id, service_id, service_type_id, quantity, price, 
+                total_price, notes, status, created_at
+              ) 
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            `, [
+              createdSale.id,
+              item.serviceId,
+              item.serviceTypeId || saleData.serviceTypeId,
+              item.quantity || 1,
+              item.price || "0",
+              item.totalPrice || item.price || "0",
+              item.notes || null,
+              "pending"
+            ]);
+          } catch (itemError) {
+            console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao criar item:", itemError);
+          }
+        }
+      }
+
+      // 7. CRIAÇÃO RADICAL DE PARCELAS - simplicidade máxima
       try {
         const { pool } = await import('./db');
         
-        // Verificar o número de parcelas na venda
-        const checkInstallmentsResult = await pool.query(`SELECT installments FROM sales WHERE id = ${createdSale.id}`);
-        if (checkInstallmentsResult.rows.length > 0) {
-          console.log("Número de parcelas salvo no banco:", checkInstallmentsResult.rows[0].installments);
-          
-          // Verificar se o número de parcelas foi salvo corretamente
-          if (checkInstallmentsResult.rows[0].installments !== Number(userData.installments)) {
-            console.log("⚠️ CORREÇÃO: O número de parcelas não foi salvo corretamente. Atualizando...");
-            
-            const correctInstallments = Number(userData.installments);
-            // Apenas atualizar se for necessário
-            const updateInstallmentsQuery = `
-              UPDATE sales 
-              SET installments = ${correctInstallments}, updated_at = NOW() 
-              WHERE id = ${createdSale.id}
-            `;
-            
-            console.log("Executando query de correção:", updateInstallmentsQuery);
-            await pool.query(updateInstallmentsQuery);
-            
-            // Atualizar também o objeto em memória
-            createdSale.installments = correctInstallments;
-          }
-        }
-      } catch (sqlError) {
-        console.error("Erro ao verificar parcelas:", sqlError);
-      }
-      
-      // Depois de criar a venda, atualizar manualmente o valor total
-      // ATENÇÃO: Este código é extremamente importante para o funcionamento do sistema
-      if (userData.totalAmount) {
-        try {
-          // Formatar o valor total (substituir vírgula por ponto)
-          const totalAmountStr = typeof userData.totalAmount === 'string' 
-            ? userData.totalAmount.replace(',', '.') 
-            : String(userData.totalAmount);
-            
-          console.log(`⚠️⚠️⚠️ Atualizando valor total para: ${totalAmountStr}`);
-          
-          // USAR SQL NATIVO - é a única forma que funciona corretamente
-          const { pool } = await import('./db');
-          
-          // ⚠️ ATENÇÃO: Usando sentença SQL completa para garantir que o valor total seja definido
-          const updateQuery = `
-            UPDATE sales 
-            SET total_amount = '${totalAmountStr}', updated_at = NOW() 
-            WHERE id = ${createdSale.id}
-          `;
-          
-          console.log("Executando query SQL:", updateQuery);
-          await pool.query(updateQuery);
-          
-          // Verificar o resultado da atualização
-          const checkResult = await pool.query(`SELECT * FROM sales WHERE id = ${createdSale.id}`);
-          
-          if (checkResult.rows.length > 0) {
-            console.log("Venda após atualização SQL direta:", checkResult.rows[0]);
-            
-            // IMPORTANTE: Atualizar o objeto da venda para refletir o novo valor
-            createdSale.totalAmount = totalAmountStr;
-          } else {
-            console.error("⚠️ ERRO CRÍTICO: Venda não encontrada após atualização");
-          }
-        } catch (updateError) {
-          console.error("⚠️ ERRO AO ATUALIZAR VALOR TOTAL:", updateError);
-        }
-      } else {
-        console.log("⚠️ Nenhum valor total fornecido para esta venda.");
-      }
-      
-      // Se tiver itens, criar os itens da venda
-      console.log("Itens para criar:", JSON.stringify(userData.items || [], null, 2));
-      
-      if (userData.items && Array.isArray(userData.items)) {
-        for (const item of userData.items) {
-          // Validação básica de cada item
-          if (!item.serviceId || item.serviceId <= 0 || !item.serviceTypeId || !item.price) {
-            console.log("Item inválido pulado:", item);
-            continue; // Pula itens inválidos
-          }
-          
-          // Calcular o preço total do item
-          const quantity = item.quantity || 1;
-          // Tratar preço com vírgula para ponto
-          const priceStr = typeof item.price === 'string' ? item.price.replace(',', '.') : String(item.price);
-          const price = parseFloat(priceStr) || 0;
-          const totalPrice = price * quantity;
-          
-          console.log("Criando item:", {
-            saleId: createdSale.id,
-            serviceId: item.serviceId,
-            serviceTypeId: item.serviceTypeId,
-            quantity,
-            price: price.toString(),
-            totalPrice: totalPrice.toString()
-          });
-          
-          try {
-            await storage.createSaleItem({
-              saleId: createdSale.id,
-              serviceId: item.serviceId,
-              serviceTypeId: item.serviceTypeId,
-              quantity,
-              price: price.toString(),
-              totalPrice: totalPrice.toString(),
-              notes: item.notes || null,
-              status: "pending"
-            });
-          } catch (itemError) {
-            console.error("Erro ao criar item:", itemError);
-          }
-        }
-      }
-      
-      // Registrar no histórico inicial da venda
-      await storage.createSalesStatusHistory({
-        saleId: createdSale.id,
-        fromStatus: "",
-        toStatus: "pending",
-        userId: req.user!.id,
-        notes: "Venda criada"
-      });
-      
-      // CORREÇÃO V2: Não criar parcelas aqui, deixar o storage.ts criar as parcelas
-      console.log("⚠️ AVISO: Rota não cria mais parcelas diretamente, esta responsabilidade foi transferida para storage.ts");
-      
-      try {
-        // Verificar parcelas após a criação da venda apenas para log
-        const installments = await storage.getSaleInstallments(createdSale.id);
-        console.log(`⚠️ VERIFICAÇÃO: Venda #${createdSale.id} possui ${installments.length} parcelas criadas pelo storage.ts`);
+        // Determinar número real de parcelas
+        const numInstallments = Math.max(1, Number(installments));
+        console.log(`🔄 IMPLEMENTAÇÃO RADICAL: Criando ${numInstallments} parcelas`);
         
-        if (installments.length !== createdSale.installments) {
-          console.log(`⚠️ ALERTA: O número de parcelas (${installments.length}) difere do valor esperado (${createdSale.installments})`);
+        // Calcular valor por parcela (dividir igualmente)
+        const totalValue = parseFloat(saleData.totalAmount);
+        const installmentValue = (totalValue / numInstallments).toFixed(2);
+        
+        // Usar as datas fornecidas ou gerar automaticamente
+        let installmentDatesToUse = [];
+        
+        if (installmentDates && Array.isArray(installmentDates) && installmentDates.length === numInstallments) {
+          // Usar as datas fornecidas pelo frontend
+          installmentDatesToUse = installmentDates;
+          console.log("🔄 IMPLEMENTAÇÃO RADICAL: Usando datas fornecidas pelo usuário:", installmentDatesToUse);
+        } else {
+          // Gerar datas mensais a partir de hoje
+          const baseDate = new Date();
+          for (let i = 0; i < numInstallments; i++) {
+            const dueDate = new Date(baseDate);
+            dueDate.setMonth(baseDate.getMonth() + i);
+            
+            // Formatar como YYYY-MM-DD
+            const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+            installmentDatesToUse.push(isoDate);
+          }
+          console.log("🔄 IMPLEMENTAÇÃO RADICAL: Datas geradas automaticamente:", installmentDatesToUse);
         }
-      } catch (err) {
-        console.error("Erro ao verificar parcelas da venda:", err);
+        
+        // Criar cada parcela diretamente usando SQL
+        for (let i = 0; i < numInstallments; i++) {
+          await pool.query(`
+            INSERT INTO sale_installments (
+              sale_id, installment_number, due_date, amount, 
+              status, notes, created_at, updated_at
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          `, [
+            createdSale.id,
+            i + 1, // Número da parcela (começando em 1)
+            installmentDatesToUse[i], // Data de vencimento
+            installmentValue, // Valor da parcela
+            "pending", // Status inicial
+            null // Sem observações iniciais
+          ]);
+        }
+        
+        console.log(`🔄 IMPLEMENTAÇÃO RADICAL: ${numInstallments} parcelas criadas com sucesso`);
+      } catch (installmentError) {
+        console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao criar parcelas:", installmentError);
       }
-      
-      // Buscar a venda atualizada com o valor total definido e possível status alterado
-      const updatedSale = await storage.getSale(createdSale.id);
-      
-      // Notificar todos os clientes sobre a atualização da venda
+
+      // 8. Registrar no histórico
+      try {
+        const { pool } = await import('./db');
+        await pool.query(`
+          INSERT INTO sales_status_history (
+            sale_id, from_status, to_status, user_id, notes, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `, [
+          createdSale.id,
+          "",
+          "pending",
+          req.user!.id,
+          "Venda criada"
+        ]);
+      } catch (historyError) {
+        console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao registrar histórico:", historyError);
+      }
+
+      // 9. Notificar todos os clientes sobre a atualização da venda
       notifySalesUpdate();
       
-      res.status(201).json(updatedSale);
-    } catch (error) {
-      console.error("Erro ao criar venda:", error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({ 
-          error: "Dados inválidos", 
-          details: error.errors 
-        });
+      // 10. Retornar a venda completa
+      // Buscar a venda com todas as informações atualizadas
+      try {
+        const { pool } = await import('./db');
+        const result = await pool.query(`SELECT * FROM sales WHERE id = $1`, [createdSale.id]);
+        if (result.rows.length > 0) {
+          res.status(201).json(result.rows[0]);
+        } else {
+          res.status(201).json(createdSale); // Fallback para o objeto original
+        }
+      } catch (finalError) {
+        // Se der erro ao buscar a venda atualizada, retorna a original mesmo
+        res.status(201).json(createdSale);
       }
+    } catch (error) {
+      console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro geral ao criar venda:", error);
       res.status(500).json({ error: "Erro ao criar venda" });
     }
   });
