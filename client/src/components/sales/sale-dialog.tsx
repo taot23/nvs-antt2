@@ -690,6 +690,7 @@ export default function SaleDialog({
       }
       
       // SOLUÇÃO FINAL: Adicionar as datas das parcelas no formato correto para o backend
+      // Adicionamos a propriedade para o backend
       // @ts-ignore - Ignoramos o erro de tipo porque sabemos que o backend espera essa propriedade
       formattedData.installmentDates = installmentDatesToSend;
       
@@ -716,86 +717,143 @@ export default function SaleDialog({
       // Verificar se temos datas já salvas pelos inputs de data
       console.log("Verificando datas de parcelas disponíveis na interface...");
       
-      // SUPER CORREÇÃO: Sempre usar as datas que o usuário editou via interface
-      if (installmentDates && installmentDates.length > 0) {
-        console.log(`✅ ENCONTRADO: ${installmentDates.length} datas editadas pelo usuário`);
+      // 🔧 SOLUÇÃO FINAL 2: PRIORIZAR as datas capturadas dos inputs
+      // Se temos datas capturadas dos inputs, usar essas prioritariamente
+      if (installmentDatesToSend && installmentDatesToSend.length > 0) {
+        console.log(`✅ PRIORIDADE 1: Usando as ${installmentDatesToSend.length} datas coletadas diretamente dos inputs`);
           
         // Verificar se temos o número correto de datas
-        if (installmentDates.length !== numInstalments) {
-          console.log(`⚠️ ALERTA: Número de datas editadas (${installmentDates.length}) diferente do número de parcelas (${numInstalments})`);
+        if (installmentDatesToSend.length !== numInstalments) {
+          console.log(`⚠️ ALERTA: Número de datas coletadas (${installmentDatesToSend.length}) diferente do número de parcelas (${numInstalments})`);
           
           // Se temos mais datas que parcelas, usar apenas as primeiras
-          let datesToUse = [...installmentDates]; // Criar uma cópia para não modificar o original
-          
-          if (datesToUse.length > numInstalments) {
+          if (installmentDatesToSend.length > numInstalments) {
             console.log("✂️ Recortando excesso de datas");
-            datesToUse = datesToUse.slice(0, numInstalments);
+            installmentDatesToSend = installmentDatesToSend.slice(0, numInstalments);
           } 
-          // Se temos menos datas que parcelas, gerar as faltantes
+          // Se temos menos datas que parcelas, tentar usar datas do estado e depois gerar faltantes
           else {
-            console.log("➕ Gerando datas adicionais para completar");
-            const baseDate = datesToUse.length > 0 
-              ? new Date(datesToUse[datesToUse.length - 1])
-              : new Date();
+            console.log("➕ Tentando completar com datas do estado ou gerando novas");
+            // Criar uma cópia para não modificar o original
+            const datesToUse = [...installmentDatesToSend]; 
             
-            // Começar a gerar a partir da última data existente
-            for (let i = datesToUse.length; i < numInstalments; i++) {
-              const dueDate = new Date(baseDate);
-              dueDate.setMonth(baseDate.getMonth() + (i - datesToUse.length + 1));
-              datesToUse.push(dueDate);
+            // Verificar se temos datas no estado para completar
+            if (installmentDates && installmentDates.length > 0) {
+              console.log(`🔍 Encontradas ${installmentDates.length} datas no estado para possível complemento`);
+              
+              // Adicionar datas que faltam a partir do estado
+              for (let i = datesToUse.length; i < numInstalments && i < installmentDates.length; i++) {
+                const stateDate = installmentDates[i];
+                let isoDate;
+                
+                if (typeof stateDate === 'string') {
+                  // Se já é string, usar diretamente
+                  isoDate = stateDate.includes('T') ? stateDate.split('T')[0] : stateDate;
+                } else if (stateDate instanceof Date) {
+                  // Converter Date para string YYYY-MM-DD
+                  isoDate = `${stateDate.getFullYear()}-${String(stateDate.getMonth() + 1).padStart(2, '0')}-${String(stateDate.getDate()).padStart(2, '0')}`;
+                }
+                
+                if (isoDate) {
+                  datesToUse.push(isoDate);
+                  console.log(`➕ Adicionada data do estado: ${isoDate}`);
+                }
+              }
             }
+            
+            // Se ainda faltam datas, gerar novas
+            if (datesToUse.length < numInstalments) {
+              console.log("🔄 Gerando datas adicionais para completar");
+              
+              // Determinar data base para geração - usar a última data que temos ou data atual
+              let baseDate: Date;
+              if (datesToUse.length > 0) {
+                // Tentar usar a última data que temos como base
+                const lastDate = datesToUse[datesToUse.length - 1];
+                // Converter string YYYY-MM-DD para Date
+                const parts = lastDate.split('-');
+                if (parts.length === 3) {
+                  baseDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                } else {
+                  baseDate = new Date(); // Fallback para data atual
+                }
+              } else {
+                baseDate = new Date(); // Usar data atual se não temos nenhuma data
+              }
+              
+              // Gerar as datas faltantes
+              for (let i = datesToUse.length; i < numInstalments; i++) {
+                const dueDate = new Date(baseDate);
+                dueDate.setMonth(baseDate.getMonth() + (i - datesToUse.length + 1));
+                // Converter para string YYYY-MM-DD
+                const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                datesToUse.push(isoDate);
+                console.log(`➕ Gerada nova data: ${isoDate}`);
+              }
+            }
+            
+            // Atualizar as datas a serem enviadas
+            installmentDatesToSend = datesToUse;
           }
           
-          console.log(`✓ Usando ${datesToUse.length} datas após ajustes`);
-          formattedData.installmentDates = datesToUse.map(date => {
-            let isoDate;
-            
-            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
-            if (date instanceof Date) {
-              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
-              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
-            } else if (typeof date === 'string') {
-              // Se já é uma string no formato de data, usar diretamente
-              isoDate = date.includes('T') ? date.split('T')[0] : date;
-              console.log(`🛠️ Data preservada (string): ${isoDate}`);
-            } else {
-              // Fallback seguro
-              const tempDate = new Date(date);
-              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
-            }
-            
-            return isoDate;
-          });
-        } else {
-          console.log(`✓ Usando ${installmentDates.length} datas editadas pelo usuário`);
-          formattedData.installmentDates = installmentDates.map(date => {
-            let isoDate;
-            
-            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
-            if (date instanceof Date) {
-              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
-              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
-            } else if (typeof date === 'string') {
-              // Se já é uma string no formato de data, usar diretamente
-              isoDate = date.includes('T') ? date.split('T')[0] : date;
-              console.log(`🛠️ Data preservada (string): ${isoDate}`);
-            } else {
-              // Fallback seguro
-              const tempDate = new Date(date);
-              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
-            }
-            
-            return isoDate;
-          });
+          console.log(`✓ Final: Usando ${installmentDatesToSend.length} datas após ajustes`);
         }
-      } 
-      // Se não temos datas editadas, gerar automaticamente
+        
+        // @ts-ignore - Atribuir ao objeto a ser enviado
+        formattedData.installmentDates = installmentDatesToSend;
+      }
+      // Se não temos dados dos inputs, tentar usar as datas do estado
+      else if (installmentDates && installmentDates.length > 0) {
+        console.log(`✅ PRIORIDADE 2: Usando as ${installmentDates.length} datas do estado`);
+        
+        // Preparar as datas do estado
+        let datesToUse = installmentDates.map(date => {
+          if (typeof date === 'string') {
+            // Se já é string, normalizar para YYYY-MM-DD
+            return date.includes('T') ? date.split('T')[0] : date;
+          } else if (date instanceof Date) {
+            // Converter Date para string YYYY-MM-DD
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          }
+          // Caso não seja string nem Date, retornar null (será filtrado depois)
+          return null;
+        }).filter(Boolean); // Remover valores null/undefined
+        
+        // Ajustar a quantidade de datas para o número de parcelas
+        if (datesToUse.length > numInstalments) {
+          console.log("✂️ Recortando excesso de datas do estado");
+          datesToUse = datesToUse.slice(0, numInstalments);
+        } else if (datesToUse.length < numInstalments) {
+          console.log("➕ Gerando datas adicionais para completar");
+          
+          // Usar a última data como base ou data atual
+          const baseDate = datesToUse.length > 0 
+            ? (() => {
+                const lastDate = datesToUse[datesToUse.length - 1] as string;
+                const parts = lastDate.split('-');
+                return parts.length === 3 
+                  ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])) 
+                  : new Date();
+              })()
+            : new Date();
+          
+          // Gerar as datas faltantes
+          for (let i = datesToUse.length; i < numInstalments; i++) {
+            const dueDate = new Date(baseDate);
+            dueDate.setMonth(baseDate.getMonth() + (i - datesToUse.length + 1));
+            // Converter para string YYYY-MM-DD
+            const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+            datesToUse.push(isoDate);
+            console.log(`➕ Gerada nova data complementar: ${isoDate}`);
+          }
+        }
+        
+        // @ts-ignore - Atribuir ao objeto a ser enviado
+        formattedData.installmentDates = datesToUse;
+      }
+      // Se não temos nenhuma data, gerar todas automaticamente
       else {
-        console.log("⚠️ Nenhuma data editada pelo usuário encontrada, gerando automaticamente");
+        console.log("⚠️ PRIORIDADE 3: Nenhuma data encontrada, gerando automaticamente");
         
         const generatedDates = [];
         const baseDate = new Date();
@@ -803,31 +861,14 @@ export default function SaleDialog({
         for (let i = 0; i < numInstalments; i++) {
           const dueDate = new Date(baseDate);
           dueDate.setMonth(baseDate.getMonth() + i);
-          generatedDates.push(dueDate);
+          // Converter para string YYYY-MM-DD
+          const isoDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+          generatedDates.push(isoDate);
+          console.log(`➕ Gerada nova data automática: ${isoDate}`);
         }
         
-        console.log(`🔄 Geradas ${generatedDates.length} datas automáticas para ${numInstalments} parcelas`);
-        formattedData.installmentDates = generatedDates.map(date => {
-          let isoDate;
-            
-          // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
-          if (date instanceof Date) {
-            // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
-            isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            console.log(`🛠️ Data gerada (objeto Date): ${isoDate}`);
-          } else if (typeof date === 'string') {
-            // Se já é uma string no formato de data, usar diretamente
-            isoDate = date.includes('T') ? date.split('T')[0] : date;
-            console.log(`🛠️ Data gerada (string): ${isoDate}`);
-          } else {
-            // Fallback seguro
-            const tempDate = new Date(date);
-            isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-            console.log(`🛠️ Data gerada (fallback): ${isoDate}`);
-          }
-          
-          return isoDate;
-        });
+        // @ts-ignore - Atribuir ao objeto a ser enviado
+        formattedData.installmentDates = generatedDates;
       }
       
       console.log("📆 Datas de parcelas finais:", formattedData.installmentDates);
