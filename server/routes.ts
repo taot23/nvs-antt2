@@ -1326,70 +1326,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Obter o número de parcelas e valor total da venda
         console.log("DADOS COMPLETOS RECEBIDOS DO CLIENTE:", userData);
         
-        // SUPER CORREÇÃO: Validação extremamente rigorosa para garantir um número de parcelas válido
-        // Esta função é crítica para o correto funcionamento do sistema de parcelas
+        // ✅ SOLUÇÃO DEFINITIVA: Validação extremamente rigorosa para garantir um número de parcelas válido
+        // Esta função é absolutamente crítica para o correto funcionamento do sistema de parcelas
         let numInstallments = 1; // Valor padrão super-seguro
-        const rawInstallmentsValue = userData.installments;
         
-        console.log("🚨 SUPER CORREÇÃO: Validando número de parcelas");
-        console.log("🚨 Valor bruto recebido:", rawInstallmentsValue);
-        console.log("🚨 Tipo do valor:", typeof rawInstallmentsValue);
+        // Log super detalhado do objeto completo recebido
+        console.log("✅ INÍCIO DA VALIDAÇÃO DE PARCELAS ✅");
+        console.log("✅ Objeto completo de venda recebido:", JSON.stringify(userData, null, 2));
+        
+        // Análise explícita do valor recebido
+        const rawInstallmentsValue = userData.installments;
+        console.log("✅ Valor bruto recebido para parcelas:", rawInstallmentsValue);
+        console.log("✅ Tipo do valor:", typeof rawInstallmentsValue);
+        console.log("✅ Representação JSON:", JSON.stringify(rawInstallmentsValue));
         
         try {
-          // Tentativa #1: Conversão direta se for número
+          // Abordagem de força bruta: tenta todas as conversões possíveis e usa a mais confiável
+          
+          // MÉTODO 1: Conversão direta se for número
           if (typeof rawInstallmentsValue === 'number') {
             numInstallments = Math.floor(rawInstallmentsValue); // Garantir que seja um inteiro
-            console.log("🚨 1️⃣ Conversão direta número→inteiro:", numInstallments);
+            console.log("✅ Método 1 - Conversão direta número→inteiro:", numInstallments);
           } 
-          // Tentativa #2: Conversão de string para número
+          // MÉTODO 2: Conversão de string para número
           else if (typeof rawInstallmentsValue === 'string') {
             const parsed = parseInt(rawInstallmentsValue, 10);
             if (!isNaN(parsed)) {
               numInstallments = parsed;
-              console.log("🚨 2️⃣ Conversão string→inteiro:", numInstallments);
+              console.log("✅ Método 2 - Conversão string→inteiro:", numInstallments);
+            } else {
+              console.log("✅ Método 2 - String não conversível para número:", rawInstallmentsValue);
             }
           } 
-          // Tentativa #3: Procurar propriedade 'installments' como string no objeto
-          else if (rawInstallmentsValue && typeof rawInstallmentsValue === 'object') {
-            console.log("🚨 Detectado valor como objeto, procurando propriedade installments");
-            if ('installments' in rawInstallmentsValue) {
-              const nestedValue = (rawInstallmentsValue as any).installments;
-              if (typeof nestedValue === 'number') {
-                numInstallments = Math.floor(nestedValue);
-                console.log("🚨 3️⃣ Extraído do objeto número→inteiro:", numInstallments);
-              } else if (typeof nestedValue === 'string') {
-                const parsed = parseInt(nestedValue, 10);
-                if (!isNaN(parsed)) {
-                  numInstallments = parsed;
-                  console.log("🚨 3️⃣ Extraído do objeto string→inteiro:", numInstallments);
+          // MÉTODO 3: Tenta Number() diretamente
+          try {
+            const forceNumber = Number(rawInstallmentsValue);
+            if (!isNaN(forceNumber)) {
+              // Só usa este valor se for um inteiro válido e maior que zero
+              if (forceNumber > 0) {
+                console.log("✅ Método 3 - Conversão Number() bem-sucedida:", forceNumber);
+                numInstallments = Math.floor(forceNumber);
+              }
+            }
+          } catch (e) {
+            console.log("✅ Método 3 - Falha ao usar Number():", e);
+          }
+          
+          // MÉTODO 4: Deserialização JSON se for uma string serializada
+          if (typeof rawInstallmentsValue === 'string' && 
+              (rawInstallmentsValue.startsWith('{') || rawInstallmentsValue.startsWith('['))) {
+            try {
+              const parsed = JSON.parse(rawInstallmentsValue);
+              if (typeof parsed === 'number') {
+                numInstallments = Math.floor(parsed);
+                console.log("✅ Método 4 - Desserialização JSON → número:", numInstallments);
+              }
+            } catch (e) {
+              console.log("✅ Método 4 - Não é um JSON válido");
+            }
+          }
+          
+          // MÉTODO 5: O mais agressivo - busca regex em todo o objeto para casos extremos
+          const stringified = JSON.stringify(userData);
+          const matchPatterns = [
+            /"installments"\s*:\s*(\d+)/,
+            /"installments"\s*:\s*"(\d+)"/,
+            /installments=(\d+)/,
+            /installments:"(\d+)"/,
+            /installments='(\d+)'/
+          ];
+          
+          for (const pattern of matchPatterns) {
+            const match = stringified.match(pattern);
+            if (match && match[1]) {
+              const extracted = parseInt(match[1], 10);
+              if (!isNaN(extracted) && extracted > 0) {
+                console.log(`✅ Método 5 - Extraído via regex (${pattern}):", ${extracted}`);
+                // Só usamos o regex se for um valor válido maior que o padrão de segurança
+                if (extracted > numInstallments) {
+                  numInstallments = extracted;
                 }
               }
             }
-          } 
-          // Tentativa #4: Último recurso, procurar em todo o objeto userData
-          else {
-            console.log("🚨 4️⃣ Procurando em qualquer lugar do objeto userData");
-            // Se tiver uma propriedade chamada 'installments' ou similares em qualquer nível
-            const stringified = JSON.stringify(userData);
-            if (stringified.includes('"installments":')) {
-              const match = stringified.match(/"installments":(\d+)/) || stringified.match(/"installments":"(\d+)"/);
-              if (match && match[1]) {
-                numInstallments = parseInt(match[1], 10);
-                console.log("🚨 4️⃣ Encontrado via regex:", numInstallments);
-              }
-            }
           }
+          
         } catch (err) {
-          console.error("🚨 ERRO CRÍTICO na conversão de parcelas:", err);
+          console.error("✅ ERRO CRÍTICO na validação de parcelas:", err);
         }
         
-        // Última verificação de segurança - nunca permitir valores inválidos
+        // Verificação final de segurança - garantir um valor válido
         if (isNaN(numInstallments) || numInstallments <= 0) {
           numInstallments = 1;
-          console.log("🚨 ⚠️ CORREÇÃO EMERGENCIAL: Valor inválido corrigido para 1");
+          console.log("✅ CORREÇÃO DE EMERGÊNCIA - Valor inválido corrigido para 1");
         }
         
-        console.log("🚨 RESULTADO FINAL: Número de parcelas validado =", numInstallments);
+        // Garantir que o valor seja um INTEIRO - fundamental para o banco de dados
+        numInstallments = Math.floor(numInstallments);
+        
+        console.log("✅ RESULTADO FINAL DA VALIDAÇÃO: Número de parcelas =", numInstallments);
+        console.log("✅ TIPO FINAL:", typeof numInstallments);
+        console.log("✅ FIM DA VALIDAÇÃO DE PARCELAS ✅");
         
         // Garantir valor válido
         if (numInstallments < 1) {

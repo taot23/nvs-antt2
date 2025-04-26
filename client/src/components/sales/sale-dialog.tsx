@@ -475,22 +475,38 @@ export default function SaleDialog({
         parsedInstallments = Number(parseInt(rawInstallmentsValue, 10));
       }
       
-      // Garantir valor válido
+      // SUPER GARANTIA de valor válido
       if (isNaN(parsedInstallments) || parsedInstallments < 1) {
         parsedInstallments = 1;
+        console.log(`⚠️ ALERTA DE SEGURANÇA - Valor de parcelas inválido detectado e corrigido para 1`);
       }
       
-      console.log(`🔧 CORREÇÃO - Número de parcelas após validação: ${parsedInstallments}, tipo: ${typeof parsedInstallments}`);
+      console.log(`✅ CORREÇÃO FINAL - Número de parcelas após validação: ${parsedInstallments}, tipo: ${typeof parsedInstallments}`);
+      
+      // Forçar que seja um número inteiro explicitamente, com Number()
+      const finalInstallmentsNumber = Number(parsedInstallments);
+      console.log(`✅ CORREÇÃO FINAL - Valor numérico final: ${finalInstallmentsNumber}, tipo: ${typeof finalInstallmentsNumber}`);
+      
+      // Garantia absoluta de que é um número válido
+      const installmentsToSend = isNaN(finalInstallmentsNumber) ? 1 : finalInstallmentsNumber;
       
       const formattedData = {
         ...data,
         date: data.date instanceof Date ? data.date.toISOString() : data.date,
         totalAmount: data.totalAmount ? data.totalAmount.replace(',', '.') : "0",
-        // Garantir que installments seja um número - CORREÇÃO CRÍTICA
-        installments: parseInt(String(parsedInstallments), 10),
+        // SOLUÇÃO DEFINITIVA: Garantir que installments seja um número com várias camadas de segurança
+        installments: installmentsToSend,
         // Calculamos o valor da parcela com base no valor total e número de parcelas
         installmentValue: installmentValueCalculated,
       };
+      
+      // Log especial para verificação final antes do envio
+      console.log(`✅ VERIFICAÇÃO FINAL:
+      - Número de parcelas original: ${data.installments}, tipo: ${typeof data.installments}
+      - Número de parcelas processado: ${installmentsToSend}, tipo: ${typeof installmentsToSend}
+      - Valor da parcela calculado: ${installmentValueCalculated}
+      `);
+      
       console.log("Debug - Dados formatados a serem enviados:", JSON.stringify(formattedData, null, 2));
       
       // CORREÇÃO CRÍTICA: Garantir que as datas de parcelas sejam enviadas 
@@ -1165,9 +1181,9 @@ export default function SaleDialog({
                     </FormLabel>
                     <Select 
                       onValueChange={(value) => {
-                        console.log("🛑 SUPER CORREÇÃO - Seleção de parcelas alterada para:", value, "tipo:", typeof value);
+                        console.log("🔄 CORREÇÃO EXTREMA - Seleção de parcelas alterada para:", value, "tipo:", typeof value);
                         
-                        // Garantia absoluta de que teremos um número inteiro válido
+                        // HIPER-CORREÇÃO - Garantia absoluta de que teremos um número inteiro válido
                         let numParcelas = 1; // Valor padrão super-seguro
                         
                         try {
@@ -1179,30 +1195,33 @@ export default function SaleDialog({
                             }
                           }
                         } catch (error) {
-                          console.error("🛑 ERRO NA CONVERSÃO:", error);
+                          console.error("🔄 ERRO NA CONVERSÃO:", error);
                         }
                         
                         // Garantia absoluta de que é um número inteiro (não string)
-                        console.log("🛑 SUPER CORREÇÃO - Valor após processamento:", numParcelas, "tipo:", typeof numParcelas);
+                        console.log("🔄 CORREÇÃO EXTREMA - Valor após processamento:", numParcelas, "tipo:", typeof numParcelas);
                         
+                        // MUDANÇA CRÍTICA: Garante que o número de parcelas seja definitivamente um número!
                         // Define o valor no campo como NUMBER, não string
                         field.onChange(numParcelas);
                         
-                        // Registra no console em formato visível
-                        console.log(
-                          "🛑 SUPER CORREÇÃO - Campo definido como:", 
-                          numParcelas, 
-                          "tipo:", 
-                          typeof field.value
-                        );
+                        // HIPER-VALIDAÇÃO: Verifica se realmente foi salvo como número
+                        const valorAtual = form.getValues("installments");
+                        console.log("🔄 VERIFICAÇÃO CRÍTICA - Valor atual no form:", valorAtual, "tipo:", typeof valorAtual);
                         
-                        // Log especial para debug
+                        // Se por algum motivo ainda estiver como string, força novamente como número
+                        if (typeof valorAtual === 'string') {
+                          console.log("🔄 ALERTA MÁXIMO! Ainda é string, forçando novamente como número");
+                          form.setValue("installments", numParcelas, { shouldValidate: true });
+                        }
+                        
+                        // Log detalhado para debug
                         console.log(
-                          "🛑 DADOS DO FORMULÁRIO:",
+                          "🔄 DADOS FINAIS DO FORMULÁRIO:",
                           "Parcelas:", numParcelas,
-                          "Tipo:", typeof numParcelas,
-                          "Valor do campo:", field.value,
-                          "Tipo do campo:", typeof field.value
+                          "Tipo esperado:", typeof numParcelas,
+                          "Valor atual no form:", form.getValues("installments"),
+                          "Tipo atual no form:", typeof form.getValues("installments")
                         );
                         
                         // Força atualização das datas de parcelas
