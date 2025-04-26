@@ -577,19 +577,47 @@ export default function SaleDialog({
           
           console.log(`✓ Usando ${datesToUse.length} datas após ajustes`);
           formattedData.installmentDates = datesToUse.map(date => {
-            // Formatar como ISO sem componente de tempo (YYYY-MM-DD)
-            const isoDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-              .toISOString().split('T')[0];
-            console.log(`Data formatada: ${isoDate}`);
+            let isoDate;
+            
+            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
+            if (date instanceof Date) {
+              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
+              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
+            } else if (typeof date === 'string') {
+              // Se já é uma string no formato de data, usar diretamente
+              isoDate = date.includes('T') ? date.split('T')[0] : date;
+              console.log(`🛠️ Data preservada (string): ${isoDate}`);
+            } else {
+              // Fallback seguro
+              const tempDate = new Date(date);
+              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
+            }
+            
             return isoDate;
           });
         } else {
           console.log(`✓ Usando ${installmentDates.length} datas editadas pelo usuário`);
           formattedData.installmentDates = installmentDates.map(date => {
-            // Formatar como ISO sem componente de tempo (YYYY-MM-DD)
-            const isoDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-              .toISOString().split('T')[0];
-            console.log(`Data formatada: ${isoDate}`);
+            let isoDate;
+            
+            // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
+            if (date instanceof Date) {
+              // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
+              isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data preservada (objeto Date): ${isoDate}`);
+            } else if (typeof date === 'string') {
+              // Se já é uma string no formato de data, usar diretamente
+              isoDate = date.includes('T') ? date.split('T')[0] : date;
+              console.log(`🛠️ Data preservada (string): ${isoDate}`);
+            } else {
+              // Fallback seguro
+              const tempDate = new Date(date);
+              isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+              console.log(`🛠️ Data convertida (fallback): ${isoDate}`);
+            }
+            
             return isoDate;
           });
         }
@@ -609,10 +637,24 @@ export default function SaleDialog({
         
         console.log(`🔄 Geradas ${generatedDates.length} datas automáticas para ${numInstalments} parcelas`);
         formattedData.installmentDates = generatedDates.map(date => {
-          // Formatar como ISO sem componente de tempo (YYYY-MM-DD)
-          const isoDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-            .toISOString().split('T')[0];
-          console.log(`Data formatada: ${isoDate}`);
+          let isoDate;
+            
+          // CORREÇÃO CRÍTICA: Formatar a data sem ajustes de timezone
+          if (date instanceof Date) {
+            // Formatar diretamente como YYYY-MM-DD sem ajustes de timezone
+            isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            console.log(`🛠️ Data gerada (objeto Date): ${isoDate}`);
+          } else if (typeof date === 'string') {
+            // Se já é uma string no formato de data, usar diretamente
+            isoDate = date.includes('T') ? date.split('T')[0] : date;
+            console.log(`🛠️ Data gerada (string): ${isoDate}`);
+          } else {
+            // Fallback seguro
+            const tempDate = new Date(date);
+            isoDate = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+            console.log(`🛠️ Data gerada (fallback): ${isoDate}`);
+          }
+          
           return isoDate;
         });
       }
