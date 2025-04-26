@@ -98,10 +98,10 @@ export default function FinancePage() {
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Exportar para Excel usando a abordagem final - simplificada e super confiável
+  // Exportar para Excel usando a abordagem ultra-simplificada
   const exportToExcel = async () => {
     try {
-      // Verificar se há dados disponíveis
+      // Verificar se há dados disponíveis na tabela atual
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
@@ -111,36 +111,15 @@ export default function FinancePage() {
         return;
       }
       
-      console.log("Obtendo dados completos para exportação...");
-      let dataToExport;
+      // Usar dados já carregados na tabela
+      const dataToExport = salesData.data;
+      console.log(`Exportando ${dataToExport.length} registros para Excel...`);
       
-      try {
-        // Fazer uma requisição completa para obter todos os dados
-        const params = new URLSearchParams();
-        params.append('limit', '1000');
-        params.append('financialStatus', getFinancialStatusForActiveTab());
-        params.append('includeSummary', 'true');
-        
-        const response = await fetch(`/api/sales?${params.toString()}`);
-        if (!response.ok) {
-          throw new Error('Falha ao buscar dados completos');
-        }
-        
-        const completeData = await response.json();
-        dataToExport = completeData.data;
-        console.log(`Obtidos ${dataToExport.length} registros para exportação`);
-      } catch (error) {
-        console.error("Erro ao buscar dados completos:", error);
-        // Fallback: usar os dados já carregados na tabela atual
-        dataToExport = salesData.data;
-        console.log("Usando dados já carregados para exportação");
-      }
+      // Importar função de exportação super simples
+      const { simpleExportToExcel } = await import('@/components/finance/simple-export');
       
-      // Importar função de exportação final (simplificada)
-      const { finalExportToExcel } = await import('@/components/finance/final-export');
-      
-      // Executar exportação diretamente
-      const fileName = await finalExportToExcel(dataToExport, activeTab === 'all');
+      // Executar exportação diretamente com os dados existentes
+      const fileName = await simpleExportToExcel(dataToExport);
       
       toast({
         title: "Exportação concluída",
@@ -156,10 +135,10 @@ export default function FinancePage() {
     }
   };
 
-  // Exportar para PDF usando a abordagem final - simplificada e super confiável
+  // Exportar para PDF usando a abordagem ultra-simplificada
   const exportToPDF = async () => {
     try {
-      // Verificar se há dados disponíveis
+      // Verificar se há dados disponíveis na tabela atual
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
           title: "Nenhum dado para exportar",
@@ -169,36 +148,15 @@ export default function FinancePage() {
         return;
       }
       
-      console.log("Obtendo dados completos para exportação...");
-      let dataToExport;
+      // Usar dados já carregados na tabela
+      const dataToExport = salesData.data;
+      console.log(`Exportando ${dataToExport.length} registros para PDF...`);
       
-      try {
-        // Fazer uma requisição completa para obter todos os dados
-        const params = new URLSearchParams();
-        params.append('limit', '1000');
-        params.append('financialStatus', getFinancialStatusForActiveTab());
-        params.append('includeSummary', 'true');
-        
-        const response = await fetch(`/api/sales?${params.toString()}`);
-        if (!response.ok) {
-          throw new Error('Falha ao buscar dados completos');
-        }
-        
-        const completeData = await response.json();
-        dataToExport = completeData.data;
-        console.log(`Obtidos ${dataToExport.length} registros para exportação`);
-      } catch (error) {
-        console.error("Erro ao buscar dados completos:", error);
-        // Fallback: usar os dados já carregados na tabela atual
-        dataToExport = salesData.data;
-        console.log("Usando dados já carregados para exportação");
-      }
+      // Importar função de exportação super simples
+      const { simpleExportToPDF } = await import('@/components/finance/simple-export');
       
-      // Importar função de exportação final (simplificada)
-      const { finalExportToPDF } = await import('@/components/finance/final-export');
-      
-      // Executar exportação diretamente
-      const fileName = await finalExportToPDF(dataToExport, activeTab === 'all');
+      // Executar exportação diretamente com os dados existentes
+      const fileName = await simpleExportToPDF(dataToExport);
       
       toast({
         title: "Exportação concluída",
