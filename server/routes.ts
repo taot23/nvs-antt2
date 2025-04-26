@@ -1244,10 +1244,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verificar se o número de ordem de serviço já existe
       const existingSale = await storage.getSaleByOrderNumber(validatedSaleData.orderNumber);
       if (existingSale) {
-        return res.status(400).json({
-          error: "Número de ordem de serviço já utilizado",
-          message: "Este número de ordem de serviço já está cadastrado no sistema."
-        });
+        // Gerar automaticamente um novo número de ordem consecutivo
+        const latestSales = await storage.getLatestSales(1);
+        let nextOrderNumber = "1";
+        
+        if (latestSales && latestSales.length > 0) {
+          // Pegar a última venda e incrementar o número
+          const lastSale = latestSales[0];
+          const lastOrderNumberAsNumber = parseInt(lastSale.orderNumber);
+          if (!isNaN(lastOrderNumberAsNumber)) {
+            nextOrderNumber = String(lastOrderNumberAsNumber + 1);
+          }
+        }
+        
+        console.log(`⚠️ Número de ordem ${validatedSaleData.orderNumber} já utilizado, alterando para ${nextOrderNumber}`);
+        validatedSaleData.orderNumber = nextOrderNumber;
       }
       
       // Criar a venda normal usando o Drizzle
