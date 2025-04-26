@@ -224,15 +224,6 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
       return;
     }
     
-    if (!formData.description || formData.description.trim() === '') {
-      toast({
-        title: "Campo obrigatório",
-        description: "Informe a descrição do custo operacional.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     // Processar o envio
     addCostMutation.mutate(formData);
   };

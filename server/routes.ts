@@ -3221,10 +3221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Adicionar o ID da venda e do usuário responsável aos dados
+      // Garantir que description tenha ao menos um valor vazio se não for fornecido
       const operationalCostData = {
         ...req.body,
         saleId: id,
-        responsibleId: req.user?.id || 1
+        responsibleId: req.user?.id || 1,
+        description: req.body.description || ""
       };
       
       // Criar o custo operacional
@@ -3265,8 +3267,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Custo operacional não encontrado" });
       }
       
+      // Garantir que description tenha ao menos um valor vazio se não for fornecido
+      const updateData = {
+        ...req.body,
+        description: req.body.description || ""
+      };
+      
       // Atualizar o custo operacional
-      const updatedOperationalCost = await storage.updateSaleOperationalCost(id, req.body);
+      const updatedOperationalCost = await storage.updateSaleOperationalCost(id, updateData);
       if (!updatedOperationalCost) {
         return res.status(404).json({ error: "Custo operacional não encontrado" });
       }
