@@ -55,13 +55,21 @@ interface PaymentConfirmationProps {
   canManage: boolean;
 }
 
+// Função para formatar data no padrão brasileiro
+const formatDateToBR = (date: Date) => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
-  const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
-  const [paymentDateStr, setPaymentDateStr] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [paymentDateStr, setPaymentDateStr] = useState<string>(formatDateToBR(new Date()));
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   
@@ -138,13 +146,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     }
   });
   
-  // Função para formatar data no padrão brasileiro
-  const formatDateToBR = (date: Date) => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
+  // Função formatDateToBR já declarada no início do arquivo
 
   // Função para abrir o diálogo de confirmação
   const openConfirmDialog = (installment: any) => {
@@ -152,9 +154,13 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     
     // Atualizar a data atual
     const today = new Date();
-    setPaymentDate(today);
+    // Formato ISO (YYYY-MM-DD)
+    const isoDate = today.toISOString().split('T')[0];
     // Formatar a data no padrão brasileiro dd/mm/aaaa
-    setPaymentDateStr(formatDateToBR(today));
+    const brDate = formatDateToBR(today);
+    
+    setPaymentDate(isoDate);
+    setPaymentDateStr(brDate);
     setPaymentNotes("");
     
     // Definir primeiro método de pagamento como padrão, se disponível
@@ -412,7 +418,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                       
                       if (!isNaN(newDate.getTime())) {
                         console.log(`🔍 Data convertida: ${newDate.toISOString()}`);
-                        setPaymentDate(newDate);
+                        setPaymentDate(formattedDate);
                       }
                     } 
                     // Se o formato for aaaa-mm-dd
@@ -426,7 +432,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                       
                       if (!isNaN(newDate.getTime())) {
                         console.log(`🔍 Data convertida (ISO): ${newDate.toISOString()}`);
-                        setPaymentDate(newDate);
+                        setPaymentDate(formattedDate);
                       }
                     }
                     // Se for uma data em formato livre com traços (dd-mm-aaaa)
@@ -442,7 +448,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                       
                       if (!isNaN(newDate.getTime())) {
                         console.log(`🔍 Data convertida (traços): ${newDate.toISOString()}`);
-                        setPaymentDate(newDate);
+                        setPaymentDate(formattedDate);
                       }
                     }
                   } catch (error) {
