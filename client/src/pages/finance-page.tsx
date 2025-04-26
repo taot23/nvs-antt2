@@ -97,21 +97,28 @@ export default function FinancePage() {
   // Exportar para Excel
   const exportToExcel = async () => {
     try {
-      // Buscar os dados para exportação diretamente
+      // Buscar os dados para exportação diretamente 
+      // Adicionando financialSummary explicitamente para garantir que o servidor inclua esses dados
       const url = new URL('/api/sales', window.location.origin);
       url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+      url.searchParams.append('includeSummary', 'true');
       if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
       if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
       if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
       // Buscar todos os registros sem paginação para exportação
       url.searchParams.append('limit', '1000');
       
+      console.log('URL de exportação:', url.toString());
       const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error('Erro ao carregar dados para exportação');
       }
       const result = await response.json();
       const sales = result.data || [];
+      
+      // Log para depuração
+      console.log('Dados para exportação Excel:', sales.length, 'vendas com dados:', 
+        sales[0] ? `Venda #${sales[0].id} tem financialSummary: ${!!sales[0].financialSummary}` : 'Sem vendas');
 
       if (!sales || sales.length === 0) {
         toast({
@@ -163,20 +170,27 @@ export default function FinancePage() {
   const exportToPDF = async () => {
     try {
       // Buscar os dados para exportação diretamente
+      // Adicionando financialSummary explicitamente para garantir que o servidor inclua esses dados
       const url = new URL('/api/sales', window.location.origin);
       url.searchParams.append('financialStatus', getFinancialStatusForActiveTab());
+      url.searchParams.append('includeSummary', 'true');
       if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
       if (dateRange?.from) url.searchParams.append('startDate', dateRange.from.toISOString());
       if (dateRange?.to) url.searchParams.append('endDate', dateRange.to.toISOString());
       // Buscar todos os registros sem paginação para exportação
       url.searchParams.append('limit', '1000');
       
+      console.log('URL de exportação PDF:', url.toString());
       const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error('Erro ao carregar dados para exportação');
       }
       const result = await response.json();
       const sales = result.data || [];
+      
+      // Log para depuração
+      console.log('Dados para exportação PDF:', sales.length, 'vendas com dados:', 
+        sales[0] ? `Venda #${sales[0].id} tem financialSummary: ${!!sales[0].financialSummary}` : 'Sem vendas');
 
       if (!sales || sales.length === 0) {
         toast({

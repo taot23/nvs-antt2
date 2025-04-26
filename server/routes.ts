@@ -1031,6 +1031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const status = req.query.status as string || undefined;
       const financialStatus = req.query.financialStatus as string || undefined;
+      const includeSummary = req.query.includeSummary === 'true'; // Novo parâmetro para forçar inclusão do resumo financeiro
       const searchTerm = req.query.searchTerm as string || undefined;
       const sortField = req.query.sortField as string || 'createdAt';
       const sortDirection = req.query.sortDirection as 'asc' | 'desc' || 'desc';
@@ -1167,8 +1168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           date: row.date,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-          // Adicionar resumo financeiro apenas quando solicitado pelo financeiro
-          financialSummary: financialStatus !== undefined ? {
+          // Adicionar resumo financeiro quando solicitado pelo financeiro ou explicitamente pelo parâmetro includeSummary
+          financialSummary: (financialStatus !== undefined || includeSummary) ? {
             totalPaid,
             totalCosts,
             netResult
