@@ -576,10 +576,22 @@ export default function SaleDialog({
           }
           
           console.log(`✓ Usando ${datesToUse.length} datas após ajustes`);
-          formattedData.installmentDates = datesToUse.map(date => date.toISOString());
+          formattedData.installmentDates = datesToUse.map(date => {
+            // Formatar como ISO sem componente de tempo (YYYY-MM-DD)
+            const isoDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+              .toISOString().split('T')[0];
+            console.log(`Data formatada: ${isoDate}`);
+            return isoDate;
+          });
         } else {
           console.log(`✓ Usando ${installmentDates.length} datas editadas pelo usuário`);
-          formattedData.installmentDates = installmentDates.map(date => date.toISOString());
+          formattedData.installmentDates = installmentDates.map(date => {
+            // Formatar como ISO sem componente de tempo (YYYY-MM-DD)
+            const isoDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+              .toISOString().split('T')[0];
+            console.log(`Data formatada: ${isoDate}`);
+            return isoDate;
+          });
         }
       } 
       // Se não temos datas editadas, gerar automaticamente
@@ -596,7 +608,13 @@ export default function SaleDialog({
         }
         
         console.log(`🔄 Geradas ${generatedDates.length} datas automáticas para ${numInstalments} parcelas`);
-        formattedData.installmentDates = generatedDates.map(date => date.toISOString());
+        formattedData.installmentDates = generatedDates.map(date => {
+          // Formatar como ISO sem componente de tempo (YYYY-MM-DD)
+          const isoDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+            .toISOString().split('T')[0];
+          console.log(`Data formatada: ${isoDate}`);
+          return isoDate;
+        });
       }
       
       console.log("📆 Datas de parcelas finais:", formattedData.installmentDates);
@@ -1401,21 +1419,47 @@ export default function SaleDialog({
                                 defaultValue={format(date, "dd/MM/yyyy")}
                                 onChange={(e) => {
                                   try {
+                                    console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
                                     // Tentar converter a string para data
                                     const parts = e.target.value.split('/');
                                     if (parts.length === 3) {
                                       const day = parseInt(parts[0]);
                                       const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
-                                      const year = parseInt(parts[2]);
+                                      const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
                                       
                                       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
                                         const newDate = new Date(year, month, day);
                                         
                                         if (isValid(newDate)) {
+                                          console.log(`✅ Data válida convertida: ${newDate.toISOString().split('T')[0]}`);
                                           // Atualiza apenas a data específica dessa parcela
                                           const newDates = [...installmentDates];
                                           newDates[index] = newDate;
                                           setInstallmentDates(newDates);
+                                        } else {
+                                          console.log(`❌ Data inválida: ${day}/${month+1}/${year}`);
+                                        }
+                                      } else {
+                                        console.log(`⚠️ Números inválidos: dia=${day}, mês=${month+1}, ano=${year}`);
+                                      }
+                                    } else if (e.target.value.includes('-')) {
+                                      // Tenta processar formato YYYY-MM-DD
+                                      const parts = e.target.value.split('-');
+                                      if (parts.length === 3) {
+                                        const year = parseInt(parts[0]);
+                                        const month = parseInt(parts[1]) - 1;
+                                        const day = parseInt(parts[2]);
+                                        
+                                        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                                          const newDate = new Date(year, month, day);
+                                          
+                                          if (isValid(newDate)) {
+                                            console.log(`✅ Data válida ISO convertida: ${newDate.toISOString().split('T')[0]}`);
+                                            // Atualiza apenas a data específica dessa parcela
+                                            const newDates = [...installmentDates];
+                                            newDates[index] = newDate;
+                                            setInstallmentDates(newDates);
+                                          }
                                         }
                                       }
                                     }
