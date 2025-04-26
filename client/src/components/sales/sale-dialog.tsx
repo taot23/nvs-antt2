@@ -1373,70 +1373,7 @@ export default function SaleDialog({
                   </p>
                 </div>
                 
-                <div className="mb-4">
-                  <FormLabel className="text-sm">Primeira data de vencimento</FormLabel>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        placeholder="DD/MM/AAAA"
-                        value={firstDueDate ? format(firstDueDate, "dd/MM/yyyy") : ""}
-                        onChange={(e) => {
-                          try {
-                            // Tentar converter a string para data
-                            const parts = e.target.value.split('/');
-                            if (parts.length === 3) {
-                              const day = parseInt(parts[0]);
-                              const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
-                              const year = parseInt(parts[2]);
-                              
-                              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                const newDate = new Date(year, month, day);
-                                
-                                if (isValid(newDate)) {
-                                  setFirstDueDate(newDate);
-                                  // Atualiza todas as datas de vencimento quando a primeira muda
-                                  const newDates = generateInstallmentDates(newDate, form.getValues("installments"));
-                                  setInstallmentDates(newDates);
-                                }
-                              }
-                            }
-                          } catch (error) {
-                            console.error("Erro ao converter data:", error);
-                          }
-                        }}
-                        className="w-36"
-                      />
-                      
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 px-2">
-                            <Calendar className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={firstDueDate}
-                            onSelect={(date) => {
-                              if (date) {
-                                setFirstDueDate(date);
-                                // Atualiza todas as datas de vencimento quando a primeira muda
-                                const newDates = generateInstallmentDates(date, form.getValues("installments"));
-                                setInstallmentDates(newDates);
-                              }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    
-                    <span className="text-sm text-muted-foreground">
-                      As demais datas serão calculadas inicialmente, mas podem ser editadas individualmente
-                    </span>
-                  </div>
-                </div>
+                {/* A seção "Primeira data de vencimento" foi removida conforme solicitado */}
                 
                 {installmentDates.length > 0 && (
                   <Table>
