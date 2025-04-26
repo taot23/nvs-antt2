@@ -98,77 +98,53 @@ export default function FinancePage() {
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Exportar para Excel usando a abordagem ultra-simplificada
+  // Exportar para Excel usando a abordagem mínima
   const exportToExcel = async () => {
     try {
-      // Verificar se há dados disponíveis na tabela atual
+      // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
-        toast({
-          title: "Nenhum dado para exportar",
-          description: "Não há dados disponíveis para exportação no momento.",
-          variant: "destructive",
-        });
+        alert("Não há dados para exportar");
         return;
       }
       
-      // Usar dados já carregados na tabela
+      // Usar dados da tabela atual
       const dataToExport = salesData.data;
-      console.log(`Exportando ${dataToExport.length} registros para Excel...`);
       
-      // Importar função de exportação super simples
-      const { simpleExportToExcel } = await import('@/components/finance/simple-export');
+      // Importação da função básica
+      const { exportToExcel: basicExport } = await import('@/components/finance/basic-export');
       
-      // Executar exportação diretamente com os dados existentes
-      const fileName = await simpleExportToExcel(dataToExport);
+      // Executar exportação
+      const fileName = await basicExport(dataToExport);
       
-      toast({
-        title: "Exportação concluída",
-        description: `Os dados foram exportados para Excel com sucesso: ${fileName}`,
-      });
+      alert("Exportação para Excel concluída: " + fileName);
     } catch (error) {
-      console.error("Erro ao exportar para Excel:", error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar os dados para Excel: " + (error as Error).message,
-        variant: "destructive",
-      });
+      console.error("Erro:", error);
+      alert("Erro na exportação: " + error);
     }
   };
 
-  // Exportar para PDF usando a abordagem ultra-simplificada
+  // Exportar para PDF usando a abordagem mínima
   const exportToPDF = async () => {
     try {
-      // Verificar se há dados disponíveis na tabela atual
+      // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
-        toast({
-          title: "Nenhum dado para exportar",
-          description: "Não há dados disponíveis para exportação no momento.",
-          variant: "destructive",
-        });
+        alert("Não há dados para exportar");
         return;
       }
       
-      // Usar dados já carregados na tabela
+      // Usar dados da tabela atual
       const dataToExport = salesData.data;
-      console.log(`Exportando ${dataToExport.length} registros para PDF...`);
       
-      // Importar função de exportação super simples
-      const { simpleExportToPDF } = await import('@/components/finance/simple-export');
+      // Importação da função básica
+      const { exportToPDF: basicExport } = await import('@/components/finance/basic-export');
       
-      // Executar exportação diretamente com os dados existentes
-      const fileName = await simpleExportToPDF(dataToExport);
+      // Executar exportação
+      const fileName = await basicExport(dataToExport);
       
-      toast({
-        title: "Exportação concluída",
-        description: `Os dados foram exportados para PDF com sucesso: ${fileName}`,
-      });
+      alert("Exportação para PDF concluída: " + fileName);
     } catch (error) {
-      console.error("Erro ao exportar para PDF:", error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar os dados para PDF: " + (error as Error).message,
-        variant: "destructive",
-      });
+      console.error("Erro:", error);
+      alert("Erro na exportação: " + error);
     }
   };
 
