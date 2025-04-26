@@ -237,11 +237,11 @@ export default function FinanceSalesTable({
   }
 
   return (
-    <Card className="overflow-hidden">
+    <Card>
       <CardContent className="p-4">
-        <div className="rounded-md border">
-          <div className="overflow-x-auto" style={{ width: '100%' }}>
-            <Table className="w-full min-w-[1200px]">
+        <div className="rounded-md border" style={{ overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto', width: '100%', display: 'block' }}>
+            <Table className="w-full" style={{ minWidth: '1500px' }}>
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead 
@@ -411,12 +411,12 @@ export default function FinanceSalesTable({
               {sales.map((sale) => (
                 <TableRow key={sale.id} data-status={usesFinancialStatus ? sale.financialStatus : sale.status}>
                   <TableCell className="font-medium whitespace-nowrap">{sale.orderNumber}</TableCell>
-                  <TableCell className="max-w-[120px] truncate">
+                  <TableCell className="whitespace-nowrap" style={{ maxWidth: "120px" }}>
                     <span title={sale.sellerName || `Vendedor #${sale.sellerId}`}>
                       {sale.sellerName || `Vendedor #${sale.sellerId}`}
                     </span>
                   </TableCell>
-                  <TableCell className="max-w-[150px] truncate">
+                  <TableCell className="whitespace-nowrap" style={{ maxWidth: "150px" }}>
                     <span title={sale.customerName || `Cliente #${sale.customerId}`}>
                       {sale.customerName || `Cliente #${sale.customerId}`}
                     </span>
