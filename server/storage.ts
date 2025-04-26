@@ -625,14 +625,22 @@ export class DatabaseStorage implements IStorage {
           datesToUse.push(lastDate.toISOString());
         }
         
-        const installmentsToCreate = datesToUse.map((dueDate: string, index: number) => ({
-          saleId: createdSale.id,
-          installmentNumber: index + 1,
-          dueDate,
-          amount: installmentAmount,
-          status: 'pending',
-          notes: null
-        }));
+        // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
+        const installmentsToCreate = datesToUse.map((dueDate: string, index: number) => {
+          // Converter a string ISO para objeto Date e extrair apenas a parte da data (sem o tempo)
+          const formattedDate = new Date(dueDate).toISOString().split('T')[0];
+          
+          console.log(`🔍 Parcela ${index+1}: Data original: ${dueDate}, Data formatada: ${formattedDate}`);
+          
+          return {
+            saleId: createdSale.id,
+            installmentNumber: index + 1,
+            dueDate: formattedDate, // Usar a data formatada
+            amount: installmentAmount,
+            status: 'pending',
+            notes: null
+          };
+        });
         
         // Sempre criamos as parcelas
         await this.createSaleInstallments(installmentsToCreate);
@@ -748,14 +756,22 @@ export class DatabaseStorage implements IStorage {
           const installmentValue = updatedSale.installmentValue || '0'; // Garantir valor não nulo
           
           if (installments > 1) {
-            const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => ({
-              saleId: id,
-              installmentNumber: index + 1,
-              dueDate,
-              amount: installmentValue,
-              status: 'pending',
-              notes: null
-            }));
+            // CORREÇÃO CRÍTICA: Formatar a data corretamente para armazenamento
+            const installmentsToCreate = installmentDates.map((dueDate: string, index: number) => {
+              // Converter a string ISO para objeto Date e extrair apenas a parte da data (sem o tempo)
+              const formattedDate = new Date(dueDate).toISOString().split('T')[0];
+              
+              console.log(`🔍 Parcela ${index+1} (atualização): Data original: ${dueDate}, Data formatada: ${formattedDate}`);
+              
+              return {
+                saleId: id,
+                installmentNumber: index + 1,
+                dueDate: formattedDate, // Usar a data formatada
+                amount: installmentValue,
+                status: 'pending',
+                notes: null
+              };
+            });
             
             if (installmentsToCreate.length > 0) {
               await this.createSaleInstallments(installmentsToCreate);
