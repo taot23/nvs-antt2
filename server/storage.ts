@@ -1556,19 +1556,36 @@ export class DatabaseStorage implements IStorage {
   async confirmInstallmentPayment(
     installmentId: number, 
     userId: number, 
-    paymentDate: Date, 
+    paymentDate: Date | string, 
     receiptData?: { type: string, url?: string, data?: any, notes?: string }
   ): Promise<SaleInstallment | undefined> {
     // Obter parcela
     const installment = await this.getSaleInstallment(installmentId);
     if (!installment) return undefined;
     
-    // Atualizar status da parcela para paga
+    // Processar a data de pagamento para garantir formato correto
+    // Se for um objeto Date, extrair apenas a parte da data no formato YYYY-MM-DD
+    // Se for uma string, garantir que está no formato YYYY-MM-DD
+    let formattedPaymentDate: string;
+    
+    if (typeof paymentDate === 'string') {
+      // Se já for string, remover qualquer componente de tempo
+      formattedPaymentDate = paymentDate.includes('T') 
+        ? paymentDate.split('T')[0] 
+        : paymentDate;
+    } else {
+      // Se for Date, extrair apenas a parte da data no formato YYYY-MM-DD
+      formattedPaymentDate = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}-${String(paymentDate.getDate()).padStart(2, '0')}`;
+    }
+    
+    console.log(`🔍 Confirmação de pagamento: Data original recebida: ${paymentDate}, Data formatada: ${formattedPaymentDate}`);
+    
+    // Atualizar status da parcela para paga com a data formatada
     const [updatedInstallment] = await db
       .update(saleInstallments)
       .set({
         status: 'paid',
-        paymentDate: paymentDate,
+        paymentDate: formattedPaymentDate, // Usar a data formatada corretamente
         updatedAt: new Date()
       })
       .where(eq(saleInstallments.id, installmentId))

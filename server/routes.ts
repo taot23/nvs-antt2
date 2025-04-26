@@ -2595,10 +2595,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Confirmar pagamento da parcela
+      // Enviar a data de pagamento exatamente como recebida do cliente
+      // O método confirmInstallmentPayment vai lidar com a formatação correta
+      console.log(`🔍 Rota de confirmação de pagamento: Data recebida do cliente: ${paymentDate}`);
+      
       const updatedInstallment = await storage.confirmInstallmentPayment(
         id,
         req.user!.id,
-        new Date(paymentDate),
+        paymentDate, // Passar a data sem conversão adicional
         {
           type: receiptType,
           url: receiptUrl,
