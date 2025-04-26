@@ -2402,8 +2402,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             saleId: row.sale_id,
             installmentNumber: row.installment_number,
             amount: row.amount,
-            dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
-            paymentDate: row.payment_date ? new Date(row.payment_date).toISOString().split('T')[0] : null,
+            dueDate: row.due_date || null, // Preservar exatamente como está no banco
+            paymentDate: row.payment_date || null, // Preservar exatamente como está no banco
             status: row.status,
             notes: row.notes,
             createdAt: row.created_at,
@@ -2417,8 +2417,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`🔵 Venda #${id} é à vista e não tem parcelas no banco. Criando parcela única.`);
           
           // Inserir direto no banco via SQL
-          const today = new Date();
-          const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          // Usamos string fixa para evitar conversões automáticas de data
+          // Formato: "YYYY-MM-DD" sem qualquer conversão de timezone
+          const formattedDate = new Date().toISOString().split('T')[0];
           
           const insertQuery = `
             INSERT INTO sale_installments (sale_id, installment_number, amount, due_date, status) 

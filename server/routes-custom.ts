@@ -110,8 +110,8 @@ export function registerCustomRoutes(app: Express) {
           id, 
           saleId, 
           installmentNumber, 
-          TO_CHAR(dueDate::date, 'YYYY-MM-DD') as dueDate, 
-          TO_CHAR(paymentDate::date, 'YYYY-MM-DD') as paymentDate,
+          dueDate, 
+          paymentDate,
           amount, 
           status, 
           notes
