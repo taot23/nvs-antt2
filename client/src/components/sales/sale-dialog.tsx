@@ -1473,10 +1473,14 @@ export default function SaleDialog({
                                         const newDate = new Date(year, month, day);
                                         
                                         if (isValid(newDate)) {
-                                          console.log(`✅ Data válida convertida: ${newDate.toISOString().split('T')[0]}`);
-                                          // Atualiza apenas a data específica dessa parcela
+                                          // CORREÇÃO CRÍTICA: Em vez de armazenar o objeto Date, 
+                                          // armazenamos a string YYYY-MM-DD diretamente
+                                          const isoDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                          console.log(`✅ Data válida convertida: ${isoDateString} (em vez do objeto Date)`);
+                                          
+                                          // Atualiza apenas a data específica dessa parcela com a string formatada
                                           const newDates = [...installmentDates];
-                                          newDates[index] = newDate;
+                                          newDates[index] = isoDateString; // String no formato YYYY-MM-DD em vez do objeto Date
                                           setInstallmentDates(newDates);
                                         } else {
                                           console.log(`❌ Data inválida: ${day}/${month+1}/${year}`);
@@ -1496,10 +1500,14 @@ export default function SaleDialog({
                                           const newDate = new Date(year, month, day);
                                           
                                           if (isValid(newDate)) {
-                                            console.log(`✅ Data válida ISO convertida: ${newDate.toISOString().split('T')[0]}`);
-                                            // Atualiza apenas a data específica dessa parcela
+                                            // CORREÇÃO CRÍTICA: Em vez de armazenar o objeto Date, 
+                                            // armazenamos a string YYYY-MM-DD diretamente
+                                            const isoDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                            console.log(`✅ Data válida ISO convertida: ${isoDateString} (em vez do objeto Date)`);
+                                            
+                                            // Atualiza apenas a data específica dessa parcela com a string formatada
                                             const newDates = [...installmentDates];
-                                            newDates[index] = newDate;
+                                            newDates[index] = isoDateString; // String no formato YYYY-MM-DD
                                             setInstallmentDates(newDates);
                                           }
                                         }
