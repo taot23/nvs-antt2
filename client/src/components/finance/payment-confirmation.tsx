@@ -370,6 +370,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
               <TableRow>
                 <TableHead>Parcela</TableHead>
                 <TableHead>Vencimento</TableHead>
+                <TableHead>Pagamento</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -381,6 +382,13 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                   <TableCell>{installment.installmentNumber}</TableCell>
                   <TableCell>
                     {formatDate(installment.dueDate)}
+                  </TableCell>
+                  <TableCell>
+                    {installment.paymentDate ? (
+                      <span className="text-green-700">{formatDate(installment.paymentDate)}</span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Não pago</span>
+                    )}
                   </TableCell>
                   <TableCell>{formatCurrency(installment.amount)}</TableCell>
                   <TableCell>
