@@ -1055,7 +1055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           s.*, 
           c.name as customer_name,
-          u.username as seller_name,
+          COALESCE(u.username, 'Desconhecido') as seller_name,
           (
             SELECT COALESCE(SUM(amount::numeric), 0)
             FROM sale_installments
@@ -1071,6 +1071,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN users u ON s.seller_id = u.id
         WHERE 1=1
       `;
+      
+      // Log para verificar a consulta
+      console.log('Consulta SQL de vendas com join para usuário/vendedor');
       
       const params: any[] = [];
       
