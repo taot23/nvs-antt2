@@ -98,11 +98,9 @@ export default function FinancePage() {
   const [exportData, setExportData] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Exportar para Excel usando a abordagem robusta - constrói uma tabela dedicada para exportação
+  // Exportar para Excel usando a abordagem final - simplificada e super confiável
   const exportToExcel = async () => {
     try {
-      setIsExporting(true);
-      
       // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
@@ -110,7 +108,6 @@ export default function FinancePage() {
           description: "Não há dados disponíveis para exportação no momento.",
           variant: "destructive",
         });
-        setIsExporting(false);
         return;
       }
       
@@ -139,17 +136,11 @@ export default function FinancePage() {
         console.log("Usando dados já carregados para exportação");
       }
       
-      // Atualizar estado para que o componente de exportação seja renderizado
-      setExportData(dataToExport);
+      // Importar função de exportação final (simplificada)
+      const { finalExportToExcel } = await import('@/components/finance/final-export');
       
-      // Importar função de exportação
-      const { exportToExcel } = await import('@/components/finance/robust-export');
-      
-      // Aguardar para que o componente seja renderizado
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Executar exportação
-      const fileName = await exportToExcel(dataToExport, activeTab === 'all');
+      // Executar exportação diretamente
+      const fileName = await finalExportToExcel(dataToExport, activeTab === 'all');
       
       toast({
         title: "Exportação concluída",
@@ -162,16 +153,12 @@ export default function FinancePage() {
         description: "Não foi possível exportar os dados para Excel: " + (error as Error).message,
         variant: "destructive",
       });
-    } finally {
-      setIsExporting(false);
     }
   };
 
-  // Exportar para PDF usando a abordagem robusta - constrói uma tabela dedicada para exportação
+  // Exportar para PDF usando a abordagem final - simplificada e super confiável
   const exportToPDF = async () => {
     try {
-      setIsExporting(true);
-      
       // Verificar se há dados disponíveis
       if (!salesData || !salesData.data || salesData.data.length === 0) {
         toast({
@@ -179,7 +166,6 @@ export default function FinancePage() {
           description: "Não há dados disponíveis para exportação no momento.",
           variant: "destructive",
         });
-        setIsExporting(false);
         return;
       }
       
@@ -208,17 +194,11 @@ export default function FinancePage() {
         console.log("Usando dados já carregados para exportação");
       }
       
-      // Atualizar estado para que o componente de exportação seja renderizado
-      setExportData(dataToExport);
+      // Importar função de exportação final (simplificada)
+      const { finalExportToPDF } = await import('@/components/finance/final-export');
       
-      // Importar função de exportação
-      const { exportToPDF } = await import('@/components/finance/robust-export');
-      
-      // Aguardar para que o componente seja renderizado
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Executar exportação
-      const fileName = await exportToPDF(dataToExport, activeTab === 'all');
+      // Executar exportação diretamente
+      const fileName = await finalExportToPDF(dataToExport, activeTab === 'all');
       
       toast({
         title: "Exportação concluída",
@@ -231,8 +211,6 @@ export default function FinancePage() {
         description: "Não foi possível exportar os dados para PDF: " + (error as Error).message,
         variant: "destructive",
       });
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -321,20 +299,8 @@ export default function FinancePage() {
     }
   };
 
-  // Importando o componente de exportação
-  const { ExportTableRenderer } = React.lazy(() => import('@/components/finance/robust-export'));
-
   return (
     <div className="container py-6 max-w-7xl">
-      {/* Componente invisível para exportação */}
-      {isExporting && exportData.length > 0 && (
-        <React.Suspense fallback={<div />}>
-          <ExportTableRenderer 
-            data={exportData}
-            includeFinancialColumns={activeTab === 'all'} 
-          />
-        </React.Suspense>
-      )}
       
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col md:flex-row justify-between gap-4">
