@@ -119,9 +119,9 @@ export default function FinanceSalesTable({
       
       // Dependendo do flag, usa status ou financialStatus (exceto quando for "all")
       if (usesFinancialStatus) {
-        if (status !== 'all') {
-          url.searchParams.append('financialStatus', status);
-        }
+        // Quando estamos no modo financeiro, sempre enviamos financialStatus
+        // mesmo sendo 'all', para que a API retorne os dados do resumo financeiro
+        url.searchParams.append('financialStatus', status);
       } else {
         if (status !== 'all') {
           url.searchParams.append('status', status);
@@ -374,29 +374,35 @@ export default function FinanceSalesTable({
                   </TableCell>
                   <TableCell className="font-medium whitespace-nowrap">{formatCurrency(sale.totalAmount)}</TableCell>
                   
-                  {/* Colunas financeiras */}
-                  {usesFinancialStatus && sale.financialSummary && (
+                  {/* Colunas financeiras para desktop */}
+                  {usesFinancialStatus && (
                     <>
                       {/* Versão para desktop - colunas separadas */}
                       <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
                         <span className="text-green-600">
-                          {formatCurrency(sale.financialSummary.totalPaid)}
+                          {sale.financialSummary ? formatCurrency(sale.financialSummary.totalPaid) : formatCurrency(0)}
                         </span>
                       </TableCell>
                       <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
                         <span className="text-red-600">
-                          {formatCurrency(sale.financialSummary.totalCosts)}
+                          {sale.financialSummary ? formatCurrency(sale.financialSummary.totalCosts) : formatCurrency(0)}
                         </span>
                       </TableCell>
                       <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
                         <div className="flex items-center">
-                          <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {formatCurrency(sale.financialSummary.netResult)}
-                          </span>
-                          {sale.financialSummary.netResult >= 0 ? (
-                            <ArrowUp className="h-3 w-3 ml-1 text-green-600" />
+                          {sale.financialSummary ? (
+                            <>
+                              <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                {formatCurrency(sale.financialSummary.netResult)}
+                              </span>
+                              {sale.financialSummary.netResult >= 0 ? (
+                                <ArrowUp className="h-3 w-3 ml-1 text-green-600" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3 ml-1 text-red-600" />
+                              )}
+                            </>
                           ) : (
-                            <ArrowDown className="h-3 w-3 ml-1 text-red-600" />
+                            <span className="text-muted-foreground italic">Sem dados</span>
                           )}
                         </div>
                       </TableCell>
@@ -422,31 +428,37 @@ export default function FinanceSalesTable({
                     )}
                     
                     {/* Versão resumida para mobile - resumo financeiro */}
-                    {usesFinancialStatus && sale.financialSummary && (
+                    {usesFinancialStatus && (
                       <div className="flex flex-col gap-1 text-xs mt-2 md:hidden">
-                        <div className="flex items-center">
-                          <span className="text-muted-foreground mr-1">Pago:</span>
-                          <span className="text-green-600 font-medium">
-                            {formatCurrency(sale.financialSummary.totalPaid)}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <span className="text-muted-foreground mr-1">Custos:</span>
-                          <span className="text-red-600 font-medium">
-                            {formatCurrency(sale.financialSummary.totalCosts)}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <span className="text-muted-foreground mr-1">Resultado:</span>
-                          <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                            {formatCurrency(sale.financialSummary.netResult)}
-                            {sale.financialSummary.netResult >= 0 ? (
-                              <ArrowUp className="h-3 w-3 ml-1 inline text-green-600" />
-                            ) : (
-                              <ArrowDown className="h-3 w-3 ml-1 inline text-red-600" />
-                            )}
-                          </span>
-                        </div>
+                        {sale.financialSummary ? (
+                          <>
+                            <div className="flex items-center">
+                              <span className="text-muted-foreground mr-1">Pago:</span>
+                              <span className="text-green-600 font-medium">
+                                {formatCurrency(sale.financialSummary.totalPaid)}
+                              </span>
+                            </div>
+                            <div className="flex items-center">
+                              <span className="text-muted-foreground mr-1">Custos:</span>
+                              <span className="text-red-600 font-medium">
+                                {formatCurrency(sale.financialSummary.totalCosts)}
+                              </span>
+                            </div>
+                            <div className="flex items-center">
+                              <span className="text-muted-foreground mr-1">Resultado:</span>
+                              <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                {formatCurrency(sale.financialSummary.netResult)}
+                                {sale.financialSummary.netResult >= 0 ? (
+                                  <ArrowUp className="h-3 w-3 ml-1 inline text-green-600" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3 ml-1 inline text-red-600" />
+                                )}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-muted-foreground italic">Sem dados financeiros</div>
+                        )}
                       </div>
                     )}
                   </TableCell>
