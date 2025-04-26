@@ -102,7 +102,7 @@ export function registerCustomRoutes(app: Express) {
               sale_id, installment_number, due_date, amount, 
               status, notes, created_at, updated_at
             ) 
-            VALUES ($1, $2, $3::date, $4, 'pending', NULL, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, 'pending', NULL, NOW(), NOW())
           `, [
             createdSale.id,
             i + 1,
@@ -245,9 +245,9 @@ export function registerCustomRoutes(app: Express) {
           INSERT INTO sale_installments (
             saleId, installmentNumber, dueDate, amount, status, createdAt, updatedAt
           ) VALUES (
-            $1, $2, $3::date, $4, 'pendente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            $1, $2, $3, $4, 'pendente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
           ) RETURNING id, saleId, installmentNumber, 
-            TO_CHAR(dueDate::date, 'YYYY-MM-DD') as dueDate,
+            dueDate,
             amount, status
         `, [saleId, installmentNumber, dueDate, amount]);
         
