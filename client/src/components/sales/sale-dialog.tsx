@@ -828,19 +828,46 @@ export default function SaleDialog({
       
       const savedSale = await response.json();
       
-      // O frontend não vai mais criar as parcelas, essa responsabilidade é do backend
-      // O frontend apenas envia o número de parcelas e as datas de vencimento
-      console.log("Parcelas serão criadas pelo backend, evitando duplicação.");
+      // Agora precisamos criar as parcelas explicitamente enviando-as para o endpoint específico
+      console.log("Criando parcelas separadamente para garantir preservação das datas");
       
-      // Vamos verificar se as parcelas foram criadas corretamente
       if (data.installments > 1) {
         try {
-          // Verificar se as parcelas foram criadas, apenas para debug
-          const installmentsResponse = await fetch(`/api/sales/${savedSale.id}/installments`);
-          const instalments = await installmentsResponse.json();
-          console.log(`Parcelas da venda #${savedSale.id}:`, instalments.length);
+          // Criar array com os dados das parcelas
+          const installmentsToCreate = [];
+          for (let i = 0; i < formattedData.installmentDates.length; i++) {
+            installmentsToCreate.push({
+              number: i + 1,
+              amount: parseFloat(data.totalAmount) / formattedData.installmentDates.length,
+              dueDate: formattedData.installmentDates[i],
+              status: 'pending'
+            });
+          }
+          
+          console.log("Enviando parcelas para criação:", installmentsToCreate);
+          
+          // Enviar as parcelas para o endpoint de criação de parcelas
+          const installmentsResponse = await fetch(`/api/sales/${savedSale.id}/installments`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(installmentsToCreate)
+          });
+          
+          if (!installmentsResponse.ok) {
+            console.error("Erro ao criar parcelas:", await installmentsResponse.text());
+          } else {
+            const createdInstallments = await installmentsResponse.json();
+            console.log(`${createdInstallments.length} parcelas criadas com sucesso para a venda #${savedSale.id}`);
+            
+            // Verificar as datas das parcelas criadas
+            createdInstallments.forEach((installment, idx) => {
+              console.log(`Parcela #${idx + 1} - Data salva: ${installment.dueDate}`);
+            });
+          }
         } catch (err) {
-          console.error("Erro ao verificar parcelas:", err);
+          console.error("Erro ao criar parcelas:", err);
         }
       }
       

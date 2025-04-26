@@ -1672,21 +1672,28 @@ export class DatabaseStorage implements IStorage {
           const installment = installmentsData[i];
           
           // Forçar a data como texto para evitar qualquer conversão automática
-          const dateTxt = String(installment.dueDate);
+          let dateTxt = String(installment.dueDate);
+          
+          // Se a data contém T, remover a parte do timezone para preservar apenas YYYY-MM-DD
+          if (dateTxt.includes('T')) {
+            dateTxt = dateTxt.split('T')[0];
+            console.log(`📊 CORREÇÃO FINAL: Removendo T e timezone da data: ${dateTxt}`);
+          }
           
           console.log(`📊 DEBUG: Salvando parcela #${i + 1} com data: ${dateTxt}`);
           
           // Usar CAST explicito para ::text para evitar qualquer conversão
+          // Importante: Usamos $3 DIRETAMENTE (sem ::text) porque a coluna já é texto
           const insertResult = await pool.query(`
             INSERT INTO sale_installments 
               (sale_id, installment_number, due_date, amount, status, notes, created_at, updated_at) 
             VALUES 
-              ($1, $2, $3::text, $4, $5, $6, NOW(), NOW())
+              ($1, $2, $3, $4, $5, $6, NOW(), NOW())
             RETURNING *
           `, [
             installment.saleId,
             installment.installmentNumber,
-            dateTxt, // Forçado como texto
+            dateTxt, // Forçado como texto simples
             installment.amount,
             installment.status || "pending",
             installment.notes
@@ -2118,19 +2125,53 @@ export class DatabaseStorage implements IStorage {
     }
 
     console.log(
-      `🔍 Confirmação de pagamento: Data original recebida: ${paymentDate}, Data formatada: ${formattedPaymentDate}`,
+      `🔍 SOLUÇÃO FINAL: Confirmação de pagamento: Data original recebida: ${paymentDate}, Data formatada: ${formattedPaymentDate}`,
     );
 
-    // Atualizar status da parcela para paga com a data formatada
-    const [updatedInstallment] = await db
-      .update(saleInstallments)
-      .set({
-        status: "paid",
-        paymentDate: formattedPaymentDate, // Usar a data formatada corretamente
-        updatedAt: new Date(),
-      })
-      .where(eq(saleInstallments.id, installmentId))
-      .returning();
+    console.log(`🔄 USANDO SQL NATIVO para garantir preservação exata de data: ${formattedPaymentDate}`);
+    
+    try {
+      // Importar pool para usar SQL nativo
+      const { pool } = await import("./db");
+      
+      // Atualizar a parcela com SQL nativo para garantir preservação exata do formato da data
+      const result = await pool.query(`
+        UPDATE sale_installments 
+        SET status = 'paid', 
+            payment_date = $1,  
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `, [formattedPaymentDate, installmentId]);
+      
+      if (result.rows.length === 0) {
+        console.log(`⚠️ Parcela #${installmentId} não encontrada durante atualização via SQL`);
+        return undefined;
+      }
+      
+      const updatedInstallment = result.rows[0];
+      
+      console.log(`✅ Parcela #${installmentId} marcada como paga via SQL nativo`);
+      console.log(`📅 Data de pagamento salva: ${updatedInstallment.payment_date}`);
+      
+      // Mapear para o formato esperado
+      const parsedInstallment = {
+        id: updatedInstallment.id,
+        saleId: updatedInstallment.sale_id,
+        installmentNumber: updatedInstallment.installment_number,
+        dueDate: updatedInstallment.due_date,
+        paymentDate: updatedInstallment.payment_date,
+        amount: updatedInstallment.amount,
+        status: updatedInstallment.status,
+        notes: updatedInstallment.notes,
+        createdAt: updatedInstallment.created_at,
+        updatedAt: updatedInstallment.updated_at
+      };
+      
+    } catch (sqlError) {
+      console.error(`❌ Erro ao confirmar pagamento de parcela via SQL nativo:`, sqlError);
+      throw new Error(`Falha ao confirmar pagamento de parcela: ${sqlError.message}`);
+    }
 
     // Se temos dados de comprovante, registrá-lo
     if (receiptData) {
@@ -2163,7 +2204,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(sales.id, saleId));
     }
 
-    return updatedInstallment;
+    return parsedInstallment;
   }
 
   // Cost Types methods implementation
