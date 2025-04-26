@@ -1052,7 +1052,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { pool } = await import("./db");
       
       let query = `
-        SELECT s.*, c.name as customer_name
+        SELECT 
+          s.*, 
+          c.name as customer_name,
+          (
+            SELECT COALESCE(SUM(amount::numeric), 0)
+            FROM sale_installments
+            WHERE sale_id = s.id AND status = 'paid'
+          ) as total_paid,
+          (
+            SELECT COALESCE(SUM(amount::numeric), 0)
+            FROM sale_operational_costs
+            WHERE sale_id = s.id
+          ) as total_costs
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         WHERE 1=1
@@ -1118,25 +1130,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await pool.query(query, params);
       
       // Mapear resultados para o formato esperado
-      const sales = result.rows.map(row => ({
-        id: row.id,
-        orderNumber: row.order_number,
-        customerId: row.customer_id,
-        customerName: row.customer_name,
-        paymentMethodId: row.payment_method_id,
-        sellerId: row.seller_id,
-        serviceTypeId: row.service_type_id,
-        serviceProviderId: row.service_provider_id,
-        totalAmount: row.total_amount,
-        installments: row.installments,
-        installmentValue: row.installment_value,
-        status: row.status,
-        financialStatus: row.financial_status,
-        notes: row.notes,
-        date: row.date,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      }));
+      const sales = result.rows.map(row => {
+        // Converter os valores para números
+        const totalAmount = parseFloat(row.total_amount || "0");
+        const totalPaid = parseFloat(row.total_paid || "0");
+        const totalCosts = parseFloat(row.total_costs || "0");
+        
+        // Calcular o resultado líquido
+        const netResult = totalAmount - totalCosts;
+        
+        return {
+          id: row.id,
+          orderNumber: row.order_number,
+          customerId: row.customer_id,
+          customerName: row.customer_name,
+          paymentMethodId: row.payment_method_id,
+          sellerId: row.seller_id,
+          serviceTypeId: row.service_type_id,
+          serviceProviderId: row.service_provider_id,
+          totalAmount: row.total_amount,
+          installments: row.installments,
+          installmentValue: row.installment_value,
+          status: row.status,
+          financialStatus: row.financial_status,
+          notes: row.notes,
+          date: row.date,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          // Adicionar resumo financeiro apenas quando solicitado pelo financeiro
+          financialSummary: financialStatus !== undefined ? {
+            totalPaid,
+            totalCosts,
+            netResult
+          } : undefined
+        };
+      });
       
       // Calcular total de páginas
       const totalPages = Math.ceil(total / limit) || 1;
