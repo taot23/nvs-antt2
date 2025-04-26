@@ -1241,25 +1241,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : req.user!.id
       });
       
-      // Verificar se o número de ordem de serviço já existe
-      const existingSale = await storage.getSaleByOrderNumber(validatedSaleData.orderNumber);
-      if (existingSale) {
-        // Gerar automaticamente um novo número de ordem consecutivo
-        const latestSales = await storage.getLatestSales(1);
-        let nextOrderNumber = "1";
-        
-        if (latestSales && latestSales.length > 0) {
-          // Pegar a última venda e incrementar o número
-          const lastSale = latestSales[0];
-          const lastOrderNumberAsNumber = parseInt(lastSale.orderNumber);
-          if (!isNaN(lastOrderNumberAsNumber)) {
-            nextOrderNumber = String(lastOrderNumberAsNumber + 1);
-          }
-        }
-        
-        console.log(`⚠️ Número de ordem ${validatedSaleData.orderNumber} já utilizado, alterando para ${nextOrderNumber}`);
-        validatedSaleData.orderNumber = nextOrderNumber;
-      }
+      // ✅ NOTA: A verificação e geração automática de números já está implementada
+      // na função createSale no storage.ts, então podemos remover esta duplicação de código
+      // para evitar potenciais conflitos na geração dos números.
+      
+      // O storage agora gerencia automaticamente a verificação de números duplicados
+      // e a geração de novos números sequenciais.
+      console.log(`ℹ️ Delegando verificação de número de ordem ${validatedSaleData.orderNumber} para o storage`);
       
       // Criar a venda normal usando o Drizzle
       const createdSale = await storage.createSale(validatedSaleData);
