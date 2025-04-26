@@ -124,4 +124,4 @@ async function testInstallmentsExact() {
   }
 }
 
-testInstallmentsExact();
+testInstallmentsExact().catch(console.error);

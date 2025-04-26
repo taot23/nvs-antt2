@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { setupWebsocket, notifySalesUpdate, broadcastEvent } from "./websocket";
+import { registerCustomRoutes } from "./routes-custom";
 import { 
   insertCustomerSchema, 
   insertUserSchema, 
@@ -3250,6 +3251,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Registrar rotas personalizadas para manipulação de datas exatas
+  registerCustomRoutes(app);
+  
   // Criar o servidor HTTP
   const httpServer = createServer(app);
   
