@@ -522,23 +522,45 @@ export default function SaleDialog({
         console.log(`⚠️ CORREÇÃO V2: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
       }
       
-      // Adiciona as datas formatadas em ISO para envio ao servidor
-      console.log("⚠️ CORREÇÃO V2: Incluindo datas de vencimento:", installmentDatesToSend);
+      // 🛑🛑🛑 SUPER CORREÇÃO - 26/04/2025
+      // Verificação extrema do tipo e valor das parcelas
+      console.log("🔄 CORREÇÃO EXTREMA - Seleção de parcelas alterada para:", data.installments, "tipo:", typeof data.installments);
+      
+      // Forçar conversão para número inteiro
+      const numInstalments = typeof data.installments === 'string' 
+        ? parseInt(data.installments) 
+        : (typeof data.installments === 'number' ? Math.floor(data.installments) : 1);
+        
+      console.log("🔄 CORREÇÃO EXTREMA - Valor após processamento:", numInstalments, "tipo:", typeof numInstalments);
+      
+      // Aplicar o valor correto diretamente no form data
+      formattedData.installments = numInstalments;
+      
+      console.log("🔄 VERIFICAÇÃO CRÍTICA - Valor atual no form:", formattedData.installments, "tipo:", typeof formattedData.installments);
+      
+      // Verificação final para garantir consistência
+      console.log("🔄 DADOS FINAIS DO FORMULÁRIO:", "Parcelas:", data.installments, "Tipo esperado:", "number", "Valor atual no form:", formattedData.installments, "Tipo atual no form:", typeof formattedData.installments);
+      
+      // 🛑 GERAÇÃO DE DATAS DE PARCELAS - Forçar a criação correta
+      // Garantir que temos exatamente o número certo de datas para as parcelas
+      const requiredInstallments = numInstalments;
+      const installmentDates = [];
+      
+      // Gerar datas para cada parcela (independente do que foi selecionado na interface)
+      const baseDate = new Date();
+      for (let i = 0; i < requiredInstallments; i++) {
+        const dueDate = new Date(baseDate);
+        dueDate.setMonth(baseDate.getMonth() + i);
+        installmentDates.push(dueDate);
+      }
+      
+      console.log("🛑 SUPER CORREÇÃO - Geradas", installmentDates.length, "datas para", requiredInstallments, "parcelas");
       
       // Adiciona ao objeto diretamente como uma string para evitar problemas de tipagem
-      formattedData.installmentDates = installmentDatesToSend.map(date => date.toISOString());
-      
-      console.log("⚠️ CORREÇÃO V2: Datas formatadas em ISO:", formattedData.installmentDates);
+      formattedData.installmentDates = installmentDates.map(date => date.toISOString());
       
       const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
       const method = sale ? "PATCH" : "POST";
-      
-      // Garantir explicitamente que o número de parcelas seja um número inteiro
-      const validatedInstallments = parseInt(formattedData.installments.toString());
-      console.log("⚠️ IMPORTANTE - Número de parcelas enviado para o backend:", validatedInstallments);
-      
-      // Atualizar formattedData com o valor convertido
-      formattedData.installments = validatedInstallments;
       
       // Log para debug do payload
       console.log("Payload completo da venda:", JSON.stringify(formattedData, null, 2));

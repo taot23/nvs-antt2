@@ -552,32 +552,70 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // CORREÇÃO V2: Processar parcelas independente das datas de vencimento
-    // Verificar o número de parcelas 
-    const numInstallments = createdSale.installments || 1;
-    console.log(`💰 CORREÇÃO V2: Venda ${createdSale.id} com ${numInstallments} parcelas`);
+    // 🔄🔄🔄 SUPER-CORREÇÃO V3 (26/04/2025) 🔄🔄🔄
+    // OBJETIVO: Garantir ABSOLUTA consistência entre o número de parcelas e as parcelas criadas
     
-    // Se temos datas de vencimento, usamos elas
+    // 1. Primeiro, extraímos e validamos o número de parcelas informado
+    let requestedInstallments = createdSale.installments;
+    
+    // Validação extrema do número de parcelas
+    if (typeof requestedInstallments !== 'number' || isNaN(requestedInstallments) || requestedInstallments <= 0) {
+      console.log(`🔄 ALERTA: Número de parcelas inválido [${requestedInstallments}], tipo: ${typeof requestedInstallments}`);
+      requestedInstallments = 1; // Valor padrão seguro
+    } else {
+      // Garantir que é um inteiro
+      requestedInstallments = Math.floor(requestedInstallments);
+    }
+    
+    console.log(`🔄 SUPER CORREÇÃO V3: Processando venda ${createdSale.id} com ${requestedInstallments} parcelas (número validado)`);
+    
+    // 2. Atualizar o valor na venda (para garantir consistência absoluta)
+    try {
+      await db
+        .update(sales)
+        .set({ installments: requestedInstallments })
+        .where(eq(sales.id, createdSale.id));
+        
+      // Atualizar também o objeto em memória
+      createdSale.installments = requestedInstallments;
+      
+      console.log(`🔄 SUPER CORREÇÃO V3: Número de parcelas atualizado para ${requestedInstallments} na venda ${createdSale.id}`);
+    } catch (error) {
+      console.error("🔄 ERRO ao atualizar número de parcelas:", error);
+    }
+    
+    // 3. Verificar se já existem parcelas e removê-las
+    try {
+      const existingInstallments = await this.getSaleInstallments(createdSale.id);
+      if (existingInstallments.length > 0) {
+        console.log(`🔄 SUPER CORREÇÃO V3: Removendo ${existingInstallments.length} parcelas existentes da venda ${createdSale.id}`);
+        await this.deleteSaleInstallments(createdSale.id);
+      }
+    } catch (error) {
+      console.error("🔄 ERRO ao verificar/remover parcelas existentes:", error);
+    }
+    
+    // 4. Processar datas de vencimento e criar parcelas
     if (installmentDates && Array.isArray(installmentDates)) {
       try {
-        console.log(`💰 CORREÇÃO V2: Usando ${installmentDates.length} datas recebidas para criar parcelas`);
+        console.log(`🔄 SUPER CORREÇÃO V3: Usando ${installmentDates.length} datas recebidas para criar ${requestedInstallments} parcelas`);
         
         // Calcular o valor de cada parcela (valor igual para todas as parcelas)
         const totalAmount = parseFloat(createdSale.totalAmount);
-        const installmentAmount = (totalAmount / numInstallments).toFixed(2);
+        const installmentAmount = (totalAmount / requestedInstallments).toFixed(2);
         
-        console.log(`💰 CORREÇÃO V2: Total ${totalAmount} dividido em ${numInstallments} parcelas de ${installmentAmount}`);
+        console.log(`🔄 SUPER CORREÇÃO V3: Total ${totalAmount} dividido em ${requestedInstallments} parcelas de ${installmentAmount}`);
         
         // Garantir que temos o número correto de datas
         let datesToUse = [...installmentDates];
         
         // Se temos mais datas que parcelas, cortamos o excesso
-        if (datesToUse.length > numInstallments) {
-          datesToUse = datesToUse.slice(0, numInstallments);
+        if (datesToUse.length > requestedInstallments) {
+          datesToUse = datesToUse.slice(0, requestedInstallments);
         }
         
         // Se temos menos datas que parcelas, geramos as faltantes
-        while (datesToUse.length < numInstallments) {
+        while (datesToUse.length < requestedInstallments) {
           // Calcular a próxima data (30 dias após a última)
           const lastDate = datesToUse.length > 0 
             ? new Date(datesToUse[datesToUse.length - 1])
