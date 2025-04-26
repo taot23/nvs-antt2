@@ -711,6 +711,11 @@ export class DatabaseStorage implements IStorage {
     // Extraímos as datas de instalações se existirem (propriedade customizada)
     // @ts-ignore - Esta propriedade vem do frontend
     const installmentDates = saleData.installmentDates;
+    
+    // SUPER DEBUG 26/04/2025
+    console.log('🔄 SOLUÇÃO FINAL - Datas de parcelas recebidas:', 
+                JSON.stringify(installmentDates || [], null, 2));
+    
     // @ts-ignore - Removemos para não causar erro na inserção
     delete saleData.installmentDates;
 

@@ -1248,10 +1248,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // ⚠️ CORREÇÃO 26/04/2025 - Problema com a data
+      console.log(`🔧 SOLUÇÃO FINAL: Forçando conversão de data antes da validação Zod`);
+      console.log(`🔧 SOLUÇÃO FINAL: Tipo de saleDate antes: ${typeof saleDate}`);
+      
+      // Se a data for string, converter para Date
+      let finalDate;
+      if (typeof saleDate === 'string') {
+        try {
+          finalDate = new Date(saleDate);
+          console.log(`✅ SOLUÇÃO FINAL: Data convertida de string para Date: ${finalDate.toISOString()}`);
+        } catch (e) {
+          finalDate = new Date(); // Fallback para a data atual
+          console.error(`❌ SOLUÇÃO FINAL: Erro ao converter data: ${saleDate}. Usando data atual.`);
+        }
+      } else {
+        finalDate = saleDate;
+      }
+      
+      console.log(`🔧 SOLUÇÃO FINAL: Tipo de finalDate depois: ${typeof finalDate}`);
+      
       const validatedSaleData = insertSaleSchema.parse({
         ...userData,
-        // Usar a data processada
-        date: saleDate,
+        // Usar a data processada e convertida para Date
+        date: finalDate,
         // MODIFICADO: Forçar status e financialStatus para "pending" na criação da venda
         status: "pending", 
         financialStatus: "pending",
