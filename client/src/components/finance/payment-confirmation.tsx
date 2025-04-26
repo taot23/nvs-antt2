@@ -126,6 +126,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       return res.json();
     },
     onSuccess: () => {
+      // Atualizar os dados após a confirmação
       queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'installments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
       queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
@@ -135,6 +136,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
         description: "O pagamento foi confirmado com sucesso.",
       });
       
+      // Fechar o diálogo
       closeConfirmDialog();
     },
     onError: (error: any) => {
@@ -149,9 +151,10 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   
   // Função formatDateToBR já declarada no início do arquivo
 
-  // Função para abrir o diálogo de confirmação
+  // Função para abrir o diálogo de confirmação para uma única parcela
   const openConfirmDialog = (installment: any) => {
     setSelectedInstallment(installment);
+    setShowMultiConfirm(false);
     
     // Inicializar com string vazia para forçar a digitação manual
     setPaymentDate("");
@@ -166,35 +169,80 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     setConfirmDialogOpen(true);
   };
   
+  // Função para abrir o diálogo de confirmação para múltiplas parcelas
+  const openMultiConfirmDialog = () => {
+    setSelectedInstallment(null);
+    setShowMultiConfirm(true);
+    
+    // Inicializar com string vazia para forçar a digitação manual
+    setPaymentDate("");
+    setPaymentDateStr("");
+    setPaymentNotes("");
+    
+    // Definir primeiro método de pagamento como padrão, se disponível
+    if (paymentMethods.length > 0) {
+      setPaymentMethodId(String(paymentMethods[0].id));
+    }
+    
+    // Selecionar todas as parcelas pendentes
+    setSelectedInstallments(pendingInstallments.map(inst => inst.id));
+    
+    setConfirmDialogOpen(true);
+  };
+  
   // Fechar diálogo
   const closeConfirmDialog = () => {
     setConfirmDialogOpen(false);
     setSelectedInstallment(null);
+    setShowMultiConfirm(false);
+    setSelectedInstallments([]);
   };
   
-  // Confirmar pagamento
+  // Confirmar pagamento de uma única parcela
   const handleConfirmPayment = () => {
-    if (!selectedInstallment || !paymentDateStr || !paymentMethodId) return;
+    if (!selectedInstallment && !showMultiConfirm) return;
+    if (!paymentDateStr || !paymentMethodId) return;
     
     // Usar exatamente o que o usuário digitou sem conversões automáticas
     console.log(`📅 Enviando data exatamente como digitada: "${paymentDateStr}"`);
     
-    confirmPaymentMutation.mutate({
-      installmentId: selectedInstallment.id,
-      paymentDate: paymentDateStr, // Enviar exatamente o que o usuário digitou
-      notes: paymentNotes,
-      paymentMethodId
-    });
+    if (showMultiConfirm && selectedInstallments.length > 0) {
+      // Confirmar múltiplas parcelas sequencialmente
+      const currentInstallment = pendingInstallments.find(inst => inst.id === selectedInstallments[0]);
+      
+      if (currentInstallment) {
+        confirmPaymentMutation.mutate({
+          installmentId: currentInstallment.id,
+          paymentDate: paymentDateStr,
+          notes: paymentNotes,
+          paymentMethodId
+        });
+      }
+    } else if (selectedInstallment) {
+      // Confirmar uma parcela única
+      confirmPaymentMutation.mutate({
+        installmentId: selectedInstallment.id,
+        paymentDate: paymentDateStr,
+        notes: paymentNotes,
+        paymentMethodId
+      });
+    }
   };
   
   // Observação: Estamos focando em corrigir a exibição das parcelas existentes
   // em vez de criar funcionalidades para recriar as parcelas
+  
+  // Estado para seleção múltipla de parcelas
+  const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
+  const [showMultiConfirm, setShowMultiConfirm] = useState(false);
   
   // Verificar se todas as parcelas estão pagas
   // Não verificamos mais se TODAS as parcelas estão pagas, apenas se existem parcelas
   const allPaid = installments.length > 0 && installments.every((item: any) => item.status === 'paid');
   // Flag para controlar se há pelo menos uma parcela pendente
   const hasPendingInstallments = installments.some((item: any) => item.status === 'pending');
+  // Obter a lista de parcelas pendentes
+  const pendingInstallments = installments.filter((item: any) => item.status === 'pending');
   
   if (isLoading) {
     return (
@@ -255,6 +303,19 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {hasPendingInstallments && canManage && (
+            <div className="mb-4 flex justify-end">
+              <Button 
+                onClick={openMultiConfirmDialog}
+                variant="outline"
+                className="text-green-600 border-green-600 hover:bg-green-50"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirmar Todas Pendentes
+              </Button>
+            </div>
+          )}
+          
           <Table>
             <TableHeader>
               <TableRow>
@@ -270,7 +331,6 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                 <TableRow key={installment.id}>
                   <TableCell>{installment.installmentNumber}</TableCell>
                   <TableCell>
-                    {console.log(`🔍 DEPURAÇÃO: Parcela #${installment.installmentNumber}, data: ${installment.dueDate}, tipo: ${typeof installment.dueDate}`)}
                     {formatDate(installment.dueDate)}
                   </TableCell>
                   <TableCell>{formatCurrency(installment.amount)}</TableCell>
