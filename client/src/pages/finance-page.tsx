@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { convertToSafeUser } from "@/components/finance/finance-types";
-import { exportToExcel, exportToPDF } from "@/components/finance/python-like-export";
+import { exportToExcel, exportToPDF } from "@/components/finance/table-based-export";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -230,11 +230,11 @@ export default function FinancePage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Escolha o formato</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportToExcel(salesData?.data || [])}>
+                <DropdownMenuItem onClick={() => exportToExcel()}>
                   <FileText className="h-4 w-4 mr-2" />
                   Excel
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportToPDF(salesData?.data || [])}>
+                <DropdownMenuItem onClick={() => exportToPDF()}>
                   <FileText className="h-4 w-4 mr-2" />
                   PDF
                 </DropdownMenuItem>

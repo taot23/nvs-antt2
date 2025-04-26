@@ -241,7 +241,7 @@ export default function FinanceSalesTable({
       <CardContent className="p-4">
         <div className="rounded-md border">
           <div className="overflow-x-auto">
-            <Table className="w-full min-w-[1200px]">
+            <Table className="w-full min-w-[1200px] finance-table">
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead 
