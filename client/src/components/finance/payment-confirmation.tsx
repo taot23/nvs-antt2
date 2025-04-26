@@ -68,8 +68,9 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const queryClient = useQueryClient();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
-  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
-  const [paymentDateStr, setPaymentDateStr] = useState<string>(formatDateToBR(new Date()));
+  // Inicializar com string vazia para forçar o usuário a digitar a data
+  const [paymentDate, setPaymentDate] = useState<string>("");
+  const [paymentDateStr, setPaymentDateStr] = useState<string>("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   
@@ -384,63 +385,13 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                 placeholder="dd/mm/aaaa"
                 value={paymentDateStr}
                 onChange={(e) => {
+                  // Usar exatamente o que o usuário digitou, sem conversões
                   setPaymentDateStr(e.target.value);
+                  setPaymentDate(e.target.value);
+                  console.log(`🔍 Usuário digitou a data: "${e.target.value}" - Usando exatamente este valor`);
                   
-                  // Tentamos converter a data para um objeto Date apenas se tiver formato válido
-                  try {
-                    // Logging para depuração
-                    console.log(`🔍 Entrada de data do usuário: "${e.target.value}"`);
-                    
-                    // Se o formato for dd/mm/aaaa
-                    if (/^\d{2}\/\d{2}\/\d{4}$/.test(e.target.value)) {
-                      const [day, month, year] = e.target.value.split('/');
-                      
-                      // Criando data no formato YYYY-MM-DD para evitar problemas de fuso horário
-                      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                      console.log(`🔍 Data formatada: ${formattedDate}`);
-                      
-                      // Criar a data
-                      const newDate = new Date(formattedDate + 'T00:00:00.000Z');
-                      
-                      if (!isNaN(newDate.getTime())) {
-                        console.log(`🔍 Data convertida: ${newDate.toISOString()}`);
-                        setPaymentDate(formattedDate);
-                      }
-                    } 
-                    // Se o formato for aaaa-mm-dd
-                    else if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) {
-                      // Usar diretamente o formato YYYY-MM-DD pois já está correto
-                      const formattedDate = e.target.value;
-                      console.log(`🔍 Data formatada (ISO): ${formattedDate}`);
-                      
-                      // Criar a data
-                      const newDate = new Date(formattedDate + 'T00:00:00.000Z');
-                      
-                      if (!isNaN(newDate.getTime())) {
-                        console.log(`🔍 Data convertida (ISO): ${newDate.toISOString()}`);
-                        setPaymentDate(formattedDate);
-                      }
-                    }
-                    // Se for uma data em formato livre com traços (dd-mm-aaaa)
-                    else if (/^\d{2}-\d{2}-\d{4}$/.test(e.target.value)) {
-                      const [day, month, year] = e.target.value.split('-');
-                      
-                      // Criando data no formato YYYY-MM-DD para evitar problemas de fuso horário
-                      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                      console.log(`🔍 Data formatada (traços): ${formattedDate}`);
-                      
-                      // Criar a data
-                      const newDate = new Date(formattedDate + 'T00:00:00.000Z');
-                      
-                      if (!isNaN(newDate.getTime())) {
-                        console.log(`🔍 Data convertida (traços): ${newDate.toISOString()}`);
-                        setPaymentDate(formattedDate);
-                      }
-                    }
-                  } catch (error) {
-                    // Se falhar, apenas mantém a string mas não atualiza o objeto Date
-                    console.log('Formato de data inválido', error);
-                  }
+                  // Não vamos mais converter para formato ISO ou Date
+                  // Isso garante que a data digitada pelo usuário seja preservada exatamente como está
                 }}
               />
               <p className="text-xs text-muted-foreground">
