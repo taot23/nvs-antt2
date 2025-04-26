@@ -215,7 +215,7 @@ export interface IStorage {
   confirmInstallmentPayment(
     installmentId: number,
     userId: number,
-    paymentDate: Date,
+    paymentDate: string, // Alterado para string para preservar exatamente o formato digitado pelo usuário
     receiptData?: { type: string; url?: string; data?: any; notes?: string },
   ): Promise<SaleInstallment | undefined>;
 
@@ -2102,7 +2102,7 @@ export class DatabaseStorage implements IStorage {
   async confirmInstallmentPayment(
     installmentId: number,
     userId: number,
-    paymentDate: Date | string,
+    paymentDate: string, // Aceitar apenas string para evitar conversões automáticas
     receiptData?: { type: string; url?: string; data?: any; notes?: string },
   ): Promise<SaleInstallment | undefined> {
     // Obter parcela
@@ -2110,18 +2110,14 @@ export class DatabaseStorage implements IStorage {
     if (!installment) return undefined;
 
     // Processar a data de pagamento para garantir formato correto
-    // Se for um objeto Date, extrair apenas a parte da data no formato YYYY-MM-DD
-    // Se for uma string, garantir que está no formato YYYY-MM-DD
-    let formattedPaymentDate: string;
+    // Importante: Mantemos a data exatamente como foi enviada do frontend
+    // apenas removendo a parte do timezone se existir (T00:00:00.000Z)
+    let formattedPaymentDate: string = paymentDate;
 
-    if (typeof paymentDate === "string") {
-      // Se já for string, remover qualquer componente de tempo
-      formattedPaymentDate = paymentDate.includes("T")
-        ? paymentDate.split("T")[0]
-        : paymentDate;
-    } else {
-      // Se for Date, extrair apenas a parte da data no formato YYYY-MM-DD
-      formattedPaymentDate = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, "0")}-${String(paymentDate.getDate()).padStart(2, "0")}`;
+    // Se a data contiver o caractere 'T' (formato ISO), remover a parte do timezone
+    if (paymentDate.includes("T")) {
+      formattedPaymentDate = paymentDate.split("T")[0];
+      console.log(`📅 Removendo parte timezone da data: ${formattedPaymentDate}`);
     }
 
     console.log(
@@ -2129,6 +2125,8 @@ export class DatabaseStorage implements IStorage {
     );
 
     console.log(`🔄 USANDO SQL NATIVO para garantir preservação exata de data: ${formattedPaymentDate}`);
+    
+    let parsedInstallment: SaleInstallment | undefined;
     
     try {
       // Importar pool para usar SQL nativo
@@ -2155,7 +2153,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`📅 Data de pagamento salva: ${updatedInstallment.payment_date}`);
       
       // Mapear para o formato esperado
-      const parsedInstallment = {
+      parsedInstallment = {
         id: updatedInstallment.id,
         saleId: updatedInstallment.sale_id,
         installmentNumber: updatedInstallment.installment_number,
@@ -2168,40 +2166,40 @@ export class DatabaseStorage implements IStorage {
         updatedAt: updatedInstallment.updated_at
       };
       
-    } catch (sqlError) {
+      // Se temos dados de comprovante, registrá-lo
+      if (receiptData) {
+        await this.createSalePaymentReceipt({
+          installmentId,
+          receiptType: receiptData.type,
+          receiptUrl: receiptData.url || null,
+          receiptData: receiptData.data ? receiptData.data : null,
+          confirmedBy: userId,
+          notes: receiptData.notes || null,
+        });
+      }
+
+      // Verificar se todas as parcelas desta venda estão pagas
+      const saleId = installment.saleId;
+      const allInstallments = await this.getSaleInstallments(saleId);
+      const allPaid = allInstallments.every((inst) => inst.status === "paid");
+
+      // Se todas estiverem pagas, atualizar o status financeiro da venda
+      if (allPaid) {
+        await this.markSaleAsPaid(saleId, userId);
+      } else {
+        // Caso contrário, definir como parcialmente pago
+        await db
+          .update(sales)
+          .set({
+            financialStatus: "partial",
+            updatedAt: new Date(),
+          })
+          .where(eq(sales.id, saleId));
+      }
+      
+    } catch (sqlError: any) {
       console.error(`❌ Erro ao confirmar pagamento de parcela via SQL nativo:`, sqlError);
       throw new Error(`Falha ao confirmar pagamento de parcela: ${sqlError.message}`);
-    }
-
-    // Se temos dados de comprovante, registrá-lo
-    if (receiptData) {
-      await this.createSalePaymentReceipt({
-        installmentId,
-        receiptType: receiptData.type,
-        receiptUrl: receiptData.url || null,
-        receiptData: receiptData.data ? receiptData.data : null,
-        confirmedBy: userId,
-        notes: receiptData.notes || null,
-      });
-    }
-
-    // Verificar se todas as parcelas desta venda estão pagas
-    const saleId = installment.saleId;
-    const allInstallments = await this.getSaleInstallments(saleId);
-    const allPaid = allInstallments.every((inst) => inst.status === "paid");
-
-    // Se todas estiverem pagas, atualizar o status financeiro da venda
-    if (allPaid) {
-      await this.markSaleAsPaid(saleId, userId);
-    } else {
-      // Caso contrário, definir como parcialmente pago
-      await db
-        .update(sales)
-        .set({
-          financialStatus: "partial",
-          updatedAt: new Date(),
-        })
-        .where(eq(sales.id, saleId));
     }
 
     return parsedInstallment;
