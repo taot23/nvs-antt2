@@ -315,25 +315,35 @@ export default function FinanceSalesTable({
                 {/* Quando usar status financeiro, mostrar colunas financeiras */}
                 {usesFinancialStatus && (
                   <>
+                    {/* Colunas separadas para desktop */}
                     <TableHead 
-                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      className="cursor-pointer whitespace-nowrap hidden lg:table-cell"
                     >
                       <div className="flex items-center space-x-1">
                         <span>Valor Pago</span>
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      className="cursor-pointer whitespace-nowrap hidden lg:table-cell"
                     >
                       <div className="flex items-center space-x-1">
                         <span>Custos</span>
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="cursor-pointer whitespace-nowrap hidden md:table-cell"
+                      className="cursor-pointer whitespace-nowrap hidden lg:table-cell"
                     >
                       <div className="flex items-center space-x-1">
                         <span>Resultado</span>
+                      </div>
+                    </TableHead>
+                    
+                    {/* Coluna resumida para mobile */}
+                    <TableHead 
+                      className="cursor-pointer whitespace-nowrap lg:hidden"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Financeiro</span>
                       </div>
                     </TableHead>
                   </>
@@ -376,17 +386,18 @@ export default function FinanceSalesTable({
                   {/* Colunas financeiras */}
                   {usesFinancialStatus && sale.financialSummary && (
                     <>
-                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                      {/* Versão para desktop - colunas separadas */}
+                      <TableCell className="font-medium whitespace-nowrap hidden lg:table-cell">
                         <span className="text-green-600">
                           {formatCurrency(sale.financialSummary.totalPaid)}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                      <TableCell className="font-medium whitespace-nowrap hidden lg:table-cell">
                         <span className="text-red-600">
                           {formatCurrency(sale.financialSummary.totalCosts)}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap hidden md:table-cell">
+                      <TableCell className="font-medium whitespace-nowrap hidden lg:table-cell">
                         <div className="flex items-center">
                           <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>
                             {formatCurrency(sale.financialSummary.netResult)}
@@ -396,6 +407,35 @@ export default function FinanceSalesTable({
                           ) : (
                             <ArrowDown className="h-3 w-3 ml-1 text-red-600" />
                           )}
+                        </div>
+                      </TableCell>
+                      
+                      {/* Versão para mobile - resumo financeiro compacto */}
+                      <TableCell className="font-medium lg:hidden">
+                        <div className="flex flex-col gap-1 text-xs">
+                          <div className="flex items-center">
+                            <span className="text-muted-foreground mr-1">Pago:</span>
+                            <span className="text-green-600 font-medium">
+                              {formatCurrency(sale.financialSummary.totalPaid)}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-muted-foreground mr-1">Custos:</span>
+                            <span className="text-red-600 font-medium">
+                              {formatCurrency(sale.financialSummary.totalCosts)}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-muted-foreground mr-1">Resultado:</span>
+                            <span className={sale.financialSummary.netResult >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                              {formatCurrency(sale.financialSummary.netResult)}
+                              {sale.financialSummary.netResult >= 0 ? (
+                                <ArrowUp className="h-3 w-3 ml-1 inline text-green-600" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3 ml-1 inline text-red-600" />
+                              )}
+                            </span>
+                          </div>
                         </div>
                       </TableCell>
                     </>
