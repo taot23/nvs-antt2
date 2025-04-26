@@ -2743,7 +2743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair dados do corpo da requisição
-      const { description, amount, date, notes, serviceProviderId } = req.body;
+      const { description, amount, date, notes, serviceProviderId, costTypeId } = req.body;
       
       // A descrição não é mais obrigatória, já que pode ser vazia
       // Apenas garantir que seja uma string no restante do código
@@ -2767,7 +2767,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: amount.toString(),
         date: date ? date : new Date().toISOString(),
         responsibleId: req.user!.id,
-        notes: notes || null
+        notes: notes || null,
+        costTypeId: costTypeId || null // Incluindo o tipo de custo, pode ser null se não especificado
       };
       
       // Adicionar prestador de serviço se for SINDICATO
@@ -2777,6 +2778,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           costData.serviceProviderId = serviceProviderIdNum;
         }
       }
+      
+      console.log("Criando custo operacional com dados:", JSON.stringify(costData));
       
       // Criar o custo operacional
       const cost = await storage.createSaleOperationalCost(costData);
