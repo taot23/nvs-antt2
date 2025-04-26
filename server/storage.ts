@@ -2300,7 +2300,7 @@ export class DatabaseStorage implements IStorage {
          RETURNING *`,
         [
           data.saleId,
-          data.description || "",
+          data.description || " ", // Usando espaço em branco em vez de string vazia
           data.costTypeId,
           data.amount,
           date,
@@ -2345,7 +2345,7 @@ export class DatabaseStorage implements IStorage {
       // Para cada campo que pode ser atualizado
       if (data.description !== undefined) {
         updates.push(`description = $${paramIndex++}`);
-        values.push(data.description);
+        values.push(data.description || " "); // Usando espaço em branco em vez de string vazia
       }
 
       if (data.costTypeId !== undefined) {

@@ -3221,13 +3221,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Adicionar o ID da venda e do usuário responsável aos dados
-      // Garantir que description tenha ao menos um valor vazio se não for fornecido
+      // Garantir que description tenha ao menos um valor texto (não pode ser null)
+      // Usando " " (espaço em branco) para evitar erro de validação no banco
       const operationalCostData = {
         ...req.body,
         saleId: id,
         responsibleId: req.user?.id || 1,
-        description: req.body.description || ""
+        description: req.body.description || " " // Usando espaço em branco em vez de string vazia
       };
+      
+      console.log("Criando custo operacional com dados:", JSON.stringify(operationalCostData));
       
       // Criar o custo operacional
       const operationalCost = await storage.createSaleOperationalCost(operationalCostData);
@@ -3241,6 +3244,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(operationalCost);
     } catch (error) {
       console.error("Erro ao criar custo operacional:", error);
+      
+      // Fornecer detalhes mais específicos sobre o erro
+      if (error instanceof Error) {
+        return res.status(400).json({ 
+          error: "Erro ao criar custo operacional", 
+          message: error.message 
+        });
+      }
+      
       res.status(500).json({ error: "Erro ao criar custo operacional" });
     }
   });
@@ -3267,10 +3279,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Custo operacional não encontrado" });
       }
       
-      // Garantir que description tenha ao menos um valor vazio se não for fornecido
+      // Garantir que description tenha ao menos um valor texto (não pode ser null)
+      // Usando " " (espaço em branco) para evitar erro de validação no banco 
       const updateData = {
         ...req.body,
-        description: req.body.description || ""
+        description: req.body.description || " "
       };
       
       // Atualizar o custo operacional
