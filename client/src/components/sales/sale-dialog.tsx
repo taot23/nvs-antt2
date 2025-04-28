@@ -500,53 +500,124 @@ export default function SaleDialog({
     }
   }, [form, sale, fields, remove, append]);
   
-  // Controle de inicialização para impedir múltiplas atualizações
+  // Controle para execução única da atualização de itens
   const itemsWereProcessed = useRef(false);
+  const [renderReady, setRenderReady] = useState(false);
   
-  // Efeito para monitorar mudanças nos itens e atualizar o formulário
+  // Efeito separado para preparar o formulário com os itens iniciais - executado uma única vez
   useEffect(() => {
-    console.log("📊 Monitorando saleItems:", { 
-      open, 
-      saleId: sale?.id || saleId,
-      itemsLength: saleItems?.length || 0,
-      isLoadingItems,
-      itemsWereProcessed: itemsWereProcessed.current
-    });
-    
-    // Só atualiza os itens se:
-    // 1. O diálogo estiver aberto
-    // 2. Os dados da venda estiverem disponíveis
-    // 3. Os itens estiverem carregados
-    // 4. Não estiver no processo de carregamento
-    // 5. Não tivermos já processado os itens para este conjunto de dados
+    // Garantimos que só vai executar uma vez para esta combinação específica de venda/itens
     if (open && sale && saleItems && saleItems.length > 0 && !isLoadingItems && !itemsWereProcessed.current) {
-      console.log("📦 Itens da venda carregados, atualizando formulário");
-      console.log("📦 Itens disponíveis:", JSON.stringify(saleItems));
+      console.log("📦 FASE ÚNICA: Carregando itens iniciais, ID da venda:", sale.id);
       
-      // Marcar que já processamos este conjunto de itens para evitar múltiplas atualizações
+      // Marca a flag para impedir múltiplas execuções
       itemsWereProcessed.current = true;
       
-      // Usamos requestAnimationFrame para garantir sincronização com a renderização
-      requestAnimationFrame(() => {
-        updateFormItems(saleItems);
-        
-        // Verificamos se os itens foram realmente adicionados ao formulário
-        const formItems = form.getValues("items");
-        console.log("📦 Verificação pós-atualização: ", {
-          formItemsLength: formItems?.length || 0,
-          fieldsLength: fields.length,
-          sourceItemsLength: saleItems.length
+      // Define que ainda não está pronto para renderizar
+      setRenderReady(false);
+      
+      // Preparar os dados dos itens antecipadamente
+      const preparedItems = saleItems.map((item: SaleItem) => ({
+        serviceId: item.serviceId,
+        serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+        quantity: item.quantity || 1,
+        notes: item.notes || "",
+        price: item.price || "0",
+        totalPrice: item.totalPrice || item.price || "0",
+        status: "pending"
+      }));
+      
+      // Definir os itens no formulário diretamente
+      form.setValue("items", preparedItems);
+      
+      // Limpar os campos existentes
+      const currentItems = fields || [];
+      if (currentItems.length > 0) {
+        for (let i = currentItems.length - 1; i >= 0; i--) {
+          remove(i);
+        }
+      }
+      
+      // Agendar a adição dos novos itens após a limpeza
+      setTimeout(() => {
+        // Adicionar cada item com um pequeno intervalo para evitar problemas de renderização
+        preparedItems.forEach((item, index) => {
+          setTimeout(() => {
+            append(item);
+            
+            // Quando todos os itens forem adicionados, marcar como pronto para renderizar
+            if (index === preparedItems.length - 1) {
+              setTimeout(() => {
+                console.log("✅ FASE ÚNICA: Todos os itens adicionados com sucesso");
+                setRenderReady(true);
+              }, 50);
+            }
+          }, index * 10); // Pequeno delay entre cada item
         });
-      });
+      }, 50);
     }
     
-    // Quando o diálogo fechar ou os itens mudarem, resetar o flag para permitir nova atualização
+    // Limpar o estado quando o diálogo for fechado
     return () => {
-      if (!open || (saleItems && saleItems.length === 0)) {
+      if (!open) {
         itemsWereProcessed.current = false;
+        setRenderReady(false);
       }
     };
-  }, [saleItems, open, sale, isLoadingItems, updateFormItems, form, fields.length, saleId]);
+  }, [sale?.id, saleItems, open, isLoadingItems]);
+  
+  // Função auxiliar para obter o nome do serviço pelo ID
+  const getServiceNameById = (serviceId: number): string => {
+    const service = services.find((s: any) => s.id === serviceId);
+    return service ? service.name : `Serviço #${serviceId}`;
+  };
+  
+  // Função auxiliar para obter o nome do tipo de serviço pelo ID
+  const getServiceTypeNameById = (serviceTypeId: number): string => {
+    const serviceType = serviceTypes.find((t: any) => t.id === serviceTypeId);
+    return serviceType ? serviceType.name : `Tipo #${serviceTypeId}`;
+  };
+
+  // Renderização condicional para os itens
+  const renderItems = () => {
+    if (!renderReady) {
+      return (
+        <div className="py-4 text-center">
+          <div className="animate-pulse flex space-x-4 justify-center">
+            <div className="h-6 w-6 bg-slate-200 rounded-full"></div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">Carregando itens...</p>
+        </div>
+      );
+    }
+    
+    return (
+      <>
+        {fields.map((field: any, index: number) => (
+          <div key={field.id} className="flex items-center justify-between space-x-2 p-2 bg-muted/30 rounded-md">
+            <div className="flex-1 overflow-hidden">
+              <p className="font-medium truncate">
+                {getServiceNameById(field.serviceId)} 
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Qtd: {field.quantity} | Tipo: {getServiceTypeNameById(field.serviceTypeId || 1)} 
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive"
+              onClick={() => remove(index)}
+              disabled={isSubmitting}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </>
+    );
+  };
   
   // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
@@ -2343,18 +2414,10 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* Componente aprimorado de itens da venda */}
-              <SaleItemsFix
-                fields={fields}
-                form={form}
-                remove={remove}
-                services={services}
-                serviceTypes={serviceTypes}
-                saleItems={saleItems}
-                isLoadingItems={isLoadingItems}
-                readOnly={readOnly}
-                updateFormItems={updateFormItems}
-              />
+              {/* Lista de itens da venda */}
+              <div className="space-y-2 max-h-52 overflow-y-auto">
+                {renderItems()}
+              </div>
             </div>
             
             <DialogFooter className="mt-8 flex items-center justify-end gap-2">
