@@ -10,6 +10,7 @@ export interface FinancialSummary {
   totalAmount: number;
   totalPaid: number;
   totalPending: number;
+  totalToReceive: number; // Valor a receber (soma das parcelas não pagas)
   totalCosts: number;
   netResult: number;
 }

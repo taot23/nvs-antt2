@@ -1153,6 +1153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalPaid = parseFloat(row.total_paid || "0");
         const totalCosts = parseFloat(row.total_costs || "0");
         
+        // Calcular o valor a receber (valor total - valor pago)
+        const totalToReceive = totalAmount - totalPaid;
+        
         // Calcular o resultado líquido
         const netResult = totalAmount - totalCosts;
         
@@ -1177,7 +1180,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: row.updated_at,
           // Adicionar resumo financeiro quando solicitado pelo financeiro ou explicitamente pelo parâmetro includeSummary
           financialSummary: (financialStatus !== undefined || includeSummary) ? {
+            totalAmount,
             totalPaid,
+            totalToReceive,
+            totalPending: totalToReceive, // Para manter compatibilidade com código existente
             totalCosts,
             netResult
           } : undefined

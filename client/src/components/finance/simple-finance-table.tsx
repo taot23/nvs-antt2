@@ -147,7 +147,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
 
               {usesFinancialStatus && (
                 <>
-                  <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('totalPaid')}>
+                  <TableHead className="w-[9%] cursor-pointer" onClick={() => toggleSort('totalPaid')}>
                     <div className="flex items-center">
                       Valor Pago
                       {sortField === 'totalPaid' && (
@@ -157,7 +157,17 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="w-[9%] cursor-pointer" onClick={() => toggleSort('totalCosts')}>
+                  <TableHead className="w-[9%] cursor-pointer" onClick={() => toggleSort('totalToReceive')}>
+                    <div className="flex items-center">
+                      A Receber
+                      {sortField === 'totalToReceive' && (
+                        sortDirection === 'asc' 
+                          ? <SortAsc className="ml-1 h-4 w-4" /> 
+                          : <SortDesc className="ml-1 h-4 w-4" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[8%] cursor-pointer" onClick={() => toggleSort('totalCosts')}>
                     <div className="flex items-center">
                       Custos
                       {sortField === 'totalCosts' && (
@@ -167,7 +177,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('netResult')}>
+                  <TableHead className="w-[9%] cursor-pointer" onClick={() => toggleSort('netResult')}>
                     <div className="flex items-center">
                       Resultado
                       {sortField === 'netResult' && (
@@ -260,6 +270,11 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                       <TableCell>
                         <span className="text-green-600">
                           {sale.financialSummary ? `R$ ${parseFloat(sale.financialSummary.totalPaid.toString()).toFixed(2).replace('.', ',')}` : 'R$ 0,00'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-blue-600 font-medium">
+                          {sale.financialSummary ? `R$ ${parseFloat(sale.financialSummary.totalToReceive.toString()).toFixed(2).replace('.', ',')}` : 'R$ 0,00'}
                         </span>
                       </TableCell>
                       <TableCell>
