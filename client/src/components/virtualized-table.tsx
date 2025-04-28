@@ -280,8 +280,16 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
         <DevolveButton sale={sale} />
       </div>
       
-      {user?.role === "financeiro" || user?.role === "admin" ? (
-        sale.status === "completed" && sale.financialStatus !== "paid" ? (
+      {/* Permissão para marcar como paga (financeiro/admin) - apenas em páginas financeiras */}
+      {(user?.role === "financeiro" || user?.role === "admin") && 
+        sale.status === "completed" && 
+        sale.financialStatus !== "paid" && 
+        // Verificar se estamos na interface financeira
+        (
+          usesFinancialStatus === true || 
+          window.location.pathname.includes('/finance') || 
+          window.location.pathname.includes('/financeiro')
+        ) ? (
           <Button
             variant="ghost"
             size="icon"
@@ -291,8 +299,7 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
           >
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </Button>
-        ) : null
-      ) : null}
+        ) : null}
       
       {user?.role === "admin" && (
         <Button
