@@ -380,11 +380,34 @@ export default function SaleDialog({
     }
   }, [form.watch("installments"), firstDueDate]);
   
+  // Efeito para monitorar quando a venda muda ou o ID muda
+  useEffect(() => {
+    if (sale) {
+      console.log("🚨 Venda mudou:", sale);
+      console.log("🚨 Valor de date:", sale.date);
+      console.log("🚨 Valor de orderNumber:", sale.orderNumber);
+      console.log("🚨 Valor de customerId:", sale.customerId);
+      console.log("🚨 Tipo de date:", typeof sale.date);
+    } else {
+      console.log("🚨 Venda ainda não está disponível");
+    }
+  }, [sale, saleId]);
+
   // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
     // Inicializamos o formulário SOMENTE quando a venda e os itens estão disponíveis
     if (open && !isLoadingSale && sale && !formInitialized.current) {
       console.log("📋 Inicializando formulário com dados da venda:", sale);
+      console.log("📋 Detalhes da venda para formulário:");
+      console.log("- orderNumber:", sale.orderNumber);
+      console.log("- date:", sale.date);
+      console.log("- customerId:", sale.customerId);
+      console.log("- paymentMethodId:", sale.paymentMethodId);
+      console.log("- serviceTypeId:", sale.serviceTypeId);
+      console.log("- sellerId:", sale.sellerId);
+      console.log("- totalAmount:", sale.totalAmount);
+      console.log("- installments:", sale.installments);
+      console.log("- items:", saleItems);
       
       // Reset imediato do formulário com dados da venda
       setTimeout(() => {
@@ -402,19 +425,24 @@ export default function SaleDialog({
               }))
             : [];
           
-          // Resetamos o formulário com os valores da venda
-          form.reset({
+          // Forçamos valores padrão para campos que podem estar nulos
+          const formValues = {
             orderNumber: sale.orderNumber || "",
             date: sale.date ? new Date(sale.date) : new Date(),
-            customerId: sale.customerId || 0,
-            paymentMethodId: sale.paymentMethodId || 1,
-            serviceTypeId: sale.serviceTypeId || 1,
-            sellerId: sale.sellerId || 1,
+            customerId: Number(sale.customerId) || 0,
+            paymentMethodId: Number(sale.paymentMethodId) || 1,
+            serviceTypeId: Number(sale.serviceTypeId) || 1,
+            sellerId: Number(sale.sellerId) || 1,
             totalAmount: sale.totalAmount || "0",
-            installments: sale.installments || 1,
+            installments: Number(sale.installments) || 1,
             notes: sale.notes || "",
             items: formattedItems
-          });
+          };
+          
+          console.log("📋 Valores a serem usados no formulário:", formValues);
+          
+          // Resetamos o formulário com os valores da venda
+          form.reset(formValues);
           
           console.log("📋 Formulário resetado com valores:", {
             orderNumber: sale.orderNumber,
