@@ -1951,36 +1951,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Atualizar itens da venda se fornecidos
-      if (items && items.length > 0) {
-        try {
-          // Primeiro, excluir os itens existentes
-          await pool.query(`DELETE FROM sale_items WHERE sale_id = $1`, [id]);
-          
-          console.log(`🔄 Itens anteriores da venda #${id} excluídos. Adicionando ${items.length} novos itens.`);
-          
-          // Agora, inserir os novos itens
-          for (const item of items) {
-            await pool.query(
-              `INSERT INTO sale_items (
-                sale_id, service_id, service_type_id, quantity, price, notes
-              ) VALUES ($1, $2, $3, $4, $5, $6)`,
-              [
-                id,
-                item.serviceId,
-                item.serviceTypeId || serviceTypeId || sale.service_type_id,
-                item.quantity || 1,
-                item.price || '0',
-                item.notes || null
-              ]
-            );
-          }
-          
-          console.log(`✅ Atualizados ${items.length} itens para a venda #${id}`);
-        } catch (error) {
-          console.error(`❌ Erro ao atualizar itens da venda #${id}:`, error);
-          // Não interrompemos o fluxo aqui, apenas logamos o erro
-        }
-      }
+      // IMPORTANTE: Não manipulamos os itens durante o reenvio para evitar duplicação
+      // Os itens existentes permanecerão no banco de dados exatamente como estão
+      console.log(`🔄 Venda #${id} reenviada sem manipular itens para evitar duplicação`);
+      
+      // Registrar no histórico a mudança de status
+      await storage.createSalesStatusHistory({
+        saleId: id,
+        fromStatus: 'returned',
+        toStatus: 'corrected',
+        userId: req.user!.id,
+        notes: correctionNotes || "Venda corrigida e reenviada"
+      });
       
       // Atualizar parcelas se a forma de pagamento foi alterada ou o número de parcelas mudou
       if (paymentMethodId !== undefined || installments !== undefined) {
