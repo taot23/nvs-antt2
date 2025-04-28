@@ -44,39 +44,51 @@ export function currencyToNumber(value: string): number {
 export function formatDate(date: Date | string | null): string {
   if (!date) return '';
   
-  console.log(`📅 formatDate recebeu: "${date}", tipo: ${typeof date}`);
-  
   // Se for string no formato 'YYYY-MM-DD' (ISO sem tempo)
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    console.log(`📅 Detectado formato ISO YYYY-MM-DD: ${date}`);
+    // Extrair components diretamente sem criar objeto Date
+    // para evitar problemas de timezone
     const [year, month, day] = date.split('-');
     return `${day}/${month}/${year}`;
   }
   
   // Para strings que possam conter o formato ISO com timezone (T00:00:00.000Z)
   if (typeof date === 'string' && date.includes('T')) {
-    console.log(`📅 Detectado formato ISO com timezone: ${date}`);
     // Extrair apenas a parte da data (YYYY-MM-DD)
     const datePart = date.split('T')[0];
     const [year, month, day] = datePart.split('-');
     return `${day}/${month}/${year}`;
   }
   
-  // Para outros formatos, tenta converter para Date
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  // Verifica se é uma data válida
-  if (isNaN(dateObj.getTime())) {
-    console.log(`⚠️ Data inválida recebida: ${date}, tipo: ${typeof date}`);
-    return '';
+  // Para formato brasileiro DD/MM/YYYY, retornar sem modificar
+  if (typeof date === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+    return date;
   }
   
-  // Formata como dd/mm/yyyy
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const year = dateObj.getFullYear();
+  // Para objetos Date, formatar com UTC para evitar problemas de timezone
+  if (date instanceof Date) {
+    // Converter para string YYYY-MM-DD usando UTC
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    
+    return `${day}/${month}/${year}`;
+  }
   
-  return `${day}/${month}/${year}`;
+  // Para outros casos, tentar extrair string ISO
+  try {
+    // Tentar extrair data de um formato string desconhecido
+    const tempDate = new Date(date as string);
+    
+    // Usar ISO String e pegar apenas a data
+    const isoDate = tempDate.toISOString().split('T')[0];
+    const [year, month, day] = isoDate.split('-');
+    
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    console.error("Erro ao formatar data:", e);
+    return '';
+  }
 }
 
 /**
