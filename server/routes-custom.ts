@@ -123,16 +123,15 @@ export function registerCustomRoutes(app: Express) {
             await pool.query(`
               INSERT INTO sale_items (
                 sale_id, service_id, service_type_id, quantity, price, 
-                total_price, notes, status, created_at
+                notes, created_at, updated_at
               ) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW())
+              VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
             `, [
               createdSale.id,
               item.serviceId,
               item.serviceTypeId || userData.serviceTypeId,
               item.quantity || 1,
               item.price || "0",
-              item.totalPrice || item.price || "0",
               item.notes || null
             ]);
           }
