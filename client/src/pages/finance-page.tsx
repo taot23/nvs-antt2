@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown, Loader2, UserIcon } from "lucide-react";
+import { Pencil, Search, DollarSign, BarChart4, Download, FileText, RefreshCw, ChevronDown, Loader2, User } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -222,9 +222,9 @@ export default function FinancePage() {
   };
 
   return (
-    <div className="container py-6 max-w-7xl">
+    <div className="container py-4 sm:py-6 max-w-7xl">
       
-      <div className="flex flex-col space-y-6">
+      <div className="flex flex-col space-y-4 sm:space-y-6">
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Módulo Financeiro</h1>

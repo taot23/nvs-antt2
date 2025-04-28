@@ -238,10 +238,10 @@ export default function FinanceSalesTable({
 
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-2 sm:p-4">
         <div className="rounded-md border">
           <div className="overflow-x-auto">
-            <Table className="w-full min-w-[1200px] finance-table">
+            <Table className="w-full finance-table">
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead 
@@ -411,12 +411,12 @@ export default function FinanceSalesTable({
               {sales.map((sale) => (
                 <TableRow key={sale.id} data-status={usesFinancialStatus ? sale.financialStatus : sale.status}>
                   <TableCell className="font-medium whitespace-nowrap">{sale.orderNumber}</TableCell>
-                  <TableCell className="whitespace-nowrap" style={{ maxWidth: "120px" }}>
+                  <TableCell className="whitespace-nowrap max-w-[120px] truncate">
                     <span title={sale.sellerName || `Vendedor #${sale.sellerId}`}>
                       {sale.sellerName || `Vendedor #${sale.sellerId}`}
                     </span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap" style={{ maxWidth: "150px" }}>
+                  <TableCell className="whitespace-nowrap max-w-[150px] truncate">
                     <span title={sale.customerName || `Cliente #${sale.customerId}`}>
                       {sale.customerName || `Cliente #${sale.customerId}`}
                     </span>
