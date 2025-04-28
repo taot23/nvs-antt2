@@ -1652,14 +1652,14 @@ export default function SalesPage() {
         </div>
         
         {/* Filtro de vendedor (versão desktop) */}
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Select
             value={selectedSellerId}
             onValueChange={handleSellerFilterChange}
           >
             <SelectTrigger>
               <div className="flex items-center space-x-2">
-                <UserIcon className="h-4 w-4" />
+                <User className="h-4 w-4" />
                 <SelectValue placeholder="Filtrar por vendedor" />
               </div>
             </SelectTrigger>

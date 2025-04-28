@@ -292,7 +292,7 @@ export default function FinancePage() {
             >
               <SelectTrigger className="max-w-[240px]">
                 <div className="flex items-center space-x-2">
-                  <UserIcon className="h-4 w-4" />
+                  <User className="h-4 w-4" />
                   <SelectValue placeholder="Filtrar por vendedor" />
                 </div>
               </SelectTrigger>
