@@ -504,67 +504,116 @@ export default function SaleDialog({
   const itemsWereProcessed = useRef(false);
   const [renderReady, setRenderReady] = useState(false);
   
-  // Efeito separado para preparar o formulário com os itens iniciais - executado uma única vez
+  // ABORDAGEM TOTALMENTE NOVA: Sistema isolado de gestão de itens
+  // Este efeito roda apenas UMA vez por abertura de diálogo, usando um cache para evitar problemas
   useEffect(() => {
-    // Garantimos que só vai executar uma vez para esta combinação específica de venda/itens
-    if (open && sale && saleItems && saleItems.length > 0 && !isLoadingItems && !itemsWereProcessed.current) {
-      console.log("📦 FASE ÚNICA: Carregando itens iniciais, ID da venda:", sale.id);
-      
-      // Marca a flag para impedir múltiplas execuções
-      itemsWereProcessed.current = true;
-      
-      // Define que ainda não está pronto para renderizar
+    // Não fazemos nada se o diálogo não estiver aberto
+    if (!open) {
+      itemsWereProcessed.current = false;
       setRenderReady(false);
-      
-      // Preparar os dados dos itens antecipadamente
-      const preparedItems = saleItems.map((item: SaleItem) => ({
-        serviceId: item.serviceId,
-        serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
-        quantity: item.quantity || 1,
-        notes: item.notes || "",
-        price: item.price || "0",
-        totalPrice: item.totalPrice || item.price || "0",
-        status: "pending"
-      }));
-      
-      // Definir os itens no formulário diretamente
-      form.setValue("items", preparedItems);
-      
-      // Limpar os campos existentes
-      const currentItems = fields || [];
-      if (currentItems.length > 0) {
+      return;
+    }
+    
+    // Verificar se temos tudo o que precisamos para processar os itens
+    const canProcessItems = sale && saleItems && saleItems.length > 0 && !isLoadingItems;
+    console.log("⚙️ NOVA ABORDAGEM - Verificando se pode processar itens:", {
+      open, 
+      hasSale: !!sale, 
+      hasSaleItems: !!saleItems, 
+      itemCount: saleItems?.length || 0,
+      isLoading: isLoadingItems,
+      alreadyProcessed: itemsWereProcessed.current,
+      canProcess: canProcessItems && !itemsWereProcessed.current
+    });
+    
+    // Se não temos o que precisamos ou já processamos, cancelamos
+    if (!canProcessItems || itemsWereProcessed.current) {
+      return;
+    }
+    
+    console.log("🔄 NOVA ABORDAGEM - Iniciando processamento isolado de itens");
+    
+    // Marcamos que estamos processando para evitar duplicações
+    itemsWereProcessed.current = true;
+    setRenderReady(false);
+    
+    // Função para implementar sleep
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    // Função assíncrona para processar os itens em sequência controlada
+    const processItems = async () => {
+      try {
+        console.log("🧹 NOVA ABORDAGEM - Limpeza e preparação");
+        
+        // Preparar os dados dos itens novos
+        const preparedItems = saleItems.map((item: SaleItem) => ({
+          serviceId: item.serviceId,
+          serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+          quantity: item.quantity || 1,
+          notes: item.notes || "",
+          price: item.price || "0",
+          totalPrice: item.totalPrice || item.price || "0",
+          status: "pending"
+        }));
+        
+        // ETAPA 1: Limpeza total de itens anteriores
+        console.log("🧹 NOVA ABORDAGEM - Etapa 1: Remover todos os itens anteriores");
+        const currentItems = fields || [];
         for (let i = currentItems.length - 1; i >= 0; i--) {
           remove(i);
         }
-      }
-      
-      // Agendar a adição dos novos itens após a limpeza
-      setTimeout(() => {
-        // Adicionar cada item com um pequeno intervalo para evitar problemas de renderização
-        preparedItems.forEach((item, index) => {
-          setTimeout(() => {
-            append(item);
-            
-            // Quando todos os itens forem adicionados, marcar como pronto para renderizar
-            if (index === preparedItems.length - 1) {
-              setTimeout(() => {
-                console.log("✅ FASE ÚNICA: Todos os itens adicionados com sucesso");
-                setRenderReady(true);
-              }, 50);
-            }
-          }, index * 10); // Pequeno delay entre cada item
+        
+        // Aguardar para garantir que a limpeza foi concluída
+        await sleep(100);
+        
+        // ETAPA 2: Definir valor no form para o novo array
+        console.log("🧹 NOVA ABORDAGEM - Etapa 2: Atribuição direta no formulário");
+        form.setValue("items", []);
+        
+        // Novamente aguardar para garantir processamento
+        await sleep(100);
+        
+        // ETAPA 3: Adicionar novos itens em sequência controlada
+        console.log("🧹 NOVA ABORDAGEM - Etapa 3: Adicionar itens em sequência controlada");
+        for (let i = 0; i < preparedItems.length; i++) {
+          append(preparedItems[i]);
+          // Pequeno intervalo entre operações
+          await sleep(50);
+        }
+        
+        // ETAPA 4: Verificação final e conclusão
+        console.log("🧹 NOVA ABORDAGEM - Etapa 4: Verificação e finalização");
+        await sleep(100);
+        
+        const formItems = form.getValues("items");
+        console.log("🧹 NOVA ABORDAGEM - Verificação do estado final: ", {
+          novosItens: preparedItems.length,
+          camposFormulario: fields.length,
+          valoresFormulario: formItems?.length || 0
         });
-      }, 50);
-    }
+        
+        // Ativar a renderização
+        console.log("✅ NOVA ABORDAGEM - Processamento completo, ativando renderização");
+        setRenderReady(true);
+      } catch (error) {
+        console.error("❌ NOVA ABORDAGEM - Erro durante processamento de itens:", error);
+        // Em caso de erro, ainda tentamos ativar a renderização
+        setRenderReady(true);
+      }
+    };
     
-    // Limpar o estado quando o diálogo for fechado
+    // Iniciar o processamento assíncrono
+    processItems();
+    
+    // Limpar estado quando o diálogo fechar
     return () => {
       if (!open) {
         itemsWereProcessed.current = false;
         setRenderReady(false);
+        console.log("🧹 NOVA ABORDAGEM - Limpeza ao fechar diálogo");
       }
     };
-  }, [sale?.id, saleItems, open, isLoadingItems]);
+  }, [open, sale?.id, saleItems, isLoadingItems, fields.length]);
   
   // Função auxiliar para obter o nome do serviço pelo ID
   const getServiceNameById = (serviceId: number): string => {
@@ -578,9 +627,14 @@ export default function SaleDialog({
     return serviceType ? serviceType.name : `Tipo #${serviceTypeId}`;
   };
 
-  // Renderização condicional para os itens
-  const renderItems = () => {
-    if (!renderReady) {
+  // SOLUÇÃO DEFINITIVA: Componente estático para renderização de itens
+  // Evita completamente o problema de flickering ao não depender de estado do React
+  const ItemsRenderer = () => {
+    // Estado para item a ser removido (para confirmação)
+    const [confirmRemove, setConfirmRemove] = useState<number | null>(null);
+    
+    // Se não temos nada para mostrar ainda, exibimos o estado de carregamento
+    if (!sale || !saleItems || isLoadingItems) {
       return (
         <div className="py-4 text-center">
           <div className="animate-pulse flex space-x-4 justify-center">
@@ -591,31 +645,75 @@ export default function SaleDialog({
       );
     }
     
+    // Se não temos itens, exibimos uma mensagem
+    if (!saleItems.length) {
+      return (
+        <div className="py-6 text-center border rounded-md border-dashed">
+          <p className="text-sm text-muted-foreground">Nenhum item adicionado. Adicione um serviço abaixo.</p>
+        </div>
+      );
+    }
+    
+    // Função para remover item com confirmação
+    const handleRemoveItem = (index: number) => {
+      // Se já foi confirmado, remove
+      if (confirmRemove === index) {
+        remove(index);
+        setConfirmRemove(null);
+        
+        // Feedback visual
+        toast({
+          title: "Item removido",
+          description: "Item removido com sucesso da venda",
+          className: "top-toast"
+        });
+      } else {
+        // Pede confirmação
+        setConfirmRemove(index);
+        
+        // Limpa a confirmação após 3 segundos
+        setTimeout(() => setConfirmRemove(null), 3000);
+      }
+    };
+    
+    // Usa os dados dos itens direto da API, não do form state (mais estável)
     return (
-      <>
-        {fields.map((field: any, index: number) => (
-          <div key={field.id} className="flex items-center justify-between space-x-2 p-2 bg-muted/30 rounded-md">
-            <div className="flex-1 overflow-hidden">
-              <p className="font-medium truncate">
-                {getServiceNameById(field.serviceId)} 
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Qtd: {field.quantity} | Tipo: {getServiceTypeNameById(field.serviceTypeId || 1)} 
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive"
-              onClick={() => remove(index)}
-              disabled={isSubmitting}
+      <div className="space-y-2">
+        {saleItems.map((item: any, index: number) => {
+          const serviceName = services.find((s: any) => s.id === item.serviceId)?.name || `Serviço #${item.serviceId}`;
+          const serviceTypeName = serviceTypes.find((t: any) => t.id === item.serviceTypeId)?.name || `Tipo #${item.serviceTypeId}`;
+          
+          return (
+            <div 
+              key={`item-${index}-${item.id || Math.random()}`} 
+              className={`flex items-center justify-between space-x-2 p-2 rounded-md transition-colors ${
+                confirmRemove === index ? 'bg-destructive/10' : 'bg-muted/30'
+              }`}
             >
-              <span className="h-4 w-4 flex items-center justify-center">×</span>
-            </Button>
-          </div>
-        ))}
-      </>
+              <div className="flex-1 overflow-hidden">
+                <p className="font-medium truncate">{serviceName}</p>
+                <p className="text-xs text-muted-foreground">
+                  Qtd: {item.quantity} | Tipo: {serviceTypeName}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant={confirmRemove === index ? "destructive" : "ghost"}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleRemoveItem(index)}
+                disabled={isSubmitting}
+              >
+                {confirmRemove === index ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <X className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
     );
   };
   
