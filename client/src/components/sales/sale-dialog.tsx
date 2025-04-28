@@ -2623,10 +2623,10 @@ export default function SaleDialog({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
+                    {originalStatus === "returned" ? "Reenviando..." : "Salvando..."}
                   </>
                 ) : (
-                  "Salvar"
+                  originalStatus === "returned" ? "Reenviar" : "Salvar"
                 )}
               </Button>
             </DialogFooter>
