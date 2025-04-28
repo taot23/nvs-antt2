@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save } from "lucide-react";
+import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
 
@@ -1368,6 +1368,37 @@ export default function SaleDialog({
       
       console.log("📅 Data a ser enviada:", formattedDate, "Tipo:", typeof formattedDate);
       
+      // Verifica se estamos editando uma venda devolvida e se as observações de correção foram preenchidas
+      if (originalStatus === "returned" && !correctionNotes.trim()) {
+        toast({
+          title: "Observações de correção obrigatórias",
+          description: "Para reenviar uma venda devolvida, é necessário informar quais correções foram realizadas.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Se a venda estava com status "returned", vamos atualizar o status para "corrected"
+      // e incluir as observações de correção no histórico
+      let updatedStatus = undefined;
+      let updatedNotes = values.notes;
+      
+      if (originalStatus === "returned") {
+        updatedStatus = "corrected";
+        
+        // Formatar data atual para o registro
+        const now = new Date();
+        const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        // Adicionar observações de correção no formato de histórico
+        if (values.notes) {
+          updatedNotes = `${values.notes}\n\n==== Correções realizadas em ${formattedTimestamp} ====\n${correctionNotes}`;
+        } else {
+          updatedNotes = `==== Correções realizadas em ${formattedTimestamp} ====\n${correctionNotes}`;
+        }
+      }
+      
       const correctedValues = {
         ...values,
         // Garante que o número da OS esteja definido
@@ -1376,6 +1407,9 @@ export default function SaleDialog({
         date: formattedDate,
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
+        // Atualiza o status e as observações se necessário
+        ...(updatedStatus && { status: updatedStatus }),
+        ...(updatedNotes !== values.notes && { notes: updatedNotes }),
         // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
         // Observe que estamos usando validatedInstallments diretamente e não values.installments
         installments: Number(validatedInstallments),
@@ -1433,13 +1467,31 @@ export default function SaleDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader className="mb-6">
           <DialogTitle className="text-2xl font-bold">
-            {sale ? "Editar Venda" : "Nova Venda"}
+            {sale ? (originalStatus === "returned" ? "Corrigir Venda Devolvida" : "Editar Venda") : "Nova Venda"}
           </DialogTitle>
           <DialogDescription>
             {sale 
-              ? "Atualize os dados da venda conforme necessário" 
+              ? (originalStatus === "returned" 
+                ? "Faça as correções necessárias e informe o que foi corrigido. Após salvar, a venda será reenviada." 
+                : "Atualize os dados da venda conforme necessário")
               : "Preencha os dados para criar uma nova venda"}
           </DialogDescription>
+          
+          {/* Alerta especial para vendas devolvidas */}
+          {originalStatus === "returned" && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-medium text-amber-800">Esta venda foi devolvida</h4>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Faça as correções necessárias, explique o que foi corrigido no campo especial abaixo e reenvie a venda.
+                    Após salvar, a venda terá seu status atualizado de "Devolvida" para "Corrigida".
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogHeader>
         
         <Form {...form}>
@@ -2073,6 +2125,26 @@ export default function SaleDialog({
                 </FormItem>
               )}
             />
+            
+            {/* Campo especial de observações para vendas devolvidas */}
+            {originalStatus === "returned" && (
+              <div className="space-y-2 mt-4 border-l-4 border-blue-600 pl-4 py-2 bg-blue-50 rounded-sm">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-blue-800">
+                    Correções Realizadas <span className="text-red-500">*</span>
+                  </label>
+                </div>
+                <Textarea 
+                  placeholder="Descreva as correções realizadas nesta venda antes de reenviar..."
+                  className="min-h-[80px] border-blue-200"
+                  value={correctionNotes}
+                  onChange={(e) => setCorrectionNotes(e.target.value)}
+                />
+                <p className="text-xs text-blue-700">
+                  Este campo é obrigatório. As correções informadas serão registradas no histórico da venda.
+                </p>
+              </div>
+            )}
             
             {/* Seção de Itens */}
             <div className="space-y-4">
