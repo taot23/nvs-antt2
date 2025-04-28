@@ -17,7 +17,11 @@ interface Sale {
   paymentMethodName?: string;
   sellerId: number;
   sellerName?: string;
+  serviceTypeId?: number;
+  serviceTypeName?: string;
   totalAmount: string;
+  installments: number;
+  installmentValue: string | null;
   status: string;
   executionStatus: string;
   financialStatus: string;

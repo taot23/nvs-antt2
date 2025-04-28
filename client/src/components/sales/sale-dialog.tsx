@@ -2383,6 +2383,35 @@ export default function SaleDialog({
                     return;
                   }
                   
+                  // Verifica se é uma venda devolvida sendo corrigida
+                  // e se as observações de correção foram preenchidas
+                  if (originalStatus === "returned" && !correctionNotes.trim()) {
+                    toast({
+                      title: "Observações de correção obrigatórias",
+                      description: "Descreva as correções realizadas antes de reenviar esta venda",
+                      variant: "destructive",
+                    });
+                    
+                    // Rolar para o campo de observações e destacá-lo
+                    try {
+                      setTimeout(() => {
+                        const correctionField = document.querySelector(".border-blue-600");
+                        if (correctionField) {
+                          correctionField.scrollIntoView({ behavior: "smooth", block: "center" });
+                          correctionField.classList.add("animate-pulse", "border-red-500");
+                          setTimeout(() => {
+                            correctionField.classList.remove("animate-pulse", "border-red-500");
+                            correctionField.classList.add("border-blue-600");
+                          }, 2000);
+                        }
+                      }, 100);
+                    } catch (error) {
+                      console.error("Erro ao destacar campo:", error);
+                    }
+                    
+                    return;
+                  }
+                  
                   // Obter o número correto de parcelas
                   const numberOfInstallments = Number(values.installments) || 1;
                   
@@ -2478,6 +2507,11 @@ export default function SaleDialog({
                     installments: numberOfInstallments,
                     // CORREÇÃO CRÍTICA: Usar as datas efetivamente editadas pelo usuário
                     installmentDates: datesForApi,
+                    // Se a venda estava com status "returned", incluir observações de correção
+                    ...(originalStatus === "returned" && {
+                      correctionNotes: correctionNotes.trim(),
+                      isResubmitted: true
+                    }),
                     items: values.items.map(item => ({
                       serviceId: item.serviceId,
                       serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
@@ -2551,10 +2585,23 @@ export default function SaleDialog({
                           });
                       }
                       
-                      toast({
-                        title: "Venda criada",
-                        description: "Venda criada com sucesso",
-                      });
+                      // Mensagem de sucesso específica para cada caso
+                      if (originalStatus === "returned") {
+                        toast({
+                          title: "Venda corrigida e reenviada",
+                          description: "As correções foram registradas e a venda foi reenviada para processamento",
+                        });
+                      } else if (sale && sale.id) {
+                        toast({
+                          title: "Venda atualizada",
+                          description: "Alterações salvas com sucesso",
+                        });
+                      } else {
+                        toast({
+                          title: "Venda criada",
+                          description: "Venda criada com sucesso",
+                        });
+                      }
                       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
                       onSaveSuccess();
                       onClose();
