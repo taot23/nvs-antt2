@@ -2150,7 +2150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Se o financeiro já iniciou análise ou se foi explicitamente solicitado, 
       // não alteramos dados financeiros
-      const devePreservarDadosFinanceiros = financeiroJaIniciouAnalise || preserveFinancialData;
+      const devePreservarDadosFinanceiros = blockFinancialChanges || preserveFinancialData;
       
       if (!devePreservarDadosFinanceiros) {
         // Apenas atualize valor e parcelas se o financeiro não tiver iniciado análise

@@ -203,6 +203,14 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       }
       
       console.log('🔒 Preservando dados financeiros pois a venda já está em análise financeira');
+      
+      // Adicionar alerta visual para o usuário
+      toast({
+        title: "Alerta de Proteção Financeira",
+        description: "Esta venda já está em análise pelo departamento financeiro. Os dados financeiros estão protegidos contra modificações.",
+        variant: "warning",
+        duration: 6000,
+      });
     } else {
       // Se não estiver em análise, podemos permitir edição
       requestData.totalAmount = sale.totalAmount;
