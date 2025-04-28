@@ -31,11 +31,16 @@ import { db } from "./db";
 /**
  * Função auxiliar para gerenciar as parcelas de uma venda
  * Garante que o número exato de parcelas seja criado/atualizado no banco de dados
+ * @param saleId - ID da venda 
+ * @param installmentsCount - Número de parcelas a criar
+ * @param totalAmount - Valor total da venda
+ * @param dueDates - Array opcional com datas específicas de vencimento
  */
 async function ensureSaleInstallments(
   saleId: number, 
   installmentsCount: number, 
-  totalAmount: string | number
+  totalAmount: string | number,
+  dueDates?: string[]
 ) {
   try {
     const { pool } = await import('./db');
@@ -76,9 +81,19 @@ async function ensureSaleInstallments(
       
       // Cria cada parcela
       for (let i = 1; i <= installmentsCount; i++) {
-        // Calcula a data de vencimento (hoje + i-1 meses)
-        const dueDate = new Date(today);
-        dueDate.setMonth(dueDate.getMonth() + (i - 1));
+        let dueDate;
+        
+        // Verifica se temos uma data específica para esta parcela
+        if (dueDates && dueDates.length >= i && dueDates[i-1]) {
+          console.log(`📅 Usando data específica para parcela ${i}: ${dueDates[i-1]}`);
+          dueDate = dueDates[i-1];
+        } else {
+          // Calcula a data de vencimento (hoje + i-1 meses)
+          const calculatedDate = new Date(today);
+          calculatedDate.setMonth(calculatedDate.getMonth() + (i - 1));
+          dueDate = calculatedDate.toISOString().split('T')[0];
+          console.log(`📅 Calculando data para parcela ${i}: ${dueDate}`);
+        }
         
         // Define o valor da parcela atual
         const currentInstallmentValue = (i === installmentsCount) 
@@ -93,7 +108,7 @@ async function ensureSaleInstallments(
             saleId,
             i,
             currentInstallmentValue.toFixed(2),
-            dueDate.toISOString().split('T')[0],
+            dueDate,
             'pending'
           ]
         );
@@ -2056,8 +2071,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`🔄 Venda reenviada #${id} - Recriando ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
         
+        // Verificar se temos datas específicas para as parcelas
+        let dueDates: string[] | undefined = undefined;
+        
+        // Extrair datas de parcelas se enviadas com a requisição
+        if (req.body.installmentDates && Array.isArray(req.body.installmentDates)) {
+          dueDates = req.body.installmentDates;
+          console.log(`📅 Datas específicas recebidas para parcelas de venda #${id}:`, dueDates);
+        }
+        
         // Usar nossa função auxiliar para garantir que as parcelas sejam criadas consistentemente
-        await ensureSaleInstallments(id, installmentsToCreate, saleAmount);
+        await ensureSaleInstallments(id, installmentsToCreate, saleAmount, dueDates);
       } catch (error) {
         console.error(`❌ Erro ao atualizar parcelas da venda #${id}:`, error);
         // Não interrompemos o fluxo aqui, apenas logamos o erro
@@ -2220,8 +2244,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`🔄 Venda atualizada #${id} - Atualizando parcelas: ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
           
+          // Verificar se temos datas específicas para as parcelas
+          let dueDates: string[] | undefined = undefined;
+          
+          // Extrair datas de parcelas se enviadas com a requisição
+          if (req.body.installmentDates && Array.isArray(req.body.installmentDates)) {
+            dueDates = req.body.installmentDates;
+            console.log(`📅 Datas específicas recebidas para parcelas de venda #${id} (PATCH):`, dueDates);
+          }
+          
           // Usar nossa função auxiliar para garantir que as parcelas sejam criadas corretamente
-          await ensureSaleInstallments(id, installmentsToCreate, saleAmount);
+          await ensureSaleInstallments(id, installmentsToCreate, saleAmount, dueDates);
         } catch (error) {
           console.error(`❌ Erro ao atualizar parcelas da venda #${id} após PATCH:`, error);
           // Não interrompemos o fluxo aqui, apenas logamos o erro
