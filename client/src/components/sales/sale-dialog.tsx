@@ -1464,16 +1464,25 @@ export default function SaleDialog({
                         placeholder="DD/MM/AAAA" 
                         defaultValue={new Date().toLocaleDateString('pt-BR')}
                         onChange={(e) => {
+                          // Permite qualquer entrada inclusive vazia
+                          const input = e.target.value;
+                          
+                          // Se o campo estiver vazio, define como string vazia
+                          if (!input) {
+                            field.onChange("");
+                            return;
+                          }
+                          
                           // Formatação para permitir apenas números e barras
-                          const input = e.target.value.replace(/[^\d\/]/g, '');
+                          const formattedInput = input.replace(/[^\d\/]/g, '');
                           
                           // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
-                          if (input.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-                            const [day, month, year] = input.split('/');
+                          if (formattedInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                            const [day, month, year] = formattedInput.split('/');
                             field.onChange(`${year}-${month}-${day}`);
                           } else {
                             // Caso contrário, mantém o valor como string para permitir a digitação
-                            field.onChange(input);
+                            field.onChange(formattedInput);
                           }
                         }}
                       />

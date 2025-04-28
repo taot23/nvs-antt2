@@ -1,6 +1,30 @@
 import React from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+
+// Função para formatar datas sem problema de timezone
+const formatDateWithoutTimezone = (date: string | Date): string => {
+  if (!date) return '';
+  
+  // Para datas no formato ISO (YYYY-MM-DD)
+  if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    // Extrair ano, mês e dia diretamente da string para evitar problemas de timezone
+    const [year, month, day] = date.split('-').map(Number);
+    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+  }
+  
+  // Se a data incluir hora (formato ISO completo), precisamos ajustar o timezone
+  if (typeof date === 'string' && date.includes('T')) {
+    const parts = date.split('T')[0].split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+    }
+  }
+  
+  // Para objetos Date ou outros formatos de string
+  return format(typeof date === 'string' ? new Date(date) : date, 'dd/MM/yyyy');
+};
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -257,7 +281,7 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
                 {sale.orderNumber}
               </TableCell>
               <TableCell className={getCellStyle(sale.status)}>
-                {format(new Date(sale.date || sale.createdAt), 'dd/MM/yyyy')}
+                {formatDateWithoutTimezone(sale.date || sale.createdAt)}
               </TableCell>
               <TableCell className={getCellStyle(sale.status)}>
                 {sale.customerName}

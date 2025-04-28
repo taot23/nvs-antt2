@@ -43,6 +43,29 @@ const createMemoizedFormatter = () => {
     const key = `${date}-${pattern}`;
     if (cache.has(key)) return cache.get(key);
     
+    // Para datas no formato ISO (YYYY-MM-DD)
+    if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // Extrair ano, mês e dia diretamente da string para evitar problemas de timezone
+      const [year, month, day] = date.split('-').map(Number);
+      const formatted = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+      
+      cache.set(key, formatted);
+      return formatted;
+    }
+    
+    // Se a data incluir hora (formato ISO completo), precisamos ajustar o timezone
+    if (typeof date === 'string' && date.includes('T')) {
+      const parts = date.split('T')[0].split('-');
+      if (parts.length === 3) {
+        const [year, month, day] = parts.map(Number);
+        const formatted = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+        
+        cache.set(key, formatted);
+        return formatted;
+      }
+    }
+    
+    // Para objetos Date ou outros formatos de string
     const formatted = format(
       typeof date === 'string' ? new Date(date) : date,
       pattern,
