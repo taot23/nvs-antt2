@@ -103,7 +103,7 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
             setDialogOpen(false);
             setSelectedSale(null);
           }}
-          sale={selectedSale}
+          saleId={selectedSale.id} 
           onSaveSuccess={handleEditSuccess}
         />
       )}
