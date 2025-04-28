@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { SendHorizontal, Loader2, Calendar } from 'lucide-react';
+import { SendHorizontal, Loader2, Calendar, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,6 +44,9 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
   const [installments, setInstallments] = useState<Installment[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Verifica se o financeiro já começou a tratar a venda
+  const financeiroJaIniciouAnalise = sale.financialStatus && sale.financialStatus !== 'pending' && sale.financialStatus !== '';
 
   // Carregar as parcelas ao abrir o diálogo
   useEffect(() => {
@@ -75,7 +80,7 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       const installments = await installmentsResponse.json();
       
       // Extrair as datas de vencimento das parcelas
-      const installmentDates = installments.map(inst => {
+      const installmentDates = installments.map((inst: Installment) => {
         // Detectar e processar o formato da data corretamente
         console.log(`📅 Parcela ${inst.installmentNumber}, data original do banco:`, inst.dueDate, typeof inst.dueDate);
         
@@ -132,17 +137,30 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       console.log("Itens atualizados para reenvio:", items);
       console.log("Datas de parcelas para reenvio:", installmentDates);
       
-      // Envia a requisição com todos os dados necessários
-      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, {
+      // Prepara os dados para o reenvio
+      const requestData: any = {
         correctionNotes: observacoes,
         items: items,
         serviceTypeId: sale.serviceTypeId,
         serviceProviderId: sale.serviceProviderId,
         paymentMethodId: sale.paymentMethodId,
-        installments: sale.installments,
-        totalAmount: sale.totalAmount,
         installmentDates: installmentDates
-      });
+      };
+
+      // Se o financeiro já iniciou a análise, preserva os valores originais
+      // sem permitir edição do valor total, número de parcelas ou datas
+      if (emAnaliseFinanceira) {
+        requestData.totalAmount = sale.totalAmount;
+        requestData.installments = sale.installments;
+        requestData.preserveFinancialData = true; // Flag para o backend saber que deve preservar esses dados
+        console.log('🔒 Preservando dados financeiros pois a venda já está em análise financeira');
+      } else {
+        requestData.totalAmount = sale.totalAmount;
+        requestData.installments = sale.installments;
+      }
+      
+      // Envia a requisição com todos os dados necessários
+      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, requestData);
       return response.json();
     },
     onSuccess: () => {
@@ -195,6 +213,10 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
     }
   }
 
+  // Verificar status do financeiro
+  const statusFinanceiro = sale.financialStatus;
+  const emAnaliseFinanceira = statusFinanceiro === 'in_analysis' || statusFinanceiro === 'approved' || statusFinanceiro === 'partial_payment' || statusFinanceiro === 'paid';
+  
   // Essa venda pode ser reenviada?
   const podeReenviar = sale.status === 'returned';
 
@@ -274,6 +296,18 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
                   <Calendar className="h-4 w-4 text-primary" />
                   <Label className="text-base font-medium">Parcelas e Datas de Vencimento</Label>
                 </div>
+                
+                {emAnaliseFinanceira && (
+                  <Alert variant="warning" className="mb-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle className="text-xs font-semibold">Atenção - Venda em Análise Financeira</AlertTitle>
+                    <AlertDescription className="text-xs">
+                      Esta venda já está sendo analisada pelo financeiro. 
+                      O valor, número de parcelas e datas de vencimento não poderão ser modificados.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="space-y-1">
                   {installments.map((inst) => (
                     <div key={inst.id} className="flex justify-between items-center text-sm p-1 border-b border-border/30">
