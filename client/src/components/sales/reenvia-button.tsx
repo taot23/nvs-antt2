@@ -1,9 +1,10 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState } from 'react';
 import { SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
+import SaleDialog from './sale-dialog';
 
 // Definindo a tipagem para a venda
 interface Sale {
@@ -77,9 +78,6 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
     return null;
   }
 
-  // Importar o componente de diálogo de venda
-  const SaleDialog = React.lazy(() => import('./sale-dialog'));
-
   return (
     <>
       <Button
@@ -94,18 +92,16 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
 
       {/* Diálogo de edição completa da venda quando estiver aberto */}
       {dialogOpen && selectedSale && (
-        <Suspense fallback={<div>Carregando...</div>}>
-          <SaleDialog
-            open={dialogOpen}
-            onClose={() => {
-              console.log("🔄 Fechando diálogo de edição de venda devolvida");
-              setDialogOpen(false);
-              setSelectedSale(null);
-            }}
-            sale={selectedSale}
-            onSaveSuccess={handleEditSuccess}
-          />
-        </Suspense>
+        <SaleDialog
+          open={dialogOpen}
+          onClose={() => {
+            console.log("🔄 Fechando diálogo de edição de venda devolvida");
+            setDialogOpen(false);
+            setSelectedSale(null);
+          }}
+          sale={selectedSale}
+          onSaveSuccess={handleEditSuccess}
+        />
       )}
     </>
   );

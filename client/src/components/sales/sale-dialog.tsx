@@ -2128,24 +2128,36 @@ export default function SaleDialog({
               )}
             />
             
-            {/* Campo especial de observações para vendas devolvidas */}
+            {/* Campo especial de observações para vendas devolvidas - DESTACADO E MELHORADO */}
             {console.log("🔴 RENDERIZAÇÃO: Status original =", originalStatus, "- Condição campo correção:", originalStatus === "returned")}
             {originalStatus === "returned" && (
-              <div className="space-y-2 mt-4 border-l-4 border-blue-600 pl-4 py-2 bg-blue-50 rounded-sm">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-blue-800">
-                    Correções Realizadas <span className="text-red-500">*</span>
+              <div className="space-y-2 mt-4 border-2 border-blue-600 pl-4 pr-4 pt-3 pb-3 bg-blue-50 rounded-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-5 w-5 text-blue-700" />
+                  <label className="text-base font-medium text-blue-800">
+                    Correções da Devolução <span className="text-red-500">*</span>
                   </label>
                 </div>
+                {sale.returnReason && (
+                  <div className="mb-3 border-l-4 border-red-400 pl-3 py-2 bg-red-50 rounded-sm">
+                    <label className="text-sm font-medium text-red-800">Motivo da devolução:</label>
+                    <p className="text-sm text-red-700 mt-1">{sale.returnReason}</p>
+                  </div>
+                )}
                 {console.log("🔴 CAMPO DE CORREÇÃO SENDO RENDERIZADO!")}
+                <FormLabel className="text-sm font-medium text-blue-800">
+                  Observações sobre as correções realizadas:
+                </FormLabel>
                 <Textarea 
                   placeholder="Descreva as correções realizadas nesta venda antes de reenviar..."
-                  className="min-h-[80px] border-blue-200"
+                  className="min-h-[100px] border-blue-300 focus:border-blue-500"
                   value={correctionNotes}
                   onChange={(e) => setCorrectionNotes(e.target.value)}
                 />
-                <p className="text-xs text-blue-700">
-                  Este campo é obrigatório. As correções informadas serão registradas no histórico da venda.
+                <p className="text-xs text-blue-700 mt-1">
+                  <strong>Atenção:</strong> Este campo é obrigatório. Descreva todas as alterações realizadas para corrigir 
+                  os problemas que levaram à devolução desta venda. Estas observações serão registradas permanentemente 
+                  no histórico da venda.
                 </p>
               </div>
             )}
