@@ -2512,9 +2512,9 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* Lista de itens da venda */}
+              {/* Lista de itens da venda - SOLUÇÃO DEFINITIVA PARA FLICKERING */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
-                {renderItems()}
+                <ItemsRenderer />
               </div>
             </div>
             
