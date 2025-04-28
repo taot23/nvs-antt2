@@ -2021,6 +2021,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
+      console.log(`🔍 Processando reenvio da venda #${id}`);
+      
       // Verificar se a venda existe e está com status "returned"
       const { pool } = await import('./db');
       const saleResult = await pool.query(
@@ -2054,11 +2056,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         serviceProviderId,
         paymentMethodId,
         installments,
-        totalAmount
+        totalAmount,
+        preserveFinancialData
       } = req.body;
       
-      console.log("Dados recebidos para reenvio:", { 
+      // Verificar se o financeiro já iniciou análise desta venda
+      const financialStatus = sale.financial_status || '';
+      const financeiroJaIniciouAnalise = financialStatus && 
+                                      financialStatus !== 'pending' && 
+                                      financialStatus !== '';
+      
+      // Log para diagnóstico
+      console.log(`📊 Dados da venda #${id} para reenvio:`, { 
         id, 
+        status_financeiro: financialStatus,
+        em_analise: financeiroJaIniciouAnalise,
+        preservar_dados: preserveFinancialData || financeiroJaIniciouAnalise, 
         itens: items.length,
         tipoServico: serviceTypeId,
         formaPagamento: paymentMethodId,
@@ -2104,16 +2117,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paramIndex++;
       }
       
-      if (installments !== undefined) {
-        updateQuery += `, installments = $${paramIndex}`;
-        updateParams.push(installments);
-        paramIndex++;
-      }
+      // Se o financeiro já iniciou análise ou se foi explicitamente solicitado, 
+      // não alteramos dados financeiros
+      const devePreservarDadosFinanceiros = financeiroJaIniciouAnalise || preserveFinancialData;
       
-      if (totalAmount !== undefined) {
-        updateQuery += `, total_amount = $${paramIndex}`;
-        updateParams.push(totalAmount);
-        paramIndex++;
+      if (!devePreservarDadosFinanceiros) {
+        // Apenas atualize valor e parcelas se o financeiro não tiver iniciado análise
+        if (installments !== undefined) {
+          updateQuery += `, installments = $${paramIndex}`;
+          updateParams.push(installments);
+          paramIndex++;
+        }
+        
+        if (totalAmount !== undefined) {
+          updateQuery += `, total_amount = $${paramIndex}`;
+          updateParams.push(totalAmount);
+          paramIndex++;
+        }
+      } else {
+        console.log(`🔒 Preservando dados financeiros da venda #${id} - Já em análise pelo financeiro`);
       }
       
       // Finalizar query
@@ -2129,10 +2151,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Falha ao atualizar a venda" });
       }
       
-      // Atualizar itens da venda se fornecidos
-      // IMPORTANTE: Não manipulamos os itens durante o reenvio para evitar duplicação
-      // Os itens existentes permanecerão no banco de dados exatamente como estão
-      console.log(`🔄 Venda #${id} reenviada sem manipular itens para evitar duplicação`);
+      // Atualizar os itens da venda com verificação robusta
+      try {
+        // Verificar se itens foram enviados no payload
+        if (items && items.length > 0) {
+          console.log(`📦 Processando ${items.length} itens para a venda #${id}`);
+          
+          // Primeiro, excluir os itens existentes 
+          await pool.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
+          console.log(`🗑️ Itens anteriores da venda #${id} removidos`);
+          
+          // Depois, adicionar os novos itens com validação individual
+          let itemsAdded = 0;
+          
+          for (const item of items) {
+            if (!item || typeof item !== 'object' || !item.serviceId) {
+              console.error(`⚠️ Item inválido encontrado na venda #${id}:`, item);
+              continue; // Pular itens inválidos
+            }
+            
+            // Validar serviceId
+            const serviceId = parseInt(String(item.serviceId));
+            if (isNaN(serviceId) || serviceId <= 0) {
+              console.error(`⚠️ Item com serviceId inválido na venda #${id}:`, item);
+              continue;
+            }
+            
+            // Validar quantity 
+            const quantity = parseInt(String(item.quantity));
+            if (isNaN(quantity) || quantity <= 0) {
+              console.error(`⚠️ Item com quantidade inválida na venda #${id}:`, item);
+              continue;
+            }
+            
+            // Inserir o item no banco
+            await pool.query(`
+              INSERT INTO sale_items (sale_id, service_id, quantity, notes, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, NOW(), NOW())
+            `, [id, serviceId, quantity, item.notes || null]);
+            
+            itemsAdded++;
+          }
+          
+          console.log(`✅ ${itemsAdded} itens adicionados com sucesso para a venda #${id}`);
+          
+          // Verificar se algum item foi adicionado
+          if (itemsAdded === 0) {
+            console.error(`⚠️ Nenhum item válido foi adicionado à venda #${id}`);
+          }
+        } else {
+          console.log(`⚠️ Nenhum item enviado para a venda #${id} - Mantendo os existentes`);
+        }
+      } catch (error) {
+        console.error(`❌ Erro ao processar itens da venda #${id}:`, error);
+      }
       
       // Registrar no histórico a mudança de status
       await storage.createSalesStatusHistory({
@@ -2147,8 +2219,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Isso garante consistência em todo o sistema
       try {
         // Verificar se a venda agora está parcelada
-        const installmentsToCreate = installments || sale.installments || 1;
-        const saleAmount = totalAmount || sale.total_amount || '0';
+        const installmentsToCreate = devePreservarDadosFinanceiros 
+            ? sale.installments 
+            : (installments || sale.installments || 1);
+            
+        const saleAmount = devePreservarDadosFinanceiros 
+            ? sale.total_amount 
+            : (totalAmount || sale.total_amount || '0');
         
         console.log(`🔄 Venda reenviada #${id} - Recriando ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
         
@@ -2156,9 +2233,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let dueDates: string[] | undefined = undefined;
         
         // Extrair datas de parcelas se enviadas com a requisição
-        if (req.body.installmentDates && Array.isArray(req.body.installmentDates)) {
+        if (!devePreservarDadosFinanceiros && req.body.installmentDates && Array.isArray(req.body.installmentDates)) {
           dueDates = req.body.installmentDates;
           console.log(`📅 Datas específicas recebidas para parcelas de venda #${id}:`, dueDates);
+        } else if (devePreservarDadosFinanceiros) {
+          // Se precisamos preservar dados financeiros, buscar as datas atuais das parcelas
+          const installmentResult = await pool.query(
+            "SELECT due_date FROM sale_installments WHERE sale_id = $1 ORDER BY installment_number",
+            [id]
+          );
+          
+          if (installmentResult.rows.length > 0) {
+            dueDates = installmentResult.rows.map(row => {
+              // Certifique-se de que a data está no formato correto (YYYY-MM-DD)
+              let dueDate = row.due_date;
+              if (typeof dueDate === 'string' && dueDate.includes('T')) {
+                dueDate = dueDate.split('T')[0];
+              }
+              return dueDate;
+            });
+            
+            console.log(`📅 Preservando datas existentes para parcelas de venda #${id}:`, dueDates);
+          }
         }
         
         // Usar nossa função auxiliar para garantir que as parcelas sejam criadas consistentemente

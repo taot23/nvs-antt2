@@ -147,9 +147,10 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
         installmentDates: installmentDates
       };
 
-      // Se o financeiro já iniciou a análise, preserva os valores originais
-      // sem permitir edição do valor total, número de parcelas ou datas
-      if (emAnaliseFinanceira) {
+      // Verificar se o financeiro já iniciou análise desta venda
+      if (financeiroJaIniciouAnalise) {
+        // Se o financeiro já iniciou a análise, preserva os valores originais
+        // sem permitir edição do valor total, número de parcelas ou datas
         requestData.totalAmount = sale.totalAmount;
         requestData.installments = sale.installments;
         requestData.preserveFinancialData = true; // Flag para o backend saber que deve preservar esses dados
@@ -157,6 +158,7 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       } else {
         requestData.totalAmount = sale.totalAmount;
         requestData.installments = sale.installments;
+        // Não enviar flag de preservação, permitindo edição
       }
       
       // Envia a requisição com todos os dados necessários
@@ -215,6 +217,9 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
 
   // Verificar status do financeiro
   const statusFinanceiro = sale.financialStatus;
+  const financeiroJaIniciouAnalise = statusFinanceiro && 
+                               statusFinanceiro !== 'pending' && 
+                               statusFinanceiro !== '';
   const emAnaliseFinanceira = statusFinanceiro === 'in_analysis' || statusFinanceiro === 'approved' || statusFinanceiro === 'partial_payment' || statusFinanceiro === 'paid';
   
   // Essa venda pode ser reenviada?
