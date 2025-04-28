@@ -240,6 +240,7 @@ export default function CustomerDialog({
         title: "Cliente cadastrado",
         description: "O cliente foi cadastrado com sucesso.",
         variant: "default",
+        className: "top-toast",
       });
       onSaveSuccess();
     },
@@ -292,6 +293,7 @@ export default function CustomerDialog({
         title: "Cliente atualizado",
         description: "O cliente foi atualizado com sucesso.",
         variant: "default",
+        className: "top-toast",
       });
       onSaveSuccess();
     },
@@ -300,7 +302,7 @@ export default function CustomerDialog({
         title: "Erro ao atualizar cliente",
         description: error.message || "Não foi possível atualizar o cliente.",
         variant: "destructive",
-        className: "whitespace-pre-line", // Permite quebras de linha na mensagem
+        className: "whitespace-pre-line top-toast", // Permite quebras de linha na mensagem
       });
     },
   });

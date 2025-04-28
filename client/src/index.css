@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Estilo personalizado para posicionar toasts no canto superior direito */
+.top-toast {
+  margin-top: 0.5rem !important;
+  margin-right: 0.5rem !important;
+}
+
 :root {
   /* Definição das cores de status como variáveis CSS - VALORES INTENSIFICADOS */
   --color-corrected-bg: rgba(250, 240, 137, 0.35); /* Amarelo intenso */
