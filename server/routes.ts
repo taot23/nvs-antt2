@@ -1972,8 +1972,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`🔄 Verificando parcelas para venda #${id} - Parcelas definidas: ${installmentsToCreate}`);
           
-          // Se a venda foi alterada para parcelada (mais de 1 parcela), precisamos recriar as parcelas
-          if (installmentsToCreate > 1) {
+          // Sempre recriar todas as parcelas quando estamos resubmetendo uma venda corrigida
+          {
             // Primeiro, remover parcelas existentes
             await pool.query(`DELETE FROM sale_installments WHERE sale_id = $1`, [id]);
             
