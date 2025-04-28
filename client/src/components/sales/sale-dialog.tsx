@@ -502,6 +502,7 @@ export default function SaleDialog({
     toast({
       title: "Item adicionado",
       description: "Item adicionado com sucesso à venda",
+      className: "top-toast" // Classe para posicionamento consistente
     });
   };
 
