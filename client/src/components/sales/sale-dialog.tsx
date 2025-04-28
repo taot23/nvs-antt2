@@ -472,17 +472,33 @@ export default function SaleDialog({
       
       console.log("✅ FORÇA-RESET: Todos os itens foram atualizados com uma única operação");
       
-      // Atualizamos a contagem de itens no cabeçalho
-      form.setValue("itemCount", formattedItems.length);
-      
-      // Recarrega os itens visualmente no formulário
-      // Isso é mais eficiente que remover e adicionar cada item individualmente
-      replace(formattedItems);
+      // Limpa os campos anteriores e adiciona os novos
+      setTimeout(() => {
+        const currentItems = fields || [];
+        if (currentItems.length > 0) {
+          // Remove todos os itens existentes
+          for (let i = currentItems.length - 1; i >= 0; i--) {
+            remove(i);
+          }
+          
+          // Adiciona os novos itens em uma nova chamada
+          setTimeout(() => {
+            formattedItems.forEach(item => {
+              append(item);
+            });
+          }, 50);
+        } else {
+          // Se não tiver itens, apenas adiciona
+          formattedItems.forEach(item => {
+            append(item);
+          });
+        }
+      }, 10);
       
     } catch (error) {
       console.error("❌ FORÇA-RESET: Erro ao atualizar itens:", error);
     }
-  }, [form, sale, replace]);
+  }, [form, sale, fields, remove, append]);
   
   // Controle de inicialização para impedir múltiplas atualizações
   const itemsWereProcessed = useRef(false);
