@@ -363,15 +363,19 @@ export default function SaleDialog({
     }
   }, [form.watch("installments"), firstDueDate]);
   
-  // Efeito para atualizar o formulário quando os itens e parcelas são carregados
+  // Efeito para atualizar o formulário quando a venda é carregada
   useEffect(() => {
-    if (sale && saleItems.length > 0 && !formInitialized.current) {
+    // Alterar a condição para inicializar mesmo sem itens
+    if (sale && !formInitialized.current) {
+      console.log("📋 Inicializando formulário com dados da venda:", sale);
+      
       form.reset({
         orderNumber: sale.orderNumber,
-        date: new Date(sale.date),
+        date: sale.date ? new Date(sale.date) : new Date(),
         customerId: sale.customerId,
         paymentMethodId: sale.paymentMethodId,
-        serviceTypeId: saleItems[0]?.serviceTypeId || 0, // Pega o tipo de serviço do primeiro item
+        // Usamos o tipo de serviço da venda, não do item
+        serviceTypeId: sale.serviceTypeId || 0,
         sellerId: sale.sellerId,
         totalAmount: sale.totalAmount,
         installments: sale.installments || 1, // Garante que tenha pelo menos 1 parcela
@@ -382,8 +386,8 @@ export default function SaleDialog({
           quantity: item.quantity,
           notes: item.notes,
           price: item.price,
-          totalPrice: item.totalPrice,
-          status: item.status || "pending"
+          totalPrice: item.price, // Usando price como fallback
+          status: "pending"
         }))
       });
 
