@@ -137,29 +137,78 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       console.log("Itens atualizados para reenvio:", items);
       console.log("Datas de parcelas para reenvio:", installmentDates);
       
-      // Prepara os dados para o reenvio
-      const requestData: any = {
-        correctionNotes: observacoes,
-        items: items,
-        serviceTypeId: sale.serviceTypeId,
-        serviceProviderId: sale.serviceProviderId,
-        paymentMethodId: sale.paymentMethodId,
-        installmentDates: installmentDates
-      };
-
-      // Verificar se o financeiro já iniciou análise desta venda
-      if (financeiroJaIniciouAnalise) {
-        // Se o financeiro já iniciou a análise, preserva os valores originais
-        // sem permitir edição do valor total, número de parcelas ou datas
-        requestData.totalAmount = sale.totalAmount;
-        requestData.installments = sale.installments;
-        requestData.preserveFinancialData = true; // Flag para o backend saber que deve preservar esses dados
-        console.log('🔒 Preservando dados financeiros pois a venda já está em análise financeira');
-      } else {
-        requestData.totalAmount = sale.totalAmount;
-        requestData.installments = sale.installments;
-        // Não enviar flag de preservação, permitindo edição
+      // Para todos os casos, o cliente deve FORÇAR a preservação dos dados financeiros 
+    // quando o financeiro já iniciou análise - isso é uma medida de segurança adicional
+    const statusFinanceiro = sale.financialStatus;
+    const financeiroComecouAnalise = statusFinanceiro && 
+                                    statusFinanceiro !== 'pending' && 
+                                    statusFinanceiro !== '';
+    
+    // Obtém as datas de vencimento originais em caso de análise financeira
+    let duesDatesFinais = installmentDates;
+    
+    // Se financeiro estiver analisando, forçar os valores originais da venda
+    if (financeiroComecouAnalise) {
+      console.log('🚨 IMPORTANTE: Financeiro já iniciou análise - BLOQUEANDO modificações de dados financeiros');
+      
+      // Buscar valores originais da venda do banco
+      try {
+        // Vamos fazer uma chamada extra para garantir os dados financeiros originais
+        const response = await fetch(`/api/sales/${sale.id}`);
+        if (response.ok) {
+          const vendaOriginal = await response.json();
+          
+          // Buscar as parcelas originais para ter as datas de vencimento originais
+          const respParcelas = await fetch(`/api/sales/${sale.id}/installments`);
+          if (respParcelas.ok) {
+            const parcelasOriginais = await respParcelas.json();
+            
+            // Usar as datas das parcelas originais
+            if (parcelasOriginais && parcelasOriginais.length > 0) {
+              duesDatesFinais = parcelasOriginais.map((p: any) => {
+                let dueDate = p.dueDate;
+                if (typeof dueDate === 'string' && dueDate.includes('T')) {
+                  dueDate = dueDate.split('T')[0];
+                }
+                return dueDate;
+              });
+              console.log('📆 Usando datas de vencimento ORIGINAIS das parcelas:', duesDatesFinais);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('❌ Erro ao obter dados originais da venda:', err);
       }
+    }
+    
+    // Prepara os dados para o reenvio
+    const requestData: any = {
+      correctionNotes: observacoes,
+      items: items,
+      serviceTypeId: sale.serviceTypeId,
+      serviceProviderId: sale.serviceProviderId,
+      paymentMethodId: sale.paymentMethodId
+    };
+    
+    // Se financeiro estiver analisando, forçar preservação de dados
+    if (financeiroComecouAnalise) {
+      // Forçar a preservação dos dados financeiros
+      requestData.totalAmount = sale.totalAmount;
+      requestData.installments = sale.installments;
+      requestData.preserveFinancialData = true; // Flag para o backend
+      
+      // Enviar datas de vencimento originais se disponíveis
+      if (duesDatesFinais && duesDatesFinais.length > 0) {
+        requestData.installmentDates = duesDatesFinais;
+      }
+      
+      console.log('🔒 Preservando dados financeiros pois a venda já está em análise financeira');
+    } else {
+      // Se não estiver em análise, podemos permitir edição
+      requestData.totalAmount = sale.totalAmount;
+      requestData.installments = sale.installments;
+      requestData.installmentDates = installmentDates;
+    }
       
       // Envia a requisição com todos os dados necessários
       const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, requestData);
@@ -217,9 +266,7 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
 
   // Verificar status do financeiro
   const statusFinanceiro = sale.financialStatus;
-  const financeiroJaIniciouAnalise = statusFinanceiro && 
-                               statusFinanceiro !== 'pending' && 
-                               statusFinanceiro !== '';
+  // Esta lógica está duplicada acima, então vamos reutilizar apenas a segunda parte
   const emAnaliseFinanceira = statusFinanceiro === 'in_analysis' || statusFinanceiro === 'approved' || statusFinanceiro === 'partial_payment' || statusFinanceiro === 'paid';
   
   // Essa venda pode ser reenviada?
