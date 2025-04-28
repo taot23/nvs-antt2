@@ -2135,72 +2135,18 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* Lista de itens adicionados */}
-              <div className="rounded-md border">
-                <div className="bg-muted py-2 px-4 text-sm font-medium grid grid-cols-12 gap-4">
-                  <div className="col-span-8">Serviço</div>
-                  <div className="col-span-3">Qtd</div>
-                  <div className="col-span-1"></div>
-                </div>
-                <div className="divide-y">
-                  {fields.length === 0 ? (
-                    <div className="py-4 px-4 text-center text-muted-foreground">
-                      Nenhum item adicionado à venda
-                    </div>
-                  ) : (
-                    fields.map((field, index) => {
-                      const serviceId = form.getValues(`items.${index}.serviceId`);
-                      const service = services.find((s: any) => s.id === serviceId);
-                      
-                      return (
-                        <div key={field.id} className="py-2 px-4 grid grid-cols-12 gap-4 items-center text-sm">
-                          <div className="col-span-8">
-                            {service ? service.name : "Serviço não encontrado"}
-                          </div>
-                          <div className="col-span-3">
-                            <Input
-                              type="number"
-                              min="1"
-                              {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
-                              className="h-8"
-                              onKeyDown={(e) => {
-                                // Ao pressionar Enter no campo de quantidade de um item já adicionado
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  // Foca no campo de busca de serviço se for o último item
-                                  if (index === fields.length - 1) {
-                                    const serviceInput = document.getElementById('service-search-input');
-                                    if (serviceInput) {
-                                      serviceInput.focus();
-                                    }
-                                  } else {
-                                    // Senão, foca no próximo campo de quantidade
-                                    const nextInput = document.querySelector(`input[name="items.${index + 1}.quantity"]`) as HTMLInputElement;
-                                    if (nextInput) {
-                                      nextInput.focus();
-                                    }
-                                  }
-                                }
-                              }}
-                            />
-                          </div>
-                          <div className="col-span-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => remove(index)}
-                              className="h-8 w-8"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+              {/* Componente aprimorado de itens da venda */}
+              <SaleItemsFix
+                fields={fields}
+                form={form}
+                remove={remove}
+                services={services}
+                serviceTypes={serviceTypes}
+                saleItems={saleItems}
+                isLoadingItems={isLoadingItems}
+                readOnly={readOnly}
+                updateFormItems={updateFormItems}
+              />
             </div>
             
             <DialogFooter className="mt-8 flex items-center justify-end gap-2">
