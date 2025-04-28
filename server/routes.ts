@@ -1964,8 +1964,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: correctionNotes || "Venda corrigida e reenviada"
       });
       
-      // Atualizar parcelas se a forma de pagamento foi alterada ou o número de parcelas mudou
-      if (paymentMethodId !== undefined || installments !== undefined) {
+      // Sempre atualizar parcelas quando uma venda é reenviada após correção
+      // Isso garante consistência em todo o sistema
+      {
         try {
           // Verificar se a venda agora está parcelada
           const installmentsToCreate = installments || sale.installments || 1;
@@ -1979,19 +1980,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log(`🔄 Parcelas anteriores da venda #${id} excluídas. Gerando ${installmentsToCreate} novas parcelas.`);
             
-            // Calcular o valor de cada parcela
+            // Calcular o valor de cada parcela com alta precisão
             const totalAmountValue = parseFloat(totalAmount || sale.total_amount || '0');
             
-            // Para evitar problemas de arredondamento, calculamos cada parcela individualmente 
-            // e ajustamos a última para garantir que some exatamente o valor total
-            const baseInstallmentValue = (totalAmountValue / installmentsToCreate);
+            // Registrar valor total para diagnóstico
+            console.log(`💰 Valor total original: ${totalAmountValue}, Parcelas a criar: ${installmentsToCreate}`);
+            
+            // Para evitar problemas de arredondamento, calculamos com máxima precisão
+            const baseInstallmentValue = totalAmountValue / installmentsToCreate;
             
             // Arredondamos para 2 casas decimais
             const installmentValue = Math.floor(baseInstallmentValue * 100) / 100;
             
-            // A última parcela precisa compensar qualquer diferença
+            // A última parcela precisa compensar qualquer diferença de centavos
             const lastInstallmentValue = totalAmountValue - (installmentValue * (installmentsToCreate - 1));
+            
+            // Garantir que o valor tenha 2 casas decimais exatas
             const lastInstallmentValueFormatted = Math.round(lastInstallmentValue * 100) / 100;
+            
+            // Validar os cálculos para diagnóstico
+            const totalCalculated = (installmentValue * (installmentsToCreate - 1)) + lastInstallmentValueFormatted;
+            console.log(`💰 Cálculo validado: ${installmentValue} × ${installmentsToCreate-1} + ${lastInstallmentValueFormatted} = ${totalCalculated}`);
+            console.log(`💰 Diferença de arredondamento: ${totalAmountValue - totalCalculated}`);
+            
             
             console.log(`💰 Valor total: ${totalAmountValue}, Parcelas: ${installmentsToCreate}`);
             console.log(`💰 Valor por parcela: ${installmentValue}, Última parcela: ${lastInstallmentValueFormatted}`);
