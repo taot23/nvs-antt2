@@ -45,81 +45,162 @@ async function ensureSaleInstallments(
   try {
     const { pool } = await import('./db');
     
+    console.log("⭐️⭐️⭐️ SOLUÇÃO DEFINITIVA ABRIL 2025 ⭐️⭐️⭐️");
+    console.log(`⭐️ Processando parcelas para venda #${saleId}`);
+    console.log(`⭐️ Número de parcelas: ${installmentsCount}`);
+    console.log(`⭐️ Valor total: ${totalAmount}`);
+    console.log(`⭐️ Datas específicas: ${dueDates ? 'SIM - ' + dueDates.length + ' datas' : 'NÃO'}`);
+    
+    if (dueDates && dueDates.length > 0) {
+      console.log(`⭐️ Visualizando datas recebidas:`);
+      dueDates.forEach((date, index) => {
+        console.log(`⭐️ Parcela ${index+1}: ${date} (${typeof date})`);
+      });
+    }
+    
     // Primeiro, busca as parcelas existentes
     const existingResult = await pool.query(
-      `SELECT COUNT(*) as count FROM sale_installments WHERE sale_id = $1`,
+      `SELECT * FROM sale_installments WHERE sale_id = $1 ORDER BY installment_number`,
       [saleId]
     );
     
-    const currentCount = parseInt(existingResult.rows[0].count);
+    const existingInstallments = existingResult.rows;
+    const currentCount = existingInstallments.length;
+    
     console.log(`🔄 Verificando parcelas para venda #${saleId}: tem ${currentCount}, precisa de ${installmentsCount}`);
     
-    // Se o número é diferente, recria todas as parcelas
-    if (currentCount !== installmentsCount) {
-      // Apaga todas as parcelas existentes
-      await pool.query(`DELETE FROM sale_installments WHERE sale_id = $1`, [saleId]);
-      console.log(`🔄 Parcelas anteriores da venda #${saleId} excluídas.`);
+    // Se temos parcelas existentes, extrair suas datas para reuso se necessário
+    const existingDates: string[] = [];
+    if (currentCount > 0) {
+      existingInstallments.forEach(inst => {
+        let formattedDate = inst.due_date;
+        if (typeof formattedDate === 'string' && formattedDate.includes('T')) {
+          formattedDate = formattedDate.split('T')[0];
+        }
+        existingDates.push(formattedDate);
+        console.log(`🗓️ Parcela ${inst.installment_number} existente, data: ${formattedDate}`);
+      });
+    }
+    
+    // Apaga sempre todas as parcelas existentes para recriar conforme necessário
+    await pool.query(`DELETE FROM sale_installments WHERE sale_id = $1`, [saleId]);
+    console.log(`🔄 Parcelas anteriores da venda #${saleId} excluídas.`);
+    
+    // Converte o valor total para número se for string
+    const totalAmountValue = typeof totalAmount === 'number' 
+      ? totalAmount 
+      : parseFloat(totalAmount);
+    
+    // Calcula o valor base de cada parcela
+    const baseInstallmentValue = totalAmountValue / installmentsCount;
+    const installmentValue = Math.floor(baseInstallmentValue * 100) / 100;
+    
+    // A última parcela compensa qualquer diferença de arredondamento
+    const lastInstallmentValue = totalAmountValue - (installmentValue * (installmentsCount - 1));
+    const lastInstallmentValueFormatted = Math.round(lastInstallmentValue * 100) / 100;
+    
+    console.log(`💰 Valor total: ${totalAmountValue}, Parcelas: ${installmentsCount}`);
+    console.log(`💰 Valor por parcela: ${installmentValue}, Última parcela: ${lastInstallmentValueFormatted}`);
+    
+    // Data base para cálculo dos vencimentos
+    const today = new Date();
+    
+    // Cria cada parcela
+    for (let i = 1; i <= installmentsCount; i++) {
+      let dueDate;
       
-      // Converte o valor total para número se for string
-      const totalAmountValue = typeof totalAmount === 'number' 
-        ? totalAmount 
-        : parseFloat(totalAmount);
+      // Prioridade de seleção da data de vencimento:
+      // 1. Data específica fornecida no parâmetro dueDates
+      // 2. Data da parcela existente anteriormente (se o número da parcela corresponder)
+      // 3. Data calculada automaticamente (hoje + i-1 meses)
       
-      // Calcula o valor base de cada parcela
-      const baseInstallmentValue = totalAmountValue / installmentsCount;
-      const installmentValue = Math.floor(baseInstallmentValue * 100) / 100;
-      
-      // A última parcela compensa qualquer diferença de arredondamento
-      const lastInstallmentValue = totalAmountValue - (installmentValue * (installmentsCount - 1));
-      const lastInstallmentValueFormatted = Math.round(lastInstallmentValue * 100) / 100;
-      
-      console.log(`💰 Valor total: ${totalAmountValue}, Parcelas: ${installmentsCount}`);
-      console.log(`💰 Valor por parcela: ${installmentValue}, Última parcela: ${lastInstallmentValueFormatted}`);
-      
-      // Data base para cálculo dos vencimentos
-      const today = new Date();
-      
-      // Cria cada parcela
-      for (let i = 1; i <= installmentsCount; i++) {
-        let dueDate;
+      // 1. Verifica se temos uma data específica para esta parcela no parâmetro
+      if (dueDates && dueDates.length >= i && dueDates[i-1]) {
+        let specifiedDate = dueDates[i-1];
         
-        // Verifica se temos uma data específica para esta parcela
-        if (dueDates && dueDates.length >= i && dueDates[i-1]) {
-          console.log(`📅 Usando data específica para parcela ${i}: ${dueDates[i-1]}`);
-          dueDate = dueDates[i-1];
-        } else {
-          // Calcula a data de vencimento (hoje + i-1 meses)
-          const calculatedDate = new Date(today);
-          calculatedDate.setMonth(calculatedDate.getMonth() + (i - 1));
-          dueDate = calculatedDate.toISOString().split('T')[0];
-          console.log(`📅 Calculando data para parcela ${i}: ${dueDate}`);
+        // Garantir que a data está no formato YYYY-MM-DD
+        if (typeof specifiedDate === 'string') {
+          // Se tiver timestamp (T), remover
+          if (specifiedDate.includes('T')) {
+            specifiedDate = specifiedDate.split('T')[0];
+          }
+          
+          // Se for DD/MM/YYYY, converter para YYYY-MM-DD
+          if (specifiedDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+            const parts = specifiedDate.split('/');
+            specifiedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
         }
         
-        // Define o valor da parcela atual
-        const currentInstallmentValue = (i === installmentsCount) 
-          ? lastInstallmentValueFormatted 
-          : installmentValue;
-        
-        await pool.query(
-          `INSERT INTO sale_installments (
-            sale_id, installment_number, amount, due_date, status
-          ) VALUES ($1, $2, $3, $4, $5)`,
-          [
-            saleId,
-            i,
-            currentInstallmentValue.toFixed(2),
-            dueDate,
-            'pending'
-          ]
-        );
+        console.log(`📅 SOLUÇÃO FINAL: Usando data específica para parcela ${i}: ${specifiedDate}`);
+        dueDate = specifiedDate;
+      } 
+      // 2. Se não tiver data específica, usar a data da parcela existente anteriormente
+      else if (i <= existingDates.length) {
+        console.log(`📅 SOLUÇÃO FINAL: Reusando data anterior para parcela ${i}: ${existingDates[i-1]}`);
+        dueDate = existingDates[i-1];
+      } 
+      // 3. Se não tiver nenhuma das anteriores, calcular automaticamente
+      else {
+        // Calcula a data de vencimento (hoje + i-1 meses)
+        const calculatedDate = new Date(today);
+        calculatedDate.setMonth(calculatedDate.getMonth() + (i - 1));
+        dueDate = `${calculatedDate.getFullYear()}-${String(calculatedDate.getMonth() + 1).padStart(2, '0')}-${String(calculatedDate.getDate()).padStart(2, '0')}`;
+        console.log(`📅 SOLUÇÃO FINAL: Calculando data para parcela ${i}: ${dueDate}`);
       }
       
-      console.log(`✅ Criadas ${installmentsCount} parcelas para a venda #${saleId}`);
-      return true;
-    } else {
-      console.log(`✅ Venda #${saleId} já tem o número correto de parcelas (${currentCount})`);
-      return false;
+      // Verificação final de segurança para garantir formato ISO
+      if (typeof dueDate === 'string' && !dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.log(`⚠️ Data em formato inválido: ${dueDate}, convertendo...`);
+        try {
+          // Tentar extrair componentes da data
+          const dateParts = dueDate.split(/[-/T]/);
+          if (dateParts.length >= 3) {
+            // Verificar se o primeiro componente pode ser um ano (YYYY-MM-DD)
+            if (dateParts[0].length === 4) {
+              dueDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+            } 
+            // Se não, pode ser DD/MM/YYYY ou MM/DD/YYYY 
+            else {
+              dueDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+            }
+            console.log(`✅ Data convertida para ISO: ${dueDate}`);
+          } else {
+            // Fallback para a data atual
+            dueDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            console.log(`⚠️ Usando data atual como fallback: ${dueDate}`);
+          }
+        } catch (error) {
+          // Fallback final - data atual
+          dueDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          console.log(`⚠️ ERRO ao processar data, usando atual: ${dueDate}`);
+        }
+      }
+      
+      // Define o valor da parcela atual
+      const currentInstallmentValue = (i === installmentsCount) 
+        ? lastInstallmentValueFormatted 
+        : installmentValue;
+      
+      // Inserir a parcela no banco com SQL direto para controle total
+      await pool.query(
+        `INSERT INTO sale_installments (
+          sale_id, installment_number, amount, due_date, status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        [
+          saleId,
+          i,
+          currentInstallmentValue.toFixed(2),
+          dueDate, // Data exatamente como processada
+          'pending'
+        ]
+      );
+      
+      console.log(`✅ Parcela ${i} criada com valor ${currentInstallmentValue.toFixed(2)} e data ${dueDate}`);
     }
+    
+    console.log(`✅✅✅ SOLUÇÃO FINAL: Criadas ${installmentsCount} parcelas para a venda #${saleId}`);
+    return true;
   } catch (error) {
     console.error(`❌ Erro ao gerenciar parcelas da venda #${saleId}:`, error);
     return false;

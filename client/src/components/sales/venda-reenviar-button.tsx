@@ -44,9 +44,57 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       
       // Extrair as datas de vencimento das parcelas
       const installmentDates = installments.map(inst => {
-        // Garantir que a data está no formato correto YYYY-MM-DD
-        const dueDate = inst.dueDate.split('T')[0];
-        return dueDate;
+        // Detectar e processar o formato da data corretamente
+        console.log(`📅 Parcela ${inst.installmentNumber}, data original do banco:`, inst.dueDate, typeof inst.dueDate);
+        
+        // Se for string, garantir o formato YYYY-MM-DD
+        if (typeof inst.dueDate === 'string') {
+          // Se tiver T00:00:00, remover
+          let dueDate = inst.dueDate;
+          if (dueDate.includes('T')) {
+            dueDate = dueDate.split('T')[0];
+          }
+          
+          // Verificar formato
+          if (dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Já está no formato ISO (YYYY-MM-DD)
+            console.log(`✅ Mantendo data ISO formato correto: ${dueDate}`);
+            return dueDate;
+          } else {
+            // Tentar converter outros formatos para YYYY-MM-DD
+            const parts = dueDate.split(/[-/]/);
+            if (parts.length === 3) {
+              // Se o primeiro componente tem 2 ou 4 dígitos, é provavelmente DD/MM/YYYY ou YYYY-MM-DD
+              if (parts[0].length === 4) {
+                // YYYY-MM-DD
+                const formattedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                console.log(`✅ Convertido formato YYYY-MM-DD: ${formattedDate}`);
+                return formattedDate;
+              } else {
+                // DD/MM/YYYY
+                const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                console.log(`✅ Convertido formato DD/MM/YYYY: ${formattedDate}`);
+                return formattedDate;
+              }
+            }
+            console.log(`⚠️ Usando data original sem conversão: ${dueDate}`);
+            return dueDate;
+          }
+        }
+        
+        // Se for objeto Date (raramente acontece aqui), converter para ISO
+        if (inst.dueDate instanceof Date) {
+          const year = inst.dueDate.getFullYear();
+          const month = String(inst.dueDate.getMonth() + 1).padStart(2, '0');
+          const day = String(inst.dueDate.getDate()).padStart(2, '0');
+          const formattedDate = `${year}-${month}-${day}`;
+          console.log(`✅ Convertido objeto Date para string ISO: ${formattedDate}`);
+          return formattedDate;
+        }
+        
+        // Fallback - retornar a data atual em ISO
+        console.log(`⚠️ Usando data FALLBACK para parcela ${inst.installmentNumber}`);
+        return new Date().toISOString().split('T')[0];
       });
       
       console.log("Itens atualizados para reenvio:", items);
