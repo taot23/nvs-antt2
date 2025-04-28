@@ -1461,15 +1461,17 @@ export default function SaleDialog({
                     </FormLabel>
                     <FormControl>
                       <Input 
+                        type="text"
                         placeholder="DD/MM/AAAA" 
                         defaultValue={new Date().toLocaleDateString('pt-BR')}
                         onChange={(e) => {
-                          // Permite qualquer entrada inclusive vazia
                           const input = e.target.value;
+                          console.log("Input data:", input);
                           
-                          // Se o campo estiver vazio, define como string vazia
-                          if (!input) {
-                            field.onChange("");
+                          // Se o campo estiver vazio, define como null
+                          if (!input || input.trim() === '') {
+                            console.log("Campo vazio, definindo como null");
+                            field.onChange(null);
                             return;
                           }
                           
@@ -1479,9 +1481,12 @@ export default function SaleDialog({
                           // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
                           if (formattedInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
                             const [day, month, year] = formattedInput.split('/');
-                            field.onChange(`${year}-${month}-${day}`);
+                            const dateString = `${year}-${month}-${day}`;
+                            console.log("Convertendo para formato ISO:", dateString);
+                            field.onChange(dateString);
                           } else {
                             // Caso contrário, mantém o valor como string para permitir a digitação
+                            console.log("Mantendo formato de digitação:", formattedInput);
                             field.onChange(formattedInput);
                           }
                         }}
