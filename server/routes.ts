@@ -28,6 +28,89 @@ import { ptBR } from "date-fns/locale";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
 
+/**
+ * Função auxiliar para gerenciar as parcelas de uma venda
+ * Garante que o número exato de parcelas seja criado/atualizado no banco de dados
+ */
+async function ensureSaleInstallments(
+  saleId: number, 
+  installmentsCount: number, 
+  totalAmount: string | number
+) {
+  try {
+    const { pool } = await import('./db');
+    
+    // Primeiro, busca as parcelas existentes
+    const existingResult = await pool.query(
+      `SELECT COUNT(*) as count FROM sale_installments WHERE sale_id = $1`,
+      [saleId]
+    );
+    
+    const currentCount = parseInt(existingResult.rows[0].count);
+    console.log(`🔄 Verificando parcelas para venda #${saleId}: tem ${currentCount}, precisa de ${installmentsCount}`);
+    
+    // Se o número é diferente, recria todas as parcelas
+    if (currentCount !== installmentsCount) {
+      // Apaga todas as parcelas existentes
+      await pool.query(`DELETE FROM sale_installments WHERE sale_id = $1`, [saleId]);
+      console.log(`🔄 Parcelas anteriores da venda #${saleId} excluídas.`);
+      
+      // Converte o valor total para número se for string
+      const totalAmountValue = typeof totalAmount === 'number' 
+        ? totalAmount 
+        : parseFloat(totalAmount);
+      
+      // Calcula o valor base de cada parcela
+      const baseInstallmentValue = totalAmountValue / installmentsCount;
+      const installmentValue = Math.floor(baseInstallmentValue * 100) / 100;
+      
+      // A última parcela compensa qualquer diferença de arredondamento
+      const lastInstallmentValue = totalAmountValue - (installmentValue * (installmentsCount - 1));
+      const lastInstallmentValueFormatted = Math.round(lastInstallmentValue * 100) / 100;
+      
+      console.log(`💰 Valor total: ${totalAmountValue}, Parcelas: ${installmentsCount}`);
+      console.log(`💰 Valor por parcela: ${installmentValue}, Última parcela: ${lastInstallmentValueFormatted}`);
+      
+      // Data base para cálculo dos vencimentos
+      const today = new Date();
+      
+      // Cria cada parcela
+      for (let i = 1; i <= installmentsCount; i++) {
+        // Calcula a data de vencimento (hoje + i-1 meses)
+        const dueDate = new Date(today);
+        dueDate.setMonth(dueDate.getMonth() + (i - 1));
+        
+        // Define o valor da parcela atual
+        const currentInstallmentValue = (i === installmentsCount) 
+          ? lastInstallmentValueFormatted 
+          : installmentValue;
+        
+        await pool.query(
+          `INSERT INTO sale_installments (
+            sale_id, installment_number, amount, due_date, status
+          ) VALUES ($1, $2, $3, $4, $5)`,
+          [
+            saleId,
+            i,
+            currentInstallmentValue.toFixed(2),
+            dueDate.toISOString().split('T')[0],
+            'pending'
+          ]
+        );
+      }
+      
+      console.log(`✅ Criadas ${installmentsCount} parcelas para a venda #${saleId}`);
+      return true;
+    } else {
+      console.log(`✅ Venda #${saleId} já tem o número correto de parcelas (${currentCount})`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`❌ Erro ao gerenciar parcelas da venda #${saleId}:`, error);
+    return false;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
@@ -1966,80 +2049,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Sempre atualizar parcelas quando uma venda é reenviada após correção
       // Isso garante consistência em todo o sistema
-      {
-        try {
-          // Verificar se a venda agora está parcelada
-          const installmentsToCreate = installments || sale.installments || 1;
-          
-          console.log(`🔄 Verificando parcelas para venda #${id} - Parcelas definidas: ${installmentsToCreate}`);
-          
-          // Sempre recriar todas as parcelas quando estamos resubmetendo uma venda corrigida
-          {
-            // Primeiro, remover parcelas existentes
-            await pool.query(`DELETE FROM sale_installments WHERE sale_id = $1`, [id]);
-            
-            console.log(`🔄 Parcelas anteriores da venda #${id} excluídas. Gerando ${installmentsToCreate} novas parcelas.`);
-            
-            // Calcular o valor de cada parcela com alta precisão
-            const totalAmountValue = parseFloat(totalAmount || sale.total_amount || '0');
-            
-            // Registrar valor total para diagnóstico
-            console.log(`💰 Valor total original: ${totalAmountValue}, Parcelas a criar: ${installmentsToCreate}`);
-            
-            // Para evitar problemas de arredondamento, calculamos com máxima precisão
-            const baseInstallmentValue = totalAmountValue / installmentsToCreate;
-            
-            // Arredondamos para 2 casas decimais
-            const installmentValue = Math.floor(baseInstallmentValue * 100) / 100;
-            
-            // A última parcela precisa compensar qualquer diferença de centavos
-            const lastInstallmentValue = totalAmountValue - (installmentValue * (installmentsToCreate - 1));
-            
-            // Garantir que o valor tenha 2 casas decimais exatas
-            const lastInstallmentValueFormatted = Math.round(lastInstallmentValue * 100) / 100;
-            
-            // Validar os cálculos para diagnóstico
-            const totalCalculated = (installmentValue * (installmentsToCreate - 1)) + lastInstallmentValueFormatted;
-            console.log(`💰 Cálculo validado: ${installmentValue} × ${installmentsToCreate-1} + ${lastInstallmentValueFormatted} = ${totalCalculated}`);
-            console.log(`💰 Diferença de arredondamento: ${totalAmountValue - totalCalculated}`);
-            
-            
-            console.log(`💰 Valor total: ${totalAmountValue}, Parcelas: ${installmentsToCreate}`);
-            console.log(`💰 Valor por parcela: ${installmentValue}, Última parcela: ${lastInstallmentValueFormatted}`);
-            
-            const today = new Date();
-            
-            // Criar novas parcelas
-            for (let i = 1; i <= installmentsToCreate; i++) {
-              // Calcular a data de vencimento (hoje + i-1 meses)
-              const dueDate = new Date(today);
-              dueDate.setMonth(dueDate.getMonth() + (i - 1));
-              
-              // Usar o valor especial para a última parcela
-              const currentInstallmentValue = (i === installmentsToCreate) 
-                ? lastInstallmentValueFormatted 
-                : installmentValue;
-              
-              await pool.query(
-                `INSERT INTO sale_installments (
-                  sale_id, installment_number, amount, due_date, status
-                ) VALUES ($1, $2, $3, $4, $5)`,
-                [
-                  id,
-                  i,
-                  currentInstallmentValue.toFixed(2),
-                  dueDate.toISOString().split('T')[0],
-                  'pending'
-                ]
-              );
-            }
-            
-            console.log(`✅ Criadas ${installmentsToCreate} parcelas para a venda #${id}`);
-          }
-        } catch (error) {
-          console.error(`❌ Erro ao atualizar parcelas da venda #${id}:`, error);
-          // Não interrompemos o fluxo aqui, apenas logamos o erro
-        }
+      try {
+        // Verificar se a venda agora está parcelada
+        const installmentsToCreate = installments || sale.installments || 1;
+        const saleAmount = totalAmount || sale.total_amount || '0';
+        
+        console.log(`🔄 Venda reenviada #${id} - Recriando ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
+        
+        // Usar nossa função auxiliar para garantir que as parcelas sejam criadas consistentemente
+        await ensureSaleInstallments(id, installmentsToCreate, saleAmount);
+      } catch (error) {
+        console.error(`❌ Erro ao atualizar parcelas da venda #${id}:`, error);
+        // Não interrompemos o fluxo aqui, apenas logamos o erro
       }
       
       // Registrar a ação no log
@@ -2188,6 +2209,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedSale = await storage.updateSale(id, saleData);
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Se o número de parcelas ou valor total foi alterado, atualizar as parcelas
+      if (saleData.installments !== undefined || saleData.totalAmount !== undefined) {
+        try {
+          // Obter os valores atualizados
+          const installmentsToCreate = saleData.installments || sale.installments || 1;
+          const saleAmount = saleData.totalAmount || sale.total_amount || '0';
+          
+          console.log(`🔄 Venda atualizada #${id} - Atualizando parcelas: ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
+          
+          // Usar nossa função auxiliar para garantir que as parcelas sejam criadas corretamente
+          await ensureSaleInstallments(id, installmentsToCreate, saleAmount);
+        } catch (error) {
+          console.error(`❌ Erro ao atualizar parcelas da venda #${id} após PATCH:`, error);
+          // Não interrompemos o fluxo aqui, apenas logamos o erro
+        }
       }
       
       // Notificar todos os clientes sobre a atualização da venda
