@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { SendHorizontal } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { SendHorizontal, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import SaleDialog from './sale-dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 // Definindo a tipagem para a venda
 interface Sale {
@@ -43,13 +44,48 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
   const { user } = useAuth();
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [saleDataReady, setSaleDataReady] = useState(false);
 
   console.log('🔄 ReenviaButton - sale:', sale?.id, 'status:', sale?.status, 'dialogOpen:', dialogOpen, 'userRole:', user?.role);
+  
+  // Pré-carrega os dados da venda para evitar flickering
+  useEffect(() => {
+    if (dialogOpen && selectedSale) {
+      setIsLoading(true);
+      
+      // Pré-carrega os dados da venda
+      fetch(`/api/sales/${selectedSale.id}`)
+        .then(response => response.json())
+        .then(data => {
+          console.log("✅ Dados da venda pré-carregados com sucesso:", data);
+          setSaleDataReady(true);
+        })
+        .catch(error => {
+          console.error("❌ Erro ao pré-carregar dados da venda:", error);
+          toast({
+            title: "Erro ao carregar venda",
+            description: "Houve um problema ao carregar os dados da venda",
+            variant: "destructive",
+          });
+          // Fecha o diálogo em caso de erro
+          setDialogOpen(false);
+          setSelectedSale(null);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      // Reset quando o diálogo fecha
+      setSaleDataReady(false);
+    }
+  }, [dialogOpen, selectedSale, toast]);
   
   // Função para abrir o diálogo de edição
   const handleEditClick = () => {
     console.log('🔄 Abrindo diálogo de edição para corrigir venda devolvida:', sale.id);
     setSelectedSale(sale);
+    setSaleDataReady(false); // Reset o estado para forçar o pré-carregamento
     setDialogOpen(true);
   };
 
@@ -94,8 +130,25 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
         <SendHorizontal className="h-4 w-4" />
       </Button>
 
-      {/* Diálogo de edição completa da venda quando estiver aberto */}
-      {dialogOpen && selectedSale && (
+      {/* Diálogo de carregamento enquanto os dados não estão prontos */}
+      {dialogOpen && isLoading && (
+        <Dialog open={dialogOpen} onOpenChange={(open) => !open && setDialogOpen(false)}>
+          <DialogContent className="max-w-md">
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+              <p className="text-center text-lg font-medium">
+                Carregando dados da venda...
+              </p>
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Por favor, aguarde enquanto preparamos os dados para edição.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Diálogo de edição completa da venda quando os dados estão prontos */}
+      {dialogOpen && selectedSale && !isLoading && saleDataReady && (
         <SaleDialog
           open={dialogOpen}
           onClose={() => {
