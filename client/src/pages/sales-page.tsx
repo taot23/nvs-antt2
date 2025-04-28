@@ -1481,7 +1481,11 @@ export default function SalesPage() {
                     </Button>
                     
                     {/* Botões de ação com base no status e permissões */}
-                    {user?.role === "admin" && (
+                    {/* Botão de editar visível para admin ou para vendedor quando a venda estiver devolvida */}
+                    {(user?.role === "admin" || 
+                     (sale.status === "returned" && 
+                      (user?.role === "vendedor" && sale.sellerId === user?.id) || 
+                      user?.role === "supervisor")) && (
                       <Button
                         size="sm"
                         variant="outline"
