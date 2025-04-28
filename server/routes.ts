@@ -2057,27 +2057,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethodId,
         installments,
         totalAmount,
-        preserveFinancialData
+        preserveFinancialData,
+        installmentDates = []
       } = req.body;
       
-      // Verificar se o financeiro já iniciou análise desta venda
+      // MELHORIA CRÍTICA: Verificar se o financeiro já iniciou análise desta venda
+      // e garantir que dados financeiros não sejam alterados
       const financialStatus = sale.financial_status || '';
-      const financeiroJaIniciouAnalise = financialStatus && 
-                                      financialStatus !== 'pending' && 
-                                      financialStatus !== '';
+      const blockFinancialChanges = financialStatus && 
+                                   financialStatus !== 'pending' && 
+                                   financialStatus !== '';
       
-      // Log para diagnóstico
-      console.log(`📊 Dados da venda #${id} para reenvio:`, { 
-        id, 
-        status_financeiro: financialStatus,
-        em_analise: financeiroJaIniciouAnalise,
-        preservar_dados: preserveFinancialData || financeiroJaIniciouAnalise, 
-        itens: items.length,
-        tipoServico: serviceTypeId,
-        formaPagamento: paymentMethodId,
-        parcelas: installments,
-        valor: totalAmount
-      });
+      // Log detalhado para diagnóstico
+      console.log(`🔍 Verificação financeira para venda #${id}:`);
+      console.log(`🔍 Status financeiro atual: ${financialStatus || 'não definido'}`);
+      console.log(`🔍 Bloqueio de alterações financeiras: ${blockFinancialChanges ? 'SIM' : 'NÃO'}`);
+      console.log(`🔍 Flag preserveFinancialData recebida: ${preserveFinancialData ? 'SIM' : 'NÃO'}`);
+      
+      // CONTROLE DUPLO: Se o financeiro já iniciou análise, verificamos se o cliente está tentando
+      // modificar dados financeiros e geramos erro se necessário
+      if (blockFinancialChanges) {
+        // Se o cliente NÃO enviou a flag preserveFinancialData=true, retornamos erro
+        if (!preserveFinancialData) {
+          console.error(`❌ TENTATIVA DE MODIFICAR DADOS FINANCEIROS EM VENDA #${id} QUE JÁ ESTÁ EM ANÁLISE FINANCEIRA!`);
+          return res.status(403).json({ 
+            error: "Bloqueio de segurança financeira", 
+            message: "Esta venda já está em análise pelo departamento financeiro. Dados financeiros não podem ser modificados."
+          });
+        }
+        
+        // Logs para diagnóstico
+        console.log(`✅ Cliente enviou flag preserveFinancialData=true, verificando consistência...`);
+        
+        // Verificar se o valor total está sendo preservado
+        if (totalAmount && parseFloat(totalAmount.toString()) !== parseFloat(sale.total_amount)) {
+          console.error(`❌ BLOQUEIO: Cliente tentou alterar valor total de ${sale.total_amount} para ${totalAmount}`);
+          return res.status(403).json({
+            error: "Modificação financeira bloqueada",
+            message: "Não é possível alterar o valor total desta venda pois ela já está em análise financeira."
+          });
+        }
+        
+        // Verificar se o número de parcelas está sendo preservado
+        if (installments && parseInt(installments.toString()) !== sale.installments) {
+          console.error(`❌ BLOQUEIO: Cliente tentou alterar número de parcelas de ${sale.installments} para ${installments}`);
+          return res.status(403).json({
+            error: "Modificação financeira bloqueada",
+            message: "Não é possível alterar o número de parcelas desta venda pois ela já está em análise financeira."
+          });
+        }
+        
+        console.log(`✅ Verificação financeira concluída: dados financeiros preservados`);
+      }
       
       if (!correctionNotes) {
         return res.status(400).json({ error: "Observações de correção são obrigatórias" });
