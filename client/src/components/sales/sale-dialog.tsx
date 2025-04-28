@@ -549,11 +549,13 @@ export default function SaleDialog({
       console.log("- saleItems:", saleItems);
       
       // Armazenar o status original da venda para verificações
+      console.log("🔴 DEBUG STATUS: Definindo status original =", sale.status);
       setOriginalStatus(sale.status);
       
       // Se a venda está com status "returned", resetar o campo de observações de correção
       if (sale.status === "returned") {
-        setCorrectionNotes("")
+        console.log("🔴 VENDA DEVOLVIDA DETECTADA: Preparando campo de observações para correção");
+        setCorrectionNotes("");
       }
       
       // Reset imediato do formulário com dados da venda
@@ -2127,6 +2129,7 @@ export default function SaleDialog({
             />
             
             {/* Campo especial de observações para vendas devolvidas */}
+            {console.log("🔴 RENDERIZAÇÃO: Status original =", originalStatus, "- Condição campo correção:", originalStatus === "returned")}
             {originalStatus === "returned" && (
               <div className="space-y-2 mt-4 border-l-4 border-blue-600 pl-4 py-2 bg-blue-50 rounded-sm">
                 <div className="flex items-center gap-2">
@@ -2134,6 +2137,7 @@ export default function SaleDialog({
                     Correções Realizadas <span className="text-red-500">*</span>
                   </label>
                 </div>
+                {console.log("🔴 CAMPO DE CORREÇÃO SENDO RENDERIZADO!")}
                 <Textarea 
                   placeholder="Descreva as correções realizadas nesta venda antes de reenviar..."
                   className="min-h-[80px] border-blue-200"
