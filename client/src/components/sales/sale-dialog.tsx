@@ -63,7 +63,8 @@ const saleSchema = z.object({
   totalAmount: z.string().optional(),
   installments: z.coerce.number().min(1, "Número de parcelas deve ser pelo menos 1").default(1),
   notes: z.string().optional(),
-  items: z.array(saleItemSchema).min(1, "Adicione pelo menos um item à venda"),
+  // Removida a validação de item mínimo para permitir edição de vendas sem itens
+  items: z.array(saleItemSchema).default([]),
 });
 
 // Tipo SaleItem para tipagem de itens da venda
@@ -191,14 +192,14 @@ export default function SaleDialog({
     items: [] // Sem item inicial, usuário precisa adicionar manualmente
   };
   
-  // Efeito para resetar o estado quando a venda ou o diálogo muda
+  // Efeito para resetar o estado quando o diálogo é aberto/fechado
   useEffect(() => {
-    // Se o diálogo está aberto e temos uma venda, asseguramos que o formulário será inicializado
-    if (open && sale) {
-      console.log("🔄 Diálogo aberto com venda detectada:", sale);
+    // Se o diálogo fecha, resetamos o estado
+    if (!open) {
       formInitialized.current = false;
+      console.log("🔄 Diálogo fechado, estado resetado");
     }
-  }, [open, sale]);
+  }, [open]);
   
   // Formulário
   const form = useForm<z.infer<typeof saleSchema>>({
@@ -379,44 +380,58 @@ export default function SaleDialog({
     }
   }, [form.watch("installments"), firstDueDate]);
   
-  // Efeito para inicializar o formulário quando o diálogo é aberto
+  // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
-    // Quando a venda está disponível e o diálogo está aberto, inicializar o formulário
-    if (open && sale && !formInitialized.current) {
+    // Inicializamos o formulário SOMENTE quando a venda e os itens estão disponíveis
+    if (open && !isLoadingSale && sale && !formInitialized.current) {
       console.log("📋 Inicializando formulário com dados da venda:", sale);
       
       // Reset imediato do formulário com dados da venda
       setTimeout(() => {
-        form.reset({
-          orderNumber: sale.orderNumber || "",
-          date: sale.date ? new Date(sale.date) : new Date(),
-          customerId: sale.customerId || 0,
-          paymentMethodId: sale.paymentMethodId || 1,
-          serviceTypeId: sale.serviceTypeId || 1,
-          sellerId: sale.sellerId || 1,
-          totalAmount: sale.totalAmount || "0",
-          installments: sale.installments || 1,
-          notes: sale.notes || "",
-          items: Array.isArray(saleItems) && saleItems.length > 0 
+        try {
+          // Preparamos os itens se existirem
+          const formattedItems = Array.isArray(saleItems) && saleItems.length > 0 
             ? saleItems.map((item: SaleItem) => ({
                 serviceId: item.serviceId,
-                serviceTypeId: item.serviceTypeId,
-                quantity: item.quantity,
+                serviceTypeId: item.serviceTypeId || sale.serviceTypeId || 1,
+                quantity: item.quantity || 1,
                 notes: item.notes || "",
                 price: item.price || "0",
-                totalPrice: item.price || "0",
+                totalPrice: item.totalPrice || item.price || "0",
                 status: "pending"
               }))
-            : []
-        });
-        
-        console.log("📋 Formulário resetado com valores:", {
-          orderNumber: sale.orderNumber,
-          customerId: sale.customerId,
-          paymentMethodId: sale.paymentMethodId,
-          serviceTypeId: sale.serviceTypeId,
-          sellerId: sale.sellerId,
-        });
+            : [];
+          
+          // Resetamos o formulário com os valores da venda
+          form.reset({
+            orderNumber: sale.orderNumber || "",
+            date: sale.date ? new Date(sale.date) : new Date(),
+            customerId: sale.customerId || 0,
+            paymentMethodId: sale.paymentMethodId || 1,
+            serviceTypeId: sale.serviceTypeId || 1,
+            sellerId: sale.sellerId || 1,
+            totalAmount: sale.totalAmount || "0",
+            installments: sale.installments || 1,
+            notes: sale.notes || "",
+            items: formattedItems
+          });
+          
+          console.log("📋 Formulário resetado com valores:", {
+            orderNumber: sale.orderNumber,
+            customerId: sale.customerId,
+            paymentMethodId: sale.paymentMethodId,
+            serviceTypeId: sale.serviceTypeId,
+            sellerId: sale.sellerId,
+          });
+        } catch (error) {
+          console.error("❌ Erro ao resetar formulário:", error);
+          toast({
+            title: "Erro ao carregar venda",
+            description: "Houve um erro ao carregar os dados da venda. Tente novamente.",
+            variant: "destructive",
+            className: "top-toast",
+          });
+        }
       }, 100); // Pequeno timeout para garantir que todos os dados estejam disponíveis
 
       // Encontra e define os nomes de cliente e vendedor para os campos de busca
