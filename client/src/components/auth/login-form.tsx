@@ -48,13 +48,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
   return (
     <>
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800">Bem-vindo de volta</h2>
-        <p className="text-gray-600 mt-1">Faça login para continuar</p>
+      <div className="text-center mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Bem-vindo de volta</h2>
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">Faça login para continuar</p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           <FormField
             control={form.control}
             name="username"
@@ -141,7 +141,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             )}
           />
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
             <div className="flex items-center space-x-2">
               <FormField
                 control={form.control}
@@ -176,7 +176,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
           <Button
             type="submit"
-            className="w-full h-12"
+            className="w-full h-10 sm:h-12"
             disabled={loginMutation.isPending}
           >
             {loginMutation.isPending ? "Entrando..." : "Entrar"}
