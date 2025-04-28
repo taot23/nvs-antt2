@@ -370,10 +370,15 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
                     <DevolveButton sale={sale} />
                   )}
                   
-                  {/* Permissão para marcar como paga (financeiro/admin) */}
+                  {/* Permissão para marcar como paga (financeiro/admin) - apenas em páginas financeiras */}
                   {(user?.role === "admin" || user?.role === "financeiro") && 
                     sale.status === "completed" && 
-                    sale.financialStatus !== "paid" && (
+                    sale.financialStatus !== "paid" && 
+                    // Verificar se estamos na interface financeira através da URL
+                    (
+                      window.location.pathname.includes('/finance') || 
+                      window.location.pathname.includes('/financeiro')
+                    ) && (
                     <Button
                       variant="ghost"
                       size="icon"
