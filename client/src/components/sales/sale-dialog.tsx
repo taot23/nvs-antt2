@@ -217,22 +217,48 @@ export default function SaleDialog({
   const { data: sale = null, isLoading: isLoadingSale } = useQuery({
     queryKey: ["/api/sales", saleId],
     queryFn: async () => {
-      if (!saleId) return propSale || null;
-      
-      console.log("🔍 Buscando venda com ID:", saleId);
-      const response = await fetch(`/api/sales/${saleId}`);
-      
-      if (!response.ok) {
-        console.error("❌ Erro ao carregar venda:", response.status);
-        throw new Error("Erro ao carregar venda");
+      if (!saleId) {
+        console.log("⚠️ Sem ID da venda, usando propSale:", propSale);
+        return propSale || null;
       }
       
-      const saleData = await response.json();
-      console.log("✅ Dados da venda carregados:", saleData);
-      return saleData;
+      try {
+        console.log("🔍 Buscando venda com ID:", saleId);
+        const response = await fetch(`/api/sales/${saleId}`);
+        
+        if (!response.ok) {
+          console.error("❌ Erro ao carregar venda:", response.status);
+          throw new Error("Erro ao carregar venda");
+        }
+        
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("❌ Resposta não é JSON:", contentType);
+          throw new Error("Resposta inválida da API");
+        }
+        
+        const saleData = await response.json();
+        console.log("✅ DADOS DA VENDA CARREGADOS:", JSON.stringify(saleData, null, 2));
+        
+        // Verifica se temos os dados mínimos necessários
+        console.log("Verificando campos da venda:");
+        console.log("orderNumber:", saleData.orderNumber);
+        console.log("date:", saleData.date);
+        console.log("customerId:", saleData.customerId);
+        console.log("paymentMethodId:", saleData.paymentMethodId);
+        console.log("serviceTypeId:", saleData.serviceTypeId);
+        console.log("sellerId:", saleData.sellerId);
+        
+        return saleData;
+      } catch (error) {
+        console.error("❌ ERRO CRÍTICO ao carregar venda:", error);
+        throw error;
+      }
     },
     enabled: !!saleId,
-    initialData: propSale || null
+    initialData: propSale || null,
+    staleTime: 0, // Não usar cache
+    refetchOnWindowFocus: false // Não refazer a consulta quando a janela ganha foco
   });
 
   // Consulta para obter os itens da venda ao editar
@@ -425,24 +451,49 @@ export default function SaleDialog({
               }))
             : [];
           
-          // Forçamos valores padrão para campos que podem estar nulos
-          const formValues = {
-            orderNumber: sale.orderNumber || "",
-            date: sale.date ? new Date(sale.date) : new Date(),
-            customerId: Number(sale.customerId) || 0,
-            paymentMethodId: Number(sale.paymentMethodId) || 1,
-            serviceTypeId: Number(sale.serviceTypeId) || 1,
-            sellerId: Number(sale.sellerId) || 1,
-            totalAmount: sale.totalAmount || "0",
-            installments: Number(sale.installments) || 1,
-            notes: sale.notes || "",
-            items: formattedItems
-          };
+          // Em vez de usar reset, definimos cada campo individualmente
+          console.log("📋 Definindo cada campo do formulário individualmente:");
           
-          console.log("📋 Valores a serem usados no formulário:", formValues);
+          // Número da ordem
+          console.log("- Definindo orderNumber:", sale.orderNumber);
+          form.setValue("orderNumber", sale.orderNumber || "");
           
-          // Resetamos o formulário com os valores da venda
-          form.reset(formValues);
+          // Data
+          const dateValue = sale.date ? new Date(sale.date) : new Date();
+          console.log("- Definindo date:", dateValue);
+          form.setValue("date", dateValue);
+          
+          // Cliente
+          console.log("- Definindo customerId:", Number(sale.customerId));
+          form.setValue("customerId", Number(sale.customerId) || 0);
+          
+          // Forma de pagamento
+          console.log("- Definindo paymentMethodId:", Number(sale.paymentMethodId));
+          form.setValue("paymentMethodId", Number(sale.paymentMethodId) || 1);
+          
+          // Tipo de serviço
+          console.log("- Definindo serviceTypeId:", Number(sale.serviceTypeId));
+          form.setValue("serviceTypeId", Number(sale.serviceTypeId) || 1);
+          
+          // Vendedor
+          console.log("- Definindo sellerId:", Number(sale.sellerId));
+          form.setValue("sellerId", Number(sale.sellerId) || 1);
+          
+          // Valor total
+          console.log("- Definindo totalAmount:", sale.totalAmount);
+          form.setValue("totalAmount", sale.totalAmount || "0");
+          
+          // Número de parcelas
+          console.log("- Definindo installments:", Number(sale.installments));
+          form.setValue("installments", Number(sale.installments) || 1);
+          
+          // Observações
+          console.log("- Definindo notes:", sale.notes);
+          form.setValue("notes", sale.notes || "");
+          
+          // Itens
+          console.log("- Definindo items:", formattedItems);
+          form.setValue("items", formattedItems);
           
           console.log("📋 Formulário resetado com valores:", {
             orderNumber: sale.orderNumber,
