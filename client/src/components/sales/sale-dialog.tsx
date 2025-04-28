@@ -271,6 +271,7 @@ export default function SaleDialog({
       toast({
         title: "Cliente criado",
         description: "Cliente criado com sucesso",
+        className: "top-toast",
       });
       
       // Atualiza o formulário com o novo cliente
@@ -283,6 +284,7 @@ export default function SaleDialog({
         title: "Erro ao criar cliente",
         description: error.message,
         variant: "destructive",
+        className: "top-toast",
       });
     },
   });
@@ -472,6 +474,7 @@ export default function SaleDialog({
         title: "Serviço não selecionado",
         description: "Selecione um serviço válido para adicionar",
         variant: "destructive",
+        className: "top-toast",
       });
       return;
     }
@@ -482,6 +485,7 @@ export default function SaleDialog({
         title: "Tipo de serviço não selecionado",
         description: "Selecione um tipo de execução válido antes de adicionar itens",
         variant: "destructive",
+        className: "top-toast",
       });
       return;
     }
@@ -513,6 +517,7 @@ export default function SaleDialog({
         title: "Campos obrigatórios",
         description: "Nome e documento são obrigatórios",
         variant: "destructive",
+        className: "top-toast",
       });
       return;
     }
