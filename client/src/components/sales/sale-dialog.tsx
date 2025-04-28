@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useForm, useFieldArray, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X } from "lucide-react";
+import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
 
@@ -627,95 +627,7 @@ export default function SaleDialog({
     return serviceType ? serviceType.name : `Tipo #${serviceTypeId}`;
   };
 
-  // SOLUÇÃO DEFINITIVA: Componente estático para renderização de itens
-  // Evita completamente o problema de flickering ao não depender de estado do React
-  const ItemsRenderer = () => {
-    // Estado para item a ser removido (para confirmação)
-    const [confirmRemove, setConfirmRemove] = useState<number | null>(null);
-    
-    // Se não temos nada para mostrar ainda, exibimos o estado de carregamento
-    if (!sale || !saleItems || isLoadingItems) {
-      return (
-        <div className="py-4 text-center">
-          <div className="animate-pulse flex space-x-4 justify-center">
-            <div className="h-6 w-6 bg-slate-200 rounded-full"></div>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">Carregando itens...</p>
-        </div>
-      );
-    }
-    
-    // Se não temos itens, exibimos uma mensagem
-    if (!saleItems.length) {
-      return (
-        <div className="py-6 text-center border rounded-md border-dashed">
-          <p className="text-sm text-muted-foreground">Nenhum item adicionado. Adicione um serviço abaixo.</p>
-        </div>
-      );
-    }
-    
-    // Função para remover item com confirmação
-    const handleRemoveItem = (index: number) => {
-      // Se já foi confirmado, remove
-      if (confirmRemove === index) {
-        remove(index);
-        setConfirmRemove(null);
-        
-        // Feedback visual
-        toast({
-          title: "Item removido",
-          description: "Item removido com sucesso da venda",
-          className: "top-toast"
-        });
-      } else {
-        // Pede confirmação
-        setConfirmRemove(index);
-        
-        // Limpa a confirmação após 3 segundos
-        setTimeout(() => setConfirmRemove(null), 3000);
-      }
-    };
-    
-    // Usa os dados dos itens direto da API, não do form state (mais estável)
-    return (
-      <div className="space-y-2">
-        {saleItems.map((item: any, index: number) => {
-          const serviceName = services.find((s: any) => s.id === item.serviceId)?.name || `Serviço #${item.serviceId}`;
-          const serviceTypeName = serviceTypes.find((t: any) => t.id === item.serviceTypeId)?.name || `Tipo #${item.serviceTypeId}`;
-          
-          return (
-            <div 
-              key={`item-${index}-${item.id || Math.random()}`} 
-              className={`flex items-center justify-between space-x-2 p-2 rounded-md transition-colors ${
-                confirmRemove === index ? 'bg-destructive/10' : 'bg-muted/30'
-              }`}
-            >
-              <div className="flex-1 overflow-hidden">
-                <p className="font-medium truncate">{serviceName}</p>
-                <p className="text-xs text-muted-foreground">
-                  Qtd: {item.quantity} | Tipo: {serviceTypeName}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant={confirmRemove === index ? "destructive" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => handleRemoveItem(index)}
-                disabled={isSubmitting}
-              >
-                {confirmRemove === index ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <X className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // Funções auxiliares para renderização de componentes
   
   // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
@@ -2514,7 +2426,62 @@ export default function SaleDialog({
               
               {/* Lista de itens da venda - SOLUÇÃO DEFINITIVA PARA FLICKERING */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
-                <ItemsRenderer />
+                {/* RENDERIZAÇÃO ESTÁTICA ANTI-FLICKERING: Usa React.useMemo para evitar re-renderizações */}
+                {React.useMemo(() => {
+                  console.log("🔵 RENDERIZANDO ITENS: total=" + (fields?.length || 0));
+                  
+                  if (fields.length === 0) {
+                    return (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                        <p>Nenhum item adicionado</p>
+                        <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-2">
+                      {fields.map((field, index) => {
+                        // Obtém o item do FormArray
+                        const item = form.getValues(`items.${index}`) as SaleItem;
+                        if (!item) return null;
+                        
+                        // Encontra o nome do serviço
+                        const service = services.find((s: any) => s.id === item.serviceId);
+                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                        
+                        // Renderiza cada item como um card separado
+                        return (
+                          <div key={field.id} className="rounded-md border p-3 relative">
+                            <div className="flex justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium">{serviceName}</h4>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span>Quantidade: {item.quantity}</span>
+                                </div>
+                                {item.notes && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    <span className="font-medium">Observações:</span> {item.notes}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900"
+                                onClick={() => remove(index)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }, [fields, services, remove])}
               </div>
             </div>
             
