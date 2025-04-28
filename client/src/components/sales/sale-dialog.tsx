@@ -2686,10 +2686,26 @@ export default function SaleDialog({
                   
                   console.log("Dados de venda preparados:", saleData);
                   
-                  // Chama diretamente a API para salvar a venda
+                  // Determina se estamos reenviando uma venda devolvida ou criando uma nova
+                  const isResending = originalStatus === "returned" && sale?.id;
+                  
+                  // Adiciona notas de correção se for um reenvio
+                  if (isResending && correctionNotes) {
+                    console.log("🔄 REENVIO: Adicionando observações de correção à venda devolvida #" + sale.id);
+                    saleData.correctionNotes = correctionNotes;
+                    saleData.status = "pending"; // Forçar mudança do status para "pending"
+                  }
+                  
+                  // Define o endpoint e método apropriados
+                  const endpoint = isResending ? `/api/sales/${sale.id}/resend` : "/api/sales";
+                  const method = isResending ? "PUT" : "POST";
+                  
+                  console.log(`🔄 ${isResending ? 'REENVIANDO venda #' + sale.id : 'Criando NOVA venda'} usando endpoint: ${endpoint}`);
+                  
+                  // Chama a API para salvar ou reenviar a venda
                   setIsSubmitting(true);
-                  fetch("/api/sales", {
-                    method: "POST",
+                  fetch(endpoint, {
+                    method: method,
                     headers: {
                       "Content-Type": "application/json",
                     },
