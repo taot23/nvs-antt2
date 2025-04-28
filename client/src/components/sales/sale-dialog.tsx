@@ -774,14 +774,60 @@ export default function SaleDialog({
               rawDate = rawDate.split('T')[0];
             }
             
-            console.log("🛑 CORREÇÃO FINAL - Usando data do banco (string):", rawDate);
-            setFirstDueDate(rawDate);
+            // Verificar se está no formato ISO (YYYY-MM-DD)
+            if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              console.log("✅ SOLUÇÃO DEFINITIVA - Primeira data ISO válida:", rawDate);
+              setFirstDueDate(rawDate);
+            } else {
+              console.log("⚠️ FORMATO INVÁLIDO - Tentando converter manualmente a primeira data:", rawDate);
+              
+              // Se não for ISO, tente extrair os componentes da data
+              const parts = rawDate.split(/[-/]/);
+              if (parts.length === 3) {
+                // Verificar se o primeiro componente parece ser um ano (4 dígitos)
+                if (parts[0].length === 4) {
+                  // Já está no formato YYYY-MM-DD ou similar
+                  const fixedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                  console.log("✅ SOLUÇÃO DEFINITIVA - Primeira data corrigida:", fixedDate);
+                  setFirstDueDate(fixedDate);
+                } else {
+                  // Formato DD/MM/YYYY ou similar
+                  const fixedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  console.log("✅ SOLUÇÃO DEFINITIVA - Primeira data corrigida de DD/MM/YYYY:", fixedDate);
+                  setFirstDueDate(fixedDate);
+                }
+              } else {
+                // Se não conseguir converter, use a original
+                setFirstDueDate(rawDate);
+              }
+            }
           } else {
-            // Se for um objeto Date, converter manualmente para evitar problemas de timezone
-            const date = new Date(firstInstallment.dueDate);
-            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            console.log("🛑 CORREÇÃO FINAL - Convertendo data do banco (Date):", formattedDate);
-            setFirstDueDate(formattedDate);
+            // Se for um objeto Date, converter cuidadosamente para string ISO
+            try {
+              // Garantir que temos uma data válida
+              const date = new Date(firstInstallment.dueDate);
+              if (isNaN(date.getTime())) {
+                throw new Error("Data inválida");
+              }
+              
+              // SUPER CORREÇÃO: Usar os valores brutos da data sem ajuste de timezone
+              const year = date.getFullYear();
+              const month = date.getMonth() + 1; // Mês começa em 0
+              const day = date.getDate();
+              
+              // Verificar se os valores são números válidos
+              if (isNaN(year) || isNaN(month) || isNaN(day) || year < 2000 || year > 2050) {
+                throw new Error("Componentes de data inválidos");
+              }
+              
+              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              console.log("✅ SOLUÇÃO DEFINITIVA - Primeira data convertida com segurança:", formattedDate);
+              setFirstDueDate(formattedDate);
+            } catch (error) {
+              console.error("❌ ERRO AO CONVERTER PRIMEIRA DATA:", error);
+              console.log("⚠️ FALLBACK - Usando string ISO da data atual para primeira data");
+              setFirstDueDate(new Date().toISOString().split('T')[0]);
+            }
           }
         }
         
@@ -789,7 +835,8 @@ export default function SaleDialog({
         const dates = sortedInstallments.map((installment: any) => {
           console.log("🛑 CORREÇÃO FINAL - Data do banco (parcela):", installment.dueDate);
           
-          // Usar a data exatamente como está no banco ou converter manualmente sem timezone
+          // CORREÇÃO ABRIL 2025 - PROBLEMA DE FORMATO DE DATA
+          // Usar a data exatamente como está no banco de dados sem nenhuma conversão
           if (typeof installment.dueDate === 'string') {
             // Se já for string, usar diretamente (pode ser YYYY-MM-DD ou com T)
             let rawDate = installment.dueDate;
@@ -799,14 +846,60 @@ export default function SaleDialog({
               rawDate = rawDate.split('T')[0];
             }
             
-            console.log("🛑 CORREÇÃO FINAL - Usando data do banco (string):", rawDate);
-            return rawDate;
+            // Verificar se está no formato ISO (YYYY-MM-DD)
+            if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              console.log("✅ SOLUÇÃO DEFINITIVA - Data ISO válida:", rawDate);
+              return rawDate;
+            } else {
+              console.log("⚠️ FORMATO INVÁLIDO - Tentando converter manualmente:", rawDate);
+              
+              // Se não for ISO, tente extrair os componentes da data
+              const parts = rawDate.split(/[-/]/);
+              if (parts.length === 3) {
+                // Verificar se o primeiro componente parece ser um ano (4 dígitos)
+                if (parts[0].length === 4) {
+                  // Já está no formato YYYY-MM-DD ou similar
+                  const fixedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                  console.log("✅ SOLUÇÃO DEFINITIVA - Data corrigida:", fixedDate);
+                  return fixedDate;
+                } else {
+                  // Formato DD/MM/YYYY ou similar
+                  const fixedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  console.log("✅ SOLUÇÃO DEFINITIVA - Data corrigida de DD/MM/YYYY:", fixedDate);
+                  return fixedDate;
+                }
+              }
+              
+              // Fallback - usar a data original
+              return rawDate;
+            }
           } else {
-            // Se for um objeto Date, converter manualmente para evitar problemas de timezone
-            const date = new Date(installment.dueDate);
-            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            console.log("🛑 CORREÇÃO FINAL - Convertendo data do banco (Date):", formattedDate);
-            return formattedDate;
+            // Se for um objeto Date, converter cuidadosamente para string ISO
+            try {
+              // Garantir que temos uma data válida
+              const date = new Date(installment.dueDate);
+              if (isNaN(date.getTime())) {
+                throw new Error("Data inválida");
+              }
+              
+              // SUPER CORREÇÃO: Usar os valores brutos da data sem ajuste de timezone
+              const year = date.getFullYear();
+              const month = date.getMonth() + 1; // Mês começa em 0
+              const day = date.getDate();
+              
+              // Verificar se os valores são números válidos
+              if (isNaN(year) || isNaN(month) || isNaN(day) || year < 2000 || year > 2050) {
+                throw new Error("Componentes de data inválidos");
+              }
+              
+              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              console.log("✅ SOLUÇÃO DEFINITIVA - Data convertida com segurança:", formattedDate);
+              return formattedDate;
+            } catch (error) {
+              console.error("❌ ERRO AO CONVERTER DATA:", error);
+              console.log("⚠️ FALLBACK - Usando string ISO da data atual");
+              return new Date().toISOString().split('T')[0];
+            }
           }
         });
         
