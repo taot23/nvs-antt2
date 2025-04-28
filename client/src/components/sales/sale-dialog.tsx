@@ -1462,11 +1462,7 @@ export default function SaleDialog({
                     <FormControl>
                       <Input 
                         placeholder="DD/MM/AAAA" 
-                        value={field.value ? 
-                          (typeof field.value === 'string' 
-                            ? field.value.split('-').reverse().join('/') 
-                            : format(field.value, "dd/MM/yyyy"))
-                          : new Date().toLocaleDateString('pt-BR')}
+                        defaultValue={new Date().toLocaleDateString('pt-BR')}
                         onChange={(e) => {
                           // Formatação para permitir apenas números e barras
                           const input = e.target.value.replace(/[^\d\/]/g, '');
