@@ -1338,9 +1338,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // 4. Preparar o objeto para inserção no banco (SEM ZOD)
+      // Verificar se temos uma data no formato string
+      const date = req.body.date ? 
+        (typeof req.body.date === 'string' ? req.body.date : new Date()) : 
+        new Date();
+        
+      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Data recebida:", req.body.date, "tipo:", typeof req.body.date);
+      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Data que será usada:", date, "tipo:", typeof date);
+      
       const saleData = {
         orderNumber: orderNumber || `OS-${Date.now()}`, // Gerar número de ordem se não fornecido
-        date: new Date(), // Usar sempre um objeto Date para a data da venda
+        date: date, // Usar a data enviada pelo usuário ou data atual como fallback
         customerId,
         paymentMethodId: paymentMethodId || 1, // Valor padrão
         serviceTypeId,
