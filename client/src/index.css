@@ -4,8 +4,10 @@
 
 /* Estilo personalizado para posicionar toasts no canto superior direito */
 .top-toast {
-  margin-top: 0.5rem !important;
-  margin-right: 0.5rem !important;
+  position: fixed !important;
+  top: 1rem !important;
+  right: 1rem !important;
+  margin: 0 !important;
 }
 
 :root {
