@@ -73,8 +73,22 @@ export default function ReenviarVendaDialog({ isOpen, onClose, venda }: Reenviar
   const reenviarMutation = useMutation({
     mutationFn: async () => {
       console.log("Enviando requisição para reenviar venda:", venda.id, "com observações:", observacoes);
+      
+      // Obtém os itens mais atualizados
+      const itemsResponse = await fetch(`/api/sales/${venda.id}/items`);
+      const items = await itemsResponse.json();
+      
+      console.log("Itens atualizados para reenvio:", items);
+      
+      // Envia a requisição com todos os dados necessários
       const response = await apiRequest("PUT", `/api/sales/${venda.id}/resend`, {
-        correctionNotes: observacoes
+        correctionNotes: observacoes,
+        items: items,
+        serviceTypeId: venda.serviceTypeId,
+        serviceProviderId: venda.serviceProviderId,
+        paymentMethodId: venda.paymentMethodId,
+        installments: venda.installments,
+        totalAmount: venda.totalAmount
       });
       return await response.json();
     },
