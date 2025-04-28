@@ -1834,6 +1834,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para reenviar vendas que foram devolvidas (corrigidas)
+  app.put("/api/sales/:id/resend", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se a venda existe e está com status "returned"
+      const { pool } = await import('./db');
+      const saleResult = await pool.query(
+        "SELECT * FROM sales WHERE id = $1",
+        [id]
+      );
+      
+      if (saleResult.rows.length === 0) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      const sale = saleResult.rows[0];
+      
+      // Verificar se o usuário tem permissão para reenviar esta venda
+      // Administradores, supervisores ou o vendedor original podem reenviar
+      if (req.user?.role !== 'admin' && req.user?.role !== 'supervisor' && 
+          !(req.user?.role === 'vendedor' && sale.seller_id === req.user?.id)) {
+        return res.status(403).json({ error: "Sem permissão para reenviar esta venda" });
+      }
+      
+      // Verificar se a venda realmente está com status "returned"
+      if (sale.status !== 'returned') {
+        return res.status(400).json({ error: "Apenas vendas devolvidas podem ser reenviadas" });
+      }
+      
+      // Obter dados do corpo da requisição
+      const { correctionNotes } = req.body;
+      
+      if (!correctionNotes) {
+        return res.status(400).json({ error: "Observações de correção são obrigatórias" });
+      }
+      
+      // Atualizar a venda
+      const updateResult = await pool.query(
+        `UPDATE sales 
+         SET status = 'pending', 
+             return_reason = NULL, 
+             notes = CASE 
+                      WHEN notes IS NULL OR notes = '' THEN $1 
+                      ELSE notes || ' | CORREÇÃO: ' || $1 
+                     END,
+             updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`,
+        [correctionNotes, id]
+      );
+      
+      if (updateResult.rows.length === 0) {
+        return res.status(500).json({ error: "Falha ao atualizar a venda" });
+      }
+      
+      // Registrar a ação no log
+      console.log(`🔄 Venda #${id} reenviada após correção por ${req.user?.username}`);
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
+      return res.json({
+        ...updateResult.rows[0],
+        message: "Venda corrigida e reenviada com sucesso"
+      });
+    } catch (error) {
+      console.error("Erro ao reenviar venda:", error);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
   // Rota para atualizar uma venda
   app.patch("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {

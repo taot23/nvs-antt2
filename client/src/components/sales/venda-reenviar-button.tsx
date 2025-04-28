@@ -33,8 +33,8 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
   const reenviarMutation = useMutation({
     mutationFn: async () => {
       console.log('Enviando requisição de reenvio para venda', sale.id, 'com observações:', observacoes);
-      const response = await apiRequest('POST', `/api/sales/${sale.id}/resend`, {
-        notes: observacoes,
+      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, {
+        correctionNotes: observacoes,
       });
       return response.json();
     },
