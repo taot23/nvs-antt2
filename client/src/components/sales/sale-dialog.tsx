@@ -1449,7 +1449,7 @@ export default function SaleDialog({
                 )}
               />
               
-              {/* Data - Versão com input de texto direto */}
+              {/* Data - Versão apenas com campo de texto */}
               <FormField
                 control={form.control}
                 name="date"
@@ -1457,38 +1457,31 @@ export default function SaleDialog({
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Data (dd/mm/aaaa)
+                      Data
                     </FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          placeholder="DD/MM/AAAA" 
-                          className="pl-9"
-                          value={field.value ? 
-                            (typeof field.value === 'string' 
-                              ? field.value.split('-').reverse().join('/') 
-                              : format(field.value, "dd/MM/yyyy"))
-                            : new Date().toLocaleDateString('pt-BR')}
-                          onChange={(e) => {
-                            // Formatação para permitir apenas números e barras
-                            const input = e.target.value.replace(/[^\d\/]/g, '');
-                            
-                            // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
-                            if (input.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-                              const [day, month, year] = input.split('/');
-                              field.onChange(`${year}-${month}-${day}`);
-                            } else {
-                              // Caso contrário, mantém o valor como string para permitir a digitação
-                              field.onChange(input);
-                            }
-                          }}
-                        />
-                      </div>
+                      <Input 
+                        placeholder="DD/MM/AAAA" 
+                        value={field.value ? 
+                          (typeof field.value === 'string' 
+                            ? field.value.split('-').reverse().join('/') 
+                            : format(field.value, "dd/MM/yyyy"))
+                          : new Date().toLocaleDateString('pt-BR')}
+                        onChange={(e) => {
+                          // Formatação para permitir apenas números e barras
+                          const input = e.target.value.replace(/[^\d\/]/g, '');
+                          
+                          // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
+                          if (input.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                            const [day, month, year] = input.split('/');
+                            field.onChange(`${year}-${month}-${day}`);
+                          } else {
+                            // Caso contrário, mantém o valor como string para permitir a digitação
+                            field.onChange(input);
+                          }
+                        }}
+                      />
                     </FormControl>
-                    <FormDescription>
-                      Digite a data no formato dia/mês/ano (DD/MM/AAAA)
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
