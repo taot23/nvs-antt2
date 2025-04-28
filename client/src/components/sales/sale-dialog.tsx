@@ -191,6 +191,15 @@ export default function SaleDialog({
     items: [] // Sem item inicial, usuário precisa adicionar manualmente
   };
   
+  // Efeito para resetar o estado quando a venda ou o diálogo muda
+  useEffect(() => {
+    // Se o diálogo está aberto e temos uma venda, asseguramos que o formulário será inicializado
+    if (open && sale) {
+      console.log("🔄 Diálogo aberto com venda detectada:", sale);
+      formInitialized.current = false;
+    }
+  }, [open, sale]);
+  
   // Formulário
   const form = useForm<z.infer<typeof saleSchema>>({
     resolver: zodResolver(saleSchema),
@@ -208,11 +217,18 @@ export default function SaleDialog({
     queryKey: ["/api/sales", saleId],
     queryFn: async () => {
       if (!saleId) return propSale || null;
+      
+      console.log("🔍 Buscando venda com ID:", saleId);
       const response = await fetch(`/api/sales/${saleId}`);
+      
       if (!response.ok) {
+        console.error("❌ Erro ao carregar venda:", response.status);
         throw new Error("Erro ao carregar venda");
       }
-      return response.json();
+      
+      const saleData = await response.json();
+      console.log("✅ Dados da venda carregados:", saleData);
+      return saleData;
     },
     enabled: !!saleId,
     initialData: propSale || null
@@ -363,33 +379,45 @@ export default function SaleDialog({
     }
   }, [form.watch("installments"), firstDueDate]);
   
-  // Efeito para atualizar o formulário quando a venda é carregada
+  // Efeito para inicializar o formulário quando o diálogo é aberto
   useEffect(() => {
-    // Alterar a condição para inicializar mesmo sem itens
-    if (sale && !formInitialized.current) {
+    // Quando a venda está disponível e o diálogo está aberto, inicializar o formulário
+    if (open && sale && !formInitialized.current) {
       console.log("📋 Inicializando formulário com dados da venda:", sale);
       
-      form.reset({
-        orderNumber: sale.orderNumber,
-        date: sale.date ? new Date(sale.date) : new Date(),
-        customerId: sale.customerId,
-        paymentMethodId: sale.paymentMethodId,
-        // Usamos o tipo de serviço da venda, não do item
-        serviceTypeId: sale.serviceTypeId || 0,
-        sellerId: sale.sellerId,
-        totalAmount: sale.totalAmount,
-        installments: sale.installments || 1, // Garante que tenha pelo menos 1 parcela
-        notes: sale.notes,
-        items: saleItems.map((item: SaleItem) => ({
-          serviceId: item.serviceId,
-          serviceTypeId: item.serviceTypeId,
-          quantity: item.quantity,
-          notes: item.notes,
-          price: item.price,
-          totalPrice: item.price, // Usando price como fallback
-          status: "pending"
-        }))
-      });
+      // Reset imediato do formulário com dados da venda
+      setTimeout(() => {
+        form.reset({
+          orderNumber: sale.orderNumber || "",
+          date: sale.date ? new Date(sale.date) : new Date(),
+          customerId: sale.customerId || 0,
+          paymentMethodId: sale.paymentMethodId || 1,
+          serviceTypeId: sale.serviceTypeId || 1,
+          sellerId: sale.sellerId || 1,
+          totalAmount: sale.totalAmount || "0",
+          installments: sale.installments || 1,
+          notes: sale.notes || "",
+          items: Array.isArray(saleItems) && saleItems.length > 0 
+            ? saleItems.map((item: SaleItem) => ({
+                serviceId: item.serviceId,
+                serviceTypeId: item.serviceTypeId,
+                quantity: item.quantity,
+                notes: item.notes || "",
+                price: item.price || "0",
+                totalPrice: item.price || "0",
+                status: "pending"
+              }))
+            : []
+        });
+        
+        console.log("📋 Formulário resetado com valores:", {
+          orderNumber: sale.orderNumber,
+          customerId: sale.customerId,
+          paymentMethodId: sale.paymentMethodId,
+          serviceTypeId: sale.serviceTypeId,
+          sellerId: sale.sellerId,
+        });
+      }, 100); // Pequeno timeout para garantir que todos os dados estejam disponíveis
 
       // Encontra e define os nomes de cliente e vendedor para os campos de busca
       const selectedCustomer = customers.find((c: any) => c.id === sale.customerId);
