@@ -456,44 +456,36 @@ export default function SaleDialog({
     console.log("🔄 FORÇA-RESET: Atualizando itens no formulário:", items);
     
     try {
-      // Primeiro, vamos remover todos os itens existentes
-      const currentItems = fields || [];
+      // Estratégia otimizada - definir todos os itens de uma vez
+      const formattedItems = items.map((item: SaleItem) => ({
+        serviceId: item.serviceId,
+        serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+        quantity: item.quantity || 1,
+        notes: item.notes || "",
+        price: item.price || "0",
+        totalPrice: item.totalPrice || item.price || "0",
+        status: "pending"
+      }));
       
-      if (currentItems.length > 0) {
-        console.log("🔄 FORÇA-RESET: Removendo todos os itens existentes:", currentItems.length);
-        
-        // Remove todos os itens da direita para a esquerda
-        for (let i = currentItems.length - 1; i >= 0; i--) {
-          remove(i);
-        }
-      }
+      // Define diretamente os itens no formulário, sem operações individuais de remoção/adição
+      form.setValue("items", formattedItems);
       
-      // Aguardamos um momento para garantir que todos os itens foram removidos
-      setTimeout(() => {
-        console.log("🔄 FORÇA-RESET: Adicionando novos itens:", items.length);
-        
-        // Adicionamos os novos itens um por um
-        items.forEach((item: SaleItem) => {
-          const newItem = {
-            serviceId: item.serviceId,
-            serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
-            quantity: item.quantity || 1,
-            notes: item.notes || "",
-            price: item.price || "0",
-            totalPrice: item.totalPrice || item.price || "0",
-            status: "pending"
-          };
-          
-          append(newItem);
-          console.log(`🔄 FORÇA-RESET: Item adicionado: serviço ID=${newItem.serviceId}, qtd=${newItem.quantity}`);
-        });
-        
-        console.log("✅ FORÇA-RESET: Todos os itens foram adicionados com sucesso");
-      }, 100);
+      console.log("✅ FORÇA-RESET: Todos os itens foram atualizados com uma única operação");
+      
+      // Atualizamos a contagem de itens no cabeçalho
+      form.setValue("itemCount", formattedItems.length);
+      
+      // Recarrega os itens visualmente no formulário
+      // Isso é mais eficiente que remover e adicionar cada item individualmente
+      replace(formattedItems);
+      
     } catch (error) {
       console.error("❌ FORÇA-RESET: Erro ao atualizar itens:", error);
     }
-  }, [form, sale, fields, remove, append]);
+  }, [form, sale, replace]);
+  
+  // Controle de inicialização para impedir múltiplas atualizações
+  const itemsWereProcessed = useRef(false);
   
   // Efeito para monitorar mudanças nos itens e atualizar o formulário
   useEffect(() => {
@@ -501,15 +493,25 @@ export default function SaleDialog({
       open, 
       saleId: sale?.id || saleId,
       itemsLength: saleItems?.length || 0,
-      isLoadingItems
+      isLoadingItems,
+      itemsWereProcessed: itemsWereProcessed.current
     });
     
-    if (open && sale && saleItems && saleItems.length > 0 && !isLoadingItems) {
+    // Só atualiza os itens se:
+    // 1. O diálogo estiver aberto
+    // 2. Os dados da venda estiverem disponíveis
+    // 3. Os itens estiverem carregados
+    // 4. Não estiver no processo de carregamento
+    // 5. Não tivermos já processado os itens para este conjunto de dados
+    if (open && sale && saleItems && saleItems.length > 0 && !isLoadingItems && !itemsWereProcessed.current) {
       console.log("📦 Itens da venda carregados, atualizando formulário");
       console.log("📦 Itens disponíveis:", JSON.stringify(saleItems));
       
-      // Usamos setTimeout para garantir que a atualização ocorra após a renderização
-      setTimeout(() => {
+      // Marcar que já processamos este conjunto de itens para evitar múltiplas atualizações
+      itemsWereProcessed.current = true;
+      
+      // Usamos requestAnimationFrame para garantir sincronização com a renderização
+      requestAnimationFrame(() => {
         updateFormItems(saleItems);
         
         // Verificamos se os itens foram realmente adicionados ao formulário
@@ -519,8 +521,15 @@ export default function SaleDialog({
           fieldsLength: fields.length,
           sourceItemsLength: saleItems.length
         });
-      }, 100);
+      });
     }
+    
+    // Quando o diálogo fechar ou os itens mudarem, resetar o flag para permitir nova atualização
+    return () => {
+      if (!open || (saleItems && saleItems.length === 0)) {
+        itemsWereProcessed.current = false;
+      }
+    };
   }, [saleItems, open, sale, isLoadingItems, updateFormItems, form, fields.length, saleId]);
   
   // Efeito para inicializar o formulário quando a venda está disponível
