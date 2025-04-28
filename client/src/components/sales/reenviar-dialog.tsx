@@ -35,8 +35,8 @@ export default function ReenviarDialog({ open, setOpen, sale }: ReenviarDialogPr
   const reenviarMutation = useMutation({
     mutationFn: async () => {
       console.log('⭐ Enviando requisição de reenvio:', sale?.id, observacoes);
-      const response = await apiRequest('POST', `/api/sales/${sale.id}/resend`, {
-        notes: observacoes,
+      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, {
+        correctionNotes: observacoes,
       });
       return await response.json();
     },
