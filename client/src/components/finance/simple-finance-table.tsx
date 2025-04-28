@@ -105,6 +105,16 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                   )}
                 </div>
               </TableHead>
+              <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('date')}>
+                <div className="flex items-center">
+                  Data
+                  {sortField === 'date' && (
+                    sortDirection === 'asc' 
+                      ? <SortAsc className="ml-1 h-4 w-4" /> 
+                      : <SortDesc className="ml-1 h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
               <TableHead className="w-[12%] cursor-pointer" onClick={() => toggleSort('sellerId')}>
                 <div className="flex items-center">
                   Vendedor
@@ -119,16 +129,6 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                 <div className="flex items-center">
                   Cliente
                   {sortField === 'customerName' && (
-                    sortDirection === 'asc' 
-                      ? <SortAsc className="ml-1 h-4 w-4" /> 
-                      : <SortDesc className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              </TableHead>
-              <TableHead className="w-[10%] cursor-pointer" onClick={() => toggleSort('date')}>
-                <div className="flex items-center">
-                  Data
-                  {sortField === 'date' && (
                     sortDirection === 'asc' 
                       ? <SortAsc className="ml-1 h-4 w-4" /> 
                       : <SortDesc className="ml-1 h-4 w-4" />
@@ -250,6 +250,9 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                     {sale.orderNumber}
                   </TableCell>
                   <TableCell>
+                    {formatDate(sale.date || sale.createdAt)}
+                  </TableCell>
+                  <TableCell>
                     <span title={sale.sellerName || `Vendedor #${sale.sellerId}`}>
                       {sale.sellerName || `Vendedor #${sale.sellerId}`}
                     </span>
@@ -258,9 +261,6 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                     <span title={sale.customerName || `Cliente #${sale.customerId}`}>
                       {sale.customerName || `Cliente #${sale.customerId}`}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(sale.date || sale.createdAt)}
                   </TableCell>
                   <TableCell>
                     {`R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`}
