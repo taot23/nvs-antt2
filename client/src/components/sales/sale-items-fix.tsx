@@ -31,6 +31,12 @@ export function SaleItemsFix({
   
   // Efeito para verificar se precisamos atualizar os campos quando itens estiverem disponíveis
   useEffect(() => {
+    console.log("🔎 SaleItemsFix verificando estado:", { 
+      fieldsLength: fields.length, 
+      saleItemsLength: saleItems?.length || 0,
+      saleItems: saleItems
+    });
+    
     if (fields.length === 0 && saleItems && saleItems.length > 0) {
       console.log("🔄 Detectada inconsistência na inicialização - Atualizando itens");
       updateFormItems(saleItems);
@@ -41,6 +47,20 @@ export function SaleItemsFix({
       }, 200);
     }
   }, [fields.length, saleItems, updateFormItems, setForceUpdateCounter]);
+  
+  // Efeito adicional que executa uma única vez quando o componente é montado
+  useEffect(() => {
+    console.log("🚀 SaleItemsFix inicializado, verificando itens iniciais:", { 
+      fieldsLength: fields.length, 
+      saleItemsLength: saleItems?.length || 0 
+    });
+    
+    if (saleItems && saleItems.length > 0) {
+      console.log("📦 Itens disponíveis na inicialização, atualizando formulário");
+      updateFormItems(saleItems);
+      setForceUpdateCounter(prev => prev + 1);
+    }
+  }, []);
   
   return (
     <div className="border rounded-md p-4 mt-4">

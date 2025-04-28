@@ -466,14 +466,42 @@ export default function SaleDialog({
   
   // Efeito para monitorar mudanças nos itens e atualizar o formulário
   useEffect(() => {
+    console.log("📊 Monitorando saleItems:", { 
+      open, 
+      saleId: sale?.id || saleId,
+      itemsLength: saleItems?.length || 0,
+      isLoadingItems
+    });
+    
     if (open && sale && saleItems && saleItems.length > 0 && !isLoadingItems) {
       console.log("📦 Itens da venda carregados, atualizando formulário");
-      updateFormItems(saleItems);
+      console.log("📦 Itens disponíveis:", JSON.stringify(saleItems));
+      
+      // Usamos setTimeout para garantir que a atualização ocorra após a renderização
+      setTimeout(() => {
+        updateFormItems(saleItems);
+        
+        // Verificamos se os itens foram realmente adicionados ao formulário
+        const formItems = form.getValues("items");
+        console.log("📦 Verificação pós-atualização: ", {
+          formItemsLength: formItems?.length || 0,
+          fieldsLength: fields.length,
+          sourceItemsLength: saleItems.length
+        });
+      }, 100);
     }
-  }, [saleItems, open, sale, isLoadingItems, updateFormItems]);
+  }, [saleItems, open, sale, isLoadingItems, updateFormItems, form, fields.length, saleId]);
   
   // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
+    console.log("🔄 Verificando inicialização do formulário:", {
+      open,
+      isLoadingSale,
+      saleId: sale?.id || saleId,
+      formInitialized: formInitialized.current,
+      saleItemsLength: saleItems?.length || 0
+    });
+    
     // Inicializamos o formulário SOMENTE quando a venda está disponível
     if (open && !isLoadingSale && sale && !formInitialized.current) {
       console.log("📋 INICIALIZANDO FORMULÁRIO COM DADOS DA VENDA:");
