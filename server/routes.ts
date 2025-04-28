@@ -2498,92 +2498,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rota para reenviar uma venda corrigida (de vendedor para operacional)
+  // Rota POST depreciada (mantida por compatibilidade) com redirecionamento para a nova rota PUT
   app.post("/api/sales/:id/resend", isAuthenticated, async (req, res) => {
+    console.log("⚠️ DEPRECATED: POST /api/sales/:id/resend está depreciado. Use o PUT em seu lugar!");
+    
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      const sale = await storage.getSale(id);
-      if (!sale) {
-        return res.status(404).json({ error: "Venda não encontrada" });
-      }
-      
-      // Verificar permissão: vendedor responsável, admin ou supervisor podem reenviar
-      if (req.user?.role !== "admin" && req.user?.role !== "supervisor" && sale.sellerId !== req.user!.id) {
-        return res.status(403).json({ 
-          error: "Permissão negada", 
-          message: "Apenas o vendedor responsável, administradores ou supervisores podem reenviar a venda."
-        });
-      }
-      
-      // Verificar se a venda está no status devolvida
-      if (sale.status !== "returned") {
-        return res.status(400).json({ 
-          error: "Não é possível reenviar", 
-          message: "Só é possível reenviar vendas que foram devolvidas para correção."
-        });
-      }
-      
-      // Obter mensagem de correção (para vendedor é obrigatório)
+      // Adaptar parâmetros para o formato esperado pelo novo endpoint
       const { notes } = req.body;
       
-      // Se for vendedor, a mensagem é obrigatória
-      if (req.user!.role === "vendedor" && (!notes || notes.trim() === "")) {
-        return res.status(400).json({ 
-          error: "Dados inválidos", 
-          message: "É necessário informar as correções realizadas ao reenviar a venda."
-        });
+      // Verificar se o parâmetro correctionNotes já existe
+      if (!req.body.correctionNotes && notes) {
+        req.body.correctionNotes = notes;
       }
       
-      const notesMessage = notes || "Venda corrigida e reenviada para operacional";
+      console.log("⚠️ Redirecionando para o endpoint PUT com:", req.body);
       
-      // Função para formatar a data atual
-      const dataAtual = format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR });
+      // Obter a referência para o handler da rota PUT
+      // Como é interno, vamos simplesmente chamar o mesmo código do endpoint PUT
+      const { pool } = await import('./db');
+      const saleResult = await pool.query(
+        "SELECT * FROM sales WHERE id = $1",
+        [id]
+      );
       
-      // Formatar o histórico de correções
-      let notesWithHistory = notesMessage;
-      if (sale.notes) {
-        if (sale.notes.includes('Histórico de correções:')) {
-          // Já existe um histórico, vamos adicionar a nova correção
-          notesWithHistory = `${sale.notes}\n\n[${dataAtual}] ${notesMessage}`;
-        } else {
-          // Ainda não há histórico formatado, vamos criá-lo
-          notesWithHistory = `${sale.notes}\n\n==== Histórico de correções: ====\n[${dataAtual}] ${notesMessage}`;
-        }
-      } else {
-        // Primeira correção
-        notesWithHistory = `==== Histórico de correções: ====\n[${dataAtual}] ${notesMessage}`;
-      }
-      
-      // Atualizar status para "corrigida aguardando operacional"
-      const updatedSale = await storage.updateSale(id, { 
-        status: "corrected",
-        returnReason: null,
-        notes: notesWithHistory
-      });
-      
-      if (!updatedSale) {
+      if (saleResult.rows.length === 0) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
-      // Registrar no histórico de status
-      await storage.createSalesStatusHistory({
-        saleId: id,
-        fromStatus: "returned",
-        toStatus: "corrected",
-        userId: req.user!.id,
-        notes: notesMessage
-      });
+      const sale = saleResult.rows[0];
+      
+      // Verificar se o usuário tem permissão para reenviar esta venda
+      if (req.user?.role !== 'admin' && req.user?.role !== 'supervisor' && 
+          !(req.user?.role === 'vendedor' && sale.seller_id === req.user?.id)) {
+        return res.status(403).json({ error: "Sem permissão para reenviar esta venda" });
+      }
+      
+      // Verificar se a venda realmente está com status "returned"
+      if (sale.status !== 'returned') {
+        return res.status(400).json({ error: "Apenas vendas devolvidas podem ser reenviadas" });
+      }
+      
+      const correctionNotes = req.body.correctionNotes || req.body.notes;
+      
+      if (!correctionNotes) {
+        return res.status(400).json({ error: "Observações de correção são obrigatórias" });
+      }
+      
+      // Atualizar a venda
+      const updateResult = await pool.query(
+        `UPDATE sales 
+         SET status = 'pending', 
+             return_reason = NULL, 
+             notes = CASE 
+                      WHEN notes IS NULL OR notes = '' THEN $1 
+                      ELSE notes || ' | CORREÇÃO: ' || $1 
+                     END,
+             updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`,
+        [correctionNotes, id]
+      );
+      
+      if (updateResult.rows.length === 0) {
+        return res.status(500).json({ error: "Falha ao atualizar a venda" });
+      }
+      
+      // Registrar a ação no log
+      console.log(`🔄 Venda #${id} reenviada após correção por ${req.user?.username} (via API depreciada)`);
       
       // Notificar todos os clientes sobre a atualização da venda
       notifySalesUpdate();
       
-      res.json(updatedSale);
+      return res.json({
+        ...updateResult.rows[0],
+        message: "Venda corrigida e reenviada com sucesso (via API depreciada)"
+      });
     } catch (error) {
-      console.error("Erro ao reenviar venda:", error);
-      res.status(500).json({ error: "Erro ao reenviar venda" });
+      console.error("Erro ao reenviar venda (POST depreciado):", error);
+      return res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
 
