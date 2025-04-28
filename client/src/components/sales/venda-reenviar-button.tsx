@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { SendHorizontal, Loader2 } from 'lucide-react';
+import { SendHorizontal, Loader2, Calendar } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,10 +14,22 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 
 type Sale = any;
+type Installment = {
+  id: number;
+  saleId: number;
+  installmentNumber: number;
+  amount: string;
+  dueDate: string;
+  status: string;
+  paymentDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 interface VendaReenviarButtonProps {
   sale: Sale;
@@ -27,8 +39,28 @@ interface VendaReenviarButtonProps {
 export default function VendaReenviarButton({ sale, iconOnly = false }: VendaReenviarButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observacoes, setObservacoes] = useState('');
+  const [installments, setInstallments] = useState<Installment[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Carregar as parcelas ao abrir o diálogo
+  useEffect(() => {
+    if (dialogOpen && sale?.id) {
+      console.log('🔍 Carregando parcelas da venda', sale.id);
+      fetch(`/api/sales/${sale.id}/installments`)
+        .then(response => {
+          if (!response.ok) throw new Error('Falha ao carregar parcelas');
+          return response.json();
+        })
+        .then(data => {
+          console.log('📅 Parcelas carregadas:', data);
+          setInstallments(data);
+        })
+        .catch(error => {
+          console.error('❌ Erro ao carregar parcelas:', error);
+        });
+    }
+  }, [dialogOpen, sale?.id]);
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
@@ -234,6 +266,30 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
                 </div>
               </div>
             </div>
+
+            {/* Exibir datas das parcelas */}
+            {installments.length > 0 && (
+              <div className="space-y-2 p-3 bg-muted/30 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <Label className="text-base font-medium">Parcelas e Datas de Vencimento</Label>
+                </div>
+                <div className="space-y-1">
+                  {installments.map((inst) => (
+                    <div key={inst.id} className="flex justify-between items-center text-sm p-1 border-b border-border/30">
+                      <span className="font-medium">Parcela {inst.installmentNumber}</span>
+                      <span>R$ {parseFloat(inst.amount).toFixed(2).replace('.', ',')}</span>
+                      <Badge variant="outline" className="ml-auto">
+                        {format(new Date(inst.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  As datas das parcelas serão mantidas ao reenviar a venda.
+                </p>
+              </div>
+            )}
 
             {sale.returnReason && (
               <div className="space-y-1 border-l-4 border-destructive pl-4 py-2 bg-destructive/10 rounded-sm">
