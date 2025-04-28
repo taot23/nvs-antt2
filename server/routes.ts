@@ -1868,29 +1868,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Obter dados do corpo da requisição
-      const { correctionNotes } = req.body;
+      const { 
+        correctionNotes,
+        items = [],
+        serviceTypeId,
+        serviceProviderId,
+        paymentMethodId,
+        installments,
+        totalAmount
+      } = req.body;
+      
+      console.log("Dados recebidos para reenvio:", { 
+        id, 
+        itens: items.length,
+        tipoServico: serviceTypeId,
+        formaPagamento: paymentMethodId,
+        parcelas: installments,
+        valor: totalAmount
+      });
       
       if (!correctionNotes) {
         return res.status(400).json({ error: "Observações de correção são obrigatórias" });
       }
       
+      // Preparar dados para atualização
+      let updateQuery = `
+        UPDATE sales 
+        SET status = 'corrected', 
+            return_reason = NULL, 
+            notes = CASE 
+                    WHEN notes IS NULL OR notes = '' THEN $1 
+                    ELSE notes || ' | CORREÇÃO: ' || $1 
+                   END,
+            updated_at = NOW()
+      `;
+      
+      const updateParams = [correctionNotes, id];
+      let paramIndex = 3;
+      
+      // Adicionar campos opcionais à atualização se estiverem presentes
+      if (serviceTypeId !== undefined) {
+        updateQuery += `, service_type_id = $${paramIndex}`;
+        updateParams.push(serviceTypeId);
+        paramIndex++;
+      }
+      
+      if (serviceProviderId !== undefined) {
+        updateQuery += `, service_provider_id = $${paramIndex}`;
+        updateParams.push(serviceProviderId);
+        paramIndex++;
+      }
+      
+      if (paymentMethodId !== undefined) {
+        updateQuery += `, payment_method_id = $${paramIndex}`;
+        updateParams.push(paymentMethodId);
+        paramIndex++;
+      }
+      
+      if (installments !== undefined) {
+        updateQuery += `, installments = $${paramIndex}`;
+        updateParams.push(installments);
+        paramIndex++;
+      }
+      
+      if (totalAmount !== undefined) {
+        updateQuery += `, total_amount = $${paramIndex}`;
+        updateParams.push(totalAmount);
+        paramIndex++;
+      }
+      
+      // Finalizar query
+      updateQuery += `
+        WHERE id = $2
+        RETURNING *
+      `;
+      
       // Atualizar a venda
-      const updateResult = await pool.query(
-        `UPDATE sales 
-         SET status = 'corrected', 
-             return_reason = NULL, 
-             notes = CASE 
-                      WHEN notes IS NULL OR notes = '' THEN $1 
-                      ELSE notes || ' | CORREÇÃO: ' || $1 
-                     END,
-             updated_at = NOW()
-         WHERE id = $2
-         RETURNING *`,
-        [correctionNotes, id]
-      );
+      const updateResult = await pool.query(updateQuery, updateParams);
       
       if (updateResult.rows.length === 0) {
         return res.status(500).json({ error: "Falha ao atualizar a venda" });
+      }
+      
+      // Atualizar itens da venda se fornecidos
+      if (items && items.length > 0) {
+        try {
+          // Primeiro, excluir os itens existentes
+          await pool.query(`DELETE FROM sale_items WHERE sale_id = $1`, [id]);
+          
+          console.log(`🔄 Itens anteriores da venda #${id} excluídos. Adicionando ${items.length} novos itens.`);
+          
+          // Agora, inserir os novos itens
+          for (const item of items) {
+            await pool.query(
+              `INSERT INTO sale_items (
+                sale_id, service_id, service_type_id, quantity, price, notes
+              ) VALUES ($1, $2, $3, $4, $5, $6)`,
+              [
+                id,
+                item.serviceId,
+                item.serviceTypeId || serviceTypeId || sale.service_type_id,
+                item.quantity || 1,
+                item.price || '0',
+                item.notes || null
+              ]
+            );
+          }
+          
+          console.log(`✅ Atualizados ${items.length} itens para a venda #${id}`);
+        } catch (error) {
+          console.error(`❌ Erro ao atualizar itens da venda #${id}:`, error);
+          // Não interrompemos o fluxo aqui, apenas logamos o erro
+        }
       }
       
       // Registrar a ação no log
