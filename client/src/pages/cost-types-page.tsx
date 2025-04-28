@@ -533,9 +533,8 @@ export default function CostTypesPage() {
       {/* Modal de edição/criação */}
       <CostTypeDialog
         open={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        setOpen={setIsDialogOpen}
         costType={selectedCostType}
-        onSaveSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/cost-types"] })}
       />
 
       {/* Modal de confirmação de exclusão */}
