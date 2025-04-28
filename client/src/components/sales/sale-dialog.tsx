@@ -126,6 +126,11 @@ export default function SaleDialog({
   const [installmentDates, setInstallmentDates] = useState<(Date | string)[]>([]);
   const [firstDueDate, setFirstDueDate] = useState<Date | string>(addMonths(new Date(), 1));
   
+  // Estado para rastrear o status original da venda (para identificar vendas devolvidas)
+  const [originalStatus, setOriginalStatus] = useState<string | null>(null);
+  // Estado para armazenar as observações de correção quando a venda está com status "returned"
+  const [correctionNotes, setCorrectionNotes] = useState<string>("");
+  
 
   // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
@@ -540,7 +545,16 @@ export default function SaleDialog({
       console.log("- sellerId:", sale.sellerId);
       console.log("- totalAmount:", sale.totalAmount);
       console.log("- installments:", sale.installments);
+      console.log("- status:", sale.status);
       console.log("- saleItems:", saleItems);
+      
+      // Armazenar o status original da venda para verificações
+      setOriginalStatus(sale.status);
+      
+      // Se a venda está com status "returned", resetar o campo de observações de correção
+      if (sale.status === "returned") {
+        setCorrectionNotes("")
+      }
       
       // Reset imediato do formulário com dados da venda
       setTimeout(() => {
