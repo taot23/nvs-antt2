@@ -1338,17 +1338,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // 4. Preparar o objeto para inserção no banco (SEM ZOD)
-      // Verificar se temos uma data no formato string
-      const date = req.body.date ? 
-        (typeof req.body.date === 'string' ? req.body.date : new Date()) : 
-        new Date();
-        
+      // SOLUÇÃO PARA PROBLEMA DE FUSO HORÁRIO
+      // Verificar se temos uma data no formato string YYYY-MM-DD
+      let formattedDate: string;
+      
+      if (req.body.date) {
+        // Se temos uma data, usar exatamente como está, preservando o formato
+        if (typeof req.body.date === 'string') {
+          // Se for string, verificar o formato
+          if (req.body.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Se for no formato YYYY-MM-DD, usar diretamente
+            formattedDate = req.body.date;
+          } else {
+            // Caso contrário, tentar converter para esse formato
+            try {
+              // Criar uma data UTC para evitar problemas de fuso horário
+              const parsedDate = new Date(req.body.date);
+              formattedDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
+            } catch (e) {
+              // Se falhar, usar a data atual
+              const today = new Date();
+              formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            }
+          }
+        } else if (req.body.date instanceof Date) {
+          // Se for um objeto Date, converter para YYYY-MM-DD
+          const dateObj = req.body.date;
+          formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+        } else {
+          // Caso não seja um formato reconhecido, usar a data atual
+          const today = new Date();
+          formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+      } else {
+        // Se não temos data, usar a data atual
+        const today = new Date();
+        formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      }
+      
       console.log("🔄 IMPLEMENTAÇÃO RADICAL: Data recebida:", req.body.date, "tipo:", typeof req.body.date);
-      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Data que será usada:", date, "tipo:", typeof date);
+      console.log("🔄 IMPLEMENTAÇÃO RADICAL: Data formatada para inserção:", formattedDate);
       
       const saleData = {
         orderNumber: orderNumber || `OS-${Date.now()}`, // Gerar número de ordem se não fornecido
-        date: date, // Usar a data enviada pelo usuário ou data atual como fallback
+        date: formattedDate, // Usar a data formatada como YYYY-MM-DD para evitar problemas de timezone
         customerId,
         paymentMethodId: paymentMethodId || 1, // Valor padrão
         serviceTypeId,
@@ -1553,6 +1586,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const installments = Number(userData.installments || 1);
             const notes = userData.notes || "";
             
+            // Formatação YYYY-MM-DD para a data
+            let formattedDate;
+            if (userData.date) {
+              if (typeof userData.date === 'string') {
+                if (userData.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  formattedDate = userData.date;
+                } else {
+                  try {
+                    const parsedDate = new Date(userData.date);
+                    formattedDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
+                  } catch (e) {
+                    const today = new Date();
+                    formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                  }
+                }
+              } else {
+                const today = new Date();
+                formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              }
+            } else {
+              const today = new Date();
+              formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            }
+            
+            console.log("🚀 ULTRA-RADICAL: Data recebida:", userData.date, "tipo:", typeof userData.date);
+            console.log("🚀 ULTRA-RADICAL: Data formatada para inserção:", formattedDate);
+            
             // SQL ULTRA-DIRETO - Sem absolutamente nenhuma validação
             const insertResult = await pool.query(`
               INSERT INTO sales (
@@ -1561,11 +1621,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 created_at, updated_at
               ) 
               VALUES (
-                $1, NOW(), $2, $3, $4, $5, $6, $7, 'pending', 'pending', $8, NOW(), NOW()
+                $1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'pending', $9, NOW(), NOW()
               )
               RETURNING *
             `, [
               orderNumber,
+              formattedDate,
               customerId,
               userData.paymentMethodId || 1,
               serviceTypeId,

@@ -1330,8 +1330,11 @@ export default function SaleDialog({
         ...values,
         // Garante que o número da OS esteja definido
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
-        // Garante que a data seja válida
-        date: values.date || new Date(),
+        // Garante que a data seja válida e preservada corretamente
+        // Convertendo para string YYYY-MM-DD para evitar problemas de fuso horário
+        date: values.date ? 
+          `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}` : 
+          `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`,
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
         // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
