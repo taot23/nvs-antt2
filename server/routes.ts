@@ -1391,27 +1391,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 6. Criar itens da venda
       if (items && Array.isArray(items) && items.length > 0) {
+        console.log("🔄 IMPLEMENTAÇÃO RADICAL: Tentando salvar", items.length, "itens para a venda");
         for (const item of items) {
           try {
             const { pool } = await import('./db');
+            // SQL corrigido para corresponder às colunas reais da tabela
             await pool.query(`
               INSERT INTO sale_items (
                 sale_id, service_id, service_type_id, quantity, price, 
-                total_price, notes, status, created_at
+                notes, created_at, updated_at
               ) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+              VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
             `, [
               createdSale.id,
               item.serviceId,
               item.serviceTypeId || saleData.serviceTypeId,
               item.quantity || 1,
               item.price || "0",
-              item.totalPrice || item.price || "0",
-              item.notes || null,
-              "pending"
+              item.notes || null
             ]);
+            console.log("🔄 IMPLEMENTAÇÃO RADICAL: Item salvo com sucesso para a venda", createdSale.id);
           } catch (itemError) {
-            console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao criar item:", itemError);
+            console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao criar item:", itemError, "Para venda ID:", createdSale.id);
           }
         }
       }
