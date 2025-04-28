@@ -1877,7 +1877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar a venda
       const updateResult = await pool.query(
         `UPDATE sales 
-         SET status = 'pending', 
+         SET status = 'corrected', 
              return_reason = NULL, 
              notes = CASE 
                       WHEN notes IS NULL OR notes = '' THEN $1 
@@ -2552,7 +2552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar a venda
       const updateResult = await pool.query(
         `UPDATE sales 
-         SET status = 'pending', 
+         SET status = 'corrected', 
              return_reason = NULL, 
              notes = CASE 
                       WHEN notes IS NULL OR notes = '' THEN $1 
