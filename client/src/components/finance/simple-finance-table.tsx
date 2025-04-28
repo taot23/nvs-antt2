@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getStatusLabel } from "@/lib/status-utils";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/formatters";
 import { FinanceSale, SafeUser } from "./finance-types";
 
 interface SimpleFinanceTableProps {
@@ -259,7 +260,7 @@ const SimpleFinanceTable: React.FC<SimpleFinanceTableProps> = ({
                     </span>
                   </TableCell>
                   <TableCell>
-                    {format(new Date(sale.date || sale.createdAt), 'dd/MM/yyyy')}
+                    {formatDate(sale.date || sale.createdAt)}
                   </TableCell>
                   <TableCell>
                     {`R$ ${parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}`}
