@@ -10,7 +10,7 @@ import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,9 +54,13 @@ const saleItemSchema = z.object({
 // Esquema de validação para a venda
 const saleSchema = z.object({
   orderNumber: z.string().min(1, "Número de ordem é obrigatório"),
-  date: z.date({
-    required_error: "Data da venda é obrigatória",
-  }),
+  // Aceita date ou string para maior flexibilidade
+  date: z.union([
+    z.date({
+      required_error: "Data da venda é obrigatória",
+    }),
+    z.string().min(1, "Data da venda é obrigatória")
+  ]),
   customerId: z.coerce.number().min(1, "Cliente é obrigatório"),
   paymentMethodId: z.coerce.number().min(1, "Forma de pagamento é obrigatória"),
   serviceTypeId: z.coerce.number().min(1, "Tipo de serviço é obrigatório"),
@@ -1326,15 +1330,36 @@ export default function SaleDialog({
       
       // CORREÇÃO CRÍTICA: Trata e valida todos os campos numéricos para garantir tipos corretos
       // Objeto para envio ao servidor com valores convertidos e validados
+      // Processamento da data para garantir formato correto
+      let formattedDate;
+      
+      // Se a data já estiver no formato ISO (YYYY-MM-DD)
+      if (typeof values.date === 'string' && values.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        formattedDate = values.date;
+      } 
+      // Se estiver no formato brasileiro (DD/MM/YYYY)
+      else if (typeof values.date === 'string' && values.date.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        const [day, month, year] = values.date.split('/');
+        formattedDate = `${year}-${month}-${day}`;
+      }
+      // Se for um objeto Date
+      else if (values.date instanceof Date && !isNaN(values.date.getTime())) {
+        formattedDate = `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}`;
+      }
+      // Fallback para data atual se nenhum dos casos acima
+      else {
+        const now = new Date();
+        formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      }
+      
+      console.log("📅 Data a ser enviada:", formattedDate, "Tipo:", typeof formattedDate);
+      
       const correctedValues = {
         ...values,
         // Garante que o número da OS esteja definido
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
-        // Garante que a data seja válida e preservada corretamente
-        // Convertendo para string YYYY-MM-DD para evitar problemas de fuso horário
-        date: values.date ? 
-          `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}` : 
-          `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`,
+        // Usa a data formatada
+        date: formattedDate,
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
         totalAmount: values.totalAmount ? values.totalAmount.replace(',', '.') : "0",
         // CORREÇÃO CRÍTICA: A propriedade installments deve ser explicitamente um número inteiro
@@ -1424,7 +1449,7 @@ export default function SaleDialog({
                 )}
               />
               
-              {/* Data */}
+              {/* Data - Versão com input de texto direto */}
               <FormField
                 control={form.control}
                 name="date"
@@ -1432,37 +1457,38 @@ export default function SaleDialog({
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Data
+                      Data (dd/mm/aaaa)
                     </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full flex justify-between items-center",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "dd/MM/yyyy")
-                            ) : (
-                              <span>Selecione uma data</span>
-                            )}
-                            <Calendar className="h-4 w-4 ml-auto opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                          disabled={(date) => date > new Date()}
+                    <FormControl>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="DD/MM/AAAA" 
+                          className="pl-9"
+                          value={field.value ? 
+                            (typeof field.value === 'string' 
+                              ? field.value.split('-').reverse().join('/') 
+                              : format(field.value, "dd/MM/yyyy"))
+                            : new Date().toLocaleDateString('pt-BR')}
+                          onChange={(e) => {
+                            // Formatação para permitir apenas números e barras
+                            const input = e.target.value.replace(/[^\d\/]/g, '');
+                            
+                            // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
+                            if (input.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                              const [day, month, year] = input.split('/');
+                              field.onChange(`${year}-${month}-${day}`);
+                            } else {
+                              // Caso contrário, mantém o valor como string para permitir a digitação
+                              field.onChange(input);
+                            }
+                          }}
                         />
-                      </PopoverContent>
-                    </Popover>
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Digite a data no formato dia/mês/ano (DD/MM/AAAA)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
