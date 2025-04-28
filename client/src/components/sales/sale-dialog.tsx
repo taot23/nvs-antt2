@@ -437,32 +437,54 @@ export default function SaleDialog({
     }
   }, [sale, saleId]);
 
-  // Função auxiliar para atualizar os itens
+  // Função auxiliar para atualizar os itens - Implementação Forçada
   const updateFormItems = useCallback((items: any[]) => {
     if (!items || items.length === 0) {
       console.log("🚫 Sem itens para atualizar no formulário");
       return;
     }
     
-    console.log("🔄 Atualizando itens no formulário:", items);
+    console.log("🔄 FORÇA-RESET: Atualizando itens no formulário:", items);
     
-    // Preparamos os itens
-    const formattedItems = items.map((item: SaleItem) => ({
-      serviceId: item.serviceId,
-      serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
-      quantity: item.quantity || 1,
-      notes: item.notes || "",
-      price: item.price || "0",
-      totalPrice: item.totalPrice || item.price || "0",
-      status: "pending"
-    }));
-    
-    console.log("🔄 Itens formatados:", formattedItems);
-    
-    // Definimos diretamente no formulário
-    form.setValue("items", formattedItems);
-    console.log("✅ Itens atualizados no formulário");
-  }, [form, sale]);
+    try {
+      // Primeiro, vamos remover todos os itens existentes
+      const currentItems = fields || [];
+      
+      if (currentItems.length > 0) {
+        console.log("🔄 FORÇA-RESET: Removendo todos os itens existentes:", currentItems.length);
+        
+        // Remove todos os itens da direita para a esquerda
+        for (let i = currentItems.length - 1; i >= 0; i--) {
+          remove(i);
+        }
+      }
+      
+      // Aguardamos um momento para garantir que todos os itens foram removidos
+      setTimeout(() => {
+        console.log("🔄 FORÇA-RESET: Adicionando novos itens:", items.length);
+        
+        // Adicionamos os novos itens um por um
+        items.forEach((item: SaleItem) => {
+          const newItem = {
+            serviceId: item.serviceId,
+            serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+            quantity: item.quantity || 1,
+            notes: item.notes || "",
+            price: item.price || "0",
+            totalPrice: item.totalPrice || item.price || "0",
+            status: "pending"
+          };
+          
+          append(newItem);
+          console.log(`🔄 FORÇA-RESET: Item adicionado: serviço ID=${newItem.serviceId}, qtd=${newItem.quantity}`);
+        });
+        
+        console.log("✅ FORÇA-RESET: Todos os itens foram adicionados com sucesso");
+      }, 100);
+    } catch (error) {
+      console.error("❌ FORÇA-RESET: Erro ao atualizar itens:", error);
+    }
+  }, [form, sale, fields, remove, append]);
   
   // Efeito para monitorar mudanças nos itens e atualizar o formulário
   useEffect(() => {
