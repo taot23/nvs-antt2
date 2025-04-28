@@ -29,113 +29,26 @@ export function SaleItemsFix({
   // Estado para forçar renderização
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
   
-  // Efeito para verificar se precisamos atualizar os campos quando itens estiverem disponíveis
+  // Efeito que roda sempre que os saleItems mudarem ou o componente for montado
   useEffect(() => {
-    console.log("🔎 SaleItemsFix verificando estado:", { 
-      fieldsLength: fields.length, 
-      saleItemsLength: saleItems?.length || 0,
-      saleItems: saleItems
-    });
-    
-    if (fields.length === 0 && saleItems && saleItems.length > 0) {
-      console.log("🔄 Detectada inconsistência na inicialização - Atualizando itens");
-      updateFormItems(saleItems);
-      
-      // Força atualização do componente após 200ms
-      setTimeout(() => {
-        setForceUpdateCounter(prev => prev + 1);
-      }, 200);
-    }
-  }, [fields.length, saleItems, updateFormItems, setForceUpdateCounter]);
-  
-  // Efeito adicional que executa uma única vez quando o componente é montado
-  useEffect(() => {
-    console.log("🚀 SaleItemsFix inicializado, verificando itens iniciais:", { 
-      fieldsLength: fields.length, 
-      saleItemsLength: saleItems?.length || 0 
-    });
-    
     if (saleItems && saleItems.length > 0) {
-      console.log("📦 Itens disponíveis na inicialização, atualizando formulário");
+      console.log("🔄 Itens disponíveis, atualizando formulário");
       updateFormItems(saleItems);
-      setForceUpdateCounter(prev => prev + 1);
     }
-  }, []);
+  }, [saleItems, updateFormItems]);
   
   return (
     <div className="border rounded-md p-4 mt-4">
       <h3 className="font-medium mb-2">Itens da Venda</h3>
       
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          {!readOnly && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => {
-                // Função de diagnóstico que mostra o estado atual do formulário
-                console.log("🔎 DIAGNÓSTICO: Estado atual do formulário:", form.getValues());
-                console.log("🔎 DIAGNÓSTICO: Itens no formulário:", form.getValues().items);
-                console.log("🔎 DIAGNÓSTICO: Campos controlados:", fields);
-                
-                toast({
-                  title: "Estado do formulário",
-                  description: `Há ${fields.length} item(s) no formulário`,
-                  className: "top-toast",
-                });
-                
-                // Se não há campos, mas há itens nos dados carregados, vamos forçar a atualização
-                if (fields.length === 0 && saleItems && saleItems.length > 0) {
-                  console.log("⚠️ Detectada inconsistência: Itens existem mas não estão no formulário");
-                  updateFormItems(saleItems);
-                  setForceUpdateCounter(prev => prev + 1);
-                  
-                  toast({
-                    title: "Correção automática",
-                    description: `Recuperados ${saleItems.length} item(s) da venda`,
-                    className: "top-toast",
-                  });
-                }
-              }}
-            >
-              Verificar Itens ({fields.length})
-            </Button>
-          )}
-        </div>
-        
-        <div className="text-xs text-muted-foreground">
-          {isLoadingItems ? "Carregando itens..." : `${saleItems?.length || 0} itens carregados`}
-        </div>
-      </div>
-      
-      {/* Número de renderizações (para debug) */}
-      <div className="text-xs text-muted-foreground mb-2 hidden">
-        Renderização #{forceUpdateCounter}
+      {/* Cabeçalho de Itens da Venda - simplificado */}
+      <div className="text-xs text-muted-foreground text-right mb-2">
+        {isLoadingItems ? "Carregando itens..." : `${fields.length} ${fields.length === 1 ? 'item' : 'itens'}`}
       </div>
       
       {fields.length === 0 ? (
         <div className="flex justify-center items-center p-4 text-muted-foreground">
-          Nenhum item adicionado. {saleItems && saleItems.length > 0 ? 
-            "Há itens disponíveis, mas não foram carregados corretamente." : 
-            "Adicione um serviço abaixo."
-          }
-          
-          {saleItems && saleItems.length > 0 && (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              className="ml-2"
-              onClick={() => {
-                updateFormItems(saleItems);
-                setForceUpdateCounter(prev => prev + 1);
-              }}
-            >
-              Recuperar Itens
-            </Button>
-          )}
+          Nenhum item adicionado. Adicione um serviço abaixo.
         </div>
       ) : (
         <div className="space-y-2">

@@ -494,16 +494,15 @@ export default function SaleDialog({
   
   // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
-    console.log("🔄 Verificando inicialização do formulário:", {
-      open,
-      isLoadingSale,
-      saleId: sale?.id || saleId,
-      formInitialized: formInitialized.current,
-      saleItemsLength: saleItems?.length || 0
-    });
+    // Resetar o formInitialized quando o diálogo fecha
+    if (!open) {
+      formInitialized.current = false;
+      return;
+    }
     
-    // Inicializamos o formulário SOMENTE quando a venda está disponível
-    if (open && !isLoadingSale && sale && !formInitialized.current) {
+    // Inicializamos o formulário quando a venda está disponível
+    // Sempre recarregamos para garantir que tudo esteja atualizado
+    if (open && !isLoadingSale && sale) {
       console.log("📋 INICIALIZANDO FORMULÁRIO COM DADOS DA VENDA:");
       console.log(JSON.stringify(sale, null, 2));
       console.log("📋 Detalhes da venda para formulário:");
