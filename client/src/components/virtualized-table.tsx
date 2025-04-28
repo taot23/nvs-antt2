@@ -105,6 +105,9 @@ interface VirtualizedTableProps {
   renderProgress?: number;
   ReenviaButton: React.ComponentType<{ sale: Sale }>;
   DevolveButton: React.ComponentType<{ sale: Sale }>;
+  // Indica se esta tabela está sendo usada na seção de Finanças
+  // Usado para controlar a exibição do botão de Confirmar pagamento
+  usesFinancialStatus?: boolean;
 }
 
 // Componente de tabela virtualizada
@@ -131,6 +134,7 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
   headerHeight = 50,
   ReenviaButton,
   DevolveButton,
+  usesFinancialStatus = false,
 }) => {
   // Monitor de performance
   const performanceMonitor = usePerformanceMonitor();
@@ -484,10 +488,16 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
               <DevolveButton sale={sale} />
             )}
             
-            {/* Permissão para marcar como paga (financeiro/admin) */}
+            {/* Permissão para marcar como paga (financeiro/admin) - apenas em páginas financeiras */}
             {(user?.role === "admin" || user?.role === "financeiro") && 
               sale.status === "completed" && 
-              sale.financialStatus !== "paid" && (
+              sale.financialStatus !== "paid" && 
+              // Verificar se estamos na interface financeira através das propriedades ou URL
+              (
+                usesFinancialStatus === true || 
+                window.location.pathname.includes('/finance') || 
+                window.location.pathname.includes('/financeiro')
+              ) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -516,7 +526,7 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
       </TableRow>
     );
   }, [data, updateProgress, user, onViewDetails, onViewHistory, onEdit, onStartExecution, 
-      onCompleteExecution, onReturnClick, onMarkAsPaid, onDeleteClick, statusStyleCache, ReenviaButton, DevolveButton]);
+      onCompleteExecution, onReturnClick, onMarkAsPaid, onDeleteClick, statusStyleCache, ReenviaButton, DevolveButton, usesFinancialStatus]);
 
   // Item de linha memoizado com função de comparação customizada
   // que verifica apenas as propriedades essenciais para renderização
