@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save } from "lucide-react";
+import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -262,18 +263,35 @@ export default function SaleDialog({
   });
 
   // Consulta para obter os itens da venda ao editar
-  const { data: saleItems = [] } = useQuery({
+  const { data: saleItems = [], isLoading: isLoadingItems } = useQuery({
     queryKey: ["/api/sales", sale?.id || saleId, "items"],
     queryFn: async () => {
       const id = sale?.id || saleId;
-      if (!id) return [];
-      const response = await fetch(`/api/sales/${id}/items`);
-      if (!response.ok) {
-        throw new Error("Erro ao carregar itens da venda");
+      if (!id) {
+        console.log("⚠️ Sem ID para buscar itens");
+        return [];
       }
-      return response.json();
+      
+      try {
+        console.log("🔍 Buscando itens da venda com ID:", id);
+        const response = await fetch(`/api/sales/${id}/items`);
+        
+        if (!response.ok) {
+          console.error("❌ Erro ao carregar itens da venda:", response.status);
+          throw new Error("Erro ao carregar itens da venda");
+        }
+        
+        const data = await response.json();
+        console.log("✅ ITENS DA VENDA CARREGADOS:", JSON.stringify(data, null, 2));
+        return data;
+      } catch (error) {
+        console.error("❌ ERRO ao carregar itens da venda:", error);
+        throw error;
+      }
     },
-    enabled: !!(sale?.id || saleId)
+    enabled: !!(sale?.id || saleId),
+    staleTime: 0,
+    refetchOnWindowFocus: false
   });
   
   // Consulta para obter as parcelas da venda ao editar
@@ -419,11 +437,47 @@ export default function SaleDialog({
     }
   }, [sale, saleId]);
 
+  // Função auxiliar para atualizar os itens
+  const updateFormItems = useCallback((items: any[]) => {
+    if (!items || items.length === 0) {
+      console.log("🚫 Sem itens para atualizar no formulário");
+      return;
+    }
+    
+    console.log("🔄 Atualizando itens no formulário:", items);
+    
+    // Preparamos os itens
+    const formattedItems = items.map((item: SaleItem) => ({
+      serviceId: item.serviceId,
+      serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+      quantity: item.quantity || 1,
+      notes: item.notes || "",
+      price: item.price || "0",
+      totalPrice: item.totalPrice || item.price || "0",
+      status: "pending"
+    }));
+    
+    console.log("🔄 Itens formatados:", formattedItems);
+    
+    // Definimos diretamente no formulário
+    form.setValue("items", formattedItems);
+    console.log("✅ Itens atualizados no formulário");
+  }, [form, sale]);
+  
+  // Efeito para monitorar mudanças nos itens e atualizar o formulário
+  useEffect(() => {
+    if (open && sale && saleItems && saleItems.length > 0 && !isLoadingItems) {
+      console.log("📦 Itens da venda carregados, atualizando formulário");
+      updateFormItems(saleItems);
+    }
+  }, [saleItems, open, sale, isLoadingItems, updateFormItems]);
+  
   // Efeito para inicializar o formulário quando a venda está disponível
   useEffect(() => {
-    // Inicializamos o formulário SOMENTE quando a venda e os itens estão disponíveis
+    // Inicializamos o formulário SOMENTE quando a venda está disponível
     if (open && !isLoadingSale && sale && !formInitialized.current) {
-      console.log("📋 Inicializando formulário com dados da venda:", sale);
+      console.log("📋 INICIALIZANDO FORMULÁRIO COM DADOS DA VENDA:");
+      console.log(JSON.stringify(sale, null, 2));
       console.log("📋 Detalhes da venda para formulário:");
       console.log("- orderNumber:", sale.orderNumber);
       console.log("- date:", sale.date);
@@ -433,7 +487,7 @@ export default function SaleDialog({
       console.log("- sellerId:", sale.sellerId);
       console.log("- totalAmount:", sale.totalAmount);
       console.log("- installments:", sale.installments);
-      console.log("- items:", saleItems);
+      console.log("- saleItems:", saleItems);
       
       // Reset imediato do formulário com dados da venda
       setTimeout(() => {
