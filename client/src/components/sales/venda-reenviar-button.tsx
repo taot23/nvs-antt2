@@ -38,7 +38,19 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       const itemsResponse = await fetch(`/api/sales/${sale.id}/items`);
       const items = await itemsResponse.json();
       
+      // Obtém as parcelas atualizadas para extrair as datas de vencimento
+      const installmentsResponse = await fetch(`/api/sales/${sale.id}/installments`);
+      const installments = await installmentsResponse.json();
+      
+      // Extrair as datas de vencimento das parcelas
+      const installmentDates = installments.map(inst => {
+        // Garantir que a data está no formato correto YYYY-MM-DD
+        const dueDate = inst.dueDate.split('T')[0];
+        return dueDate;
+      });
+      
       console.log("Itens atualizados para reenvio:", items);
+      console.log("Datas de parcelas para reenvio:", installmentDates);
       
       // Envia a requisição com todos os dados necessários
       const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, {
@@ -48,7 +60,8 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
         serviceProviderId: sale.serviceProviderId,
         paymentMethodId: sale.paymentMethodId,
         installments: sale.installments,
-        totalAmount: sale.totalAmount
+        totalAmount: sale.totalAmount,
+        installmentDates: installmentDates
       });
       return response.json();
     },
