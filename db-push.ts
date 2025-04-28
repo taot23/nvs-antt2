@@ -1,10 +1,6 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { services, serviceTypes, serviceProviders, sales, saleItems, salesStatusHistory, costTypes, saleOperationalCosts } from './shared/schema';
-import ws from 'ws';
-
-// Configure o WebSocket para Neon
-neonConfig.webSocketConstructor = ws;
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { users, customers, services, serviceTypes, serviceProviders, sales, saleItems, salesStatusHistory, costTypes, saleOperationalCosts, saleInstallments, salePaymentReceipts } from './shared/schema';
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -13,8 +9,41 @@ async function main() {
 
   console.log('Connecting to database...');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const db = drizzle({ client: pool });
+  const db = drizzle(pool, { schema: { users, customers, services, serviceTypes, serviceProviders, sales, saleItems, salesStatusHistory, costTypes, saleOperationalCosts, saleInstallments, salePaymentReceipts } });
 
+  console.log('Creating users table...');
+  
+  // Criar tabela users com SQL direto para evitar problemas com drizzle-kit push
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'user'
+    );
+  `);
+  
+  console.log('Users table created successfully!');
+  
+  console.log('Creating customers table...');
+  
+  // Criar tabela customers com SQL direto para evitar problemas com drizzle-kit push
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      document TEXT NOT NULL,
+      document_type TEXT NOT NULL DEFAULT 'cpf',
+      contact_name TEXT,
+      phone TEXT NOT NULL,
+      phone2 TEXT,
+      email TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id)
+    );
+  `);
+  
+  console.log('Customers table created successfully!');
+  
   console.log('Creating services table...');
   
   // Criar tabela services com SQL direto para evitar problemas com drizzle-kit push
@@ -23,8 +52,6 @@ async function main() {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT,
-      price TEXT NOT NULL,
-      duration INTEGER,
       active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))
     );
@@ -167,6 +194,60 @@ async function main() {
   `);
 
   console.log('Sale Operational Costs table created successfully!');
+  
+  console.log('Creating payment_methods table...');
+  
+  // Criar tabela payment_methods
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_methods (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))
+    );
+  `);
+  
+  console.log('Payment Methods table created successfully!');
+  
+  console.log('Creating sale_installments table...');
+  
+  // Criar tabela sale_installments
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sale_installments (
+      id SERIAL PRIMARY KEY,
+      sale_id INTEGER NOT NULL REFERENCES sales(id),
+      installment_number INTEGER NOT NULL,
+      amount NUMERIC NOT NULL,
+      due_date TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      payment_date TEXT,
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+  
+  console.log('Sale Installments table created successfully!');
+  
+  console.log('Creating sale_payment_receipts table...');
+  
+  // Criar tabela sale_payment_receipts
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sale_payment_receipts (
+      id SERIAL PRIMARY KEY,
+      installment_id INTEGER NOT NULL REFERENCES sale_installments(id),
+      receipt_type TEXT NOT NULL,
+      receipt_url TEXT,
+      receipt_data JSONB,
+      confirmed_by INTEGER NOT NULL REFERENCES users(id),
+      confirmation_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+  
+  console.log('Sale Payment Receipts table created successfully!');
   
   await pool.end();
 }
