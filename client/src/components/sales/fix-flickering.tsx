@@ -1,21 +1,76 @@
-import React from 'react';
-import { Package, Trash } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useRef } from 'react';
+import { Trash } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package } from 'lucide-react';
 
-// Componente específico para renderizar itens SEM flickering
-// Este componente é completamente independente para evitar re-renderizações
-const StaticItemsRenderer = React.memo(({ 
+type Item = {
+  id: string;
+  serviceId: number;
+  serviceName: string;
+  quantity: number;
+  notes?: string | null;
+};
+
+type StaticItemsRendererProps = {
+  items: Item[];
+  onRemove?: (index: number) => void;
+  isReadOnly?: boolean;
+};
+
+/**
+ * Componente 100% estático para renderizar itens sem nenhum flickering
+ * Não depende do lifecycle do React nem do estado do formulário principal
+ */
+const StaticItemsRenderer: React.FC<StaticItemsRendererProps> = ({ 
   items, 
-  onRemove, 
+  onRemove,
   isReadOnly = false
-}: { 
-  items: any[],
-  onRemove: (index: number) => void,
-  isReadOnly?: boolean
 }) => {
-  console.log("🛑 SOLUÇÃO RADICAL: Renderizando StaticItemsRenderer com", items.length, "itens");
+  // Estado interno COMPLETAMENTE isolado do formulário principal
+  const [localItems, setLocalItems] = useState<Item[]>([]);
+  const isInitialized = useRef(false);
   
-  if (!items || items.length === 0) {
+  // Inicialização única para evitar loops e flickering
+  useEffect(() => {
+    if (isInitialized.current) return;
+    
+    if (items && items.length > 0) {
+      console.log("🧊 StaticItemsRenderer: Inicializando com", items.length, "itens");
+      setLocalItems(items);
+      isInitialized.current = true;
+    }
+  }, [items]);
+  
+  // Atualização manual apenas quando o número de itens muda (adição/remoção)
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    
+    // Verificar se houve mudança real no número de itens
+    if (items.length !== localItems.length) {
+      console.log("🧊 StaticItemsRenderer: Atualizando itens por mudança de quantidade", {
+        anterior: localItems.length,
+        novo: items.length
+      });
+      setLocalItems(items);
+    }
+  }, [items.length]);
+  
+  // Handler para remover item com validação extra
+  const handleRemove = (index: number) => {
+    console.log("🧊 StaticItemsRenderer: Solicitando remoção do item", index);
+    
+    // Verificar se temos a função de callback
+    if (onRemove) {
+      // Chamar o callback para remover no formulário original
+      onRemove(index);
+      
+      // Atualizar nossa cópia local
+      setLocalItems(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+  
+  // Se não temos itens, mostrar mensagem vazia
+  if (!localItems.length) {
     return (
       <div className="text-center py-6 text-muted-foreground">
         <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
@@ -25,10 +80,11 @@ const StaticItemsRenderer = React.memo(({
     );
   }
   
+  // Renderizar os itens da nossa cópia local e isolada
   return (
     <div className="space-y-2">
-      {items.map((item, index) => (
-        <div key={`static-item-${item.serviceId}-${index}`} className="rounded-md border p-3 relative">
+      {localItems.map((item, index) => (
+        <div key={item.id || index} className="rounded-md border p-3 relative">
           <div className="flex justify-between">
             <div className="flex-1">
               <h4 className="font-medium">{item.serviceName}</h4>
@@ -47,7 +103,7 @@ const StaticItemsRenderer = React.memo(({
                 size="icon"
                 variant="ghost"
                 className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900"
-                onClick={() => onRemove(index)}
+                onClick={() => handleRemove(index)}
               >
                 <Trash className="h-4 w-4" />
               </Button>
@@ -57,18 +113,6 @@ const StaticItemsRenderer = React.memo(({
       ))}
     </div>
   );
-}, (prevProps, nextProps) => {
-  // Implementação customizada de comparação para memoização
-  // Se o número de itens e os IDs são os mesmos, não renderiza novamente
-  if (prevProps.items?.length !== nextProps.items?.length) {
-    return false; // Renderizar se o número de itens mudou
-  }
-  
-  // Verificação simples de IDs para evitar checks profundos
-  const prevIds = prevProps.items?.map(i => i.serviceId)?.join('-') || '';
-  const nextIds = nextProps.items?.map(i => i.serviceId)?.join('-') || '';
-  
-  return prevIds === nextIds; // Só re-renderiza se os IDs mudaram
-});
+};
 
 export default StaticItemsRenderer;

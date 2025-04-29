@@ -12,6 +12,9 @@ import { StaticSaleItems } from "./static-sale-items";
 // SOLUÇÃO RADICAL 29/04/2025: Importar componentes específicos de solução final
 import StaticItemsRenderer from "./fix-flickering";
 import StaticDateField from "./preserve-date";
+
+// SOLUÇÃO SUPER RADICAL 30/04/2025: Patch de emergência para problemas críticos
+import emergencyStore, { preserveSaleDate, preserveSaleItems, useSaleDatePatch } from "@/patches/emergency-patch";
 import { format, addMonths, isValid } from "date-fns";
 import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
 import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
@@ -2619,40 +2622,87 @@ export default function SaleDialog({
               {/* SOLUÇÃO RADICAL 30/04/2025: Componente totalmente independente com seu próprio sistema de estado para evitar flickering */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
                 {(() => {
-                  // Preparar os itens para o componente estático
-                  const staticItems = fields.map((field, index) => {
+                  // Aplicar patch de emergência para persistência dos itens
+                  
+                  // Registrar o ID da venda no store para gerenciamento de estado
+                  if (sale?.id) {
+                    emergencyStore.lastSaleId = sale.id;
+                  }
+                  
+                  // PATCH SUPER-RADICAL 30/04/2025: Preparar itens com o patch de emergência
+                  const staticItems = (() => {
                     try {
-                      // Obtém o item do formulário
+                      // Obtém os itens do formulário
                       const formValues = form.getValues();
-                      const item = formValues.items?.[index];
+                      const formItems = formValues.items || [];
                       
-                      if (!item) return null;
+                      // Se não temos itens no formulário, usar cache
+                      if (!formItems.length) {
+                        console.log("🛑 PATCH DE ITENS: Sem itens no formulário, verificando cache...");
+                        if (emergencyStore.lastItemsState.length > 0) {
+                          console.log("🛑 PATCH DE ITENS: Usando", emergencyStore.lastItemsState.length, "itens do cache");
+                          return emergencyStore.lastItemsState;
+                        }
+                        
+                        // Se não temos cache, tentar usar saleItems (da API)
+                        if (saleItems && saleItems.length > 0) {
+                          console.log("🛑 PATCH DE ITENS: Usando", saleItems.length, "itens da API");
+                          const processedItems = saleItems.map((item: any) => {
+                            const service = services.find((s: any) => s.id === item.serviceId);
+                            return {
+                              id: item.id,
+                              serviceId: item.serviceId,
+                              serviceName: service?.name || `Serviço #${item.serviceId}`,
+                              quantity: item.quantity,
+                              notes: item.notes
+                            };
+                          });
+                          emergencyStore.lastItemsState = processedItems;
+                          return processedItems;
+                        }
+                        
+                        console.log("🛑 PATCH DE ITENS: Sem itens disponíveis em nenhuma fonte");
+                        return [];
+                      }
                       
-                      // Encontrar o serviço correspondente
-                      const service = services.find((s: any) => s.id === item.serviceId);
-                      const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                      // Se temos itens no formulário, processar e salvar no cache
+                      const processedItems = fields.map((field, index) => {
+                        const item = formItems[index];
+                        if (!item) return null;
+                        
+                        // Encontrar o serviço correspondente
+                        const service = services.find((s: any) => s.id === item.serviceId);
+                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                        
+                        return {
+                          id: field.id,
+                          serviceId: item.serviceId,
+                          serviceName,
+                          quantity: item.quantity,
+                          notes: item.notes
+                        };
+                      }).filter(Boolean);
                       
-                      return {
-                        id: field.id,
-                        serviceId: item.serviceId,
-                        serviceName,
-                        quantity: item.quantity,
-                        notes: item.notes
-                      };
+                      // Salvar no store para persistência
+                      emergencyStore.lastItemsState = processedItems;
+                      console.log("🛑 PATCH DE ITENS: Salvos", processedItems.length, "itens no cache");
+                      
+                      return processedItems;
                     } catch (e) {
-                      console.error("🚨 Erro ao preparar item estático:", e);
-                      return null;
+                      console.error("🛑 PATCH DE ITENS: Erro ao processar itens:", e);
+                      // Em caso de erro, tentar usar cache
+                      return emergencyStore.lastItemsState;
                     }
-                  }).filter(Boolean);
+                  })();
 
-                  console.log("🚀 SOLUÇÃO RADICAL: Preparados", staticItems.length, "itens para renderização estática");
+                  console.log("🚀 SUPER-RADICAL: Preparados", staticItems.length, "itens para renderização estática");
                   
                   // Usar componente completamente isolado
                   return (
                     <StaticItemsRenderer
                       items={staticItems}
                       onRemove={(index) => {
-                        console.log("🚀 SOLUÇÃO RADICAL: Removendo item índice", index);
+                        console.log("🚀 SUPER-RADICAL: Removendo item índice", index);
                         remove(index);
                       }}
                       isReadOnly={readOnly}
@@ -2822,35 +2872,27 @@ export default function SaleDialog({
                     console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
                   }
                   
-                  // SUPER-IMPORTANTE: Garantir o formato correto da data FINAL
-                  let finalFormattedDate;
+                  // SUPER-RADICAL 30/04/2025: USAR O PATCH DE EMERGÊNCIA
+                  console.log("🛑 SUPER-RADICAL: Aplicando patch de emergência para a data");
                   
-                  // SOLUÇÃO 29/04/2025 - PRESERVAÇÃO FORÇADA DE DATA
-                  console.log("🚨 VERIFICAÇÃO FINAL DA DATA DA VENDA:", {
-                    rawValue: values.date,
-                    type: typeof values.date
+                  // Defina o ID da venda no store de emergência
+                  if (sale?.id) {
+                    emergencyStore.lastSaleId = sale.id;
+                  }
+                  
+                  // Aplicar o patch de data
+                  let finalFormattedDate = preserveSaleDate({
+                    date: values.date
                   });
                   
-                  // Se a data já é uma string, usamos diretamente (já foi formatada anteriormente)
-                  if (typeof values.date === 'string') {
-                    // Remover parte de timestamp se existir
-                    finalFormattedDate = values.date.includes('T') 
-                      ? values.date.split('T')[0] 
-                      : values.date;
-                      
-                    console.log("🚨 PRESERVAÇÃO DE DATA: Usando string diretamente:", finalFormattedDate);
-                  }
-                  // Se é um objeto Date, formatamos manualmente
-                  else if (values.date instanceof Date) {
-                    // Garantir o formato YYYY-MM-DD sem ajuste de timezone
-                    finalFormattedDate = `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}`;
-                    console.log("🚨 PRESERVAÇÃO DE DATA: Convertido de Date:", finalFormattedDate);
-                  }
-                  // Caso não tenhamos uma data (null/undefined), usar a data atual
-                  else {
+                  // Saída extra para debug
+                  console.log("🛑 SUPER-RADICAL: Data final após patch:", finalFormattedDate, "tipo:", typeof finalFormattedDate);
+                  
+                  // Garantir que temos uma data válida
+                  if (!finalFormattedDate) {
                     const today = new Date();
                     finalFormattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                    console.log("🚨 PRESERVAÇÃO DE DATA: Gerada data atual:", finalFormattedDate);
+                    console.log("🛑 SUPER-RADICAL: Usando data de hoje como fallback:", finalFormattedDate);
                   }
                   
                   // Monta o objeto manualmente ignorando a validação do Zod
