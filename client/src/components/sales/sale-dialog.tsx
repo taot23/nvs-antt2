@@ -223,6 +223,13 @@ export default function SaleDialog({
     if (!open) {
       formInitialized.current = false;
       console.log("🔄 Diálogo fechado, estado resetado");
+      
+      // Se fechou o diálogo, resetar o emergency store após 10 segundos
+      // Isso dá tempo para o servidor processar a submissão antes de limpar o cache
+      setTimeout(() => {
+        console.log("🧹 Limpando emergency store 10 segundos após fechamento");
+        emergencyStore.clearState();
+      }, 10000);
     }
   }, [open]);
   
@@ -1519,6 +1526,10 @@ export default function SaleDialog({
       console.log("Formulário validado com sucesso!");
       console.log("Valores do formulário:", values);
       console.log("Número de itens:", values.items.length);
+      
+      // SOLUÇÃO RADICAL: Salvar os itens no emergency store para uso posterior
+      console.log("🧪 INTERCEPTAÇÃO PRÉ-ENVIO: Salvando", values.items.length, "itens no emergency store");
+      emergencyStore.lastItemsState = [...values.items];
       
       // Verificação adicional do número de parcelas antes do envio
       console.log("⚠️ IMPORTANTE! Verificando número de parcelas no onSubmit:", values.installments);
@@ -2878,27 +2889,56 @@ export default function SaleDialog({
                     console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
                   }
                   
-                  // SUPER-RADICAL 30/04/2025: USAR O PATCH DE EMERGÊNCIA
-                  console.log("🛑 SUPER-RADICAL: Aplicando patch de emergência para a data");
+                  // SOLUÇÃO EXTREMAMENTE RADICAL 30/04/2025: Captura direta da DOM
+                  console.log("🔥🔥🔥 SOLUÇÃO EXTREMAMENTE RADICAL: Captura direta da DOM para data");
                   
-                  // Defina o ID da venda no store de emergência
-                  if (sale?.id) {
-                    emergencyStore.lastSaleId = sale.id;
+                  // 1. Tentar obter a data diretamente da DOM, que é garantidamente o que o usuário vê
+                  let finalFormattedDate: string;
+                  
+                  try {
+                    // Buscar o botão com o atributo data-final-date
+                    const dateButton = document.querySelector('button[data-final-date]');
+                    
+                    if (dateButton) {
+                      // Obter a data do atributo
+                      const domDate = dateButton.getAttribute('data-final-date');
+                      
+                      if (domDate && domDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        console.log("🔥 INTERCEPTAÇÃO DOM: Data capturada da DOM:", domDate);
+                        finalFormattedDate = domDate;
+                        
+                        // Salvar no store para uso futuro
+                        emergencyStore.lastSaleDate = domDate;
+                      } else {
+                        console.log("🔥 INTERCEPTAÇÃO DOM: Data inválida na DOM:", domDate);
+                        
+                        // Cair para o valor do patch 
+                        finalFormattedDate = emergencyStore.lastSaleDate;
+                        console.log("🔥 INTERCEPTAÇÃO DOM: Usando último valor conhecido:", finalFormattedDate);
+                      }
+                    } else {
+                      console.log("🔥 INTERCEPTAÇÃO DOM: Não encontrou o elemento de data na DOM");
+                      
+                      // Cair para o valor do patch
+                      finalFormattedDate = emergencyStore.lastSaleDate;
+                      console.log("🔥 INTERCEPTAÇÃO DOM: Usando último valor conhecido:", finalFormattedDate);
+                    }
+                  } catch (e) {
+                    console.error("🔥 INTERCEPTAÇÃO DOM: Erro ao obter data da DOM:", e);
+                    
+                    // Em caso de erro, usar o patch normal
+                    finalFormattedDate = preserveSaleDate({
+                      date: values.date
+                    });
+                    
+                    console.log("🔥 INTERCEPTAÇÃO DOM: Usando patch de emergência como fallback:", finalFormattedDate);
                   }
                   
-                  // Aplicar o patch de data
-                  let finalFormattedDate = preserveSaleDate({
-                    date: values.date
-                  });
-                  
-                  // Saída extra para debug
-                  console.log("🛑 SUPER-RADICAL: Data final após patch:", finalFormattedDate, "tipo:", typeof finalFormattedDate);
-                  
-                  // Garantir que temos uma data válida
+                  // Se ainda não temos uma data, gerar uma
                   if (!finalFormattedDate) {
                     const today = new Date();
                     finalFormattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                    console.log("🛑 SUPER-RADICAL: Usando data de hoje como fallback:", finalFormattedDate);
+                    console.log("🔥 INTERCEPTAÇÃO DOM: Usando data de hoje como último recurso:", finalFormattedDate);
                   }
                   
                   // Monta o objeto manualmente ignorando a validação do Zod
@@ -2922,15 +2962,37 @@ export default function SaleDialog({
                       correctionNotes: correctionNotes.trim(),
                       isResubmitted: true
                     }),
-                    items: values.items.map(item => ({
-                      serviceId: item.serviceId,
-                      serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
-                      quantity: item.quantity || 1,
-                      price: "0", // Preço unitário fixado em zero
-                      totalPrice: "0", // Preço total do item fixado em zero - só usamos o valor total da venda
-                      status: "pending",
-                      notes: item.notes || ""
-                    }))
+                    items: (() => {
+                      console.log("🔥 INTERCEPTAÇÃO RADICAL DE ITENS");
+                      
+                      // Verificar se temos itens no cache do emergency store
+                      if (emergencyStore.lastItemsState.length > 0) {
+                        console.log("🔥 Usando", emergencyStore.lastItemsState.length, "itens do cache de emergência");
+                        
+                        // Converter para o formato que a API espera
+                        return emergencyStore.lastItemsState.map(item => ({
+                          serviceId: item.serviceId,
+                          serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
+                          quantity: item.quantity || 1,
+                          price: "0", 
+                          totalPrice: "0",
+                          status: "pending",
+                          notes: item.notes || ""
+                        }));
+                      }
+                      
+                      // Se não temos cache, usar os valores do formulário
+                      console.log("🔥 Usando", values.items.length, "itens do formulário");
+                      return values.items.map(item => ({
+                        serviceId: item.serviceId,
+                        serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda
+                        quantity: item.quantity || 1,
+                        price: "0", // Preço unitário fixado em zero
+                        totalPrice: "0", // Preço total do item fixado em zero - só usamos o valor total da venda
+                        status: "pending",
+                        notes: item.notes || ""
+                      }));
+                    })()
                   };
                   
                   // Debug adicional para certificar que o número de parcelas está sendo enviado
