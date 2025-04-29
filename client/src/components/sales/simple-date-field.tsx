@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FormControl, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Calendar } from "lucide-react";
+import { Input } from '@/components/ui/input';
+import { Calendar } from 'lucide-react';
 
 /**
  * Componente de data ultra simples sem qualquer lógica complexa
@@ -18,101 +17,87 @@ interface SimpleDateFieldProps {
 export function SimpleDateField({ 
   value, 
   onChange, 
-  label = "Data", 
-  readOnly = false 
+  label = 'Data', 
+  readOnly = false
 }: SimpleDateFieldProps) {
-  // Para exibição ao usuário (formato DD/MM/AAAA)
-  const [displayValue, setDisplayValue] = useState("");
+  // Estado local para manter o valor exibido
+  const [displayValue, setDisplayValue] = useState<string>('');
   
-  // Inicialização
+  // Ao inicializar ou quando o valor externo mudar, formatar para exibição
   useEffect(() => {
     if (!value) {
-      // Se não tem valor, usar data atual
-      const today = new Date();
-      const dd = String(today.getDate()).padStart(2, '0');
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const yyyy = today.getFullYear();
-      
-      setDisplayValue(`${dd}/${mm}/${yyyy}`);
-      onChange(`${yyyy}-${mm}-${dd}`);
+      setDisplayValue('');
       return;
     }
     
-    // Se valor é string
-    if (typeof value === 'string') {
-      // Se já é formato brasileiro
-      if (value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+    try {
+      // Converter Date para string no formato brasileiro
+      if (value instanceof Date) {
+        const day = value.getDate().toString().padStart(2, '0');
+        const month = (value.getMonth() + 1).toString().padStart(2, '0');
+        const year = value.getFullYear();
+        setDisplayValue(`${day}/${month}/${year}`);
+        return;
+      }
+      
+      // Se já estiver no formato DD/MM/AAAA, manter como está
+      if (typeof value === 'string' && value.includes('/')) {
         setDisplayValue(value);
-        // Converter para ISO
-        const [day, month, year] = value.split('/');
-        onChange(`${year}-${month}-${day}`);
+        return;
       }
-      // Se é formato ISO
-      else if (value.match(/^\d{4}-\d{2}-\d{2}/)) {
+      
+      // Se for string ISO, converter para DD/MM/AAAA
+      if (typeof value === 'string' && value.includes('-')) {
         const parts = value.split('T')[0].split('-');
-        setDisplayValue(`${parts[2]}/${parts[1]}/${parts[0]}`);
-        onChange(value.split('T')[0]);
-      }
-      // Outra string de data
-      else {
-        try {
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            const dd = String(date.getDate()).padStart(2, '0');
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const yyyy = date.getFullYear();
-            
-            setDisplayValue(`${dd}/${mm}/${yyyy}`);
-            onChange(`${yyyy}-${mm}-${dd}`);
-          }
-        } catch (error) {
-          console.error("Erro ao processar data:", error);
+        if (parts.length === 3) {
+          const [year, month, day] = parts;
+          setDisplayValue(`${day}/${month}/${year}`);
+          return;
         }
       }
-    }
-    // Se valor é objeto Date
-    else if (value instanceof Date && !isNaN(value.getTime())) {
-      const dd = String(value.getDate()).padStart(2, '0');
-      const mm = String(value.getMonth() + 1).padStart(2, '0');
-      const yyyy = value.getFullYear();
       
-      setDisplayValue(`${dd}/${mm}/${yyyy}`);
-      onChange(`${yyyy}-${mm}-${dd}`);
+      // Fallback: mostrar como está
+      setDisplayValue(String(value));
+    } catch (error) {
+      console.error('Erro ao formatar data:', error);
+      setDisplayValue(String(value));
     }
-  }, []);
+  }, [value]);
   
-  // Handler para mudanças no input
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const userInput = e.target.value;
-    setDisplayValue(userInput);
+  // Função para lidar com mudanças no input
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setDisplayValue(newValue);
     
-    // Se o formato é brasileiro válido (DD/MM/AAAA), converter para ISO
-    if (userInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      try {
-        const [day, month, year] = userInput.split('/');
-        onChange(`${year}-${month}-${day}`);
-      } catch (error) {
-        console.error("Erro ao converter data:", error);
-      }
+    // Verificar se corresponde ao formato DD/MM/AAAA
+    const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    if (datePattern.test(newValue)) {
+      const [, day, month, year] = newValue.match(datePattern) || [];
+      // Converter para formato ISO
+      const isoDate = `${year}-${month}-${day}`;
+      onChange(isoDate);
+    } else {
+      // Passar o valor como está se não corresponder ao padrão
+      onChange(newValue);
     }
   };
   
   return (
-    <FormItem className="flex flex-col">
-      <FormLabel className="flex items-center gap-2">
-        <Calendar className="h-4 w-4" />
-        {label}
-      </FormLabel>
-      <FormControl>
-        <Input
-          className="date-input"
-          placeholder="DD/MM/AAAA"
-          value={displayValue}
-          onChange={handleChange}
-          disabled={readOnly}
-        />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
+    <div className="relative">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+          <Calendar className="h-4 w-4" />
+          {label}
+        </label>
+      )}
+      <Input
+        type="text"
+        placeholder="DD/MM/AAAA"
+        value={displayValue}
+        onChange={handleInputChange}
+        readOnly={readOnly}
+        className="pl-3"
+      />
+    </div>
   );
 }

@@ -34,6 +34,7 @@ import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
 import { DateRangePicker } from "@/components/date-range-picker";
+import { ReturnedSaleHandler } from "@/components/sales/returned-sale-handler";
 
 // Tipos
 type Sale = {
