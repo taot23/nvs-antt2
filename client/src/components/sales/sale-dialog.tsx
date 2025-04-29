@@ -1239,9 +1239,10 @@ export default function SaleDialog({
         installmentDatesToSend = generateInstallmentDates(firstDate, data.installments).map(date => {
           if (typeof date === 'string') {
             return date;
-          } else if (date instanceof Date) {
+          } else if (date && typeof date === 'object' && 'getFullYear' in date) {
             // Converter Date para string YYYY-MM-DD sem ajuste de timezone
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dateObj = date as Date;
+            return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
           } else {
             // Fallback para o caso de date não ser nem string nem Date
             console.warn("Data em formato inesperado:", date);
@@ -1311,9 +1312,10 @@ export default function SaleDialog({
                 if (typeof stateDate === 'string') {
                   // Se já é string, usar diretamente
                   isoDate = stateDate.includes('T') ? stateDate.split('T')[0] : stateDate;
-                } else if (stateDate instanceof Date) {
+                } else if (stateDate && typeof stateDate === 'object' && 'getFullYear' in stateDate) {
                   // Converter Date para string YYYY-MM-DD
-                  isoDate = `${stateDate.getFullYear()}-${String(stateDate.getMonth() + 1).padStart(2, '0')}-${String(stateDate.getDate()).padStart(2, '0')}`;
+                  const dateObj = stateDate as Date;
+                  isoDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
                 }
                 
                 if (isoDate) {
@@ -1373,9 +1375,10 @@ export default function SaleDialog({
           if (typeof date === 'string') {
             // Se já é string, normalizar para YYYY-MM-DD
             return date.includes('T') ? date.split('T')[0] : date;
-          } else if (date instanceof Date) {
+          } else if (date && typeof date === 'object' && 'getFullYear' in date) {
             // Converter Date para string YYYY-MM-DD
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dateObj = date as Date;
+            return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
           }
           // Caso não seja string nem Date, retornar null (será filtrado depois)
           return null;
@@ -2993,7 +2996,9 @@ export default function SaleDialog({
                         });
                       }
                       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-                      onSaveSuccess();
+                      if (onSaveSuccess) {
+                        onSaveSuccess();
+                      }
                       onClose();
                     })
                     .catch(error => {
