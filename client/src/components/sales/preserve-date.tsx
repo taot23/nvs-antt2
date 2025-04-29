@@ -3,144 +3,115 @@ import { FormControl, FormItem, FormLabel, FormMessage } from "@/components/ui/f
 import { Input } from "@/components/ui/input";
 import { Calendar } from "lucide-react";
 
-// Função específica para formatação de data de ISO para brasileiro
-const formatDate = (date: string | Date | null): string => {
-  if (!date) return '';
-  
-  try {
-    let dateObj: Date;
-    
-    if (typeof date === 'string') {
-      // Se já é string e tem formato ISO
-      if (date.match(/^\d{4}-\d{2}-\d{2}/)) {
-        const [year, month, day] = date.split('T')[0].split('-').map(Number);
-        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
-      }
-      
-      // Se já está no formato brasileiro, retorna como está
-      if (date.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-        return date;
-      }
-      
-      // Tenta criar um objeto Date da string
-      dateObj = new Date(date);
-    } else {
-      dateObj = date;
-    }
-    
-    // Verifica se é uma data válida
-    if (isNaN(dateObj.getTime())) {
-      console.log("⚠️ Data inválida:", date);
-      return '';
-    }
-    
-    // Formato brasileiro DD/MM/YYYY
-    return `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
-  } catch (error) {
-    console.error("⚠️ Erro ao formatar data:", error);
-    return '';
-  }
-};
+/**
+ * COMPONENTE ULTRA-SIMPLIFICADO - VERSÃO FINAL (30/04/2025)
+ * 
+ * Esta versão foi completamente refatorada para eliminar problemas de edição
+ * e formatação automática de datas. Agora o componente:
+ * 
+ * 1. Permite edição livre do campo de data
+ * 2. Apenas converte para o formato ISO quando detecta um formato brasileiro válido
+ * 3. Inicializa com a data atual por padrão
+ * 4. Prioriza a experiência do usuário acima de tudo
+ */
 
-// Componente específico para preservar a data da venda
-// Este componente mantém seu próprio estado interno para garantir consistência
-interface StaticDateFieldProps {
-  originalDate: string | Date | null;
-  label?: string;
-  onChange: (dateInISOFormat: string) => void;
-  readOnly?: boolean;
+// Função simples para formatar uma data como DD/MM/AAAA
+function formatToBrazilianDate(date: Date): string {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-const StaticDateField: React.FC<StaticDateFieldProps> = ({
+// Componente simplificado de campo de data
+const StaticDateField = ({
   originalDate,
   label = "Data",
   onChange,
   readOnly = false
+}: { 
+  originalDate: any,
+  label?: string,
+  onChange: (value: string) => void,
+  readOnly?: boolean
 }) => {
-  // Estado interno que guarda a data em formato ISO para o backend
-  const [isoDate, setIsoDate] = useState<string>('');
-  // Estado para o display formatado para o usuário
-  const [displayDate, setDisplayDate] = useState<string>('');
+  // Estados locais - inicialização mais simples
+  const [displayValue, setDisplayValue] = useState("");
   
-  // Use useMemo para processar a data apenas uma vez na montagem do componente
-  const initialData = React.useMemo(() => {
-    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Processando data inicial:", originalDate);
-    
-    // Processa a data original para formato ISO
-    let isoFormat = '';
-    
-    if (originalDate) {
-      if (typeof originalDate === 'string') {
-        // Se já é string ISO (YYYY-MM-DD), usa diretamente
-        if (originalDate.match(/^\d{4}-\d{2}-\d{2}/)) {
-          isoFormat = originalDate.split('T')[0]; // Remove parte do tempo se existir
-          console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Data ISO original preservada:", isoFormat);
-        } 
-        // Se é string em formato brasileiro, converte para ISO
-        else if (originalDate.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-          const [day, month, year] = originalDate.split('/').map(Number);
-          isoFormat = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Convertido BR para ISO:", isoFormat);
-        }
-        // Outro formato, tenta converter
-        else {
-          try {
-            const dateObj = new Date(originalDate);
-            if (!isNaN(dateObj.getTime())) {
-              isoFormat = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-              console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Convertido string para ISO:", isoFormat);
+  // Efeito para inicialização única na montagem
+  useEffect(() => {
+    try {
+      let initialDisplay = "";
+      let initialIsoValue = "";
+      
+      // Tentar extrair uma data válida do valor original
+      if (originalDate) {
+        if (typeof originalDate === 'string') {
+          // Se é formato brasileiro (DD/MM/AAAA)
+          if (originalDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            initialDisplay = originalDate;
+            
+            // Converter para ISO para o backend
+            const [day, month, year] = originalDate.split('/').map(Number);
+            initialIsoValue = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          }
+          // Se é formato ISO (YYYY-MM-DD)
+          else if (originalDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+            const datePart = originalDate.split('T')[0];
+            const [year, month, day] = datePart.split('-').map(Number);
+            
+            // Formato brasileiro
+            initialDisplay = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+            initialIsoValue = datePart;
+          }
+          // Outra string de data - tentar parse
+          else {
+            const date = new Date(originalDate);
+            if (!isNaN(date.getTime())) {
+              initialDisplay = formatToBrazilianDate(date);
+              initialIsoValue = date.toISOString().split('T')[0];
             }
-          } catch (e) {
-            console.error("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Erro ao converter string:", e);
           }
         }
-      } 
-      // Se é um objeto Date, converte para ISO
-      else if (originalDate instanceof Date) {
-        isoFormat = `${originalDate.getFullYear()}-${String(originalDate.getMonth() + 1).padStart(2, '0')}-${String(originalDate.getDate()).padStart(2, '0')}`;
-        console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Convertido Date para ISO:", isoFormat);
+        // Se é objeto Date
+        else if (originalDate instanceof Date && !isNaN(originalDate.getTime())) {
+          initialDisplay = formatToBrazilianDate(originalDate);
+          initialIsoValue = originalDate.toISOString().split('T')[0];
+        }
       }
-    }
-    
-    // Se não conseguimos obter um formato ISO, usar a data atual (hoje)
-    if (!isoFormat) {
-      const today = new Date();
-      isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Usando data atual:", isoFormat);
-    }
-    
-    // FORÇAR exibição da data no formato brasileiro mesmo se não houver data original
-    const formattedDateBR = formatDate(isoFormat);
-    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Data formatada para exibição:", formattedDateBR);
-    
-    return { isoFormat, formattedDateBR };
-  }, []); // Array vazio = executa apenas uma vez na montagem
-  
-  // Inicializa os estados apenas uma vez
-  useEffect(() => {
-    setIsoDate(initialData.isoFormat);
-    setDisplayDate(initialData.formattedDateBR);
-    onChange(initialData.isoFormat);
-    
-    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v3: Data inicializada com sucesso!");
-  }, []);
-  
-  // Função para processar input do usuário
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value;
-    console.log("🔒 SUPER-PRESERVAÇÃO: Input de data:", input);
-    
-    // Atualiza o display imediatamente para feedback visual
-    setDisplayDate(input);
-    
-    // Se o input corresponde ao formato brasileiro, converte para ISO e atualiza
-    if (input.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = input.split('/').map(Number);
-      const newIsoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       
-      console.log("🔒 SUPER-PRESERVAÇÃO: Convertido para ISO:", newIsoDate);
-      setIsoDate(newIsoDate);
-      onChange(newIsoDate);
+      // Se não conseguimos determinar a data, usar data atual
+      if (!initialDisplay || !initialIsoValue) {
+        const today = new Date();
+        initialDisplay = formatToBrazilianDate(today);
+        initialIsoValue = today.toISOString().split('T')[0];
+      }
+      
+      // Definir valores iniciais
+      setDisplayValue(initialDisplay);
+      onChange(initialIsoValue);
+      
+    } catch (error) {
+      // Em caso de erro, usar a data atual
+      const today = new Date();
+      setDisplayValue(formatToBrazilianDate(today));
+      onChange(today.toISOString().split('T')[0]);
+    }
+  }, []); // Executar apenas uma vez
+  
+  // Função para tratar entrada do usuário
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const userInput = e.target.value;
+    
+    // Atualizar o display imediatamente para feedback visual
+    setDisplayValue(userInput);
+    
+    // Se o formato é brasileiro válido (DD/MM/AAAA), converter para ISO para o backend
+    if (userInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      try {
+        const [day, month, year] = userInput.split('/').map(Number);
+        const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        onChange(isoDate);
+      } catch (error) {
+        console.error("Erro ao converter data:", error);
+      }
     }
   };
   
@@ -154,10 +125,9 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
         <Input
           type="text"
           placeholder="DD/MM/AAAA"
-          value={displayDate}
-          onChange={handleInputChange}
+          value={displayValue}
+          onChange={handleChange}
           disabled={readOnly}
-          data-iso-date={isoDate}
           className="date-input"
         />
       </FormControl>
