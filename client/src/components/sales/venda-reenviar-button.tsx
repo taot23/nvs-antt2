@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { SendHorizontal, Loader2, Calendar, AlertTriangle } from 'lucide-react';
 import {
@@ -33,6 +33,20 @@ type Installment = {
   updatedAt: string;
 };
 
+type SaleItem = {
+  id: number;
+  saleId: number;
+  serviceId: number;
+  serviceTypeId: number | null;
+  quantity: number;
+  price: string;
+  totalPrice: string;
+  notes: string | null;
+  status: string;
+  serviceName: string;
+  serviceTypeName: string | null;
+};
+
 interface VendaReenviarButtonProps {
   sale: Sale;
   iconOnly?: boolean;
@@ -42,11 +56,22 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observacoes, setObservacoes] = useState('');
   const [installments, setInstallments] = useState<Installment[]>([]);
+  const [items, setItems] = useState<SaleItem[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Verifica se o financeiro já começou a tratar a venda
-  const financeiroJaIniciouAnalise = sale.financialStatus && sale.financialStatus !== 'pending' && sale.financialStatus !== '';
+  // Referencias para rastrear os valores originais
+  const originalItemsRef = useRef<SaleItem[]>([]);
+  const originalInstallmentsRef = useRef<Installment[]>([]);
+  
+  // Verifica se o financeiro já começou a tratar a venda - VERIFICAÇÃO CORRIGIDA
+  const financeiroJaIniciouAnalise = 
+    sale.financialStatus === 'in_progress' || 
+    sale.financialStatus === 'approved' || 
+    sale.financialStatus === 'partial_payment' || 
+    sale.financialStatus === 'completed' || 
+    sale.financialStatus === 'in_analysis' || 
+    sale.financialStatus === 'paid';
 
   // Carregar as parcelas ao abrir o diálogo
   useEffect(() => {

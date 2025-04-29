@@ -2449,9 +2449,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se o número de parcelas ou valor total foi alterado, atualizar as parcelas
       if (saleData.installments !== undefined || saleData.totalAmount !== undefined) {
         try {
-          // Obter os valores atualizados
+          // Obter os valores atualizados - Corrigido para usar as propriedades corretas
           const installmentsToCreate = saleData.installments || sale.installments || 1;
-          const saleAmount = saleData.totalAmount || sale.total_amount || '0';
+          const saleAmount = saleData.totalAmount || sale.totalAmount || '0';
           
           console.log(`🔄 Venda atualizada #${id} - Atualizando parcelas: ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
           
