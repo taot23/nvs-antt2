@@ -1760,7 +1760,7 @@ export default function SaleDialog({
                 )}
               />
               
-              {/* Data - Versão apenas com campo de texto */}
+              {/* Data - VERSÃO MELHORADA 29/04/2025 */}
               <FormField
                 control={form.control}
                 name="date"
@@ -1770,18 +1770,42 @@ export default function SaleDialog({
                       <Calendar className="h-4 w-4" />
                       Data
                     </FormLabel>
+                    {console.log("🛎️ DETALHES DO CAMPO DATE:", {
+                      fieldValue: field.value,
+                      fieldValueType: typeof field.value,
+                      isDate: field.value instanceof Date,
+                      formValue: form.getValues().date
+                    })}
                     <FormControl>
                       <Input 
                         type="text"
-                        placeholder="DD/MM/AAAA" 
-                        defaultValue={new Date().toLocaleDateString('pt-BR')}
+                        placeholder="DD/MM/AAAA"
+                        // SOLUÇÃO ABRIL/2025: Usar formatIsoToBrazilian para garantir formato consistente
+                        value={
+                          // Se temos um valor no campo, formatamos adequadamente
+                          field.value ? (
+                            // Se é uma data, convertemos para string brasileira
+                            field.value instanceof Date ? 
+                              field.value.toLocaleDateString('pt-BR') :
+                              // Se é string, usamos nossa função especializada
+                              formatIsoToBrazilian(field.value as string)
+                          ) : (
+                            // Se não temos valor, usamos a data atual como default
+                            originalStatus === "returned" ? "" : new Date().toLocaleDateString('pt-BR')
+                          )
+                        }
+                        // Atributo de data para debug/rastreamento
+                        data-original-date={field.value}
+                        data-date-type={typeof field.value}
                         onChange={(e) => {
                           const input = e.target.value;
-                          console.log("Input data:", input);
+                          console.log("🔄 Input data:", input);
+                          
+                          // SOLUÇÃO ABRIL/2025: Tratamento robusto de campo de data
                           
                           // Se o campo estiver vazio, define como null
                           if (!input || input.trim() === '') {
-                            console.log("Campo vazio, definindo como null");
+                            console.log("⚠️ Campo vazio, definindo como null");
                             field.onChange(null);
                             return;
                           }
@@ -1792,12 +1816,30 @@ export default function SaleDialog({
                           // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
                           if (formattedInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
                             const [day, month, year] = formattedInput.split('/');
-                            const dateString = `${year}-${month}-${day}`;
-                            console.log("Convertendo para formato ISO:", dateString);
+                            
+                            // Validação extra dos componentes da data
+                            const dayNum = parseInt(day, 10);
+                            const monthNum = parseInt(month, 10);
+                            const yearNum = parseInt(year, 10);
+                            
+                            // Verificar se os valores são válidos
+                            if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 2000 || yearNum > 2050) {
+                              console.log("⚠️ Data inválida, valores fora dos limites");
+                              field.onChange(formattedInput); // Mantém o valor digitado para o usuário corrigir
+                              return;
+                            }
+                            
+                            const dateString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                            console.log("✅ Convertendo para formato ISO:", dateString);
+                            
+                            // Atualizar o campo com a data no formato ISO
                             field.onChange(dateString);
+                            
+                            // Marcar que a data foi modificada manualmente
+                            setManuallyChangedDates(true);
                           } else {
                             // Caso contrário, mantém o valor como string para permitir a digitação
-                            console.log("Mantendo formato de digitação:", formattedInput);
+                            console.log("⏳ Mantendo formato de digitação:", formattedInput);
                             field.onChange(formattedInput);
                           }
                         }}
@@ -2307,7 +2349,7 @@ export default function SaleDialog({
                                       const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
                                       
                                       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                        // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
+                                        // APRIMORAMENTO 29/04/2025: Garantir datas no formato ISO
                                         // Armazena a data como string YYYY-MM-DD para evitar problemas de timezone
                                         const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                         console.log(`✅ SOLUÇÃO FINAL: Data preservada exatamente como digitada: ${fixedDate}`);
@@ -2323,6 +2365,10 @@ export default function SaleDialog({
                                         
                                         // Atualizar diretamente o atributo para captura
                                         e.target.setAttribute('data-final-date', fixedDate);
+                                        
+                                        // SOLUÇÃO 29/04/2025: Marcar que as datas foram modificadas manualmente
+                                        // Isso é crucial para evitar que sejam recalculadas automaticamente
+                                        setManuallyChangedDates(true);
                                       } else {
                                         console.log(`⚠️ Números inválidos: dia=${day}, mês=${month+1}, ano=${year}`);
                                       }
@@ -2335,7 +2381,7 @@ export default function SaleDialog({
                                         const day = parseInt(parts[2]);
                                         
                                         if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                          // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
+                                          // APRIMORAMENTO 29/04/2025: Garantir datas no formato ISO
                                           const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                           console.log(`✅ SOLUÇÃO FINAL: Data preservada do formato ISO: ${fixedDate}`);
                                           
@@ -2349,6 +2395,9 @@ export default function SaleDialog({
                                           
                                           // Atualizar diretamente o atributo para captura
                                           e.target.setAttribute('data-final-date', fixedDate);
+                                          
+                                          // SOLUÇÃO 29/04/2025: Marcar que as datas foram modificadas manualmente
+                                          setManuallyChangedDates(true);
                                         }
                                       }
                                     }
