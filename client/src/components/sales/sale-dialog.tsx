@@ -430,16 +430,109 @@ export default function SaleDialog({
     return dates;
   };
   
-  // Efeito para atualizar as datas de vencimento quando o número de parcelas muda
+  // State para controlar se as datas foram carregadas do banco
+  const [datesLoadedFromDB, setDatesLoadedFromDB] = useState(false);
+  
+  // SOLUÇÂO ANTI-PERDA DE DATAS: Verificador de mudança manual
+  const [manuallyChangedDates, setManuallyChangedDates] = useState(false);
+  
+  // Contador de atualizações para evitar ciclos infinitos
+  const installmentUpdateCount = useRef(0);
+  
+  // Efeito para atualizar as datas de vencimento APENAS quando o número de parcelas muda 
+  // ou quando nenhuma data foi carregada do banco ainda
   useEffect(() => {
     const installmentsValue = form.getValues("installments");
-    if (installmentsValue > 1) {
-      const dates = generateInstallmentDates(firstDueDate, installmentsValue);
-      setInstallmentDates(dates);
-    } else {
-      setInstallmentDates([]);
+    console.log("🔍 VERIFICAÇÃO CRÍTICA - Datas de parcelas:");
+    console.log("  - Parcelas solicitadas:", installmentsValue);
+    console.log("  - Datas carregadas do banco:", datesLoadedFromDB);
+    console.log("  - Datas modificadas manualmente:", manuallyChangedDates);
+    console.log("  - Número de atualizações:", installmentUpdateCount.current);
+    console.log("  - Datas no estado:", installmentDates.length);
+    
+    // SOLUÇÃO ABRIL/2025: PROTEÇÃO PARA NÃO PERDER DATAS EXISTENTES
+    // Verificamos aqui se já temos datas carregadas do banco OU modificadas pelo usuário
+    if (datesLoadedFromDB || manuallyChangedDates) {
+      // Se o número de parcelas DIMINUIU, removemos apenas as parcelas excedentes
+      if (installmentsValue < installmentDates.length) {
+        console.log(`⚠️ PROTEÇÃO DE DADOS: Número de parcelas diminuiu de ${installmentDates.length} para ${installmentsValue}`);
+        
+        // Preservar apenas as primeiras datas
+        const newDates = installmentDates.slice(0, installmentsValue);
+        console.log("✅ PROTEÇÃO DE DADOS: Mantendo apenas as primeiras datas:", newDates);
+        setInstallmentDates(newDates);
+      }
+      // Se o número de parcelas AUMENTOU, adicionamos novas parcelas com base na última
+      else if (installmentsValue > installmentDates.length && installmentDates.length > 0) {
+        console.log(`⚠️ PROTEÇÃO DE DADOS: Número de parcelas aumentou de ${installmentDates.length} para ${installmentsValue}`);
+        
+        const lastDate = installmentDates[installmentDates.length - 1];
+        let baseDate: Date;
+        
+        // Converter a última data para objeto Date para poder adicionar meses
+        if (typeof lastDate === 'string') {
+          // Remover parte de timestamp se existir
+          const simpleDateStr = lastDate.includes('T') ? lastDate.split('T')[0] : lastDate;
+          
+          // Se estiver no formato ISO (YYYY-MM-DD)
+          if (simpleDateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = simpleDateStr.split('-').map(Number);
+            baseDate = new Date(year, month - 1, day); // Mês em JavaScript é 0-indexed
+          } else {
+            // Fallback: usar a data atual
+            baseDate = new Date();
+          }
+        } else if (lastDate instanceof Date) {
+          baseDate = new Date(lastDate); // Clone para não modificar o original
+        } else {
+          // Fallback: usar a data atual
+          baseDate = new Date();
+        }
+        
+        // Gerar as novas datas a partir da última
+        const newDates = [...installmentDates];
+        
+        for (let i = installmentDates.length; i < installmentsValue; i++) {
+          // Adicionar um mês à data base para cada nova parcela
+          const nextDate = new Date(baseDate);
+          nextDate.setMonth(nextDate.getMonth() + (i - installmentDates.length + 1));
+          
+          // Formatar a data no formato ISO sem timezone
+          const formattedDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+          
+          newDates.push(formattedDate);
+          console.log(`✅ PROTEÇÃO DE DADOS: Gerada nova data #${i+1}: ${formattedDate}`);
+        }
+        
+        console.log("✅ PROTEÇÃO DE DADOS: Novas datas combinadas:", newDates);
+        setInstallmentDates(newDates);
+      }
+      // Se o número de parcelas é o mesmo, não fazemos nada
+      else if (installmentsValue === installmentDates.length) {
+        console.log("✓ PROTEÇÃO DE DADOS: Número de parcelas não mudou");
+      }
+      // Se não temos datas ainda (caso raro), geramos todas
+      else if (installmentDates.length === 0 && installmentsValue > 0) {
+        console.log("⚠️ PROTEÇÃO DE DADOS: Não temos datas salvas, gerando todas");
+        const dates = generateInstallmentDates(firstDueDate, installmentsValue);
+        setInstallmentDates(dates);
+      }
+    } 
+    // CASO INICIAL: Quando não temos datas carregadas do banco nem modificadas pelo usuário
+    else {
+      if (installmentsValue > 0) {
+        console.log(`🔄 Gerando ${installmentsValue} datas iniciais a partir de ${formatIsoToBrazilian(firstDueDate as string)}`);
+        const dates = generateInstallmentDates(firstDueDate, installmentsValue);
+        setInstallmentDates(dates);
+        
+        // Contamos as atualizações para controle
+        installmentUpdateCount.current += 1;
+      } else {
+        console.log("🔄 Limpando datas (0 parcelas)");
+        setInstallmentDates([]);
+      }
     }
-  }, [form.watch("installments"), firstDueDate]);
+  }, [form.watch("installments"), firstDueDate, datesLoadedFromDB, manuallyChangedDates]);
   
   // Efeito para monitorar quando a venda muda ou o ID muda
   useEffect(() => {
@@ -800,6 +893,11 @@ export default function SaleDialog({
         
         // Atualizar o estado com as datas preservadas
         setInstallmentDates(dates);
+        
+        // SOLUÇÃO ABRIL 2025: Marcar que as datas foram carregadas do banco
+        // Isso evita que elas sejam sobrescritas quando o número de parcelas mudar
+        console.log("🔒 PROTEÇÃO DE DADOS: Marcando que datas foram carregadas do banco");
+        setDatesLoadedFromDB(true);
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
       }
@@ -2482,11 +2580,13 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* Lista de itens da venda - SOLUÇÃO DEFINITIVA PARA FLICKERING */}
+              {/* SOLUÇÃO ANTI-FLICKERING: Componente estático via useMemo */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
-                {/* RENDERIZAÇÃO ESTÁTICA ANTI-FLICKERING: Usa React.useMemo para evitar re-renderizações */}
                 {React.useMemo(() => {
-                  console.log("🔵 RENDERIZANDO ITENS: total=" + (fields?.length || 0));
+                  // Usamos uma chave de estabilidade para evitar renderizações desnecessárias
+                  // Apenas quando o tamanho dos campos muda ou quando forçamos um rerender
+                  const stabilityKey = `items-${fields?.length || 0}-${Date.now()}`; 
+                  console.log(`🛡️ ANTI-FLICKERING: Renderizando itens com chave de estabilidade ${stabilityKey}`);
                   
                   if (fields.length === 0) {
                     return (
@@ -2498,23 +2598,46 @@ export default function SaleDialog({
                     );
                   }
                   
+                  // Extraímos TODOS os dados que precisamos de uma só vez para evitar re-renderizações
+                  const itemsSnapshot = fields.map((field, index) => {
+                    try {
+                      // Obtém o item do form uma única vez
+                      const formValues = form.getValues();
+                      const item = formValues.items?.[index] as SaleItem;
+                      
+                      if (!item) return { id: field.id, empty: true };
+                      
+                      // Encontra o nome do serviço
+                      const service = services.find((s: any) => s.id === item.serviceId);
+                      const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                      
+                      return {
+                        id: field.id,
+                        index,
+                        serviceId: item.serviceId,
+                        serviceName,
+                        quantity: item.quantity,
+                        notes: item.notes
+                      };
+                    } catch (e) {
+                      console.error("Erro ao extrair dados do item:", e);
+                      return { id: field.id, empty: true, error: true };
+                    }
+                  });
+                  
+                  console.log(`🔒 ANTI-FLICKERING: Snapshot de ${itemsSnapshot.length} itens criado`);
+                  
                   return (
                     <div className="space-y-2">
-                      {fields.map((field, index) => {
-                        // Obtém o item do FormArray
-                        const item = form.getValues(`items.${index}`) as SaleItem;
-                        if (!item) return null;
+                      {itemsSnapshot.map(item => {
+                        if (item.empty) return null;
                         
-                        // Encontra o nome do serviço
-                        const service = services.find((s: any) => s.id === item.serviceId);
-                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
-                        
-                        // Renderiza cada item como um card separado
+                        // Renderiza cada item do snapshot (dados estáticos)
                         return (
-                          <div key={field.id} className="rounded-md border p-3 relative">
+                          <div key={item.id} className="rounded-md border p-3 relative">
                             <div className="flex justify-between">
                               <div className="flex-1">
-                                <h4 className="font-medium">{serviceName}</h4>
+                                <h4 className="font-medium">{item.serviceName}</h4>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                   <span>Quantidade: {item.quantity}</span>
                                 </div>
@@ -2529,7 +2652,7 @@ export default function SaleDialog({
                                 size="icon"
                                 variant="ghost"
                                 className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900"
-                                onClick={() => remove(index)}
+                                onClick={() => remove(item.index)}
                               >
                                 <Trash className="h-4 w-4" />
                               </Button>
@@ -2539,7 +2662,7 @@ export default function SaleDialog({
                       })}
                     </div>
                   );
-                }, [fields, services, remove])}
+                }, [fields, services, remove, renderReady])} {/* Adicionamos renderReady como dependência */}
               </div>
             </div>
             
