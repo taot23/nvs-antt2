@@ -2166,109 +2166,40 @@ export default function SaleDialog({
                   </p>
                 </div>
                 
-                {/* A seção "Primeira data de vencimento" foi removida conforme solicitado */}
-                
-                {installmentDates.length > 0 && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Parcela</TableHead>
-                        <TableHead>Data de Vencimento</TableHead>
-                        <TableHead>Valor</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {installmentDates.map((date, index) => {
-                        const installmentAmount = form.getValues("totalAmount") 
-                          ? (parseFloat(form.getValues("totalAmount").replace(",", ".")) / installmentDates.length).toFixed(2)
-                          : "0.00";
-                        
-                        return (
-                          <TableRow key={index}>
-                            <TableCell>{index + 1}ª parcela</TableCell>
-                            <TableCell>
-                              <Input
-                                type="text"
-                                size={10}
-                                data-installment-date
-                                data-installment-number={index + 1}
-                                placeholder="DD/MM/AAAA"
-                                disabled={readOnly || shouldLockFinancialFields(sale)}
-                                style={{width: "112px", backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
-                                // SOLUÇÃO DEFINITIVA - ABRIL 2025
-                                // Mostra a data exatamente como vem do banco no formato brasileiro
-                                // Ignora qualquer transformação ou arredondamento
-                                value={formatIsoToBrazilian(date)}
-                                readOnly={true}
-                                onChange={(e) => {
-                                  try {
-                                    console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
-                                    
-                                    // Tentar converter a string para data
-                                    const parts = e.target.value.split('/');
-                                    if (parts.length === 3) {
-                                      const day = parseInt(parts[0]);
-                                      const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
-                                      const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
-                                      
-                                      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                        // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
-                                        // Armazena a data como string YYYY-MM-DD para evitar problemas de timezone
-                                        const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                        console.log(`✅ SOLUÇÃO FINAL: Data preservada exatamente como digitada: ${fixedDate}`);
-                                        
-                                        // Marcador especial para debug no console
-                                        console.log(`📋 DATA_DEBUG: parcela=${index+1}, valor=${fixedDate}, origem=input_direto`);
-                                        
-                                        // Atualiza apenas a data específica dessa parcela
-                                        const newDates = [...installmentDates];
-                                        // Armazenar como string, não como objeto Date
-                                        newDates[index] = fixedDate;
-                                        setInstallmentDates(newDates);
-                                        
-                                        // Atualizar diretamente o atributo para captura
-                                        e.target.setAttribute('data-final-date', fixedDate);
-                                      } else {
-                                        console.log(`⚠️ Números inválidos: dia=${day}, mês=${month+1}, ano=${year}`);
-                                      }
-                                    } else if (e.target.value.includes('-')) {
-                                      // Tenta processar formato YYYY-MM-DD
-                                      const parts = e.target.value.split('-');
-                                      if (parts.length === 3) {
-                                        const year = parseInt(parts[0]);
-                                        const month = parseInt(parts[1]) - 1;
-                                        const day = parseInt(parts[2]);
-                                        
-                                        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                          // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
-                                          const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                          console.log(`✅ SOLUÇÃO FINAL: Data preservada do formato ISO: ${fixedDate}`);
-                                          
-                                          // Marcador especial para debug no console
-                                          console.log(`📋 DATA_DEBUG: parcela=${index+1}, valor=${fixedDate}, origem=input_formato_iso`);
-                                          
-                                          // Atualiza apenas a data específica dessa parcela
-                                          const newDates = [...installmentDates];
-                                          newDates[index] = fixedDate;
-                                          setInstallmentDates(newDates);
-                                          
-                                          // Atualizar diretamente o atributo para captura
-                                          e.target.setAttribute('data-final-date', fixedDate);
-                                        }
-                                      }
-                                    }
-                                  } catch (error) {
-                                    console.error("Erro ao converter data:", error);
-                                  }
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                {/* SOLUÇÃO RADICAL: Usando componente estático para exibir parcelas */}
+                {saleInstallments.length > 0 ? (
+                  // Usar componente estático para exibir parcelas existentes no banco
+                  <StaticInstallmentDates 
+                    installments={saleInstallments.map(installment => ({
+                      installmentNumber: installment.installmentNumber,
+                      amount: installment.amount,
+                      dueDate: installment.dueDate,
+                      status: installment.status
+                    }))}
+                    readOnly={true}
+                  />
+                ) : installmentDates.length > 0 ? (
+                  // Usar componente estático para exibir novas parcelas sendo criadas
+                  <StaticInstallmentDates 
+                    installments={installmentDates.map((date, index) => {
+                      const installmentAmount = form.getValues("totalAmount") 
+                        ? (parseFloat(form.getValues("totalAmount").replace(",", ".")) / installmentDates.length).toFixed(2)
+                        : "0.00";
+                      
+                      return {
+                        installmentNumber: index + 1,
+                        amount: installmentAmount,
+                        dueDate: typeof date === 'string' ? date : formatDateToIso(date),
+                        status: 'pending'
+                      };
+                    })}
+                    readOnly={readOnly || shouldLockFinancialFields(sale)}
+                  />
+                ) : (
+                  // Mensagem para quando não há parcelas
+                  <div className="text-center p-4 border rounded-md bg-gray-50">
+                    <p className="text-muted-foreground">Parcelas serão definidas automaticamente quando a venda for salva.</p>
+                  </div>
                 )}
               </div>
             )}
@@ -2485,64 +2416,35 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* Lista de itens da venda - SOLUÇÃO DEFINITIVA PARA FLICKERING */}
+              {/* Lista de itens da venda - NOVA SOLUÇÃO RADICAL ANTI-FLICKERING COM COMPONENTE SUPER ESTÁTICO */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
-                {/* RENDERIZAÇÃO ESTÁTICA ANTI-FLICKERING: Usa React.useMemo para evitar re-renderizações */}
-                {React.useMemo(() => {
-                  console.log("🔵 RENDERIZANDO ITENS: total=" + (fields?.length || 0));
-                  
-                  if (fields.length === 0) {
-                    return (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                        <p>Nenhum item adicionado</p>
-                        <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <div className="space-y-2">
-                      {fields.map((field, index) => {
-                        // Obtém o item do FormArray
-                        const item = form.getValues(`items.${index}`) as SaleItem;
-                        if (!item) return null;
-                        
-                        // Encontra o nome do serviço
-                        const service = services.find((s: any) => s.id === item.serviceId);
-                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
-                        
-                        // Renderiza cada item como um card separado
-                        return (
-                          <div key={field.id} className="rounded-md border p-3 relative">
-                            <div className="flex justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-medium">{serviceName}</h4>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <span>Quantidade: {item.quantity}</span>
-                                </div>
-                                {item.notes && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    <span className="font-medium">Observações:</span> {item.notes}
-                                  </p>
-                                )}
-                              </div>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900"
-                                onClick={() => remove(index)}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                }, [fields, services, remove])}
+                {fields.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                    <p>Nenhum item adicionado</p>
+                    <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
+                  </div>
+                ) : (
+                  // Componente totalmente estático para eliminar o flickering completamente
+                  <SuperStaticItems 
+                    items={fields.map((field, index) => {
+                      const item = form.getValues(`items.${index}`) as SaleItem;
+                      return {
+                        ...item,
+                        id: index,
+                        // Garantir que sempre tenha valores para evitar erros
+                        serviceId: item?.serviceId || 0,
+                        serviceTypeId: item?.serviceTypeId || 0,
+                        quantity: item?.quantity || 0,
+                        price: item?.price || "0",
+                        totalPrice: item?.totalPrice || "0"
+                      };
+                    })}
+                    services={services || []}
+                    serviceTypes={serviceTypes || []}
+                    readOnly={false}
+                  />
+                )}
               </div>
             </div>
             
