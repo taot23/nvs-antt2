@@ -32,6 +32,29 @@ export function SaleItemsFix({
   
   // Referência para último estado conhecido de itens
   const lastItemsRef = useRef<any[]>([]);
+
+  // Função para calcular total da venda (para exibição imediata)
+  function calculateAndUpdateTotal() {
+    try {
+      if (!services || !Array.isArray(services)) return;
+      
+      // Obter os itens atuais do formulário
+      const currentItems = form.getValues().items || [];
+      
+      // Calcular preços usando nossa função utilitária
+      const itemsWithPrices = calculateItemPrices(currentItems, services);
+      
+      // Calcular o total geral
+      const total = calculateSaleTotal(itemsWithPrices);
+      
+      // Atualizar o total no formulário
+      form.setValue('totalAmount', total);
+      
+      console.log(`💰 Total calculado: R$ ${total}`);
+    } catch (error) {
+      console.error("❌ Erro ao calcular total:", error);
+    }
+  }
   
   // Efeito anti-flickering com proteção contra atualizações desnecessárias
   useEffect(() => {
@@ -81,6 +104,11 @@ export function SaleItemsFix({
         lastItemsRef.current = cleanItems;
         itemsInitialized.current = true;
         
+        // Calcular e atualizar o total em seguida
+        setTimeout(() => {
+          calculateAndUpdateTotal();
+        }, 100);
+        
         console.log("✅ SUPER ANTI-FLICKERING - Itens atualizados com sucesso");
       } catch (error) {
         console.error("❌ ERRO AO ATUALIZAR ITENS:", error);
@@ -114,8 +142,19 @@ export function SaleItemsFix({
                     {services.find((s: any) => s.id === field.serviceId)?.name || "Serviço não encontrado"}
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Qtd: {field.quantity} | Tipo: {serviceTypes.find((t: any) => t.id === (field.serviceTypeId || form.getValues().serviceTypeId))?.name || "Tipo não encontrado"}
+                <div className="text-sm text-muted-foreground flex flex-wrap justify-between">
+                  <span>
+                    Qtd: {field.quantity} | Tipo: {serviceTypes.find((t: any) => t.id === (field.serviceTypeId || form.getValues().serviceTypeId))?.name || "Tipo não encontrado"}
+                  </span>
+                  <span className="text-right font-medium text-green-600">
+                    {(() => {
+                      const service = services.find((s: any) => s.id === field.serviceId);
+                      if (!service) return null;
+                      const price = parseFloat(service.price || "0");
+                      const total = (price * field.quantity).toFixed(2);
+                      return `R$ ${total.replace(".", ",")}`;
+                    })()}
+                  </span>
                 </div>
               </div>
               
