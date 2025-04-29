@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { BasicSaleForm } from './basic-sale-form';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle } from 'lucide-react';
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, CalendarIcon, Edit, FileText, User, Users } from "lucide-react";
+import { format } from "date-fns";
+import { BasicSaleForm } from "./basic-sale-form";
 
 interface ReturnedSaleHandlerProps {
   sale: any;
@@ -14,53 +17,112 @@ interface ReturnedSaleHandlerProps {
  * Usa nosso novo formulário básico para garantir a edição sem problemas
  */
 export function ReturnedSaleHandler({ sale, onSuccess }: ReturnedSaleHandlerProps) {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  
-  if (!sale || sale.status !== 'returned') {
-    return null;
-  }
-  
+  const [isBasicFormOpen, setIsBasicFormOpen] = useState(false);
+
+  // Função para formatar data sem problemas de timezone
+  const formatDate = (dateString: string) => {
+    try {
+      if (!dateString) return "";
+      
+      // Para datas no formato ISO (YYYY-MM-DD)
+      if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+      }
+      
+      // Se a data incluir hora (formato ISO completo)
+      if (dateString.includes('T')) {
+        const parts = dateString.split('T')[0].split('-');
+        if (parts.length === 3) {
+          const [year, month, day] = parts.map(Number);
+          return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+        }
+      }
+      
+      // Fallback para o formato do date-fns
+      return format(new Date(dateString), 'dd/MM/yyyy');
+    } catch (error) {
+      console.error('Erro ao formatar data:', error);
+      return 'Data inválida';
+    }
+  };
+
   return (
     <>
-      <div className="bg-amber-50 border border-amber-200 rounded-md p-4 my-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <h3 className="font-medium text-amber-800">
-              Venda Devolvida
-              <Badge variant="outline" className="ml-2 text-amber-600 border-amber-300">
-                Número: {sale.orderNumber}
-              </Badge>
-            </h3>
-            <p className="text-amber-700 mt-1 text-sm">
-              Esta venda foi devolvida e precisa ser corrigida antes de ser reenviada.
-            </p>
-            {sale.returnReason && (
-              <div className="mt-2">
-                <p className="text-xs text-amber-600 font-medium">Motivo da devolução:</p>
-                <p className="text-sm bg-amber-100 p-2 rounded mt-1">
-                  {sale.returnReason}
-                </p>
+      <Card className="border-orange-300 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <div className="flex flex-col">
+              <CardTitle className="text-lg">
+                Venda #{sale.orderNumber} - {sale.customerName}
+              </CardTitle>
+              <CardDescription>
+                Data: {formatDate(sale.date)} | Valor: R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+              </CardDescription>
+            </div>
+            <Badge variant="destructive" className="px-3 py-1 h-auto">
+              Devolvida
+            </Badge>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-2 pb-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-sm font-medium mb-1">Informações da Venda</h4>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex items-center">
+                  <User className="h-3.5 w-3.5 mr-1" /> 
+                  <span>Vendedor: {sale.sellerName}</span>
+                </div>
+                <div className="flex items-center">
+                  <Users className="h-3.5 w-3.5 mr-1" /> 
+                  <span>Cliente: {sale.customerName}</span>
+                </div>
+                <div className="flex items-center">
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" /> 
+                  <span>Criada em: {formatDate(sale.createdAt)}</span>
+                </div>
+                <div className="flex items-center">
+                  <FileText className="h-3.5 w-3.5 mr-1" /> 
+                  <span>Métod. Pagto: {sale.paymentMethodName}</span>
+                </div>
               </div>
-            )}
-            <div className="mt-3">
-              <Button 
-                size="sm" 
-                onClick={() => setIsFormOpen(true)}
-                variant="outline"
-                className="border-amber-500 text-amber-700 hover:bg-amber-100 hover:text-amber-900"
-              >
-                Corrigir e Reenviar Venda
-              </Button>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium mb-1 flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-1 text-red-500" /> 
+                Motivo da Devolução
+              </h4>
+              <div className="bg-red-50 p-2 rounded border border-red-100 text-sm">
+                {sale.returnReason || "Nenhum motivo especificado"}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+        
+        <Separator className="my-2" />
+        
+        <CardFooter className="pt-1 pb-3 flex justify-between">
+          <div className="text-xs text-muted-foreground">
+            Atualizado em: {formatDate(sale.updatedAt)}
+          </div>
+          <Button 
+            onClick={() => setIsBasicFormOpen(true)}
+            size="sm"
+            className="gap-1"
+          >
+            <Edit className="h-4 w-4" /> 
+            Corrigir e Reenviar Venda
+          </Button>
+        </CardFooter>
+      </Card>
       
-      {/* Nosso formulário simplificado */}
-      <BasicSaleForm
-        open={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
+      {/* Formulário simplificado para correção da venda */}
+      <BasicSaleForm 
+        open={isBasicFormOpen}
+        onClose={() => setIsBasicFormOpen(false)}
         saleId={sale.id}
         onSaveSuccess={onSuccess}
       />

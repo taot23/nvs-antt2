@@ -20,7 +20,8 @@ import {
   Tags,
   HardHat,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  AlertCircle
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -100,6 +101,12 @@ export function Sidebar() {
       icon: <ShoppingCart className="h-5 w-5" />,
       label: 'Vendas'
       // Sem roles = todos os perfis têm acesso
+    },
+    {
+      path: '/returned-sales',
+      icon: <AlertCircle className="h-5 w-5" />,
+      label: 'Vendas Devolvidas',
+      roles: ['admin', 'vendedor'] // Apenas admin e vendedor
     },
     {
       path: '/finance',
