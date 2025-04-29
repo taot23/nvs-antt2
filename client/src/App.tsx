@@ -12,7 +12,6 @@ import PaymentMethodsPage from "@/pages/payment-methods-page";
 import ServiceTypesPage from "@/pages/service-types-page";
 import ServiceProvidersPage from "@/pages/service-providers-page";
 import SalesPage from "@/pages/sales-page";
-import ReturnedSalesPage from "@/pages/returned-sales-page";
 import FinancePage from "@/pages/finance-page-updated";
 import CostTypesPage from "@/pages/cost-types-page";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -111,14 +110,7 @@ const ProtectedFinance = () => {
   );
 };
 
-const ProtectedReturnedSales = () => {
-  console.log("Renderizando ProtectedReturnedSales");
-  return (
-    <ProtectedApp>
-      <ReturnedSalesPage />
-    </ProtectedApp>
-  );
-};
+
 
 const ProtectedCostTypes = () => {
   console.log("Renderizando ProtectedCostTypes");
@@ -142,7 +134,6 @@ function Router() {
       <ProtectedRoute path="/service-types" component={ProtectedServiceTypes} />
       <ProtectedRoute path="/service-providers" component={ProtectedServiceProviders} />
       <ProtectedRoute path="/sales" component={ProtectedSales} />
-      <ProtectedRoute path="/returned-sales" component={ProtectedReturnedSales} />
       <ProtectedRoute path="/finance" component={ProtectedFinance} />
       <ProtectedRoute path="/cost-types" component={ProtectedCostTypes} />
       <Route component={NotFound} />
