@@ -22,7 +22,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type Sale = any;
+// Usar um tipo mais flexível para evitar problemas de compatibilidade
+type Sale = {
+  id: number;
+  status: string;
+  returnReason?: string | null;
+  [key: string]: any;
+};
 type Installment = {
   id: number;
   saleId: number;

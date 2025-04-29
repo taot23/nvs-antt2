@@ -1800,7 +1800,7 @@ export default function SalesPage() {
         onMarkAsPaid={handleMarkAsPaid}
         onDeleteClick={handleDeleteClick}
         user={user}
-        ReenviaButton={ReenviaButton}
+        ReenviaButton={VendaReenviarButton}
         DevolveButton={DevolveButton}
       />
       
