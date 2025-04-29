@@ -2616,24 +2616,24 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* SOLUÇÃO ULTRA-RADICAL v3 (30/04/2025): Sistema de detecção e correção automática de itens */}
+              {/* VERSÃO SIMPLIFICADA - Resolução de problemas 30/04/2025 */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
                 {(() => {
-                  // Verificar se temos os itens originais da venda para carregamento inicial
-                  let saleItemsToRender = [];
+                  // Preparar os itens para o componente estático de maneira simplificada
+                  let itemsToRender: any[] = [];
                   
-                  // PRIORIDADE 1: Usar os itens já preenchidos no formulário (para a edição em andamento)
+                  // Extrair itens do formulário atual
                   if (fields && fields.length > 0) {
-                    console.log("🔍 SOLUÇÃO ULTRA-RADICAL v3: Detectados", fields.length, "itens no formulário");
+                    console.log("🛠️ Renderizando", fields.length, "itens do formulário");
                     
-                    // Extrai os itens do formulário
-                    const formValues = form.getValues();
-                    saleItemsToRender = fields.map((field, index) => {
-                      try {
+                    try {
+                      const formValues = form.getValues();
+                      
+                      itemsToRender = fields.map((field, index) => {
                         const item = formValues.items?.[index];
                         if (!item) return null;
                         
-                        // Localiza as informações do serviço
+                        // Encontrar o serviço correspondente
                         const service = services.find((s: any) => s.id === item.serviceId);
                         const serviceName = service?.name || `Serviço #${item.serviceId}`;
                         
@@ -2644,66 +2644,18 @@ export default function SaleDialog({
                           quantity: item.quantity,
                           notes: item.notes
                         };
-                      } catch (e) {
-                        console.error("🚨 Erro ao preparar item do formulário:", e);
-                        return null;
-                      }
-                    }).filter(Boolean);
-                  } 
-                  // PRIORIDADE 2: Se não temos campos mas existem itens originais da venda (primeira renderização)
-                  else if (originalSaleItems && originalSaleItems.length > 0) {
-                    console.log("🔄 SOLUÇÃO ULTRA-RADICAL v3: Carregando", originalSaleItems.length, "itens da venda original");
-                    
-                    // Usa os itens originais da venda como base
-                    saleItemsToRender = originalSaleItems.map((item: any, index: number) => {
-                      try {
-                        // Localiza as informações do serviço
-                        const service = services.find((s: any) => s.id === item.serviceId);
-                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
-                        
-                        return {
-                          id: `original-${index}`,
-                          serviceId: item.serviceId,
-                          serviceName,
-                          quantity: item.quantity,
-                          notes: item.notes
-                        };
-                      } catch (e) {
-                        console.error("🚨 Erro ao preparar item original:", e);
-                        return null;
-                      }
-                    }).filter(Boolean);
-                    
-                    // Se temos itens originais mas nenhum campo no formulário, adiciona-os ao formulário
-                    if (fields.length === 0 && saleItemsToRender.length > 0) {
-                      console.log("🛠️ SOLUÇÃO ULTRA-RADICAL v3: Adicionando itens originais ao formulário");
-                      
-                      // Adiciona cada item original ao formulário de maneira atrasada
-                      setTimeout(() => {
-                        try {
-                          originalSaleItems.forEach((item: any) => {
-                            append({
-                              serviceId: item.serviceId,
-                              quantity: item.quantity,
-                              notes: item.notes
-                            });
-                          });
-                          console.log("✅ SOLUÇÃO ULTRA-RADICAL v3: Itens adicionados ao formulário com sucesso");
-                        } catch (e) {
-                          console.error("🚨 Erro ao adicionar itens ao formulário:", e);
-                        }
-                      }, 100);
+                      }).filter(Boolean);
+                    } catch (error) {
+                      console.error("Erro ao extrair itens:", error);
                     }
                   }
                   
-                  console.log("🚀 SOLUÇÃO ULTRA-RADICAL v3: Renderizando", saleItemsToRender.length, "itens");
-                  
-                  // Usar componente completamente isolado
+                  // Renderizar com o componente simplificado
                   return (
                     <StaticItemsRenderer
-                      items={saleItemsToRender}
+                      items={itemsToRender}
                       onRemove={(index) => {
-                        console.log("🚀 SOLUÇÃO ULTRA-RADICAL v3: Removendo item índice", index);
+                        console.log("Removendo item índice", index);
                         remove(index);
                       }}
                       isReadOnly={readOnly}
