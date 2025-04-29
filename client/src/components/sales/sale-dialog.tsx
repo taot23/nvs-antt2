@@ -2248,7 +2248,7 @@ export default function SaleDialog({
                                 data-installment-number={index + 1}
                                 placeholder="DD/MM/AAAA"
                                 disabled={readOnly || shouldLockFinancialFields(sale)}
-                                className={shouldLockFinancialFields(sale) ? "bg-gray-100 w-28" : "w-28"}
+                                style={{width: "112px", backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
                                 defaultValue={typeof date === 'string' ? 
                                   // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
                                   date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
