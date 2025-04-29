@@ -3,7 +3,12 @@ import { Button } from '@/components/ui/button';
 import { SendHorizontal } from 'lucide-react';
 import VendaReenviarDialog from './venda-reenviar-dialog-novo';
 
-type Sale = any;
+// Usar um tipo mais flexível para evitar problemas de compatibilidade
+type Sale = {
+  id: number;
+  status: string;
+  [key: string]: any;
+};
 
 interface VendaReenviarButtonProps {
   sale: Sale;

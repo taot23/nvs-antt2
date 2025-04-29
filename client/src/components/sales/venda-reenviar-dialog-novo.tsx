@@ -1,23 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { SendHorizontal, Loader2, Calendar, AlertTriangle, Lock } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Loader2, AlertTriangle, CheckCircle, SendHorizontal } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type Sale = any;
 type Installment = {
@@ -54,318 +57,385 @@ interface VendaReenviarDialogProps {
 }
 
 export default function VendaReenviarDialog({ isOpen, onClose, sale }: VendaReenviarDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [observacoes, setObservacoes] = useState('');
-  const [installments, setInstallments] = useState<Installment[]>([]);
-  const [items, setItems] = useState<SaleItem[]>([]);
-  const [dadosFinanceirosLocked, setDadosFinanceirosLocked] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Carregar parcelas e itens quando o diálogo for aberto
-  useEffect(() => {
-    if (isOpen && sale?.id) {
-      setIsLoading(true);
-      setObservacoes('');
-      
-      // Verificar se o financeiro já começou a análise
-      const statusFinanceiro = sale.financialStatus;
-      const financeiroJaIniciouAnalise = 
-        statusFinanceiro === 'in_progress' || 
-        statusFinanceiro === 'approved' || 
-        statusFinanceiro === 'partial_payment' || 
-        statusFinanceiro === 'completed' || 
-        statusFinanceiro === 'in_analysis' || 
-        statusFinanceiro === 'paid';
-      
-      setDadosFinanceirosLocked(financeiroJaIniciouAnalise);
-      
-      // Carregar parcelas com rejeição adequada de erros
-      fetch(`/api/sales/${sale.id}/installments`)
-        .then(response => {
-          if (!response.ok) throw new Error(`Erro ao carregar parcelas: ${response.status}`);
-          return response.json();
-        })
-        .then(data => {
-          console.log('📊 Parcelas carregadas com sucesso:', data);
-          setInstallments(data);
-        })
-        .catch(error => {
-          console.error('❌ Erro ao carregar parcelas:', error);
-          toast({
-            title: 'Erro ao carregar parcelas',
-            description: 'Falha ao obter parcelas da venda. Tente novamente.',
-            variant: 'destructive',
-          });
-        });
-      
-      // Carregar itens da venda com rejeição adequada de erros
-      fetch(`/api/sales/${sale.id}/items`)
-        .then(response => {
-          if (!response.ok) throw new Error(`Erro ao carregar itens: ${response.status}`);
-          return response.json();
-        })
-        .then(data => {
-          console.log('🛒 Itens carregados com sucesso:', data);
-          setItems(data);
-        })
-        .catch(error => {
-          console.error('❌ Erro ao carregar itens:', error);
-          toast({
-            title: 'Erro ao carregar itens',
-            description: 'Falha ao obter itens da venda. Tente novamente.',
-            variant: 'destructive',
-          });
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
-  }, [isOpen, sale?.id, toast]);
+  // Buscar detalhes específicos da venda (itens e parcelas)
+  const { data: vendaDetalhes, isLoading: vendaLoading } = useQuery({
+    queryKey: [`/api/sales/${sale?.id}`, isOpen],
+    queryFn: async () => {
+      if (!sale || !isOpen) return null;
+      const response = await fetch(`/api/sales/${sale.id}`);
+      return await response.json();
+    },
+    enabled: !!sale && isOpen,
+  });
 
-  // Mutation para reenviar a venda corrigida
-  const reenviarMutation = useMutation({
-    mutationFn: async () => {
-      console.log('📝 Preparando reenvio da venda', sale.id);
+  // Buscar itens da venda
+  const { data: itens = [], isLoading: itensLoading, isError: itensError } = useQuery({
+    queryKey: [`/api/sales/${sale?.id}/items`, isOpen],
+    queryFn: async () => {
+      if (!sale || !isOpen) return [];
+      setIsLoading(true);
+      console.log(`🔍 Buscando itens para venda #${sale.id}`);
+      const response = await fetch(`/api/sales/${sale.id}/items`);
       
-      // Preparar dados para o reenvio
-      const requestData: any = {
-        correctionNotes: observacoes,
-        serviceTypeId: sale.serviceTypeId,
-        serviceProviderId: sale.serviceProviderId,
-        paymentMethodId: sale.paymentMethodId,
-        totalAmount: sale.totalAmount,
-        installments: sale.installments,
-        preserveFinancialData: dadosFinanceirosLocked
-      };
-      
-      // Se financeiro já iniciou análise, forçar proteção dos dados
-      if (dadosFinanceirosLocked) {
-        console.log('🔒 Bloqueando modificações financeiras - Dados protegidos');
-        
-        // Usar as datas de vencimento originais das parcelas
-        if (installments && installments.length > 0) {
-          requestData.installmentDates = installments.map(p => {
-            // Garantir formato YYYY-MM-DD sem timezone
-            let dueDate = p.dueDate;
-            if (typeof dueDate === 'string' && dueDate.includes('T')) {
-              dueDate = dueDate.split('T')[0];
-            }
-            return dueDate;
-          });
-        }
-        
-        toast({
-          title: "Proteção Financeira Ativada",
-          description: "Dados financeiros protegidos contra modificações pois a venda já está em análise.",
-          variant: "default",
-          className: "bg-amber-100 border-amber-500 text-amber-800",
-          duration: 4000,
-        });
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar itens: ${response.status}`);
       }
       
-      // Enviar itens atualizados para garantir consistência
-      const itemsResponse = await fetch(`/api/sales/${sale.id}/items`);
-      if (!itemsResponse.ok) throw new Error('Falha ao obter itens atualizados');
-      requestData.items = await itemsResponse.json();
+      const items = await response.json();
+      console.log(`✅ Encontrados ${items.length} itens para venda #${sale.id}`, items);
+      return items;
+    },
+    enabled: !!sale && isOpen,
+  });
+
+  // Buscar parcelas da venda
+  const { data: parcelas = [], isLoading: parcelasLoading, isError: parcelasError } = useQuery({
+    queryKey: [`/api/sales/${sale?.id}/installments`, isOpen],
+    queryFn: async () => {
+      if (!sale || !isOpen) return [];
+      console.log(`🔍 Buscando parcelas para venda #${sale.id}`);
+      const response = await fetch(`/api/sales/${sale.id}/installments`);
       
-      console.log('📤 Enviando dados para reenvio:', requestData);
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar parcelas: ${response.status}`);
+      }
       
-      // Enviar requisição para reenviar a venda
-      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, requestData);
-      return response.json();
+      const installments = await response.json();
+      console.log(`✅ Encontradas ${installments.length} parcelas para venda #${sale.id}`, installments);
+      return installments;
+    },
+    enabled: !!sale && isOpen,
+  });
+
+  // Controlar estado de carregamento
+  useEffect(() => {
+    setIsLoading(itensLoading || parcelasLoading || vendaLoading);
+  }, [itensLoading, parcelasLoading, vendaLoading]);
+
+  // Limpar observações quando o diálogo é aberto com uma nova venda
+  useEffect(() => {
+    if (isOpen && sale) {
+      setNotes("");
+    }
+  }, [isOpen, sale?.id]);
+
+  // Formatação de data que evita problemas de fuso horário
+  const formatLocalDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    // Garante que a data seja tratada como UTC para evitar mudanças de fuso
+    const [year, month, day] = dateString.split("-");
+    return format(new Date(Number(year), Number(month)-1, Number(day)), 'dd/MM/yyyy', { locale: ptBR });
+  };
+
+  // Mutation para reenviar venda
+  const resendMutation = useMutation({
+    mutationFn: async () => {
+      console.log("Reenviando venda com observações:", notes);
+      const response = await apiRequest("POST", `/api/sales/${sale.id}/resend`, {
+        notes: notes
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao reenviar venda");
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
-        title: 'Venda reenviada com sucesso',
-        description: 'As correções foram registradas e a venda foi reenviada ao operacional.',
-        duration: 3000,
+        title: "Venda reenviada com sucesso",
+        description: "A venda foi reenviada para o operacional.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      // Também invalidar consulta específica para vendedores
+      const user = window.currentUser;
+      if (user && user.role === 'vendedor') {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/sales', user.id]
+        });
+      }
       onClose();
     },
     onError: (error: Error) => {
-      console.error('❌ Erro ao reenviar venda:', error);
       toast({
-        title: 'Erro ao reenviar venda',
-        description: error.message || 'Ocorreu um erro ao reenviar a venda.',
-        variant: 'destructive',
+        title: "Erro ao reenviar venda",
+        description: error.message || "Ocorreu um erro ao reenviar a venda.",
+        variant: "destructive",
       });
     },
   });
-
+  
   function handleReenviar() {
-    if (!observacoes.trim()) {
+    if (!notes.trim()) {
       toast({
-        title: 'Observação obrigatória',
-        description: 'Por favor, informe as correções realizadas antes de reenviar.',
-        variant: 'destructive',
+        title: "Observação obrigatória",
+        description: "Por favor, informe as correções realizadas antes de reenviar.",
+        variant: "destructive",
       });
       return;
     }
-    reenviarMutation.mutate();
+    
+    // Verificação adicional de dados
+    if (itens.length === 0) {
+      toast({
+        title: "Erro nos dados da venda",
+        description: "Esta venda não possui itens. Não é possível reenviá-la.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    resendMutation.mutate();
+  };
+
+  function getStatusLabel(status: string) {
+    switch (status) {
+      case "pending":
+        return "Pendente";
+      case "in_progress":
+        return "Em Andamento";
+      case "completed":
+        return "Concluída";
+      case "returned":
+        return "Devolvida";
+      case "corrected":
+        return "Corrigida";
+      default:
+        return status;
+    }
   }
 
+  function getStatusVariant(status: string) {
+    switch (status) {
+      case "pending":
+        return "outline";
+      case "in_progress":
+        return "default";
+      case "completed":
+        return "success";
+      case "returned":
+        return "destructive";
+      case "corrected":
+        return "warning";
+      default:
+        return "secondary";
+    }
+  }
+
+  if (!sale) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Reenviar Venda Corrigida</DialogTitle>
+          <DialogTitle>Reenviar Venda</DialogTitle>
           <DialogDescription>
-            Faça as correções necessárias e reenvie esta venda ao operacional.
+            Esta venda foi devolvida pelo operacional. Faça as correções necessárias antes de reenviar.
           </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex justify-center items-center py-12">
+          <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-2">Carregando dados da venda...</span>
           </div>
         ) : (
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Número OS</Label>
-                <div className="font-medium">{sale.orderNumber}</div>
-              </div>
-              <div>
-                <Label>Data</Label>
-                <div className="font-medium">
-                  {sale.date ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
-                </div>
-              </div>
-              <div>
-                <Label>Cliente</Label>
-                <div className="font-medium">{sale.customerName}</div>
-              </div>
-              <div>
-                <Label>Vendedor</Label>
-                <div className="font-medium">{sale.sellerName}</div>
-              </div>
-              <div>
-                <Label>Valor Total</Label>
-                <div className="font-medium flex items-center gap-1">
-                  R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
-                  {dadosFinanceirosLocked && <Lock className="h-3 w-3 text-amber-600" />}
-                </div>
-              </div>
-              <div>
-                <Label>Status</Label>
+          <>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Badge variant="destructive">
-                    Devolvida
-                  </Badge>
+                  <Label>Número OS</Label>
+                  <div className="font-medium">{sale.orderNumber}</div>
+                </div>
+                <div>
+                  <Label>Data</Label>
+                  <div className="font-medium">
+                    {sale.date ? formatLocalDate(sale.date) : 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <Label>Cliente</Label>
+                  <div className="font-medium">{sale.customerName}</div>
+                </div>
+                <div>
+                  <Label>Vendedor</Label>
+                  <div className="font-medium">{sale.sellerName}</div>
+                </div>
+                <div>
+                  <Label>Valor Total</Label>
+                  <div className="font-medium">
+                    R$ {parseFloat(sale.totalAmount).toFixed(2).replace('.', ',')}
+                  </div>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <div>
+                    <Badge variant={getStatusVariant(sale.status) as any}>
+                      {getStatusLabel(sale.status)}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Exibir itens da venda */}
-            {items.length > 0 && (
-              <div className="space-y-2 p-3 bg-muted/30 rounded-md">
-                <div className="flex justify-between border-b pb-2">
-                  <Label className="text-base font-medium">Itens da Venda</Label>
-                  <span className="text-sm text-muted-foreground">{items.length} item(s)</span>
-                </div>
-                
-                <div className="space-y-1">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center text-sm p-1 border-b border-border/30">
-                      <span className="font-medium">{item.serviceName}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Qtd: {item.quantity}</span>
-                        <span>R$ {parseFloat(item.price).toFixed(2).replace('.', ',')}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              {sale.returnReason && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Motivo da Devolução</AlertTitle>
+                  <AlertDescription>
+                    {sale.returnReason}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            {/* Exibir parcelas */}
-            {installments.length > 0 && (
-              <div className="space-y-2 p-3 bg-muted/30 rounded-md">
-                <div className="flex items-center gap-2 border-b pb-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  <Label className="text-base font-medium">Parcelas e Datas de Vencimento</Label>
-                </div>
-                
-                {dadosFinanceirosLocked && (
-                  <Alert variant="default" className="mb-2 bg-amber-50 border-amber-500 text-amber-800">
+              <Separator className="my-4" />
+              
+              <div>
+                <h3 className="text-lg font-medium mb-2">Itens da Venda</h3>
+                {itensError ? (
+                  <Alert variant="destructive" className="mt-2">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle className="text-xs font-semibold">Atenção - Dados Financeiros Bloqueados</AlertTitle>
-                    <AlertDescription className="text-xs">
-                      Esta venda já está em análise pelo financeiro. 
-                      O valor, número de parcelas e datas de vencimento não podem ser modificados.
+                    <AlertTitle>Erro ao carregar itens</AlertTitle>
+                    <AlertDescription>
+                      Não foi possível carregar os itens desta venda. Tente novamente mais tarde.
                     </AlertDescription>
                   </Alert>
+                ) : itens.length === 0 ? (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Nenhum item encontrado</AlertTitle>
+                    <AlertDescription>
+                      Esta venda não possui itens registrados. Edite a venda para adicionar itens.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Serviço</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead className="text-right">Preço</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itens.map((item: SaleItem) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.serviceName}</TableCell>
+                          <TableCell>{item.serviceTypeName || 'N/A'}</TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">
+                            R$ {parseFloat(item.price).toFixed(2).replace('.', ',')}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            R$ {parseFloat(item.totalPrice).toFixed(2).replace('.', ',')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
-                
-                <div className="space-y-1">
-                  {installments.map((inst) => (
-                    <div key={inst.id} className="flex justify-between items-center text-sm p-1 border-b border-border/30">
-                      <span className="font-medium">Parcela {inst.installmentNumber}</span>
-                      <span>R$ {parseFloat(inst.amount).toFixed(2).replace('.', ',')}</span>
-                      <Badge variant="outline" className={dadosFinanceirosLocked ? "border-amber-500 text-amber-800" : ""}>
-                        {format(new Date(inst.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
-                        {dadosFinanceirosLocked && <Lock className="h-3 w-3 ml-1" />}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
 
-            {sale.returnReason && (
-              <div className="space-y-1 border-l-4 border-destructive pl-4 py-2 bg-destructive/10 rounded-sm">
-                <Label className="text-destructive">Motivo da Devolução:</Label>
-                <div className="text-sm text-destructive/90">{sale.returnReason}</div>
+              <Separator className="my-4" />
+              
+              <div>
+                <h3 className="text-lg font-medium mb-2">Parcelas</h3>
+                {parcelasError ? (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Erro ao carregar parcelas</AlertTitle>
+                    <AlertDescription>
+                      Não foi possível carregar as parcelas desta venda. Tente novamente mais tarde.
+                    </AlertDescription>
+                  </Alert>
+                ) : parcelas.length === 0 ? (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Nenhuma parcela encontrada</AlertTitle>
+                    <AlertDescription>
+                      Esta venda não possui parcelas registradas. Edite a venda para configurar as parcelas.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Parcela</TableHead>
+                        <TableHead>Vencimento</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parcelas.map((parcela: Installment) => (
+                        <TableRow key={parcela.id}>
+                          <TableCell>{parcela.installmentNumber}</TableCell>
+                          <TableCell>{formatLocalDate(parcela.dueDate)}</TableCell>
+                          <TableCell className="text-right">
+                            R$ {parseFloat(parcela.amount).toFixed(2).replace('.', ',')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={parcela.status === 'paid' ? 'default' : 'outline'} className={parcela.status === 'paid' ? 'bg-green-500' : ''}>
+                              {parcela.status === 'paid' ? 'Paga' : 'Pendente'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="observacoes" className="text-base">
-                Observação das Correções Realizadas *
-              </Label>
-              <Textarea 
-                id="observacoes" 
-                value={observacoes} 
-                onChange={(e) => setObservacoes(e.target.value)}
-                placeholder="Descreva as correções realizadas nesta venda..."
-                rows={4}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                Informe quais correções foram realizadas nesta venda antes de reenviá-la ao operacional.
-              </p>
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="notes" className="text-base">Observação das Correções Realizadas *</Label>
+                <Textarea 
+                  id="notes" 
+                  value={notes} 
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Descreva as correções realizadas nesta venda..."
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Informe quais correções foram realizadas nesta venda antes de reenviá-la ao operacional.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading || reenviarMutation.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleReenviar}
-            disabled={isLoading || reenviarMutation.isPending}
-          >
-            {reenviarMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Reenviando...
-              </>
-            ) : (
-              <>
-                <SendHorizontal className="mr-2 h-4 w-4" />
-                Reenviar Venda
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={resendMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleReenviar}
+                disabled={resendMutation.isPending || isLoading}
+                className="gap-2"
+              >
+                {resendMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Reenviando...
+                  </>
+                ) : (
+                  <>
+                    <SendHorizontal className="h-4 w-4" />
+                    Reenviar Venda
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

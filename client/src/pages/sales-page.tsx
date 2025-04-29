@@ -18,6 +18,7 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
 import { useDebounce } from "@/hooks/useDebounce";
 import { format, parseISO } from "date-fns";
+import VendaReenviarButton from "@/components/sales/venda-reenviar-button-novo";
 import { ptBR } from "date-fns/locale";
 import { debounce } from "lodash-es";
 import * as XLSX from "xlsx";
@@ -1541,7 +1542,7 @@ export default function SalesPage() {
                     
                     {/* Botão para vendedor/supervisor reenviar venda corrigida */}
                     {sale.status === 'returned' && (
-                      <ReenviaButton sale={sale} />
+                      <VendaReenviarButton sale={sale} />
                     )}
                     
                     {/* Botão para operacional/admin devolver venda corrigida */}
