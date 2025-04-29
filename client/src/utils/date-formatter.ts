@@ -84,16 +84,45 @@ export function formatDateToIso(dateValue: any): string {
 
 /**
  * Converte uma data no formato YYYY-MM-DD para DD/MM/YYYY (formato brasileiro)
+ * 
+ * CORREÇÃO CRÍTICA - ABRIL/2025:
+ * Essa função foi modificada para garantir que o valor original é mantido
+ * quando usado para exibir datas de parcelas. Isso resolve o problema de 
+ * inconsistência entre o que é exibido e o que está no banco.
+ * 
  * @param isoDate - Data no formato YYYY-MM-DD
  * @returns string - Data no formato DD/MM/YYYY
  */
 export function formatIsoToBrazilian(isoDate: string): string {
-  if (!isoDate || !isoDate.includes('-')) return '';
+  // Log detalhado para debug
+  console.log(`🔄 FORMATANDO DATA: Valor original = "${isoDate}"`);
   
-  const parts = isoDate.split('-');
-  if (parts.length !== 3) return '';
+  // Se é vazio ou inválido, retorna vazio
+  if (!isoDate) return '';
   
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  // Garantir que estamos trabalhando com string
+  const dateStr = String(isoDate);
+  
+  // Caso especial: Se for uma data no formato ISO (2030-01-01)
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      // Log para depuração
+      console.log(`✓ Convertendo data ISO para brasileiro: ${dateStr} -> ${parts[2]}/${parts[1]}/${parts[0]}`);
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  
+  // Se for uma string sem traços, mas com barras (já no formato brasileiro)
+  if (dateStr.includes('/')) {
+    // É possível que já esteja no formato correto, retornar como está
+    console.log(`✓ Data já está no formato brasileiro: ${dateStr}`);
+    return dateStr;
+  }
+  
+  // Se chegou até aqui e não conseguimos processar, log para depuração
+  console.log(`⚠️ Formato de data não reconhecido: ${dateStr}, retornando valor original`);
+  return dateStr;
 }
 
 /**

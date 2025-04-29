@@ -80,7 +80,7 @@ const SaleItemRow = memo(({
 });
 
 // Componente principal memoizado
-export const SaleItemsFix = memo(({
+export const SaleItemsFix = memo(function SaleItemsFix({
   fields, 
   form, 
   remove, 
@@ -90,7 +90,7 @@ export const SaleItemsFix = memo(({
   isLoadingItems,
   readOnly = false,
   updateFormItems
-}: SaleItemsFixProps) => {
+}: SaleItemsFixProps) {
   // Referência para controlar inicialização única e evitar flickering
   const itemsInitialized = useRef(false);
   
@@ -181,7 +181,7 @@ export const SaleItemsFix = memo(({
     
     // Executar o processamento de forma segura
     processItems();
-  }, [saleItems, fields.length, updateFormItems, remove]);
+  }, [saleItems, fields.length, updateFormItems, remove, services]);
   
   return (
     <div className="border rounded-md p-4 mt-4">
@@ -215,4 +215,4 @@ export const SaleItemsFix = memo(({
       )}
     </div>
   );
-}
+});
