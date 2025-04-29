@@ -73,24 +73,54 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
     sale.financialStatus === 'in_analysis' || 
     sale.financialStatus === 'paid';
 
-  // Carregar as parcelas ao abrir o diálogo
+  // Carregar as parcelas e itens ao abrir o diálogo
   useEffect(() => {
     if (dialogOpen && sale?.id) {
-      console.log('🔍 Carregando parcelas da venda', sale.id);
+      console.log('🔍 Inicializando carregamento de parcelas e itens da venda', sale.id);
+      
+      // Carregar parcelas
       fetch(`/api/sales/${sale.id}/installments`)
         .then(response => {
           if (!response.ok) throw new Error('Falha ao carregar parcelas');
           return response.json();
         })
         .then(data => {
-          console.log('📅 Parcelas carregadas:', data);
+          console.log('📅 Parcelas carregadas:', data.length, 'parcelas encontradas');
           setInstallments(data);
+          // Guardar cópia original para comparação
+          originalInstallmentsRef.current = [...data];
         })
         .catch(error => {
           console.error('❌ Erro ao carregar parcelas:', error);
+          toast({
+            title: 'Erro ao carregar parcelas',
+            description: 'Não foi possível carregar as parcelas da venda.',
+            variant: 'destructive',
+          });
+        });
+      
+      // Carregar itens da venda
+      fetch(`/api/sales/${sale.id}/items`)
+        .then(response => {
+          if (!response.ok) throw new Error('Falha ao carregar itens');
+          return response.json();
+        })
+        .then(data => {
+          console.log('🛒 Itens carregados:', data.length, 'itens encontrados');
+          setItems(data);
+          // Guardar cópia original para comparação
+          originalItemsRef.current = [...data];
+        })
+        .catch(error => {
+          console.error('❌ Erro ao carregar itens:', error);
+          toast({
+            title: 'Erro ao carregar itens',
+            description: 'Não foi possível carregar os itens da venda.',
+            variant: 'destructive',
+          });
         });
     }
-  }, [dialogOpen, sale?.id]);
+  }, [dialogOpen, sale?.id, toast]);
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
