@@ -791,98 +791,13 @@ export default function SaleDialog({
           }
         }
         
-        // Processador Universal de Datas - VERSÃO 2.0
-        // Solução definitiva para todos os problemas de data no sistema
-        const dates = sortedInstallments.map((installment: any) => {
-          console.log("📅 CORREÇÃO UNIVERSAL - Processando data:", installment.dueDate, typeof installment.dueDate);
-          
-          // Tratar valor nulo ou undefined
-          if (!installment.dueDate) {
-            const today = new Date();
-            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          }
-          
-          // ETAPA 1: Normalização inicial - transformar em string
-          let rawDate = String(installment.dueDate);
-          
-          // ETAPA 2: Remover qualquer parte de hora/timezone se existir
-          if (rawDate.includes('T')) {
-            rawDate = rawDate.split('T')[0];
-            console.log("📅 NORMALIZAÇÃO - Removida parte de tempo:", rawDate);
-          }
-          
-          // ETAPA 3: Verificar se já está no formato ISO YYYY-MM-DD
-          if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            console.log("✅ DATA OK - Formato ISO válido:", rawDate);
-            return rawDate;
-          }
-          
-          // ETAPA 4: Tentar converter formato brasileiro DD/MM/YYYY
-          if (rawDate.includes('/')) {
-            const parts = rawDate.split('/');
-            if (parts.length === 3) {
-              let day, month, year;
-              
-              // Verificar se o primeiro componente tem 4 dígitos (improvável em formato brasileiro)
-              if (parts[0].length === 4) {
-                // Formato YYYY/MM/DD (raro)
-                year = parts[0];
-                month = parts[1].padStart(2, '0');
-                day = parts[2].padStart(2, '0');
-              } else {
-                // Formato comum DD/MM/YYYY
-                day = parts[0].padStart(2, '0');
-                month = parts[1].padStart(2, '0');
-                year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
-              }
-              
-              // Validar componentes
-              if (!isNaN(Number(day)) && !isNaN(Number(month)) && !isNaN(Number(year))) {
-                const formattedDate = `${year}-${month}-${day}`;
-                console.log("✅ DATA CONVERTIDA - De formato brasileiro:", formattedDate);
-                return formattedDate;
-              }
-            }
-          }
-          
-          // ETAPA 5: Tentar converter outros formatos com traço
-          if (rawDate.includes('-')) {
-            const parts = rawDate.split('-');
-            if (parts.length === 3) {
-              // YYYY-MM-DD já foi tratado acima, então isso seria DD-MM-YYYY ou similar
-              if (parts[0].length !== 4) {
-                const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                console.log("✅ DATA CONVERTIDA - De formato com traço:", formattedDate);
-                return formattedDate;
-              }
-            }
-          }
-          
-          // ETAPA 6: Último recurso - tentar converter via Date
-          try {
-            const dateObj = new Date(rawDate);
-            
-            // Verificar se a data é válida
-            if (!isNaN(dateObj.getTime())) {
-              const year = dateObj.getFullYear();
-              const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-              const day = String(dateObj.getDate()).padStart(2, '0');
-              
-              const formattedDate = `${year}-${month}-${day}`;
-              console.log("✅ DATA CONVERTIDA - Via objeto Date:", formattedDate);
-              return formattedDate;
-            }
-          } catch (e) {
-            console.error("❌ Falha ao converter data via Date:", e);
-          }
-          
-          // ETAPA 7: Se tudo falhar, usar data atual (não deve acontecer)
-          console.warn("⚠️ ALERTA - Usando data atual para parcela");
-          const today = new Date();
-          return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        });
+        // ABRIL 2025 - SOLUÇÃO DEFINITIVA
+        // Usar função especializada para preservar as datas exatamente como estão no banco
+        console.log("🚀 USANDO NOVA SOLUÇÃO preserveInstallmentDates() - Abril 2025");
+        const dates = preserveInstallmentDates(sortedInstallments);
+        console.log("✅ DATAS PRESERVADAS do banco de dados:", dates);
         
-        console.log("🛑 CORREÇÃO FINAL - Datas das parcelas após processamento:", dates);
+        // Atualizar o estado com as datas preservadas
         setInstallmentDates(dates);
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
