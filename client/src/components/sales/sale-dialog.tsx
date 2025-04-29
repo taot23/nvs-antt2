@@ -2108,10 +2108,17 @@ export default function SaleDialog({
                     </FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="0,00" 
+                        placeholder="0,00"
+                        disabled={readOnly || shouldLockFinancialFields(sale)}
+                        style={{backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
                         {...field} 
                       />
                     </FormControl>
+                    {shouldLockFinancialFields(sale) && (
+                      <FormDescription className="text-amber-600 text-xs mt-1">
+                        Campo bloqueado pois o financeiro já iniciou a tratativa
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
