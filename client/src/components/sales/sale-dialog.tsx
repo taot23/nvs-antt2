@@ -2315,7 +2315,6 @@ export default function SaleDialog({
                                     console.error("Erro ao converter data:", error);
                                   }
                                 }}
-                                className="w-28"
                               />
                             </TableCell>
                             <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
