@@ -8,7 +8,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
-import { sanitizeSaleItems, formatDateToBrazilian, formatDateToISO, shouldLockFinancialFields, canEditSaleItems } from "./sale-items-loader";
+import { formatDateToIso, formatIsoToBrazilian } from "@/utils/date-formatter";
+import { shouldLockFinancialFields, canEditSaleItems } from "./sale-items-loader";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -2275,11 +2276,7 @@ export default function SaleDialog({
                                 placeholder="DD/MM/AAAA"
                                 disabled={readOnly || shouldLockFinancialFields(sale)}
                                 style={{width: "112px", backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
-                                defaultValue={typeof date === 'string' ? 
-                                  // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
-                                  date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
-                                  // Se for objeto Date, formatar normalmente
-                                  : format(date, "dd/MM/yyyy")}
+                                defaultValue={formatIsoToBrazilian(typeof date === 'string' ? date : format(date, "yyyy-MM-dd"))}
                                 onChange={(e) => {
                                   try {
                                     console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
