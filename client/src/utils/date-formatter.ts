@@ -194,164 +194,76 @@ export function parseBrazilianDate(brazilianDate: string): Date | null {
 /**
  * Preserva datas de parcelas exatamente como vieram do banco de dados
  * 
- * VERSÃO ULTRA-RADICAL 3.0 (30/04/2025) - SOLUÇÃO FINAL
- * Esta função totalmente repaginada utiliza múltiplas estratégias para garantir 
- * que as datas de parcelas NUNCA sejam perdidas ou alteradas durante o ciclo de vida
- * da aplicação, mesmo em casos de perda de conexão ou falhas de rede.
+ * Esta função é crítica para garantir que datas existentes não sejam alteradas
+ * durante o processamento na interface. Ela evita conversões automáticas
+ * que possam alterar o valor original.
  * 
  * @param installments - Lista de parcelas carregadas do backend
  * @returns string[] - Lista de datas no formato YYYY-MM-DD
  */
 export function preserveInstallmentDates(installments: any[]): string[] {
-  // SALVAGUARDA 1: Verifica se temos dados no localStorage como backup
-  try {
-    const cachedDates = localStorage.getItem('preserved-installment-dates');
-    if (cachedDates) {
-      const parsedDates = JSON.parse(cachedDates);
-      if (Array.isArray(parsedDates) && parsedDates.length > 0) {
-        console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Usando ${parsedDates.length} datas do cache local`);
-        return parsedDates;
-      }
-    }
-  } catch (e) {
-    console.error("❌ SUPER-PRESERVAÇÃO 3.0: Erro ao acessar cache:", e);
-  }
-
-  // SALVAGUARDA 2: Valida o argumento fornecido
   if (!installments || !Array.isArray(installments) || installments.length === 0) {
-    console.log("⚠️ SUPER-PRESERVAÇÃO 3.0: Nenhuma parcela fornecida, criando array vazio");
+    console.log("⚠️ Nenhuma parcela fornecida para preservação de datas");
     return [];
   }
 
-  console.log(`🔍 SUPER-PRESERVAÇÃO 3.0: Processando ${installments.length} parcelas do banco`);
+  console.log(`🔍 Preservando ${installments.length} datas de parcelas do banco de dados`);
   
-  // Processa cada parcela com múltiplas estratégias
-  const preservedDates = installments.map((installment, index) => {
-    try {
-      // SALVAGUARDA 3: Verificação de null/undefined explícito
-      if (!installment) {
-        console.log(`⚠️ SUPER-PRESERVAÇÃO 3.0: Parcela ${index} é nula/undefined, usando data atual`);
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      }
-      
-      // SALVAGUARDA 4: Verificação de objeto vazio
-      if (Object.keys(installment).length === 0) {
-        console.log(`⚠️ SUPER-PRESERVAÇÃO 3.0: Parcela ${index} é objeto vazio, usando data atual`);
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      }
-      
-      // SALVAGUARDA 5: Prioridade para dueDate, mas verifica alternativas
-      let dateValue = installment.dueDate;
-      
-      // Se não tem dueDate mas tem due_date (snake_case)
-      if (!dateValue && installment.due_date) {
-        dateValue = installment.due_date;
-        console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Usando snake_case due_date da parcela ${index}`);
-      }
-      
-      // Se não tem dueDate mas tem data genérica
-      if (!dateValue && installment.date) {
-        dateValue = installment.date;
-        console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Usando campo genérico date da parcela ${index}`);
-      }
-      
-      // SALVAGUARDA 6: Se não encontrou data em nenhum lugar, usar data atual
-      if (!dateValue) {
-        console.log(`⚠️ SUPER-PRESERVAÇÃO 3.0: Nenhuma data encontrada na parcela ${index}, usando data atual`);
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      }
-      
-      // SALVAGUARDA 7: Se for string 'null' ou 'undefined', usar data atual
-      if (typeof dateValue === 'string' && (dateValue === 'null' || dateValue === 'undefined')) {
-        console.log(`⚠️ SUPER-PRESERVAÇÃO 3.0: Data da parcela ${index} é string 'null'/'undefined', usando data atual`);
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      }
-      
-      // SALVAGUARDA 8: Se é uma string, analisar os formatos possíveis
-      if (typeof dateValue === 'string') {
-        // Se contém timezone, remove
-        let cleanDate = dateValue;
-        if (cleanDate.includes('T')) {
-          cleanDate = cleanDate.split('T')[0];
-          console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Removida parte timezone de ${dateValue}`);
-        }
-        
-        // Se já for ISO, apenas retorna
-        if (cleanDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          console.log(`✅ SUPER-PRESERVAÇÃO 3.0: Data ISO válida na parcela ${index}: ${cleanDate}`);
-          return cleanDate;
-        }
-        
-        // Se for formato brasileiro com barras
-        if (cleanDate.includes('/')) {
-          const parts = cleanDate.split('/');
-          if (parts.length === 3) {
-            // Formato DD/MM/YYYY (brasileiro)
-            if (parts[0].length <= 2 && parseInt(parts[0]) <= 31) {
-              const isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-              console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Parcela ${index} convertida BR -> ISO: ${cleanDate} -> ${isoDate}`);
-              return isoDate;
-            }
-            // Formato MM/DD/YYYY (americano)
-            else if (parts[0].length <= 2 && parseInt(parts[0]) <= 12) {
-              const isoDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-              console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Parcela ${index} convertida US -> ISO: ${cleanDate} -> ${isoDate}`);
-              return isoDate;
-            }
-          }
-        }
-        
-        // Última chance - tentar criar um objeto Date e extrair valores
-        try {
-          const dateObj = new Date(cleanDate);
-          if (!isNaN(dateObj.getTime())) {
-            const isoDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-            console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Parcela ${index} convertida última chance: ${cleanDate} -> ${isoDate}`);
-            return isoDate;
-          }
-        } catch(e) {
-          console.error(`❌ SUPER-PRESERVAÇÃO 3.0: Erro na tentativa final de string da parcela ${index}:`, e);
-        }
-      }
-      
-      // SALVAGUARDA 9: Se for um objeto Date
-      if (dateValue instanceof Date) {
-        // Verificar se a data é válida
-        if (!isNaN(dateValue.getTime())) {
-          const isoDate = `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, '0')}-${String(dateValue.getDate()).padStart(2, '0')}`;
-          console.log(`🔄 SUPER-PRESERVAÇÃO 3.0: Parcela ${index} Date -> ISO: ${isoDate}`);
-          return isoDate;
-        } else {
-          console.log(`⚠️ SUPER-PRESERVAÇÃO 3.0: Objeto Date inválido na parcela ${index}`);
-        }
-      }
-      
-      // SALVAGUARDA 10 - ABSOLUTA: Nada funcionou, usar data atual com incremento pelo índice
-      console.log(`⚠️ SUPER-PRESERVAÇÃO 3.0: Todas as tentativas falharam para parcela ${index}, usando data atual + ${index} meses`);
+  return installments.map(installment => {
+    // Se não tiver data, retorna data atual
+    if (!installment || !installment.dueDate) {
+      console.log("⚠️ Parcela sem data de vencimento, usando data atual");
       const today = new Date();
-      today.setMonth(today.getMonth() + index); // Adiciona meses conforme índice da parcela
-      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      
-    } catch (error) {
-      // SALVAGUARDA 11 - ULTRA-FINAL: Erro no processamento, usar data atual + índice
-      console.error(`❌ SUPER-PRESERVAÇÃO 3.0: Erro crítico processando parcela ${index}:`, error);
-      const today = new Date();
-      today.setMonth(today.getMonth() + index);
       return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     }
+    
+    // Se a data já estiver no formato ISO (YYYY-MM-DD), mantém como está
+    if (typeof installment.dueDate === 'string' && installment.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      console.log(`✅ Data de parcela preservada exatamente como no banco: ${installment.dueDate}`);
+      return installment.dueDate;
+    }
+    
+    // Se for uma string em outro formato, tenta converter para ISO
+    if (typeof installment.dueDate === 'string') {
+      // Remover parte de timestamp se existir
+      let rawDate = installment.dueDate;
+      if (rawDate.includes('T')) {
+        rawDate = rawDate.split('T')[0];
+      }
+      
+      // Se já for ISO, apenas retorna
+      if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.log(`✅ Data de parcela (com hora removida) preservada: ${rawDate}`);
+        return rawDate;
+      }
+      
+      // Tenta converter formatos brasileiros
+      if (rawDate.includes('/')) {
+        const parts = rawDate.split('/');
+        if (parts.length === 3) {
+          // Formato brasileiro DD/MM/YYYY
+          if (parts[0].length <= 2) {
+            const isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            console.log(`🔄 Data de parcela convertida de DD/MM/YYYY para ISO: ${rawDate} -> ${isoDate}`);
+            return isoDate;
+          }
+        }
+      }
+      
+      console.log(`⚠️ Formato de data não reconhecido: ${rawDate}, utilizando como está`);
+      return rawDate;
+    }
+    
+    // Se for um objeto Date, converte para string ISO
+    if (installment.dueDate instanceof Date) {
+      const isoDate = `${installment.dueDate.getFullYear()}-${String(installment.dueDate.getMonth() + 1).padStart(2, '0')}-${String(installment.dueDate.getDate()).padStart(2, '0')}`;
+      console.log(`🔄 Data de parcela convertida de objeto Date para ISO: ${isoDate}`);
+      return isoDate;
+    }
+    
+    // Caso não consiga processar, log detalhado e retorna a data atual
+    console.log(`⚠️ Tipo de data não tratado:`, typeof installment.dueDate, installment.dueDate);
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  
-  // SALVAGUARDA 12: Salvar resultado no localStorage para casos de perda de conexão
-  try {
-    localStorage.setItem('preserved-installment-dates', JSON.stringify(preservedDates));
-    console.log(`✅ SUPER-PRESERVAÇÃO 3.0: ${preservedDates.length} datas salvas no cache local`);
-  } catch (e) {
-    console.error("❌ SUPER-PRESERVAÇÃO 3.0: Erro ao salvar no cache:", e);
-  }
-  
-  return preservedDates;
 }
