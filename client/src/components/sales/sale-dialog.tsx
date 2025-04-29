@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
+import { StaticSaleItems } from "./static-sale-items";
 import { format, addMonths, isValid } from "date-fns";
 import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
 import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
@@ -2192,11 +2193,11 @@ export default function SaleDialog({
                                 placeholder="DD/MM/AAAA"
                                 disabled={readOnly || shouldLockFinancialFields(sale)}
                                 style={{width: "112px", backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
-                                defaultValue={
-                                  // CORREÇÃO FINAL - ABRIL 2025
-                                  // Usar EXATAMENTE a data original do banco de dados, convertida para formato de exibição
-                                  formatIsoToBrazilian(date.toString())
-                                }
+                                // SOLUÇÃO DEFINITIVA - ABRIL 2025
+                                // Mostra a data exatamente como vem do banco no formato brasileiro
+                                // Ignora qualquer transformação ou arredondamento
+                                value={formatIsoToBrazilian(date)}
+                                readOnly={true}
                                 onChange={(e) => {
                                   try {
                                     console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
