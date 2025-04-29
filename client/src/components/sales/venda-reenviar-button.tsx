@@ -64,7 +64,7 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
   const originalItemsRef = useRef<SaleItem[]>([]);
   const originalInstallmentsRef = useRef<Installment[]>([]);
   
-  // Verifica se o financeiro já começou a tratar a venda - VERIFICAÇÃO CORRIGIDA
+  // Verifica se o financeiro já começou a tratar a venda - VERIFICAÇÃO COMPLETA
   const financeiroJaIniciouAnalise = 
     sale.financialStatus === 'in_progress' || 
     sale.financialStatus === 'approved' || 

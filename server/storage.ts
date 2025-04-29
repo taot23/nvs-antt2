@@ -1369,19 +1369,20 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`🔵 Buscando parcelas via SQL direto para venda #${saleId}`);
 
-      // Query totalmente reescrita sem ambiguidades
+      // Query totalmente corrigida com base na estrutura real da tabela
       const result = await pool.query(
         `SELECT 
           si.id, 
           si.sale_id, 
           si.service_id, 
+          si.service_type_id,
           si.quantity, 
           si.notes,
-          COALESCE(si.status, 'pending') as status,
+          'pending' as status, -- Fornecemos um status padrão já que não existe na tabela
           si.created_at,
           si.updated_at,
           si.price,
-          si.total_price,
+          (si.price::numeric * si.quantity) as total_price, -- Calculamos dinamicamente
           s.name as service_name,
           s.price as service_price,
           s.description as service_description,
@@ -1392,9 +1393,7 @@ export class DatabaseStorage implements IStorage {
         LEFT JOIN 
           services s ON si.service_id = s.id
         LEFT JOIN 
-          service_types st ON st.id = (
-            SELECT service_type_id FROM services WHERE id = si.service_id
-          )
+          service_types st ON st.id = si.service_type_id
         WHERE 
           si.sale_id = $1
         ORDER BY
