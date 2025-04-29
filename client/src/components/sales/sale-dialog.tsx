@@ -2377,30 +2377,146 @@ export default function SaleDialog({
                                   try {
                                     console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
                                     
-                                    // Tentar converter a string para data
-                                    const parts = e.target.value.split('/');
-                                    if (parts.length === 3) {
-                                      const day = parseInt(parts[0]);
-                                      const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
-                                      const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
+                                    // SOLUÇÃO ULTRA-RADICAL 30/04/2025: Processamento robusto de qualquer formato
+                                    const inputValue = e.target.value.trim();
+                                    console.log(`✅ ULTRA-PROCESSAMENTO: Processando valor digitado: "${inputValue}"`);
+                                    
+                                    // Variáveis para armazenar o resultado final
+                                    let day, month, year, fixedDate;
+                                    
+                                    // CASO 1: Se tem barras, pode ser formato brasileiro DD/MM/YYYY ou MM/DD/YYYY
+                                    if (inputValue.includes('/')) {
+                                      const parts = inputValue.split('/');
+                                      
+                                      // Se temos 3 partes separadas por barra
+                                      if (parts.length === 3) {
+                                        console.log(`✅ ULTRA-PROCESSAMENTO: Formato com barras detectado: ${parts.join('/')}`);
+                                        
+                                        // Extrair componentes como números e garantir validação
+                                        // Formatos suportados: DD/MM/YYYY, D/M/YYYY, DD/MM/YY
+                                        const part0 = parseInt(parts[0]);
+                                        const part1 = parseInt(parts[1]);
+                                        let part2 = parseInt(parts[2]);
+                                        
+                                        // Ajuste para ano com 2 dígitos (se ano < 50, assume 20xx, senão assume 19xx)
+                                        if (!isNaN(part2) && parts[2].length <= 2) {
+                                          part2 = part2 < 50 ? 2000 + part2 : 1900 + part2;
+                                          console.log(`✅ ULTRA-PROCESSAMENTO: Ano com 2 dígitos ajustado: ${parts[2]} -> ${part2}`);
+                                        }
+                                        
+                                        // Verificar qual é o formato (DD/MM/YYYY ou MM/DD/YYYY)
+                                        // Heurística: se o primeiro número ≤ 12, pode ser mês (formato americano)
+                                        //             se o segundo número ≤ 12, pode ser mês (formato brasileiro)
+                                        if (!isNaN(part0) && !isNaN(part1) && !isNaN(part2)) {
+                                          // Se primeiro número > 12, só pode ser dia no formato brasileiro
+                                          if (part0 > 12) {
+                                            day = part0;
+                                            month = part1;
+                                            year = part2;
+                                            console.log(`✅ ULTRA-PROCESSAMENTO: Formato brasileiro DD/MM/YYYY confirmado`);
+                                          }
+                                          // Se segundo número > 12, só pode ser dia no formato americano
+                                          else if (part1 > 12) {
+                                            month = part0;
+                                            day = part1;
+                                            year = part2;
+                                            console.log(`✅ ULTRA-PROCESSAMENTO: Formato americano MM/DD/YYYY confirmado`);
+                                          }
+                                          // Ambos <= 12, assumir formato brasileiro como padrão
+                                          else {
+                                            day = part0;
+                                            month = part1;
+                                            year = part2;
+                                            console.log(`✅ ULTRA-PROCESSAMENTO: Formato brasileiro DD/MM/YYYY assumido`);
+                                          }
+                                          
+                                          // Gerar a data ISO
+                                          fixedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                          console.log(`✅ ULTRA-PROCESSAMENTO: Data final ISO: ${fixedDate}`);
+                                        }
+                                      }
+                                    } 
+                                    // CASO 2: Se tem hífens, pode ser formato ISO YYYY-MM-DD ou invertido DD-MM-YYYY
+                                    else if (inputValue.includes('-')) {
+                                      const parts = inputValue.split('-');
+                                      
+                                      if (parts.length === 3) {
+                                        console.log(`✅ ULTRA-PROCESSAMENTO: Formato com hífens detectado: ${parts.join('-')}`);
+                                        
+                                        const part0 = parseInt(parts[0]);
+                                        const part1 = parseInt(parts[1]);
+                                        const part2 = parseInt(parts[2]);
+                                        
+                                        // Se o primeiro número tem 4 dígitos, assume formato ISO
+                                        if (!isNaN(part0) && !isNaN(part1) && !isNaN(part2)) {
+                                          if (parts[0].length === 4) {
+                                            year = part0;
+                                            month = part1;
+                                            day = part2;
+                                            console.log(`✅ ULTRA-PROCESSAMENTO: Formato ISO YYYY-MM-DD detectado`);
+                                          } else {
+                                            day = part0;
+                                            month = part1;
+                                            year = part2;
+                                            console.log(`✅ ULTRA-PROCESSAMENTO: Formato invertido DD-MM-YYYY detectado`);
+                                          }
+                                          
+                                          // Gerar a data ISO
+                                          fixedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                          console.log(`✅ ULTRA-PROCESSAMENTO: Data final ISO: ${fixedDate}`);
+                                        }
+                                      }
+                                    }
+                                    // CASO 3: Se não tem separadores mas parece ser uma data concatenada
+                                    else if (inputValue.match(/^\d{6,8}$/)) {
+                                      console.log(`✅ ULTRA-PROCESSAMENTO: Formato numérico sem separadores: ${inputValue}`);
+                                      
+                                      // Possibilidades: DDMMYYYY, DDMMYY, YYYYMMDD
+                                      if (inputValue.length === 8) {
+                                        // Se começa com 19xx ou 20xx, provavelmente é formato YYYYMMDD
+                                        if (inputValue.startsWith('19') || inputValue.startsWith('20')) {
+                                          year = parseInt(inputValue.substring(0, 4));
+                                          month = parseInt(inputValue.substring(4, 6));
+                                          day = parseInt(inputValue.substring(6, 8));
+                                          console.log(`✅ ULTRA-PROCESSAMENTO: Formato YYYYMMDD detectado`);
+                                        } else {
+                                          // Assumir DDMMYYYY
+                                          day = parseInt(inputValue.substring(0, 2));
+                                          month = parseInt(inputValue.substring(2, 4));
+                                          year = parseInt(inputValue.substring(4, 8));
+                                          console.log(`✅ ULTRA-PROCESSAMENTO: Formato DDMMYYYY detectado`);
+                                        }
+                                      } else if (inputValue.length === 6) {
+                                        // Formato DDMMYY
+                                        day = parseInt(inputValue.substring(0, 2));
+                                        month = parseInt(inputValue.substring(2, 4));
+                                        let shortYear = parseInt(inputValue.substring(4, 6));
+                                        year = shortYear < 50 ? 2000 + shortYear : 1900 + shortYear;
+                                        console.log(`✅ ULTRA-PROCESSAMENTO: Formato DDMMYY detectado, ano expandido: ${shortYear} -> ${year}`);
+                                      }
                                       
                                       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                        // APRIMORAMENTO 29/04/2025: Garantir datas no formato ISO
-                                        // Armazena a data como string YYYY-MM-DD para evitar problemas de timezone
-                                        const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                        console.log(`✅ SOLUÇÃO FINAL: Data preservada exatamente como digitada: ${fixedDate}`);
-                                        
-                                        // Marcador especial para debug no console
-                                        console.log(`📋 DATA_DEBUG: parcela=${index+1}, valor=${fixedDate}, origem=input_direto`);
-                                        
-                                        // Atualiza apenas a data específica dessa parcela
-                                        const newDates = [...installmentDates];
-                                        // Armazenar como string, não como objeto Date
-                                        newDates[index] = fixedDate;
-                                        setInstallmentDates(newDates);
-                                        
-                                        // Atualizar diretamente o atributo para captura
-                                        e.target.setAttribute('data-final-date', fixedDate);
+                                        // Gerar a data ISO
+                                        fixedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                        console.log(`✅ ULTRA-PROCESSAMENTO: Data final ISO: ${fixedDate}`);
+                                      }
+                                    }
+                                    
+                                    // Se conseguimos gerar uma data ISO válida
+                                    if (fixedDate) {
+                                      console.log(`✅ SOLUÇÃO FINAL: Data processada com sucesso: ${inputValue} -> ${fixedDate}`);
+                                      
+                                      // Marcador especial para debug no console
+                                      console.log(`📋 DATA_DEBUG: parcela=${index+1}, valor=${fixedDate}, origem=input_ultra_processado`);
+                                      
+                                      // Atualiza apenas a data específica dessa parcela
+                                      const newDates = [...installmentDates];
+                                      // Armazenar como string, não como objeto Date
+                                      newDates[index] = fixedDate;
+                                      setInstallmentDates(newDates);
+                                      
+                                      // Atualizar diretamente o atributo para captura
+                                      e.target.setAttribute('data-final-date', fixedDate);
                                         
                                         // SOLUÇÃO 29/04/2025: Marcar que as datas foram modificadas manualmente
                                         // Isso é crucial para evitar que sejam recalculadas automaticamente

@@ -178,11 +178,18 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
       localStorage.setItem(`preserved-date-display-${componentId}`, formattedDateBR);
       console.log(`🔒 SUPER-PRESERVAÇÃO 3.0: Data salva no localStorage com ID ${componentId}`);
       
-      // Atribuir o ID ao elemento para recuperação futura
+      // MUDANÇA: Removemos a atribuição do data-locked para permitir edição
+      // mas mantemos o ID para recuperação de valores se necessário
       setTimeout(() => {
         document.querySelectorAll('.date-input').forEach(input => {
           input.setAttribute('data-date-id', componentId);
-          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Campo de data marcado com ID de preservação");
+          
+          // CRUCIAL: Garantir que o elemento não esteja marcado como bloqueado
+          if (input.hasAttribute('data-locked')) {
+            input.removeAttribute('data-locked');
+          }
+          
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Campo de data identificado mas mantido editável");
         });
       }, 50);
     } catch (e) {
@@ -225,6 +232,10 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
           disabled={readOnly}
           data-iso-date={isoDate}
           className="date-input"
+          // CRUCIAL: Garantir que o campo seja editável, mesmo com o sistema de preservação
+          readOnly={false}
+          inputMode="text"
+          autoComplete="off"
         />
       </FormControl>
       <FormMessage />
