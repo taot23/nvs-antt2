@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSaleItems, itemListsAreEqual, delay } from "@/utils/sale-items-utils";
 
 interface SaleItemsFixProps {
   fields: any[];
@@ -29,44 +30,66 @@ export function SaleItemsFix({
   // Referência para controlar inicialização única e evitar flickering
   const itemsInitialized = useRef(false);
   
-  // Estado para forçar renderização apenas quando necessário
-  const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
+  // Referência para último estado conhecido de itens
+  const lastItemsRef = useRef<any[]>([]);
   
-  // Efeito anti-flickering otimizado
+  // Efeito anti-flickering com proteção contra atualizações desnecessárias
   useEffect(() => {
-    // Verificações de segurança para evitar processamento desnecessário
-    if (!saleItems || saleItems.length === 0) return;
-    
-    // Se os campos já tiverem o número correto de itens, não atualizar novamente
-    if (fields.length === saleItems.length && itemsInitialized.current) {
-      console.log("✅ ANTI-FLICKERING - Itens já inicializados corretamente, pulando atualização");
-      return;
-    }
-    
-    console.log("🔄 ANTI-FLICKERING - Processando itens uma única vez", saleItems);
-    
-    // Criar versões limpas dos itens sem referências problemáticas
-    const cleanItems = saleItems.map(item => ({
-      serviceId: item.serviceId,
-      quantity: item.quantity || 1,
-      notes: item.notes || "",
-      serviceTypeId: item.serviceTypeId
-    }));
-    
-    // Usar setTimeout para garantir que o componente tenha tempo de renderizar antes
-    // Este delay é fundamental para evitar o flickering
-    const timer = setTimeout(() => {
-      console.log("🔄 ANTI-FLICKERING - Atualizando itens após delay...");
-      updateFormItems(cleanItems);
-      itemsInitialized.current = true;
+    const processItems = async () => {
+      // Se não temos itens ou o componente está sendo desmontado, não fazer nada
+      if (!saleItems || !Array.isArray(saleItems)) return;
       
-      // Forçar atualização após a operação estar completa
-      setForceUpdateCounter(prev => prev + 1);
-    }, 50);
+      // Sanitizar itens para ter uma representação limpa
+      const cleanItems = sanitizeSaleItems(saleItems);
+      
+      // Condições para pular a atualização:
+      // 1. Se os itens já foram inicializados
+      // 2. E o número de itens é o mesmo da última renderização
+      // 3. E os itens são iguais em conteúdo aos itens já processados
+      if (
+        itemsInitialized.current && 
+        fields.length === cleanItems.length &&
+        itemListsAreEqual(lastItemsRef.current, cleanItems)
+      ) {
+        console.log("✅ SUPER ANTI-FLICKERING - Itens idênticos, pulando atualização");
+        return;
+      }
+      
+      // Se chegamos aqui, precisamos atualizar os itens
+      console.log("🔄 SUPER ANTI-FLICKERING - Atualizando itens controladamente");
+      
+      // Aguardar para garantir estabilidade do DOM e evitar flickering
+      await delay(50);
+      
+      // Remover todos os itens existentes primeiro (em um bloco try/catch para segurança)
+      try {
+        // Limpar o formulário completamente antes de adicionar novos itens
+        if (fields.length > 0) {
+          // Remover todos os itens existentes (do último para o primeiro para não afetar índices)
+          for (let i = fields.length - 1; i >= 0; i--) {
+            remove(i);
+          }
+          
+          // Aguardar para garantir que os campos foram removidos
+          await delay(10);
+        }
+        
+        // Adicionar os novos itens sanitizados
+        updateFormItems(cleanItems);
+        
+        // Guardar referência dos itens processados
+        lastItemsRef.current = cleanItems;
+        itemsInitialized.current = true;
+        
+        console.log("✅ SUPER ANTI-FLICKERING - Itens atualizados com sucesso");
+      } catch (error) {
+        console.error("❌ ERRO AO ATUALIZAR ITENS:", error);
+      }
+    };
     
-    // Limpeza do timeout
-    return () => clearTimeout(timer);
-  }, [saleItems, fields.length, updateFormItems]);
+    // Executar o processamento de forma segura
+    processItems();
+  }, [saleItems, fields.length, updateFormItems, remove]);
   
   return (
     <div className="border rounded-md p-4 mt-4">
