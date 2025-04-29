@@ -2064,9 +2064,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // MELHORIA CRÍTICA: Verificar se o financeiro já iniciou análise desta venda
       // e garantir que dados financeiros não sejam alterados
       const financialStatus = sale.financial_status || '';
-      const blockFinancialChanges = financialStatus && 
-                                   financialStatus !== 'pending' && 
-                                   financialStatus !== '';
+      const blockFinancialChanges = financialStatus === 'in_progress' || 
+                                  financialStatus === 'approved' || 
+                                  financialStatus === 'partial_payment' || 
+                                  financialStatus === 'completed' || 
+                                  financialStatus === 'in_analysis' || 
+                                  financialStatus === 'paid';
       
       // Log detalhado para diagnóstico
       console.log(`🔍 Verificação financeira para venda #${id}:`);

@@ -140,9 +140,11 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       // Para todos os casos, o cliente deve FORÇAR a preservação dos dados financeiros 
     // quando o financeiro já iniciou análise - isso é uma medida de segurança adicional
     const statusFinanceiro = sale.financialStatus;
-    const financeiroComecouAnalise = statusFinanceiro && 
-                                    statusFinanceiro !== 'pending' && 
-                                    statusFinanceiro !== '';
+    // Aqui estava o erro! A lista de status deve ser explícita, não uma verificação negativa
+    const financeiroComecouAnalise = statusFinanceiro === 'in_progress' || 
+                                   statusFinanceiro === 'approved' || 
+                                   statusFinanceiro === 'partial_payment' || 
+                                   statusFinanceiro === 'completed';
     
     // Obtém as datas de vencimento originais em caso de análise financeira
     let duesDatesFinais = installmentDates;

@@ -1369,7 +1369,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`🔵 Buscando parcelas via SQL direto para venda #${saleId}`);
 
-      // Query melhorada com JOIN para trazer dados do serviço e tipo de serviço
+      // Query corrigida - removendo referências inválidas a colunas que não existem na tabela
       const result = await pool.query(
         `SELECT 
           si.id, 
@@ -1377,16 +1377,14 @@ export class DatabaseStorage implements IStorage {
           si.service_id, 
           si.quantity, 
           si.notes,
-          si.status,
+          COALESCE(si.status, 'pending') as status,
           si.created_at,
           si.updated_at,
-          si.service_type_id,
-          si.total_price,
-          si.price,
           s.name as service_name,
           s.price as service_price,
           s.description as service_description,
-          s.service_type_id as service_type_id_join,
+          s.service_type_id,
+          st.id as service_type_id,
           st.name as service_type_name
         FROM 
           sale_items si
@@ -1423,8 +1421,8 @@ export class DatabaseStorage implements IStorage {
           id: row.id,
           saleId: row.sale_id,
           serviceId: row.service_id,
-          // Usar o service_type_id diretamente do item, ou do serviço relacionado
-          serviceTypeId: row.service_type_id || row.service_type_id_join || null,
+          // Usar o service_type_id do serviço relacionado
+          serviceTypeId: row.service_type_id || null,
           // Adicionar nomes para tornar a UI mais rica e evitar problemas
           serviceName: row.service_name || `Serviço #${row.service_id}`,
           serviceTypeName: row.service_type_name || null,
