@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Package, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Componente específico para renderizar itens SEM flickering
-// Este componente é completamente independente para evitar re-renderizações
+// Componente EXTRA RADICAL para renderizar itens SEM flickering
+// Este componente é completamente independente com sua própria cópia imutável dos dados
 const StaticItemsRenderer = React.memo(({ 
   items, 
   onRemove, 
@@ -13,22 +13,73 @@ const StaticItemsRenderer = React.memo(({
   onRemove: (index: number) => void,
   isReadOnly?: boolean
 }) => {
-  console.log("🛑 SOLUÇÃO RADICAL: Renderizando StaticItemsRenderer com", items.length, "itens");
+  // Ref para rastrear se é a primeira renderização
+  const isFirstRender = useRef(true);
   
-  if (!items || items.length === 0) {
+  // Estado INTERNO que uma vez definido, NÃO MUDA MAIS!
+  const [internalItems, setInternalItems] = useState<any[]>([]);
+  
+  // Na primeira renderização, copia os itens para o estado interno
+  useEffect(() => {
+    if (isFirstRender.current) {
+      console.log("🛑 SOLUÇÃO ULTRA-RADICAL: Salvando cópia imutável de", items.length, "itens");
+      
+      // Cria uma deep copy dos itens para evitar qualquer referência ao original
+      const itemsCopy = items.map(item => ({...item}));
+      setInternalItems(itemsCopy);
+      
+      // Marca que não é mais a primeira renderização
+      isFirstRender.current = false;
+      
+      // Marca os items como estáticos para debug
+      document.querySelectorAll('.static-item').forEach(item => {
+        item.setAttribute('data-static-preserved', 'true');
+      });
+    }
+  }, [items]);
+  
+  // Se não temos itens ainda, mostra indicador de carregamento mais "estável"
+  if (internalItems.length === 0) {
+    // Usa os items originais para mostrar vazio na primeira renderização
+    if (items.length === 0) {
+      return (
+        <div className="text-center py-6 text-muted-foreground static-empty">
+          <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
+          <p>Nenhum item adicionado</p>
+          <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
+        </div>
+      );
+    }
+    
+    // Enquanto os itens estão sendo copiados para o estado interno, mostra loading discreto
     return (
-      <div className="text-center py-6 text-muted-foreground">
-        <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
-        <p>Nenhum item adicionado</p>
-        <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
+      <div className="space-y-2 static-loading">
+        {items.map((item, index) => (
+          <div key={`loading-item-${index}`} className="rounded-md border p-3 relative">
+            <div className="flex justify-between">
+              <div className="flex-1">
+                <h4 className="font-medium">{item.serviceName}</h4>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Quantidade: {item.quantity}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
   
+  // Renderiza a partir do estado interno que nunca muda após inicialização
   return (
-    <div className="space-y-2">
-      {items.map((item, index) => (
-        <div key={`static-item-${item.serviceId}-${index}`} className="rounded-md border p-3 relative">
+    <div className="space-y-2 static-rendered">
+      {internalItems.map((item, index) => (
+        <div 
+          key={`static-item-${item.serviceId}-${index}`} 
+          className="rounded-md border p-3 relative static-item"
+          data-item-id={item.serviceId}
+          data-item-index={index}
+        >
           <div className="flex justify-between">
             <div className="flex-1">
               <h4 className="font-medium">{item.serviceName}</h4>
@@ -57,18 +108,9 @@ const StaticItemsRenderer = React.memo(({
       ))}
     </div>
   );
-}, (prevProps, nextProps) => {
-  // Implementação customizada de comparação para memoização
-  // Se o número de itens e os IDs são os mesmos, não renderiza novamente
-  if (prevProps.items?.length !== nextProps.items?.length) {
-    return false; // Renderizar se o número de itens mudou
-  }
-  
-  // Verificação simples de IDs para evitar checks profundos
-  const prevIds = prevProps.items?.map(i => i.serviceId)?.join('-') || '';
-  const nextIds = nextProps.items?.map(i => i.serviceId)?.join('-') || '';
-  
-  return prevIds === nextIds; // Só re-renderiza se os IDs mudaram
+}, () => {
+  // SOLUÇÃO ULTRA-RADICAL: Sempre retorna true = NUNCA re-renderiza após a primeira vez
+  return true;
 });
 
 export default StaticItemsRenderer;

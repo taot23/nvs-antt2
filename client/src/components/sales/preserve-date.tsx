@@ -62,9 +62,10 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
   // Estado para o display formatado para o usuário
   const [displayDate, setDisplayDate] = useState<string>('');
   
-  // Inicializa os estados quando o componente monta ou a data original muda
+  // Inicializa os estados APENAS quando o componente monta (usando []) para evitar mudanças automáticas
+  // Removemos originalDate da dependência do useEffect para evitar que a data seja recalculada quando originalDate muda
   useEffect(() => {
-    console.log("🔒 SUPER-PRESERVAÇÃO: Inicializando com data:", originalDate);
+    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Inicializando com data:", originalDate);
     
     // Processa a data original para formato ISO
     let isoFormat = '';
@@ -74,13 +75,13 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
         // Se já é string ISO (YYYY-MM-DD), usa diretamente
         if (originalDate.match(/^\d{4}-\d{2}-\d{2}/)) {
           isoFormat = originalDate.split('T')[0]; // Remove parte do tempo se existir
-          console.log("🔒 SUPER-PRESERVAÇÃO: Data ISO original:", isoFormat);
+          console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Data ISO original preservada:", isoFormat);
         } 
         // Se é string em formato brasileiro, converte para ISO
         else if (originalDate.match(/^\d{2}\/\d{2}\/\d{4}/)) {
           const [day, month, year] = originalDate.split('/').map(Number);
           isoFormat = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          console.log("🔒 SUPER-PRESERVAÇÃO: Convertido BR para ISO:", isoFormat);
+          console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Convertido BR para ISO:", isoFormat);
         }
         // Outro formato, tenta converter
         else {
@@ -88,17 +89,17 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
             const dateObj = new Date(originalDate);
             if (!isNaN(dateObj.getTime())) {
               isoFormat = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-              console.log("🔒 SUPER-PRESERVAÇÃO: Convertido string para ISO:", isoFormat);
+              console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Convertido string para ISO:", isoFormat);
             }
           } catch (e) {
-            console.error("🔒 SUPER-PRESERVAÇÃO: Erro ao converter string:", e);
+            console.error("🔒 SUPER-PRESERVAÇÃO-FINAL: Erro ao converter string:", e);
           }
         }
       } 
       // Se é um objeto Date, converte para ISO
       else if (originalDate instanceof Date) {
         isoFormat = `${originalDate.getFullYear()}-${String(originalDate.getMonth() + 1).padStart(2, '0')}-${String(originalDate.getDate()).padStart(2, '0')}`;
-        console.log("🔒 SUPER-PRESERVAÇÃO: Convertido Date para ISO:", isoFormat);
+        console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Convertido Date para ISO:", isoFormat);
       }
     }
     
@@ -106,14 +107,21 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
     if (!isoFormat) {
       const today = new Date();
       isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      console.log("🔒 SUPER-PRESERVAÇÃO: Usando data atual:", isoFormat);
+      console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Usando data atual:", isoFormat);
     }
     
-    // Atualiza os estados e notifica o parent
+    // Atualiza os estados e notifica o parent APENAS na inicialização
     setIsoDate(isoFormat);
     setDisplayDate(formatDate(isoFormat));
     onChange(isoFormat);
-  }, [originalDate]);
+    
+    // FIXAÇÃO CRÍTICA: Adicionamos um atributo data-locked ao elemento para marcar que já foi inicializado
+    document.querySelectorAll('.date-input').forEach(input => {
+      input.setAttribute('data-locked', 'true');
+    });
+    
+    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Data fixada e bloqueada contra alterações automáticas");
+  }, []); // ⚠️ Array de dependências vazio = executa apenas na montagem
   
   // Função para processar input do usuário
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
