@@ -1820,17 +1820,17 @@ export default function SaleDialog({
                 )}
               />
               
-              {/* SOLUÇÃO FINAL 30/04/2025 - Componente especializado de data */}
+              {/* NOVO COMPONENTE ULTRA SIMPLIFICADO - 30/04/2025 */}
               <FormField
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <StaticDateField
-                    originalDate={field.value}
+                  <SimpleDateField
+                    value={field.value}
                     label="Data da Venda"
                     readOnly={readOnly}
                     onChange={(isoDate) => {
-                      console.log("🚀 SOLUÇÃO FINAL: Data selecionada e preservada:", isoDate);
+                      console.log("🔄 Data selecionada:", isoDate);
                       field.onChange(isoDate);
                     }}
                   />
@@ -2650,9 +2650,9 @@ export default function SaleDialog({
                     }
                   }
                   
-                  // Renderizar com o componente simplificado
+                  // Renderizar com o novo componente ultra simples
                   return (
-                    <StaticItemsRenderer
+                    <SimpleItemsField
                       items={itemsToRender}
                       onRemove={(index) => {
                         console.log("Removendo item índice", index);
