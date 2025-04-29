@@ -9,9 +9,8 @@ import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, Align
 import { SaleItemsFix } from "./sale-items-fix";
 import { StaticSaleItems } from "./static-sale-items";
 
-// SOLUÇÃO ULTRA-RADICAL 30/04/2025: Importar componentes específicos de solução final
+// SOLUÇÃO RADICAL 29/04/2025: Importar componentes específicos de solução final
 import StaticItemsRenderer from "./fix-flickering";
-import ForceLoadSaleItems from "./force-load-sale-items";
 import StaticDateField from "./preserve-date";
 import { format, addMonths, isValid } from "date-fns";
 import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
@@ -143,9 +142,6 @@ export default function SaleDialog({
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
   // Estado para armazenar as observações de correção quando a venda está com status "returned"
   const [correctionNotes, setCorrectionNotes] = useState<string>("");
-  
-  // SOLUÇÃO ULTRA-RADICAL 30/04/2025: Estado dedicado para garantir carregamento dos itens
-  const [originalSaleItems, setOriginalSaleItems] = useState<any[]>([]);
   
 
   // Consultas para obter dados relacionados
@@ -623,45 +619,12 @@ export default function SaleDialog({
       // Aplicamos a sanitização
       const sanitized = sanitizeSaleItems(saleItems);
       console.log("🧠 MEMO: Itens sanitizados e memorizados com sucesso");
-      
-      // SOLUÇÃO ULTRA-RADICAL 30/04/2025: Alimentar o estado para ForceLoadSaleItems
-      setOriginalSaleItems(sanitized);
-      
       return sanitized;
     } catch (error) {
       console.error("🧠 MEMO: Erro durante sanitização:", error);
       return [];
     }
   }, [saleItems]); // Só recalcula quando saleItems mudar
-  
-  // EFEITO ULTRA-RADICAL 30/04/2025: Garantir que os itens originais estejam disponíveis 
-  // para o ForceLoadSaleItems mesmo que saleItems não esteja disponível imediatamente
-  useEffect(() => {
-    // Verificamos se temos dados de venda mas sem itens no estado
-    if (sale?.id && (originalSaleItems.length === 0 || forceReloadItems)) {
-      console.log("🔄 ULTRACARGA: Verificando itens para a venda", sale.id);
-      
-      // Tentamos carregar os itens do backend diretamente
-      fetch(`/api/sales/${sale.id}/items`)
-        .then(response => {
-          if (!response.ok) throw new Error("Falha ao carregar itens");
-          return response.json();
-        })
-        .then(items => {
-          if (items && Array.isArray(items) && items.length > 0) {
-            console.log("✅ ULTRACARGA: Carregados", items.length, "itens diretamente");
-            // Garantir que os itens estejam sanitizados
-            const sanitized = sanitizeSaleItems(items);
-            setOriginalSaleItems(sanitized);
-          } else {
-            console.log("⚠️ ULTRACARGA: Sem itens retornados do backend");
-          }
-        })
-        .catch(error => {
-          console.error("❌ ULTRACARGA: Erro ao carregar itens:", error);
-        });
-    }
-  }, [sale?.id, originalSaleItems.length, forceReloadItems]);
   
   // Controle refinado de renderização para evitar flickering
   useEffect(() => {
@@ -1836,18 +1799,6 @@ export default function SaleDialog({
           )}
         </DialogHeader>
         
-        {/* SOLUÇÃO ULTRA-RADICAL 30/04/2025: Componente invisível para forçar carregamento dos itens */}
-        {!!(sale?.id || saleId) && (
-          <ForceLoadSaleItems 
-            saleId={sale?.id || saleId}
-            originalItems={originalSaleItems}
-            form={form}
-            append={append}
-            remove={remove}
-            debugMode={true}
-          />
-        )}
-        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2665,53 +2616,97 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* SOLUÇÃO ULTRA-RADICAL FINAL (30/04/2025): Sistema de renderização de itens com proteção total */}
+              {/* SOLUÇÃO ULTRA-RADICAL v3 (30/04/2025): Sistema de detecção e correção automática de itens */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
                 {(() => {
-                  console.log("🛡️ ULTRA-RENDERIZAÇÃO: Iniciando renderização protegida de itens");
+                  // Verificar se temos os itens originais da venda para carregamento inicial
+                  let saleItemsToRender = [];
                   
-                  // Usar apenas os itens do formulário, que agora são gerenciados pelo ForceLoadSaleItems
-                  const formValues = form.getValues();
-                  const formItems = formValues.items || [];
-                  
-                  // Convertemos para o formato adequado de exibição
-                  const itemsToRender = fields.map((field, index) => {
-                    try {
-                      const item = formItems[index];
-                      if (!item) return null;
+                  // PRIORIDADE 1: Usar os itens já preenchidos no formulário (para a edição em andamento)
+                  if (fields && fields.length > 0) {
+                    console.log("🔍 SOLUÇÃO ULTRA-RADICAL v3: Detectados", fields.length, "itens no formulário");
+                    
+                    // Extrai os itens do formulário
+                    const formValues = form.getValues();
+                    saleItemsToRender = fields.map((field, index) => {
+                      try {
+                        const item = formValues.items?.[index];
+                        if (!item) return null;
+                        
+                        // Localiza as informações do serviço
+                        const service = services.find((s: any) => s.id === item.serviceId);
+                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                        
+                        return {
+                          id: field.id,
+                          serviceId: item.serviceId,
+                          serviceName,
+                          quantity: item.quantity,
+                          notes: item.notes
+                        };
+                      } catch (e) {
+                        console.error("🚨 Erro ao preparar item do formulário:", e);
+                        return null;
+                      }
+                    }).filter(Boolean);
+                  } 
+                  // PRIORIDADE 2: Se não temos campos mas existem itens originais da venda (primeira renderização)
+                  else if (originalSaleItems && originalSaleItems.length > 0) {
+                    console.log("🔄 SOLUÇÃO ULTRA-RADICAL v3: Carregando", originalSaleItems.length, "itens da venda original");
+                    
+                    // Usa os itens originais da venda como base
+                    saleItemsToRender = originalSaleItems.map((item: any, index: number) => {
+                      try {
+                        // Localiza as informações do serviço
+                        const service = services.find((s: any) => s.id === item.serviceId);
+                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                        
+                        return {
+                          id: `original-${index}`,
+                          serviceId: item.serviceId,
+                          serviceName,
+                          quantity: item.quantity,
+                          notes: item.notes
+                        };
+                      } catch (e) {
+                        console.error("🚨 Erro ao preparar item original:", e);
+                        return null;
+                      }
+                    }).filter(Boolean);
+                    
+                    // Se temos itens originais mas nenhum campo no formulário, adiciona-os ao formulário
+                    if (fields.length === 0 && saleItemsToRender.length > 0) {
+                      console.log("🛠️ SOLUÇÃO ULTRA-RADICAL v3: Adicionando itens originais ao formulário");
                       
-                      // Localiza as informações do serviço
-                      const service = services.find((s: any) => s.id === item.serviceId);
-                      const serviceName = service?.name || `Serviço #${item.serviceId}`;
-                      
-                      return {
-                        id: field.id,
-                        serviceId: item.serviceId,
-                        serviceName,
-                        quantity: item.quantity,
-                        notes: item.notes
-                      };
-                    } catch (e) {
-                      console.error("🚨 Erro ao preparar item:", e);
-                      return null;
+                      // Adiciona cada item original ao formulário de maneira atrasada
+                      setTimeout(() => {
+                        try {
+                          originalSaleItems.forEach((item: any) => {
+                            append({
+                              serviceId: item.serviceId,
+                              quantity: item.quantity,
+                              notes: item.notes
+                            });
+                          });
+                          console.log("✅ SOLUÇÃO ULTRA-RADICAL v3: Itens adicionados ao formulário com sucesso");
+                        } catch (e) {
+                          console.error("🚨 Erro ao adicionar itens ao formulário:", e);
+                        }
+                      }, 100);
                     }
-                  }).filter(Boolean);
+                  }
                   
-                  console.log("🛡️ ULTRA-RENDERIZAÇÃO: Renderizando", itemsToRender.length, "itens");
+                  console.log("🚀 SOLUÇÃO ULTRA-RADICAL v3: Renderizando", saleItemsToRender.length, "itens");
                   
                   // Usar componente completamente isolado
                   return (
                     <StaticItemsRenderer
-                      items={itemsToRender} 
+                      items={saleItemsToRender}
                       onRemove={(index) => {
-                        try {
-                          console.log("🗑️ Removendo item de índice", index);
-                          remove(index);
-                        } catch (error) {
-                          console.error("❌ Erro ao remover item:", error);
-                        }
+                        console.log("🚀 SOLUÇÃO ULTRA-RADICAL v3: Removendo item índice", index);
+                        remove(index);
                       }}
-                      isReadOnly={readOnly || !canEditSaleItems(sale)}
+                      isReadOnly={readOnly}
                     />
                   );
                 })()}

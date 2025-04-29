@@ -3,38 +3,22 @@ import { FormControl, FormItem, FormLabel, FormMessage } from "@/components/ui/f
 import { Input } from "@/components/ui/input";
 import { Calendar } from "lucide-react";
 
-// Função específica para formatação de data de ISO para brasileiro - ULTRA-ROBUSTA 30/04/2025
+// Função específica para formatação de data de ISO para brasileiro
 const formatDate = (date: string | Date | null): string => {
-  // MUDANÇA CRÍTICA: Se a data for null ou vazia, use a data atual em vez de retornar string vazia
-  if (!date) {
-    console.log("⚠️ ULTRA-DATA: Data não fornecida, usando data atual");
-    const today = new Date();
-    return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-  }
+  if (!date) return '';
   
   try {
     let dateObj: Date;
-    console.log("🔍 ULTRA-DATA: Processando data:", date, "tipo:", typeof date);
     
     if (typeof date === 'string') {
-      // Se a string for "null" ou "undefined" (como texto), use a data atual
-      if (date === "null" || date === "undefined") {
-        console.log("⚠️ ULTRA-DATA: Valor de data é string 'null' ou 'undefined', usando data atual");
-        const today = new Date();
-        return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-      }
-      
       // Se já é string e tem formato ISO
       if (date.match(/^\d{4}-\d{2}-\d{2}/)) {
         const [year, month, day] = date.split('T')[0].split('-').map(Number);
-        const formattedDate = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
-        console.log("✅ ULTRA-DATA: Convertido de ISO para BR:", formattedDate);
-        return formattedDate;
+        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
       }
       
       // Se já está no formato brasileiro, retorna como está
       if (date.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-        console.log("✅ ULTRA-DATA: Já está no formato BR:", date);
         return date;
       }
       
@@ -46,21 +30,15 @@ const formatDate = (date: string | Date | null): string => {
     
     // Verifica se é uma data válida
     if (isNaN(dateObj.getTime())) {
-      console.log("⚠️ ULTRA-DATA: Data inválida após conversão:", date, "- usando data atual");
-      // MUDANÇA CRÍTICA: Use data atual em vez de string vazia
-      const today = new Date();
-      return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+      console.log("⚠️ Data inválida:", date);
+      return '';
     }
     
     // Formato brasileiro DD/MM/YYYY
-    const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
-    console.log("✅ ULTRA-DATA: Data formatada final:", formattedDate);
-    return formattedDate;
+    return `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
   } catch (error) {
-    console.error("❌ ULTRA-DATA: Erro ao formatar data:", error);
-    // MUDANÇA CRÍTICA: Use data atual em vez de string vazia em caso de erro
-    const today = new Date();
-    return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    console.error("⚠️ Erro ao formatar data:", error);
+    return '';
   }
 };
 
