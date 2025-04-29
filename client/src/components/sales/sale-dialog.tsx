@@ -92,6 +92,8 @@ interface SaleDialogProps {
   readOnly?: boolean;
   renderAdditionalContent?: () => React.ReactNode;
   onSaveSuccess?: () => void;
+  forceReloadItems?: boolean;
+  isReturned?: boolean;
 }
 
 export default function SaleDialog({ 
@@ -101,7 +103,9 @@ export default function SaleDialog({
   saleId,
   readOnly = false,
   renderAdditionalContent,
-  onSaveSuccess 
+  onSaveSuccess,
+  forceReloadItems = false,
+  isReturned = false
 }: SaleDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();

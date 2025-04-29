@@ -85,7 +85,7 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
         <SendHorizontal className="h-4 w-4" />
       </Button>
 
-      {/* Diálogo de edição simplificado */}
+      {/* Diálogo de edição simplificado com correções para itens e bloqueios */}
       {dialogOpen && (
         <SaleDialog
           open={dialogOpen}
@@ -94,7 +94,10 @@ export default function ReenviaButton({ sale }: ReenviaButtonProps) {
             setDialogOpen(false);
           }}
           saleId={sale.id} 
+          sale={sale} // Passar a venda completa para garantir que os itens sejam carregados corretamente
+          forceReloadItems={true} // Força recarregar itens para evitar problemas de cache
           onSaveSuccess={handleEditSuccess}
+          isReturned={true} // Indica que é uma venda devolvida
         />
       )}
     </>
