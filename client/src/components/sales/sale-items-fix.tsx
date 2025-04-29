@@ -142,19 +142,8 @@ export function SaleItemsFix({
                     {services.find((s: any) => s.id === field.serviceId)?.name || "Serviço não encontrado"}
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground flex flex-wrap justify-between">
-                  <span>
-                    Qtd: {field.quantity} | Tipo: {serviceTypes.find((t: any) => t.id === (field.serviceTypeId || form.getValues().serviceTypeId))?.name || "Tipo não encontrado"}
-                  </span>
-                  <span className="text-right font-medium text-green-600">
-                    {(() => {
-                      const service = services.find((s: any) => s.id === field.serviceId);
-                      if (!service) return null;
-                      const price = parseFloat(service.price || "0");
-                      const total = (price * field.quantity).toFixed(2);
-                      return `R$ ${total.replace(".", ",")}`;
-                    })()}
-                  </span>
+                <div className="text-sm text-muted-foreground">
+                  Qtd: {field.quantity} | Tipo: {serviceTypes.find((t: any) => t.id === (field.serviceTypeId || form.getValues().serviceTypeId))?.name || "Tipo não encontrado"}
                 </div>
               </div>
               
