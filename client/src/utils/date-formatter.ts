@@ -3,6 +3,9 @@
  * 
  * SOLUÇÃO DEFINITIVA para o problema de datas no sistema
  * Centraliza toda a lógica de formatação para garantir consistência
+ * 
+ * CORREÇÃO ABRIL/2025: Adicionada função específica para preservar datas de parcelas
+ * conforme armazenadas no banco de dados, evitando conversões automáticas
  */
 
 /**
@@ -112,4 +115,81 @@ export function parseBrazilianDate(brazilianDate: string): Date | null {
   
   const date = new Date(year, month, day);
   return date;
+}
+
+/**
+ * Preserva datas de parcelas exatamente como vieram do banco de dados
+ * 
+ * Esta função é crítica para garantir que datas existentes não sejam alteradas
+ * durante o processamento na interface. Ela evita conversões automáticas
+ * que possam alterar o valor original.
+ * 
+ * @param installments - Lista de parcelas carregadas do backend
+ * @returns string[] - Lista de datas no formato YYYY-MM-DD
+ */
+export function preserveInstallmentDates(installments: any[]): string[] {
+  if (!installments || !Array.isArray(installments) || installments.length === 0) {
+    console.log("⚠️ Nenhuma parcela fornecida para preservação de datas");
+    return [];
+  }
+
+  console.log(`🔍 Preservando ${installments.length} datas de parcelas do banco de dados`);
+  
+  return installments.map(installment => {
+    // Se não tiver data, retorna data atual
+    if (!installment || !installment.dueDate) {
+      console.log("⚠️ Parcela sem data de vencimento, usando data atual");
+      const today = new Date();
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+    
+    // Se a data já estiver no formato ISO (YYYY-MM-DD), mantém como está
+    if (typeof installment.dueDate === 'string' && installment.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      console.log(`✅ Data de parcela preservada exatamente como no banco: ${installment.dueDate}`);
+      return installment.dueDate;
+    }
+    
+    // Se for uma string em outro formato, tenta converter para ISO
+    if (typeof installment.dueDate === 'string') {
+      // Remover parte de timestamp se existir
+      let rawDate = installment.dueDate;
+      if (rawDate.includes('T')) {
+        rawDate = rawDate.split('T')[0];
+      }
+      
+      // Se já for ISO, apenas retorna
+      if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.log(`✅ Data de parcela (com hora removida) preservada: ${rawDate}`);
+        return rawDate;
+      }
+      
+      // Tenta converter formatos brasileiros
+      if (rawDate.includes('/')) {
+        const parts = rawDate.split('/');
+        if (parts.length === 3) {
+          // Formato brasileiro DD/MM/YYYY
+          if (parts[0].length <= 2) {
+            const isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            console.log(`🔄 Data de parcela convertida de DD/MM/YYYY para ISO: ${rawDate} -> ${isoDate}`);
+            return isoDate;
+          }
+        }
+      }
+      
+      console.log(`⚠️ Formato de data não reconhecido: ${rawDate}, utilizando como está`);
+      return rawDate;
+    }
+    
+    // Se for um objeto Date, converte para string ISO
+    if (installment.dueDate instanceof Date) {
+      const isoDate = `${installment.dueDate.getFullYear()}-${String(installment.dueDate.getMonth() + 1).padStart(2, '0')}-${String(installment.dueDate.getDate()).padStart(2, '0')}`;
+      console.log(`🔄 Data de parcela convertida de objeto Date para ISO: ${isoDate}`);
+      return isoDate;
+    }
+    
+    // Caso não consiga processar, log detalhado e retorna a data atual
+    console.log(`⚠️ Tipo de data não tratado:`, typeof installment.dueDate, installment.dueDate);
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
 }

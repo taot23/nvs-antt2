@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
-import { formatDateToIso, formatIsoToBrazilian } from "@/utils/date-formatter";
+import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
 import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
 import { shouldLockFinancialFields, canEditSaleItems } from "./sale-items-loader";
 
