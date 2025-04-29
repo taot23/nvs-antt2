@@ -2077,6 +2077,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔍 Bloqueio de alterações financeiras: ${blockFinancialChanges ? 'SIM' : 'NÃO'}`);
       console.log(`🔍 Flag preserveFinancialData recebida: ${preserveFinancialData ? 'SIM' : 'NÃO'}`);
       
+      // CONTROLE DUPLO REFORÇADO: Se o financeiro já iniciou análise, forçamos a preservação dos dados financeiros
+      if (blockFinancialChanges) {
+        console.log(`⚠️ PROTEÇÃO FINANCEIRA: Financeiro já iniciou análise da venda #${id} - Protegendo dados financeiros`);
+        
+        // AQUI ESTÁ O BLOQUEIO CRÍTICO: ignoramos totalmente o que veio no request e usamos os valores do banco
+        const updateDataProtected = {
+          // Estes dados NÃO podem ser alterados quando financeiro já analisou
+          totalAmount: sale.total_amount, // Valor total original do banco
+          installments: sale.installments, // Número de parcelas original
+          // Estes dados PODEM ser alterados sempre
+          serviceTypeId: serviceTypeId || sale.service_type_id,
+          serviceProviderId: serviceProviderId || sale.service_provider_id,
+          paymentMethodId: paymentMethodId || sale.payment_method_id,
+          status: 'corrected', // Muda o status para "corrigida"
+          returnReason: null // Limpa o motivo da devolução
+        };
+        
+        // Atualização protegida - mantém os valores financeiros originais
+        const updateQuery = `
+          UPDATE sales 
+          SET 
+            service_type_id = $1,
+            service_provider_id = $2,
+            payment_method_id = $3,
+            status = $4,
+            return_reason = $5,
+            updated_at = NOW()
+          WHERE id = $6
+          RETURNING *
+        `;
+        
+        // Executar update protegido (sem mexer em valores financeiros)
+        const resultProtected = await pool.query(updateQuery, [
+          updateDataProtected.serviceTypeId,
+          updateDataProtected.serviceProviderId,
+          updateDataProtected.paymentMethodId,
+          updateDataProtected.status,
+          updateDataProtected.returnReason,
+          id
+        ]);
+        
+        if (resultProtected.rows.length === 0) {
+          return res.status(404).json({ error: "Venda não encontrada" });
+        }
+        
+        const updatedSale = resultProtected.rows[0];
+        
+        // Atualizar histórico com informação de proteção
+        await pool.query(`
+          INSERT INTO sales_status_history (
+            sale_id, from_status, to_status, user_id, notes, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `, [
+          id,
+          'returned',
+          'corrected',
+          req.user!.id,
+          `Venda corrigida e reenviada com proteção de dados financeiros. Observações: ${correctionNotes || 'Não informadas'}`
+        ]);
+        
+        // Notificar todos os clientes sobre a atualização da venda
+        notifySalesUpdate();
+        
+        return res.json({
+          ...updatedSale,
+          protected: true,
+          message: "Venda corrigida com PROTEÇÃO de dados financeiros. Valores mantidos conforme análise financeira."
+        });
+      }
+      
+      // Se não estiver bloqueado, continua o fluxo normal
       // CONTROLE DUPLO: Se o financeiro já iniciou análise, verificamos se o cliente está tentando
       // modificar dados financeiros e geramos erro se necessário
       if (blockFinancialChanges) {

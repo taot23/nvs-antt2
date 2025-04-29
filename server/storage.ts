@@ -1369,7 +1369,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`🔵 Buscando parcelas via SQL direto para venda #${saleId}`);
 
-      // Query corrigida - removendo referências inválidas a colunas que não existem na tabela
+      // Query totalmente reescrita sem ambiguidades
       const result = await pool.query(
         `SELECT 
           si.id, 
@@ -1380,10 +1380,11 @@ export class DatabaseStorage implements IStorage {
           COALESCE(si.status, 'pending') as status,
           si.created_at,
           si.updated_at,
+          si.price,
+          si.total_price,
           s.name as service_name,
           s.price as service_price,
           s.description as service_description,
-          s.service_type_id,
           st.id as service_type_id,
           st.name as service_type_name
         FROM 
@@ -1391,7 +1392,9 @@ export class DatabaseStorage implements IStorage {
         LEFT JOIN 
           services s ON si.service_id = s.id
         LEFT JOIN 
-          service_types st ON s.service_type_id = st.id
+          service_types st ON st.id = (
+            SELECT service_type_id FROM services WHERE id = si.service_id
+          )
         WHERE 
           si.sale_id = $1
         ORDER BY
