@@ -1541,7 +1541,7 @@ export default function SalesPage() {
                     
                     {/* Botão para vendedor/supervisor reenviar venda corrigida */}
                     {sale.status === 'returned' && (
-                      <VendaReenviarButton sale={sale} />
+                      <ReenviaButton sale={sale} />
                     )}
                     
                     {/* Botão para operacional/admin devolver venda corrigida */}
