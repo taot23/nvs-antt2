@@ -2767,7 +2767,7 @@ export default function SaleDialog({
                       })}
                     </div>
                   );
-                }, [fields, services, remove, renderReady])} {/* Adicionamos renderReady como dependência */}
+                }, [fields, services, remove])} {/* SOLUÇÃO 29/04/2025: Removemos renderReady para evitar flickering */}
               </div>
             </div>
             
@@ -2931,11 +2931,43 @@ export default function SaleDialog({
                     console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
                   }
                   
+                  // SUPER-IMPORTANTE: Garantir o formato correto da data FINAL
+                  let finalFormattedDate;
+                  
+                  // SOLUÇÃO 29/04/2025 - PRESERVAÇÃO FORÇADA DE DATA
+                  console.log("🚨 VERIFICAÇÃO FINAL DA DATA DA VENDA:", {
+                    rawValue: values.date,
+                    type: typeof values.date
+                  });
+                  
+                  // Se a data já é uma string, usamos diretamente (já foi formatada anteriormente)
+                  if (typeof values.date === 'string') {
+                    // Remover parte de timestamp se existir
+                    finalFormattedDate = values.date.includes('T') 
+                      ? values.date.split('T')[0] 
+                      : values.date;
+                      
+                    console.log("🚨 PRESERVAÇÃO DE DATA: Usando string diretamente:", finalFormattedDate);
+                  }
+                  // Se é um objeto Date, formatamos manualmente
+                  else if (values.date instanceof Date) {
+                    // Garantir o formato YYYY-MM-DD sem ajuste de timezone
+                    finalFormattedDate = `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}`;
+                    console.log("🚨 PRESERVAÇÃO DE DATA: Convertido de Date:", finalFormattedDate);
+                  }
+                  // Caso não tenhamos uma data (null/undefined), usar a data atual
+                  else {
+                    const today = new Date();
+                    finalFormattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    console.log("🚨 PRESERVAÇÃO DE DATA: Gerada data atual:", finalFormattedDate);
+                  }
+                  
                   // Monta o objeto manualmente ignorando a validação do Zod
                   const saleData = {
                     // CORREÇÃO CRÍTICA: Usar o número da ordem definido pelo usuário
                     orderNumber: orderNumberToUse,
-                    date: values.date || new Date(),
+                    // SOLUÇÃO 29/04/2025: Usar a data formatada corretamente
+                    date: finalFormattedDate,
                     customerId: values.customerId,
                     paymentMethodId: values.paymentMethodId || 1,
                     serviceTypeId: values.serviceTypeId,
