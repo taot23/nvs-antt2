@@ -86,43 +86,88 @@ export function formatDateToIso(dateValue: any): string {
  * Converte uma data no formato YYYY-MM-DD para DD/MM/YYYY (formato brasileiro)
  * 
  * CORREÇÃO CRÍTICA - ABRIL/2025:
- * Essa função foi modificada para garantir que o valor original é mantido
- * quando usado para exibir datas de parcelas. Isso resolve o problema de 
- * inconsistência entre o que é exibido e o que está no banco.
+ * Esta função foi completamente reescrita para garantir que as datas são exibidas
+ * corretamente e de forma consistente, seguindo as seguintes regras:
  * 
- * @param isoDate - Data no formato YYYY-MM-DD
+ * 1. Se a data vier como ISO (YYYY-MM-DD), converte para DD/MM/YYYY
+ * 2. Se vier como null, undefined ou vazio, retorna string vazia
+ * 3. Se vier como Date, converte para DD/MM/YYYY sem alterar timezone
+ * 4. Qualquer outro formato mantém como está para evitar quebras
+ * 
+ * @param dateValue - Data a ser formatada (string, Date ou null)
  * @returns string - Data no formato DD/MM/YYYY
  */
-export function formatIsoToBrazilian(isoDate: string): string {
-  // Log detalhado para debug
-  console.log(`🔄 FORMATANDO DATA: Valor original = "${isoDate}"`);
+export function formatIsoToBrazilian(dateValue: any): string {
+  // Caso 1: Nulo, undefined ou vazio
+  if (dateValue === null || dateValue === undefined || dateValue === '') {
+    console.log('⚠️ formatIsoToBrazilian: Valor nulo/vazio');
+    return '';
+  }
   
-  // Se é vazio ou inválido, retorna vazio
-  if (!isoDate) return '';
-  
-  // Garantir que estamos trabalhando com string
-  const dateStr = String(isoDate);
-  
-  // Caso especial: Se for uma data no formato ISO (2030-01-01)
-  if (dateStr.includes('-')) {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      // Log para depuração
-      console.log(`✓ Convertendo data ISO para brasileiro: ${dateStr} -> ${parts[2]}/${parts[1]}/${parts[0]}`);
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  try {
+    // Caso 2: Se já é string
+    if (typeof dateValue === 'string') {
+      // Remove qualquer hora/timezone se existir
+      let simpleDate = dateValue;
+      if (simpleDate.indexOf('T') > 0) {
+        simpleDate = simpleDate.split('T')[0];
+      }
+      
+      // Se estiver no formato ISO YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(simpleDate)) {
+        const parts = simpleDate.split('-');
+        // Converte para formato brasileiro DD/MM/YYYY
+        const result = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        console.log(`✅ formatIsoToBrazilian: ISO para BR: ${simpleDate} -> ${result}`);
+        return result;
+      }
+      
+      // Se já estiver no formato DD/MM/YYYY, retorna como está
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(simpleDate)) {
+        console.log(`✓ formatIsoToBrazilian: Já está no formato brasileiro: ${simpleDate}`);
+        return simpleDate;
+      }
+      
+      // Se não reconhecer o formato, retorna como está
+      console.log(`⚠️ formatIsoToBrazilian: Formato não reconhecido - retornando original: ${dateValue}`);
+      return dateValue;
     }
+    
+    // Caso 3: Se for um objeto Date
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      // Extrai dia, mês e ano do objeto Date sem ajustes de timezone
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      const year = dateValue.getFullYear();
+      
+      const result = `${day}/${month}/${year}`;
+      console.log(`✅ formatIsoToBrazilian: Date para BR: ${dateValue} -> ${result}`);
+      return result;
+    }
+    
+    // Caso 4: Tentativa final - tenta converter para Date e depois formato BR
+    try {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        
+        const result = `${day}/${month}/${year}`;
+        console.log(`⚠️ formatIsoToBrazilian: Conversão final: ${dateValue} -> ${result}`);
+        return result;
+      }
+    } catch (err) {
+      console.error('❌ formatIsoToBrazilian: Erro na tentativa final:', err);
+    }
+    
+    // Caso não consiga processar de nenhuma forma
+    console.log(`❌ formatIsoToBrazilian: Impossível processar: ${typeof dateValue} -> ${String(dateValue)}`);
+    return String(dateValue);
+  } catch (error) {
+    console.error('❌ formatIsoToBrazilian: Erro crítico:', error);
+    return String(dateValue || '');
   }
-  
-  // Se for uma string sem traços, mas com barras (já no formato brasileiro)
-  if (dateStr.includes('/')) {
-    // É possível que já esteja no formato correto, retornar como está
-    console.log(`✓ Data já está no formato brasileiro: ${dateStr}`);
-    return dateStr;
-  }
-  
-  // Se chegou até aqui e não conseguimos processar, log para depuração
-  console.log(`⚠️ Formato de data não reconhecido: ${dateStr}, retornando valor original`);
-  return dateStr;
 }
 
 /**
