@@ -9,9 +9,10 @@ import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, Align
 import { SaleItemsFix } from "./sale-items-fix";
 import { StaticSaleItems } from "./static-sale-items";
 
-// SOLUÇÃO RADICAL 29/04/2025: Importar componentes específicos de solução final
+// SOLUÇÃO ULTRA-RADICAL 30/04/2025: Importar componentes específicos de solução final
 import StaticItemsRenderer from "./fix-flickering";
 import StaticDateField from "./preserve-date";
+import ForceLoadSaleItems from "./force-load-sale-items";
 import { format, addMonths, isValid } from "date-fns";
 import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
 import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
@@ -142,6 +143,9 @@ export default function SaleDialog({
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
   // Estado para armazenar as observações de correção quando a venda está com status "returned"
   const [correctionNotes, setCorrectionNotes] = useState<string>("");
+  
+  // SOLUÇÃO ULTRA-RADICAL 30/04/2025: Estado dedicado para garantir carregamento dos itens
+  const [originalSaleItems, setOriginalSaleItems] = useState<any[]>([]);
   
 
   // Consultas para obter dados relacionados
