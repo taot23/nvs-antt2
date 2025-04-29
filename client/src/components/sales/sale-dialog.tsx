@@ -9,9 +9,9 @@ import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, Align
 import { SaleItemsFix } from "./sale-items-fix";
 import { StaticSaleItems } from "./static-sale-items";
 
-// SOLUÇÃO RADICAL 29/04/2025: Importar componentes específicos de solução final
-import StaticItemsRenderer from "./fix-flickering";
-import StaticDateField from "./preserve-date";
+// SOLUÇÃO ULTRA SIMPLIFICADA 30/04/2025: Novos componentes simples
+import { SimpleDateField } from "./simple-date-field";
+import { SimpleItemsField } from "./simple-items-field";
 import { format, addMonths, isValid } from "date-fns";
 import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
 import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
