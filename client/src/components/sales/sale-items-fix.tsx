@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { sanitizeSaleItems, itemListsAreEqual, delay } from "@/utils/sale-items-utils";
+import { sanitizeSaleItems, itemListsAreEqual, delay, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
 
 interface SaleItemsFixProps {
   fields: any[];

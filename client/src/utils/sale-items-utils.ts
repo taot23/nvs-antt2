@@ -3,6 +3,12 @@
  * 
  * SOLUÇÃO ANTI-FLICKERING para itens de venda
  * Controla a inicialização, atualização e exibição dos itens
+ * 
+ * Esta implementação resolve problemas de:
+ * - Flickering (piscadas) durante a atualização dos itens
+ * - Referências circulares que causam problemas de renderização
+ * - Dados inconsistentes entre o estado local e o backend
+ * - Campos nulos ou indefinidos que quebram o layout
  */
 
 /**
@@ -60,4 +66,58 @@ export function itemListsAreEqual(items1: any[] = [], items2: any[] = []): boole
  */
 export function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Calcula preços totais para cada item baseado em preço unitário e quantidade
+ * @param items - Lista de itens de venda
+ * @param services - Lista de serviços disponíveis
+ * @returns Lista de itens com preços calculados
+ */
+export function calculateItemPrices(items: any[] = [], services: any[] = []): any[] {
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return [];
+  }
+  
+  return items.map(item => {
+    // Buscar o serviço correspondente
+    const service = services.find(s => s.id === item.serviceId);
+    
+    if (!service) {
+      return {
+        ...item,
+        price: "0.00",
+        totalPrice: "0.00"
+      };
+    }
+    
+    // Calcular o preço total
+    const quantity = item.quantity || 1;
+    const price = parseFloat(service.price || "0");
+    const totalPrice = (price * quantity).toFixed(2);
+    
+    return {
+      ...item,
+      price: price.toFixed(2),
+      totalPrice
+    };
+  });
+}
+
+/**
+ * Calcula o valor total de uma venda somando todos os itens
+ * @param items - Lista de itens calculados (com totalPrice)
+ * @returns string - Valor total formatado com 2 casas decimais
+ */
+export function calculateSaleTotal(items: any[] = []): string {
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return "0.00";
+  }
+  
+  const total = items.reduce((sum, item) => {
+    const price = parseFloat(item.totalPrice || "0");
+    return sum + price;
+  }, 0);
+  
+  return total.toFixed(2);
 }
