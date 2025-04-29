@@ -600,7 +600,29 @@ export default function SaleDialog({
   const itemsWereProcessed = useRef(false);
   const [renderReady, setRenderReady] = useState(false);
   
-  // ABORDAGEM COM SANITIZADOR: Sistema isolado de gestão de itens com sanitização
+  // VERSÃO ANTI-FLICKERING 29/04/2025 - Sistema isolado de gestão de itens com sanitização e memorização
+  
+  // Memorizar os itens sanitizados para evitar re-renderizações desnecessárias
+  const memoizedSanitizedItems = useMemo(() => {
+    // Só processamos se temos dados válidos
+    if (!saleItems || saleItems.length === 0) {
+      console.log("🧠 MEMO: Sem itens para memorizar");
+      return [];
+    }
+    
+    console.log("🧠 MEMO: Sanitizando e memorizando", saleItems.length, "itens");
+    try {
+      // Aplicamos a sanitização
+      const sanitized = sanitizeSaleItems(saleItems);
+      console.log("🧠 MEMO: Itens sanitizados e memorizados com sucesso");
+      return sanitized;
+    } catch (error) {
+      console.error("🧠 MEMO: Erro durante sanitização:", error);
+      return [];
+    }
+  }, [saleItems]); // Só recalcula quando saleItems mudar
+  
+  // Controle refinado de renderização para evitar flickering
   useEffect(() => {
     // Não fazemos nada se o diálogo não estiver aberto
     if (!open) {
@@ -611,51 +633,49 @@ export default function SaleDialog({
     
     // Se temos o sinalizador forceReloadItems, resetamos o estado de processamento
     if (forceReloadItems && itemsWereProcessed.current) {
-      console.log("🔄 RECARREGAMENTO FORÇADO: Resetando estado de processamento de itens");
+      console.log("🔄 MEMO-CONTROLLER: Recarregamento forçado detectado");
       itemsWereProcessed.current = false;
     }
     
-    // Verificar se temos tudo o que precisamos para processar os itens
-    const canProcessItems = sale && saleItems && saleItems.length > 0 && !isLoadingItems;
-    console.log("⚙️ SANITIZER - Verificando se pode processar itens:", {
-      open, 
-      hasSale: !!sale, 
-      hasSaleItems: !!saleItems, 
-      itemCount: saleItems?.length || 0,
+    // Verificamos se temos os itens memorizados para processar
+    const canProcessItems = memoizedSanitizedItems.length > 0 && !isLoadingItems;
+    
+    console.log("🧠 MEMO-CONTROLLER: Estado do processamento:", {
+      open,
+      hasMemoizedItems: memoizedSanitizedItems.length > 0,
+      itemCount: memoizedSanitizedItems.length,
       isLoading: isLoadingItems,
       alreadyProcessed: itemsWereProcessed.current,
-      canProcess: canProcessItems && !itemsWereProcessed.current,
-      forceReload: forceReloadItems
+      canProcess: canProcessItems && !itemsWereProcessed.current
     });
     
-    // Se não temos o que precisamos ou já processamos, cancelamos
+    // Se não podemos processar ou já processamos, cancelamos
     if (!canProcessItems || itemsWereProcessed.current) {
       return;
     }
     
-    console.log("🔄 SANITIZER - Iniciando processamento isolado de itens");
+    console.log("🔄 MEMO-CONTROLLER: Iniciando atualização controlada de itens");
     
     // Marcamos que estamos processando para evitar duplicações
     itemsWereProcessed.current = true;
-    setRenderReady(false);
     
-    // Usar nosso método de atualização de itens que já utiliza o sanitizador
+    // ANTI-FLICKERING: Não desativamos renderReady, apenas atualizamos os dados
+    // Isso impede que o componente pisque durante atualizações
+    
+    // Usar o método seguro de atualização com os itens memorizados
     try {
-      // Primeiro aplicamos a sanitização e processamos os itens
-      const sanitizedItems = sanitizeSaleItems(saleItems);
-      console.log("🧹 SANITIZER - Itens após sanitização inicial:", sanitizedItems);
-      
-      // Usar o método seguro de atualização que criamos
-      updateFormItems(sanitizedItems);
-      
-      // Ativar a renderização após um breve delay
+      // Usar o método atualizado com um breve delay para sincronização
       setTimeout(() => {
-        console.log("✅ SANITIZER - Processamento completo, ativando renderização");
+        // SOLUÇÃO ANTI-FLICKERING: Usar dados memorizados e não reprocessar
+        updateFormItems(memoizedSanitizedItems);
+        
+        console.log("✅ MEMO-CONTROLLER: Atualização completa sem flickering");
+        // Ativar a renderização sempre ao final
         setRenderReady(true);
-      }, 300);
+      }, 0);
     } catch (error) {
-      console.error("❌ SANITIZER - Erro durante processamento de itens:", error);
-      // Em caso de erro, ainda tentamos ativar a renderização
+      console.error("❌ MEMO-CONTROLLER: Erro durante atualização:", error);
+      // Em caso de erro, ainda ativamos a renderização
       setRenderReady(true);
     }
     
@@ -664,10 +684,10 @@ export default function SaleDialog({
       if (!open) {
         itemsWereProcessed.current = false;
         setRenderReady(false);
-        console.log("🧹 SANITIZER - Limpeza ao fechar diálogo");
+        console.log("🧹 MEMO-CONTROLLER: Limpeza ao fechar diálogo");
       }
     };
-  }, [open, sale?.id, saleItems, isLoadingItems, fields.length, forceReloadItems, updateFormItems]);
+  }, [open, memoizedSanitizedItems, isLoadingItems, fields.length, forceReloadItems, updateFormItems]);
   
   // Função auxiliar para obter o nome do serviço pelo ID
   const getServiceNameById = (serviceId: number): string => {
@@ -741,10 +761,46 @@ export default function SaleDialog({
           console.log("- Definindo orderNumber:", sale.orderNumber);
           form.setValue("orderNumber", sale.orderNumber || "");
           
-          // Data
-          const dateValue = sale.date ? new Date(sale.date) : new Date();
-          console.log("- Definindo date:", dateValue);
-          form.setValue("date", dateValue);
+          // Data - SOLUÇÃO 29/04/2025: Preservar o formato original
+          console.log("🚨 PRESERVAÇÃO DE DATA: Processando data da venda", {
+            rawDate: sale.date,
+            type: typeof sale.date,
+            isNull: sale.date === null
+          });
+          
+          // Se a data for null ou undefined, use a data atual
+          if (sale.date === null || sale.date === undefined) {
+            console.log("🚨 PRESERVAÇÃO DE DATA: Data nula, usando data atual");
+            const today = new Date();
+            // Formatar como YYYY-MM-DD para manter consistência
+            const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            console.log("🚨 PRESERVAÇÃO DE DATA: Data atual formatada:", formattedToday);
+            form.setValue("date", formattedToday);
+          } 
+          // Se a data já for uma string (PRESERVAR EXATAMENTE COMO VEIO DO BANCO)
+          else if (typeof sale.date === 'string') {
+            // Remover parte de timestamp se existir
+            let cleanDate = sale.date;
+            if (cleanDate.includes('T')) {
+              cleanDate = cleanDate.split('T')[0];
+            }
+            console.log("🚨 PRESERVAÇÃO DE DATA: Usando string original limpa:", cleanDate);
+            form.setValue("date", cleanDate);
+          }
+          // Último caso: se por algum motivo for um objeto Date
+          else if (sale.date instanceof Date) {
+            // Converter para string YYYY-MM-DD
+            const formattedDate = `${sale.date.getFullYear()}-${String(sale.date.getMonth() + 1).padStart(2, '0')}-${String(sale.date.getDate()).padStart(2, '0')}`;
+            console.log("🚨 PRESERVAÇÃO DE DATA: Usando Date convertido para string:", formattedDate);
+            form.setValue("date", formattedDate);
+          }
+          // Fallback final para qualquer outro caso
+          else {
+            console.log("🚨 PRESERVAÇÃO DE DATA: Usando data atual como fallback");
+            const today = new Date();
+            const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            form.setValue("date", formattedToday);
+          }
           
           // Cliente
           console.log("- Definindo customerId:", Number(sale.customerId));
