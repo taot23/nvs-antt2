@@ -29,13 +29,35 @@ export function SaleItemsFix({
   // Estado para forçar renderização
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
   
-  // Efeito que roda sempre que os saleItems mudarem ou o componente for montado
+  // Efeito melhorado que roda sempre que os saleItems mudarem ou o componente for montado
   useEffect(() => {
     if (saleItems && saleItems.length > 0) {
-      console.log("🔄 Itens disponíveis, atualizando formulário");
-      updateFormItems(saleItems);
+      console.log("🔄 Itens disponíveis, verificando e atualizando formulário", saleItems);
+      
+      // Verifica se já existem itens no formulário para evitar duplicações
+      const existingItems = form.getValues("items") || [];
+      
+      if (existingItems.length === 0 || existingItems.length !== saleItems.length) {
+        console.log("🔄 Formulário vazio ou com número diferente de itens, atualizando...");
+        
+        // Limpa os itens antigos e cria novas referências para evitar problemas
+        const cleanItems = saleItems.map(item => ({
+          serviceId: item.serviceId,
+          quantity: item.quantity || 1,
+          notes: item.notes || "",
+          serviceTypeId: item.serviceTypeId
+        }));
+        
+        console.log("🔄 Itens limpos para atualização:", cleanItems);
+        updateFormItems(cleanItems);
+        
+        // Forçar atualização da interface
+        setForceUpdateCounter(prev => prev + 1);
+      } else {
+        console.log("🔄 O formulário já tem o mesmo número de itens, verificando conteúdo...");
+      }
     }
-  }, [saleItems, updateFormItems]);
+  }, [saleItems, updateFormItems, form]);
   
   return (
     <div className="border rounded-md p-4 mt-4">
