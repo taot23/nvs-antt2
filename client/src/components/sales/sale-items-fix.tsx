@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +16,71 @@ interface SaleItemsFixProps {
   updateFormItems: (items: any[]) => void;
 }
 
-export function SaleItemsFix({
+// Componente individual de item memoizado para evitar re-renderizações
+const SaleItemRow = memo(({ 
+  field, 
+  index, 
+  services,
+  serviceTypes,
+  form,
+  readOnly,
+  onRemove 
+}: { 
+  field: any; 
+  index: number;
+  services: any[];
+  serviceTypes: any[];
+  form: any;
+  readOnly: boolean;
+  onRemove: (index: number) => void;
+}) => {
+  const serviceName = services.find((s: any) => s.id === field.serviceId)?.name || "Serviço não encontrado";
+  const serviceTypeName = serviceTypes.find((t: any) => t.id === (field.serviceTypeId || form.getValues().serviceTypeId))?.name || "Tipo não encontrado";
+
+  return (
+    <div key={field.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded">
+      <div className="flex-1">
+        <div className="flex items-center">
+          <div className="font-medium">
+            {serviceName}
+          </div>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Qtd: {field.quantity} | Tipo: {serviceTypeName}
+        </div>
+      </div>
+      
+      <div className="flex items-center space-x-1">
+        {!readOnly && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onRemove(index)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Verificar se realmente precisamos re-renderizar
+  const prevItem = prevProps.field;
+  const nextItem = nextProps.field;
+  
+  // Se os items são exatamente os mesmos, não re-renderiza
+  const sameId = prevItem.id === nextItem.id;
+  const sameServiceId = prevItem.serviceId === nextItem.serviceId;
+  const sameServiceTypeId = prevItem.serviceTypeId === nextItem.serviceTypeId;
+  const sameQuantity = prevItem.quantity === nextItem.quantity;
+  
+  return sameId && sameServiceId && sameServiceTypeId && sameQuantity;
+});
+
+// Componente principal memoizado
+export const SaleItemsFix = memo(({
   fields, 
   form, 
   remove, 
@@ -26,7 +90,7 @@ export function SaleItemsFix({
   isLoadingItems,
   readOnly = false,
   updateFormItems
-}: SaleItemsFixProps) {
+}: SaleItemsFixProps) => {
   // Referência para controlar inicialização única e evitar flickering
   const itemsInitialized = useRef(false);
   
@@ -134,33 +198,18 @@ export function SaleItemsFix({
         </div>
       ) : (
         <div className="space-y-2">
+          {/* Usar componente SaleItemRow memoizado para cada item */}
           {fields.map((field, index) => (
-            <div key={field.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded">
-              <div className="flex-1">
-                <div className="flex items-center">
-                  <div className="font-medium">
-                    {services.find((s: any) => s.id === field.serviceId)?.name || "Serviço não encontrado"}
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Qtd: {field.quantity} | Tipo: {serviceTypes.find((t: any) => t.id === (field.serviceTypeId || form.getValues().serviceTypeId))?.name || "Tipo não encontrado"}
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-1">
-                {!readOnly && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
+            <SaleItemRow
+              key={field.id}
+              field={field}
+              index={index}
+              services={services}
+              serviceTypes={serviceTypes}
+              form={form}
+              readOnly={readOnly}
+              onRemove={remove}
+            />
           ))}
         </div>
       )}

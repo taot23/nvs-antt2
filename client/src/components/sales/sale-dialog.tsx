@@ -2192,7 +2192,11 @@ export default function SaleDialog({
                                 placeholder="DD/MM/AAAA"
                                 disabled={readOnly || shouldLockFinancialFields(sale)}
                                 style={{width: "112px", backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
-                                defaultValue={formatIsoToBrazilian(typeof date === 'string' ? date : format(date, "yyyy-MM-dd"))}
+                                defaultValue={
+                                  // CORREÇÃO FINAL - ABRIL 2025
+                                  // Usar EXATAMENTE a data original do banco de dados, convertida para formato de exibição
+                                  formatIsoToBrazilian(date.toString())
+                                }
                                 onChange={(e) => {
                                   try {
                                     console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
