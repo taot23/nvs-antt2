@@ -623,12 +623,45 @@ export default function SaleDialog({
       // Aplicamos a sanitização
       const sanitized = sanitizeSaleItems(saleItems);
       console.log("🧠 MEMO: Itens sanitizados e memorizados com sucesso");
+      
+      // SOLUÇÃO ULTRA-RADICAL 30/04/2025: Alimentar o estado para ForceLoadSaleItems
+      setOriginalSaleItems(sanitized);
+      
       return sanitized;
     } catch (error) {
       console.error("🧠 MEMO: Erro durante sanitização:", error);
       return [];
     }
   }, [saleItems]); // Só recalcula quando saleItems mudar
+  
+  // EFEITO ULTRA-RADICAL 30/04/2025: Garantir que os itens originais estejam disponíveis 
+  // para o ForceLoadSaleItems mesmo que saleItems não esteja disponível imediatamente
+  useEffect(() => {
+    // Verificamos se temos dados de venda mas sem itens no estado
+    if (sale?.id && (originalSaleItems.length === 0 || forceReloadItems)) {
+      console.log("🔄 ULTRACARGA: Verificando itens para a venda", sale.id);
+      
+      // Tentamos carregar os itens do backend diretamente
+      fetch(`/api/sales/${sale.id}/items`)
+        .then(response => {
+          if (!response.ok) throw new Error("Falha ao carregar itens");
+          return response.json();
+        })
+        .then(items => {
+          if (items && Array.isArray(items) && items.length > 0) {
+            console.log("✅ ULTRACARGA: Carregados", items.length, "itens diretamente");
+            // Garantir que os itens estejam sanitizados
+            const sanitized = sanitizeSaleItems(items);
+            setOriginalSaleItems(sanitized);
+          } else {
+            console.log("⚠️ ULTRACARGA: Sem itens retornados do backend");
+          }
+        })
+        .catch(error => {
+          console.error("❌ ULTRACARGA: Erro ao carregar itens:", error);
+        });
+    }
+  }, [sale?.id, originalSaleItems.length, forceReloadItems]);
   
   // Controle refinado de renderização para evitar flickering
   useEffect(() => {
@@ -1802,6 +1835,18 @@ export default function SaleDialog({
             </div>
           )}
         </DialogHeader>
+        
+        {/* SOLUÇÃO ULTRA-RADICAL 30/04/2025: Componente invisível para forçar carregamento dos itens */}
+        {!!(sale?.id || saleId) && (
+          <ForceLoadSaleItems 
+            saleId={sale?.id || saleId}
+            originalItems={originalSaleItems}
+            form={form}
+            append={append}
+            remove={remove}
+            debugMode={true}
+          />
+        )}
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
