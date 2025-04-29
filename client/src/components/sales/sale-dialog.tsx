@@ -11,8 +11,8 @@ import { StaticSaleItems } from "./static-sale-items";
 
 // SOLUÇÃO ULTRA-RADICAL 30/04/2025: Importar componentes específicos de solução final
 import StaticItemsRenderer from "./fix-flickering";
-import StaticDateField from "./preserve-date";
 import ForceLoadSaleItems from "./force-load-sale-items";
+import StaticDateField from "./preserve-date";
 import { format, addMonths, isValid } from "date-fns";
 import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
 import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
@@ -2665,97 +2665,53 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* SOLUÇÃO ULTRA-RADICAL v3 (30/04/2025): Sistema de detecção e correção automática de itens */}
+              {/* SOLUÇÃO ULTRA-RADICAL FINAL (30/04/2025): Sistema de renderização de itens com proteção total */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
                 {(() => {
-                  // Verificar se temos os itens originais da venda para carregamento inicial
-                  let saleItemsToRender = [];
+                  console.log("🛡️ ULTRA-RENDERIZAÇÃO: Iniciando renderização protegida de itens");
                   
-                  // PRIORIDADE 1: Usar os itens já preenchidos no formulário (para a edição em andamento)
-                  if (fields && fields.length > 0) {
-                    console.log("🔍 SOLUÇÃO ULTRA-RADICAL v3: Detectados", fields.length, "itens no formulário");
-                    
-                    // Extrai os itens do formulário
-                    const formValues = form.getValues();
-                    saleItemsToRender = fields.map((field, index) => {
-                      try {
-                        const item = formValues.items?.[index];
-                        if (!item) return null;
-                        
-                        // Localiza as informações do serviço
-                        const service = services.find((s: any) => s.id === item.serviceId);
-                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
-                        
-                        return {
-                          id: field.id,
-                          serviceId: item.serviceId,
-                          serviceName,
-                          quantity: item.quantity,
-                          notes: item.notes
-                        };
-                      } catch (e) {
-                        console.error("🚨 Erro ao preparar item do formulário:", e);
-                        return null;
-                      }
-                    }).filter(Boolean);
-                  } 
-                  // PRIORIDADE 2: Se não temos campos mas existem itens originais da venda (primeira renderização)
-                  else if (originalSaleItems && originalSaleItems.length > 0) {
-                    console.log("🔄 SOLUÇÃO ULTRA-RADICAL v3: Carregando", originalSaleItems.length, "itens da venda original");
-                    
-                    // Usa os itens originais da venda como base
-                    saleItemsToRender = originalSaleItems.map((item: any, index: number) => {
-                      try {
-                        // Localiza as informações do serviço
-                        const service = services.find((s: any) => s.id === item.serviceId);
-                        const serviceName = service?.name || `Serviço #${item.serviceId}`;
-                        
-                        return {
-                          id: `original-${index}`,
-                          serviceId: item.serviceId,
-                          serviceName,
-                          quantity: item.quantity,
-                          notes: item.notes
-                        };
-                      } catch (e) {
-                        console.error("🚨 Erro ao preparar item original:", e);
-                        return null;
-                      }
-                    }).filter(Boolean);
-                    
-                    // Se temos itens originais mas nenhum campo no formulário, adiciona-os ao formulário
-                    if (fields.length === 0 && saleItemsToRender.length > 0) {
-                      console.log("🛠️ SOLUÇÃO ULTRA-RADICAL v3: Adicionando itens originais ao formulário");
+                  // Usar apenas os itens do formulário, que agora são gerenciados pelo ForceLoadSaleItems
+                  const formValues = form.getValues();
+                  const formItems = formValues.items || [];
+                  
+                  // Convertemos para o formato adequado de exibição
+                  const itemsToRender = fields.map((field, index) => {
+                    try {
+                      const item = formItems[index];
+                      if (!item) return null;
                       
-                      // Adiciona cada item original ao formulário de maneira atrasada
-                      setTimeout(() => {
-                        try {
-                          originalSaleItems.forEach((item: any) => {
-                            append({
-                              serviceId: item.serviceId,
-                              quantity: item.quantity,
-                              notes: item.notes
-                            });
-                          });
-                          console.log("✅ SOLUÇÃO ULTRA-RADICAL v3: Itens adicionados ao formulário com sucesso");
-                        } catch (e) {
-                          console.error("🚨 Erro ao adicionar itens ao formulário:", e);
-                        }
-                      }, 100);
+                      // Localiza as informações do serviço
+                      const service = services.find((s: any) => s.id === item.serviceId);
+                      const serviceName = service?.name || `Serviço #${item.serviceId}`;
+                      
+                      return {
+                        id: field.id,
+                        serviceId: item.serviceId,
+                        serviceName,
+                        quantity: item.quantity,
+                        notes: item.notes
+                      };
+                    } catch (e) {
+                      console.error("🚨 Erro ao preparar item:", e);
+                      return null;
                     }
-                  }
+                  }).filter(Boolean);
                   
-                  console.log("🚀 SOLUÇÃO ULTRA-RADICAL v3: Renderizando", saleItemsToRender.length, "itens");
+                  console.log("🛡️ ULTRA-RENDERIZAÇÃO: Renderizando", itemsToRender.length, "itens");
                   
                   // Usar componente completamente isolado
                   return (
                     <StaticItemsRenderer
-                      items={saleItemsToRender}
+                      items={itemsToRender} 
                       onRemove={(index) => {
-                        console.log("🚀 SOLUÇÃO ULTRA-RADICAL v3: Removendo item índice", index);
-                        remove(index);
+                        try {
+                          console.log("🗑️ Removendo item de índice", index);
+                          remove(index);
+                        } catch (error) {
+                          console.error("❌ Erro ao remover item:", error);
+                        }
                       }}
-                      isReadOnly={readOnly}
+                      isReadOnly={readOnly || !canEditSaleItems(sale)}
                     />
                   );
                 })()}
