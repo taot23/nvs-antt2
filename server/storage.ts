@@ -1369,7 +1369,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`🔵 Buscando parcelas via SQL direto para venda #${saleId}`);
 
-      // Query totalmente corrigida com base na estrutura real da tabela
+      // Query corrigida considerando a estrutura real das tabelas
       const result = await pool.query(
         `SELECT 
           si.id, 
@@ -1384,7 +1384,7 @@ export class DatabaseStorage implements IStorage {
           si.price,
           (si.price::numeric * si.quantity) as total_price, -- Calculamos dinamicamente
           s.name as service_name,
-          s.price as service_price,
+          si.price as service_price, -- Usamos o preço direto do item ao invés da tabela de serviços
           s.description as service_description,
           st.id as service_type_id,
           st.name as service_type_name

@@ -145,10 +145,12 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
         }
         
         // Se for objeto Date (raramente acontece aqui), converter para ISO
-        if (inst.dueDate instanceof Date) {
-          const year = inst.dueDate.getFullYear();
-          const month = String(inst.dueDate.getMonth() + 1).padStart(2, '0');
-          const day = String(inst.dueDate.getDate()).padStart(2, '0');
+        if (typeof inst.dueDate === 'object' && inst.dueDate && 'getFullYear' in inst.dueDate) {
+          // É um objeto Date válido
+          const dateObj = inst.dueDate as Date;
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
           const formattedDate = `${year}-${month}-${day}`;
           console.log(`✅ Convertido objeto Date para string ISO: ${formattedDate}`);
           return formattedDate;
@@ -235,7 +237,8 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       toast({
         title: "Alerta de Proteção Financeira",
         description: "Esta venda já está em análise pelo departamento financeiro. Os dados financeiros estão protegidos contra modificações.",
-        variant: "warning",
+        variant: "default",
+        className: "bg-amber-100 border-amber-500 text-amber-800",
         duration: 6000,
       });
     } else {
@@ -385,7 +388,7 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
                 </div>
                 
                 {emAnaliseFinanceira && (
-                  <Alert variant="warning" className="mb-2">
+                  <Alert variant="default" className="mb-2 bg-amber-50 border-amber-500 text-amber-800">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle className="text-xs font-semibold">Atenção - Venda em Análise Financeira</AlertTitle>
                     <AlertDescription className="text-xs">
