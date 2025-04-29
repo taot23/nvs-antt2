@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
+import { sanitizeSaleItems, formatDateToBrazilian, formatDateToISO, shouldLockFinancialFields, canEditSaleItems } from "./sale-items-loader";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -450,66 +451,60 @@ export default function SaleDialog({
     }
   }, [sale, saleId]);
 
-  // Função auxiliar para atualizar os itens - Implementação Forçada
+  // Função auxiliar para atualizar os itens - Implementação com sanitização
   const updateFormItems = useCallback((items: any[]) => {
     if (!items || items.length === 0) {
       console.log("🚫 Sem itens para atualizar no formulário");
       return;
     }
     
-    console.log("🔄 FORÇA-RESET: Atualizando itens no formulário:", items);
+    console.log("🔄 SANITIZER: Atualizando itens no formulário:", items);
     
     try {
-      // Estratégia otimizada - definir todos os itens de uma vez
-      const formattedItems = items.map((item: SaleItem) => ({
-        serviceId: item.serviceId,
-        serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
-        quantity: item.quantity || 1,
-        notes: item.notes || "",
-        price: item.price || "0",
-        totalPrice: item.totalPrice || item.price || "0",
-        status: "pending"
-      }));
+      // Usar nosso novo utilitário para sanitizar os itens
+      const sanitizedItems = sanitizeSaleItems(items);
+      console.log("🧹 SANITIZER: Itens após sanitização:", sanitizedItems);
       
-      // Define diretamente os itens no formulário, sem operações individuais de remoção/adição
-      form.setValue("items", formattedItems);
-      
-      console.log("✅ FORÇA-RESET: Todos os itens foram atualizados com uma única operação");
-      
-      // Limpa os campos anteriores e adiciona os novos
-      setTimeout(() => {
-        const currentItems = fields || [];
-        if (currentItems.length > 0) {
-          // Remove todos os itens existentes
-          for (let i = currentItems.length - 1; i >= 0; i--) {
-            remove(i);
-          }
-          
-          // Adiciona os novos itens em uma nova chamada
-          setTimeout(() => {
-            formattedItems.forEach(item => {
-              append(item);
-            });
-          }, 50);
-        } else {
-          // Se não tiver itens, apenas adiciona
-          formattedItems.forEach(item => {
-            append(item);
-          });
+      // Remover todos os itens existentes primeiro
+      const currentItems = fields || [];
+      if (currentItems.length > 0) {
+        console.log(`🧹 SANITIZER: Removendo ${currentItems.length} itens existentes`);
+        
+        // Use o método remove para cada item, começando do final para não afetar os índices
+        for (let i = currentItems.length - 1; i >= 0; i--) {
+          remove(i);
         }
-      }, 10);
+        
+        // Garantir que o formulário reconheça a remoção
+        form.setValue("items", []);
+      }
       
+      // Pequeno delay para garantir que a limpeza foi processada
+      setTimeout(() => {
+        // Adicionar os novos itens sanitizados
+        console.log(`🧹 SANITIZER: Adicionando ${sanitizedItems.length} itens sanitizados`);
+        
+        // Usar um método seguro de adição de itens
+        sanitizedItems.forEach(item => {
+          append({
+            serviceId: item.serviceId,
+            quantity: item.quantity || 1,
+            notes: item.notes || ""
+          });
+        });
+        
+        console.log("✅ SANITIZER: Itens atualizados com sucesso!");
+      }, 100);
     } catch (error) {
-      console.error("❌ FORÇA-RESET: Erro ao atualizar itens:", error);
+      console.error("❌ ERRO ao atualizar itens:", error);
     }
-  }, [form, sale, fields, remove, append]);
+  }, [form, fields, append, remove]);
   
   // Controle para execução única da atualização de itens
   const itemsWereProcessed = useRef(false);
   const [renderReady, setRenderReady] = useState(false);
   
-  // ABORDAGEM TOTALMENTE NOVA: Sistema isolado de gestão de itens
-  // Este efeito roda apenas UMA vez por abertura de diálogo, usando um cache para evitar problemas
+  // ABORDAGEM COM SANITIZADOR: Sistema isolado de gestão de itens com sanitização
   useEffect(() => {
     // Não fazemos nada se o diálogo não estiver aberto
     if (!open) {
@@ -518,16 +513,23 @@ export default function SaleDialog({
       return;
     }
     
+    // Se temos o sinalizador forceReloadItems, resetamos o estado de processamento
+    if (forceReloadItems && itemsWereProcessed.current) {
+      console.log("🔄 RECARREGAMENTO FORÇADO: Resetando estado de processamento de itens");
+      itemsWereProcessed.current = false;
+    }
+    
     // Verificar se temos tudo o que precisamos para processar os itens
     const canProcessItems = sale && saleItems && saleItems.length > 0 && !isLoadingItems;
-    console.log("⚙️ NOVA ABORDAGEM - Verificando se pode processar itens:", {
+    console.log("⚙️ SANITIZER - Verificando se pode processar itens:", {
       open, 
       hasSale: !!sale, 
       hasSaleItems: !!saleItems, 
       itemCount: saleItems?.length || 0,
       isLoading: isLoadingItems,
       alreadyProcessed: itemsWereProcessed.current,
-      canProcess: canProcessItems && !itemsWereProcessed.current
+      canProcess: canProcessItems && !itemsWereProcessed.current,
+      forceReload: forceReloadItems
     });
     
     // Se não temos o que precisamos ou já processamos, cancelamos
@@ -535,89 +537,41 @@ export default function SaleDialog({
       return;
     }
     
-    console.log("🔄 NOVA ABORDAGEM - Iniciando processamento isolado de itens");
+    console.log("🔄 SANITIZER - Iniciando processamento isolado de itens");
     
     // Marcamos que estamos processando para evitar duplicações
     itemsWereProcessed.current = true;
     setRenderReady(false);
     
-    // Função para implementar sleep
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    
-    // Função assíncrona para processar os itens em sequência controlada
-    const processItems = async () => {
-      try {
-        console.log("🧹 NOVA ABORDAGEM - Limpeza e preparação");
-        
-        // Preparar os dados dos itens novos
-        const preparedItems = saleItems.map((item: SaleItem) => ({
-          serviceId: item.serviceId,
-          serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
-          quantity: item.quantity || 1,
-          notes: item.notes || "",
-          price: item.price || "0",
-          totalPrice: item.totalPrice || item.price || "0",
-          status: "pending"
-        }));
-        
-        // ETAPA 1: Limpeza total de itens anteriores
-        console.log("🧹 NOVA ABORDAGEM - Etapa 1: Remover todos os itens anteriores");
-        const currentItems = fields || [];
-        for (let i = currentItems.length - 1; i >= 0; i--) {
-          remove(i);
-        }
-        
-        // Aguardar para garantir que a limpeza foi concluída
-        await sleep(100);
-        
-        // ETAPA 2: Definir valor no form para o novo array
-        console.log("🧹 NOVA ABORDAGEM - Etapa 2: Atribuição direta no formulário");
-        form.setValue("items", []);
-        
-        // Novamente aguardar para garantir processamento
-        await sleep(100);
-        
-        // ETAPA 3: Adicionar novos itens em sequência controlada
-        console.log("🧹 NOVA ABORDAGEM - Etapa 3: Adicionar itens em sequência controlada");
-        for (let i = 0; i < preparedItems.length; i++) {
-          append(preparedItems[i]);
-          // Pequeno intervalo entre operações
-          await sleep(50);
-        }
-        
-        // ETAPA 4: Verificação final e conclusão
-        console.log("🧹 NOVA ABORDAGEM - Etapa 4: Verificação e finalização");
-        await sleep(100);
-        
-        const formItems = form.getValues("items");
-        console.log("🧹 NOVA ABORDAGEM - Verificação do estado final: ", {
-          novosItens: preparedItems.length,
-          camposFormulario: fields.length,
-          valoresFormulario: formItems?.length || 0
-        });
-        
-        // Ativar a renderização
-        console.log("✅ NOVA ABORDAGEM - Processamento completo, ativando renderização");
+    // Usar nosso método de atualização de itens que já utiliza o sanitizador
+    try {
+      // Primeiro aplicamos a sanitização e processamos os itens
+      const sanitizedItems = sanitizeSaleItems(saleItems);
+      console.log("🧹 SANITIZER - Itens após sanitização inicial:", sanitizedItems);
+      
+      // Usar o método seguro de atualização que criamos
+      updateFormItems(sanitizedItems);
+      
+      // Ativar a renderização após um breve delay
+      setTimeout(() => {
+        console.log("✅ SANITIZER - Processamento completo, ativando renderização");
         setRenderReady(true);
-      } catch (error) {
-        console.error("❌ NOVA ABORDAGEM - Erro durante processamento de itens:", error);
-        // Em caso de erro, ainda tentamos ativar a renderização
-        setRenderReady(true);
-      }
-    };
-    
-    // Iniciar o processamento assíncrono
-    processItems();
+      }, 300);
+    } catch (error) {
+      console.error("❌ SANITIZER - Erro durante processamento de itens:", error);
+      // Em caso de erro, ainda tentamos ativar a renderização
+      setRenderReady(true);
+    }
     
     // Limpar estado quando o diálogo fechar
     return () => {
       if (!open) {
         itemsWereProcessed.current = false;
         setRenderReady(false);
-        console.log("🧹 NOVA ABORDAGEM - Limpeza ao fechar diálogo");
+        console.log("🧹 SANITIZER - Limpeza ao fechar diálogo");
       }
     };
-  }, [open, sale?.id, saleItems, isLoadingItems, fields.length]);
+  }, [open, sale?.id, saleItems, isLoadingItems, fields.length, forceReloadItems, updateFormItems]);
   
   // Função auxiliar para obter o nome do serviço pelo ID
   const getServiceNameById = (serviceId: number): string => {
@@ -918,6 +872,57 @@ export default function SaleDialog({
     }
   }, [sale, saleItems, saleInstallments, customers, users, form]);
   
+  // Função para atualizar os itens da venda usando o utilitário sanitizeSaleItems
+  const updateSaleItems = useCallback((items: any[] = []) => {
+    if (!items || items.length === 0) {
+      console.log("🔄 Sem itens para atualizar");
+      return;
+    }
+
+    console.log("🔄 Atualizando itens usando sanitizeSaleItems:", items);
+    
+    // Use o utilitário para garantir formato consistente
+    const sanitizedItems = sanitizeSaleItems(items);
+    console.log("🔄 Itens sanitizados:", sanitizedItems);
+    
+    // Limpar o formulário completamente antes de adicionar novos itens
+    // para evitar duplicação ou mistura de estados
+    try {
+      // Remover todos os itens existentes
+      const currentItems = form.getValues("items") || [];
+      if (currentItems.length > 0) {
+        console.log(`🔄 Removendo ${currentItems.length} itens existentes`);
+        
+        // Use o método remove para cada item, começando do final para não afetar os índices
+        for (let i = fields.length - 1; i >= 0; i--) {
+          remove(i);
+        }
+        
+        // Garantir que o formulário reconheça a remoção
+        form.setValue("items", []);
+      }
+      
+      // Pequeno delay para garantir que a limpeza foi processada
+      setTimeout(() => {
+        // Adicionar os novos itens sanitizados
+        console.log(`🔄 Adicionando ${sanitizedItems.length} itens sanitizados`);
+        
+        // Usar um método seguro de adição de itens
+        sanitizedItems.forEach(item => {
+          append({
+            serviceId: item.serviceId,
+            quantity: item.quantity || 1,
+            notes: item.notes || ""
+          });
+        });
+        
+        console.log("✅ Itens atualizados com sucesso!");
+      }, 50);
+    } catch (error) {
+      console.error("❌ Erro ao atualizar itens:", error);
+    }
+  }, [form, fields.length, append, remove]);
+
   // Função para adicionar um item à venda
   const handleAddItem = () => {
     // Validação básica
