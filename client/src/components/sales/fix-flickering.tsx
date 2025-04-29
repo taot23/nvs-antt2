@@ -19,10 +19,12 @@ const StaticItemsRenderer = React.memo(({
   // Estado INTERNO que uma vez definido, NÃO MUDA MAIS!
   const [internalItems, setInternalItems] = useState<any[]>([]);
   
-  // Na primeira renderização, copia os itens para o estado interno
+  // Efeito para inicializar os itens quando eles chegarem
+  // Estamos permitindo que este efeito execute uma vez por componente E uma vez quando items mudar
   useEffect(() => {
-    if (isFirstRender.current) {
-      console.log("🛑 SOLUÇÃO ULTRA-RADICAL: Salvando cópia imutável de", items.length, "itens");
+    // Se não temos itens internos ou se os itens originais mudaram e não temos nada ainda
+    if (internalItems.length === 0 && items.length > 0) {
+      console.log("🛑 SOLUÇÃO ULTRA-RADICAL v2: Salvando cópia imutável de", items.length, "itens");
       
       // Cria uma deep copy dos itens para evitar qualquer referência ao original
       const itemsCopy = items.map(item => ({...item}));
@@ -31,12 +33,14 @@ const StaticItemsRenderer = React.memo(({
       // Marca que não é mais a primeira renderização
       isFirstRender.current = false;
       
-      // Marca os items como estáticos para debug
-      document.querySelectorAll('.static-item').forEach(item => {
-        item.setAttribute('data-static-preserved', 'true');
-      });
+      // Adiciona uma marcação para debug
+      setTimeout(() => {
+        document.querySelectorAll('.static-item').forEach(item => {
+          item.setAttribute('data-static-preserved', 'true');
+        });
+      }, 100);
     }
-  }, [items]);
+  }, [items, internalItems.length]);
   
   // Se não temos itens ainda, mostra indicador de carregamento mais "estável"
   if (internalItems.length === 0) {
