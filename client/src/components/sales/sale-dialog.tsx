@@ -1828,15 +1828,21 @@ export default function SaleDialog({
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <StaticDateField
-                    originalDate={field.value}
-                    label="Data da Venda"
-                    readOnly={readOnly}
-                    onChange={(isoDate) => {
-                      console.log("🚀 SOLUÇÃO FINAL: Data selecionada e preservada:", isoDate);
-                      field.onChange(isoDate);
-                    }}
-                  />
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Data da Venda
+                    </FormLabel>
+                    <FormControl>
+                      <StaticDateField
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={readOnly}
+                        className="w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
             </div>

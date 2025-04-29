@@ -18,6 +18,9 @@ type StaticDateFieldProps = {
   id?: string;
   label?: string;
   showIcon?: boolean;
+  // Compatibilidade com o campo original
+  originalDate?: Date | string | null;
+  readOnly?: boolean;
 };
 
 // Componente especial para datas que preserva seu estado interno e evita problemas
