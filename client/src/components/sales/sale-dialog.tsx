@@ -789,76 +789,95 @@ export default function SaleDialog({
           }
         }
         
-        // Carregamos todas as datas de vencimento das parcelas existentes como strings YYYY-MM-DD
+        // Processador Universal de Datas - VERSÃO 2.0
+        // Solução definitiva para todos os problemas de data no sistema
         const dates = sortedInstallments.map((installment: any) => {
-          console.log("🛑 CORREÇÃO FINAL - Data do banco (parcela):", installment.dueDate);
+          console.log("📅 CORREÇÃO UNIVERSAL - Processando data:", installment.dueDate, typeof installment.dueDate);
           
-          // CORREÇÃO ABRIL 2025 - PROBLEMA DE FORMATO DE DATA
-          // Usar a data exatamente como está no banco de dados sem nenhuma conversão
-          if (typeof installment.dueDate === 'string') {
-            // Se já for string, usar diretamente (pode ser YYYY-MM-DD ou com T)
-            let rawDate = installment.dueDate;
-            
-            // Se tiver T00:00:00, remover
-            if (rawDate.includes('T')) {
-              rawDate = rawDate.split('T')[0];
-            }
-            
-            // Verificar se está no formato ISO (YYYY-MM-DD)
-            if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              console.log("✅ SOLUÇÃO DEFINITIVA - Data ISO válida:", rawDate);
-              return rawDate;
-            } else {
-              console.log("⚠️ FORMATO INVÁLIDO - Tentando converter manualmente:", rawDate);
+          // Tratar valor nulo ou undefined
+          if (!installment.dueDate) {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          }
+          
+          // ETAPA 1: Normalização inicial - transformar em string
+          let rawDate = String(installment.dueDate);
+          
+          // ETAPA 2: Remover qualquer parte de hora/timezone se existir
+          if (rawDate.includes('T')) {
+            rawDate = rawDate.split('T')[0];
+            console.log("📅 NORMALIZAÇÃO - Removida parte de tempo:", rawDate);
+          }
+          
+          // ETAPA 3: Verificar se já está no formato ISO YYYY-MM-DD
+          if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            console.log("✅ DATA OK - Formato ISO válido:", rawDate);
+            return rawDate;
+          }
+          
+          // ETAPA 4: Tentar converter formato brasileiro DD/MM/YYYY
+          if (rawDate.includes('/')) {
+            const parts = rawDate.split('/');
+            if (parts.length === 3) {
+              let day, month, year;
               
-              // Se não for ISO, tente extrair os componentes da data
-              const parts = rawDate.split(/[-/]/);
-              if (parts.length === 3) {
-                // Verificar se o primeiro componente parece ser um ano (4 dígitos)
-                if (parts[0].length === 4) {
-                  // Já está no formato YYYY-MM-DD ou similar
-                  const fixedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                  console.log("✅ SOLUÇÃO DEFINITIVA - Data corrigida:", fixedDate);
-                  return fixedDate;
-                } else {
-                  // Formato DD/MM/YYYY ou similar
-                  const fixedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                  console.log("✅ SOLUÇÃO DEFINITIVA - Data corrigida de DD/MM/YYYY:", fixedDate);
-                  return fixedDate;
-                }
+              // Verificar se o primeiro componente tem 4 dígitos (improvável em formato brasileiro)
+              if (parts[0].length === 4) {
+                // Formato YYYY/MM/DD (raro)
+                year = parts[0];
+                month = parts[1].padStart(2, '0');
+                day = parts[2].padStart(2, '0');
+              } else {
+                // Formato comum DD/MM/YYYY
+                day = parts[0].padStart(2, '0');
+                month = parts[1].padStart(2, '0');
+                year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
               }
               
-              // Fallback - usar a data original
-              return rawDate;
-            }
-          } else {
-            // Se for um objeto Date, converter cuidadosamente para string ISO
-            try {
-              // Garantir que temos uma data válida
-              const date = new Date(installment.dueDate);
-              if (isNaN(date.getTime())) {
-                throw new Error("Data inválida");
+              // Validar componentes
+              if (!isNaN(Number(day)) && !isNaN(Number(month)) && !isNaN(Number(year))) {
+                const formattedDate = `${year}-${month}-${day}`;
+                console.log("✅ DATA CONVERTIDA - De formato brasileiro:", formattedDate);
+                return formattedDate;
               }
-              
-              // SUPER CORREÇÃO: Usar os valores brutos da data sem ajuste de timezone
-              const year = date.getFullYear();
-              const month = date.getMonth() + 1; // Mês começa em 0
-              const day = date.getDate();
-              
-              // Verificar se os valores são números válidos
-              if (isNaN(year) || isNaN(month) || isNaN(day) || year < 2000 || year > 2050) {
-                throw new Error("Componentes de data inválidos");
-              }
-              
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              console.log("✅ SOLUÇÃO DEFINITIVA - Data convertida com segurança:", formattedDate);
-              return formattedDate;
-            } catch (error) {
-              console.error("❌ ERRO AO CONVERTER DATA:", error);
-              console.log("⚠️ FALLBACK - Usando string ISO da data atual");
-              return new Date().toISOString().split('T')[0];
             }
           }
+          
+          // ETAPA 5: Tentar converter outros formatos com traço
+          if (rawDate.includes('-')) {
+            const parts = rawDate.split('-');
+            if (parts.length === 3) {
+              // YYYY-MM-DD já foi tratado acima, então isso seria DD-MM-YYYY ou similar
+              if (parts[0].length !== 4) {
+                const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                console.log("✅ DATA CONVERTIDA - De formato com traço:", formattedDate);
+                return formattedDate;
+              }
+            }
+          }
+          
+          // ETAPA 6: Último recurso - tentar converter via Date
+          try {
+            const dateObj = new Date(rawDate);
+            
+            // Verificar se a data é válida
+            if (!isNaN(dateObj.getTime())) {
+              const year = dateObj.getFullYear();
+              const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+              const day = String(dateObj.getDate()).padStart(2, '0');
+              
+              const formattedDate = `${year}-${month}-${day}`;
+              console.log("✅ DATA CONVERTIDA - Via objeto Date:", formattedDate);
+              return formattedDate;
+            }
+          } catch (e) {
+            console.error("❌ Falha ao converter data via Date:", e);
+          }
+          
+          // ETAPA 7: Se tudo falhar, usar data atual (não deve acontecer)
+          console.warn("⚠️ ALERTA - Usando data atual para parcela");
+          const today = new Date();
+          return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         });
         
         console.log("🛑 CORREÇÃO FINAL - Datas das parcelas após processamento:", dates);

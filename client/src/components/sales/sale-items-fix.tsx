@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -26,38 +26,47 @@ export function SaleItemsFix({
   readOnly = false,
   updateFormItems
 }: SaleItemsFixProps) {
-  // Estado para forçar renderização
+  // Referência para controlar inicialização única e evitar flickering
+  const itemsInitialized = useRef(false);
+  
+  // Estado para forçar renderização apenas quando necessário
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
   
-  // Efeito melhorado que roda sempre que os saleItems mudarem ou o componente for montado
+  // Efeito anti-flickering otimizado
   useEffect(() => {
-    if (saleItems && saleItems.length > 0) {
-      console.log("🔄 Itens disponíveis, verificando e atualizando formulário", saleItems);
-      
-      // Verifica se já existem itens no formulário para evitar duplicações
-      const existingItems = form.getValues("items") || [];
-      
-      if (existingItems.length === 0 || existingItems.length !== saleItems.length) {
-        console.log("🔄 Formulário vazio ou com número diferente de itens, atualizando...");
-        
-        // Limpa os itens antigos e cria novas referências para evitar problemas
-        const cleanItems = saleItems.map(item => ({
-          serviceId: item.serviceId,
-          quantity: item.quantity || 1,
-          notes: item.notes || "",
-          serviceTypeId: item.serviceTypeId
-        }));
-        
-        console.log("🔄 Itens limpos para atualização:", cleanItems);
-        updateFormItems(cleanItems);
-        
-        // Forçar atualização da interface
-        setForceUpdateCounter(prev => prev + 1);
-      } else {
-        console.log("🔄 O formulário já tem o mesmo número de itens, verificando conteúdo...");
-      }
+    // Verificações de segurança para evitar processamento desnecessário
+    if (!saleItems || saleItems.length === 0) return;
+    
+    // Se os campos já tiverem o número correto de itens, não atualizar novamente
+    if (fields.length === saleItems.length && itemsInitialized.current) {
+      console.log("✅ ANTI-FLICKERING - Itens já inicializados corretamente, pulando atualização");
+      return;
     }
-  }, [saleItems, updateFormItems, form]);
+    
+    console.log("🔄 ANTI-FLICKERING - Processando itens uma única vez", saleItems);
+    
+    // Criar versões limpas dos itens sem referências problemáticas
+    const cleanItems = saleItems.map(item => ({
+      serviceId: item.serviceId,
+      quantity: item.quantity || 1,
+      notes: item.notes || "",
+      serviceTypeId: item.serviceTypeId
+    }));
+    
+    // Usar setTimeout para garantir que o componente tenha tempo de renderizar antes
+    // Este delay é fundamental para evitar o flickering
+    const timer = setTimeout(() => {
+      console.log("🔄 ANTI-FLICKERING - Atualizando itens após delay...");
+      updateFormItems(cleanItems);
+      itemsInitialized.current = true;
+      
+      // Forçar atualização após a operação estar completa
+      setForceUpdateCounter(prev => prev + 1);
+    }, 50);
+    
+    // Limpeza do timeout
+    return () => clearTimeout(timer);
+  }, [saleItems, fields.length, updateFormItems]);
   
   return (
     <div className="border rounded-md p-4 mt-4">
