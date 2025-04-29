@@ -2039,9 +2039,10 @@ export default function SaleDialog({
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))}
                       value={field.value ? field.value.toString() : "0"}
+                      disabled={readOnly || shouldLockFinancialFields(sale)}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={shouldLockFinancialFields(sale) ? "bg-gray-100" : ""}>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
@@ -2053,6 +2054,11 @@ export default function SaleDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    {shouldLockFinancialFields(sale) && (
+                      <FormDescription className="text-amber-600 text-xs mt-1">
+                        Campo bloqueado pois o financeiro já iniciou a tratativa
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2175,9 +2181,10 @@ export default function SaleDialog({
                         }
                       }}
                       value={field.value ? String(field.value) : "1"}
+                      disabled={readOnly || shouldLockFinancialFields(sale)}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={shouldLockFinancialFields(sale) ? "bg-gray-100" : ""}>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
@@ -2189,6 +2196,11 @@ export default function SaleDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    {shouldLockFinancialFields(sale) && (
+                      <FormDescription className="text-amber-600 text-xs mt-1">
+                        Campo bloqueado pois o financeiro já iniciou a tratativa
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2235,6 +2247,8 @@ export default function SaleDialog({
                                 data-installment-date
                                 data-installment-number={index + 1}
                                 placeholder="DD/MM/AAAA"
+                                disabled={readOnly || shouldLockFinancialFields(sale)}
+                                className={shouldLockFinancialFields(sale) ? "bg-gray-100 w-28" : "w-28"}
                                 defaultValue={typeof date === 'string' ? 
                                   // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
                                   date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
