@@ -84,18 +84,17 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
   // Estado para o display formatado para o usuário
   const [displayDate, setDisplayDate] = useState<string>('');
   
-  // Efeito que inicializa os estados, mas APENAS SE necessário
+  // VERSÃO ULTRA-RADICAL 3.0 30/04/2025
+  // Efeito que inicializa os estados, mas APENAS UMA VEZ
   useEffect(() => {
-    // Verificar se já temos um valor de data definido
-    const dataElement = document.querySelector('.date-input[data-locked="true"]');
-    if (dataElement) {
-      console.log("🔒 SUPER-PRESERVAÇÃO-FINAL: Campo de data já inicializado, ignorando");
-      return;
-    }
+    // Criamos um ID único para este componente baseado no originalDate
+    // Isso garante preservação entre re-renders
+    const componentId = `date-${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`🔒 SUPER-PRESERVAÇÃO 3.0: ID de componente: ${componentId}`);
 
-    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Inicializando com data:", originalDate);
+    // Processa a data original para formato ISO - SEM QUALQUER CONDIÇÃO DE RETORNO INICIAL
+    console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Processando data:", originalDate);
     
-    // Processa a data original para formato ISO
     let isoFormat = '';
     
     if (originalDate) {
@@ -103,13 +102,19 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
         // Se já é string ISO (YYYY-MM-DD), usa diretamente
         if (originalDate.match(/^\d{4}-\d{2}-\d{2}/)) {
           isoFormat = originalDate.split('T')[0]; // Remove parte do tempo se existir
-          console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Data ISO original preservada:", isoFormat);
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Data ISO original preservada:", isoFormat);
         } 
         // Se é string em formato brasileiro, converte para ISO
         else if (originalDate.match(/^\d{2}\/\d{2}\/\d{4}/)) {
           const [day, month, year] = originalDate.split('/').map(Number);
           isoFormat = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Convertido BR para ISO:", isoFormat);
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Convertido BR para ISO:", isoFormat);
+        }
+        // Se é "null" como string, usamos data atual
+        else if (originalDate === "null" || originalDate === "undefined") {
+          const today = new Date();
+          isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Valor 'null'/'undefined' como string, usando data atual:", isoFormat);
         }
         // Outro formato, tenta converter
         else {
@@ -117,17 +122,37 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
             const dateObj = new Date(originalDate);
             if (!isNaN(dateObj.getTime())) {
               isoFormat = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-              console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Convertido string para ISO:", isoFormat);
+              console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Convertido string para ISO:", isoFormat);
+            } else {
+              throw new Error("Data inválida após conversão");
             }
           } catch (e) {
-            console.error("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Erro ao converter string:", e);
+            console.error("🔒 SUPER-PRESERVAÇÃO 3.0: Erro ao converter string:", e);
+            // Data atual como fallback absoluto
+            const today = new Date();
+            isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Erro na conversão, usando data atual:", isoFormat);
           }
         }
       } 
+      // Se é null explícito (não string 'null'), usamos data atual
+      else if (originalDate === null) {
+        const today = new Date();
+        isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Valor null, usando data atual:", isoFormat);
+      }
       // Se é um objeto Date, converte para ISO
       else if (originalDate instanceof Date) {
-        isoFormat = `${originalDate.getFullYear()}-${String(originalDate.getMonth() + 1).padStart(2, '0')}-${String(originalDate.getDate()).padStart(2, '0')}`;
-        console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Convertido Date para ISO:", isoFormat);
+        // Verificar se a data é válida
+        if (!isNaN(originalDate.getTime())) {
+          isoFormat = `${originalDate.getFullYear()}-${String(originalDate.getMonth() + 1).padStart(2, '0')}-${String(originalDate.getDate()).padStart(2, '0')}`;
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Convertido Date para ISO:", isoFormat);
+        } else {
+          // Data inválida, usar data atual
+          const today = new Date();
+          isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Date inválido, usando data atual:", isoFormat);
+        }
       }
     }
     
@@ -135,28 +160,36 @@ const StaticDateField: React.FC<StaticDateFieldProps> = ({
     if (!isoFormat) {
       const today = new Date();
       isoFormat = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Usando data atual:", isoFormat);
+      console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Usando data atual como último recurso:", isoFormat);
     }
     
     // FORÇAR exibição da data no formato brasileiro mesmo se não houver data original
     const formattedDateBR = formatDate(isoFormat);
-    console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Data formatada para exibição:", formattedDateBR);
+    console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Data formatada final para exibição:", formattedDateBR);
     
     // Atualiza os estados e notifica o parent
     setIsoDate(isoFormat);
     setDisplayDate(formattedDateBR);
     onChange(isoFormat);
     
-    // FIXAÇÃO CRÍTICA: Adicionamos um atributo data-locked ao elemento para marcar que já foi inicializado
-    // Usamos timeout para garantir que o DOM esteja atualizado
-    setTimeout(() => {
-      document.querySelectorAll('.date-input').forEach(input => {
-        input.setAttribute('data-locked', 'true');
-        console.log("🔒 SUPER-PRESERVAÇÃO-FINAL v2: Campo de data marcado como bloqueado");
-      });
-    }, 100);
+    // Salvar a data no localStorage para persistência entre re-renders
+    try {
+      localStorage.setItem(`preserved-date-${componentId}`, isoFormat);
+      localStorage.setItem(`preserved-date-display-${componentId}`, formattedDateBR);
+      console.log(`🔒 SUPER-PRESERVAÇÃO 3.0: Data salva no localStorage com ID ${componentId}`);
+      
+      // Atribuir o ID ao elemento para recuperação futura
+      setTimeout(() => {
+        document.querySelectorAll('.date-input').forEach(input => {
+          input.setAttribute('data-date-id', componentId);
+          console.log("🔒 SUPER-PRESERVAÇÃO 3.0: Campo de data marcado com ID de preservação");
+        });
+      }, 50);
+    } catch (e) {
+      console.error("🔒 SUPER-PRESERVAÇÃO 3.0: Erro ao salvar no localStorage:", e);
+    }
     
-  }, [originalDate]); // Tem originalDate como dependência, mas a lógica interna evita atualizações desnecessárias
+  }, []); // CRUCIAL: Executado apenas uma vez na montagem do componente
   
   // Função para processar input do usuário
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

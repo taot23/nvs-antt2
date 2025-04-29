@@ -54,49 +54,116 @@ const ForceLoadSaleItems: React.FC<ForceLoadSaleItemsProps> = ({
   
   // ESTRATÉGIA 1: Carregamento direto dos itens originais
   useEffect(() => {
-    // Verifica se já carregamos itens, se os campos do formulário já estão preenchidos,
-    // ou se não temos o ID da venda para carregar
+    // Verifica se já carregamos itens ou se não temos o ID da venda para carregar
     if (itemsLoaded.current || !saleId) {
       return;
     }
     
-    // Primeiro, verificamos se já temos os itens originais
-    if (originalItems && originalItems.length > 0) {
-      debug(`Tentando carregar ${originalItems.length} itens originais...`);
-      
-      try {
-        // Limpar campos existentes se necessário
-        const fields = form.getValues().items || [];
-        if (fields.length > 0) {
-          debug(`Limpando ${fields.length} campos existentes...`);
-          for (let i = fields.length - 1; i >= 0; i--) {
-            remove(i);
+    // MUDANÇA CRÍTICA: Sempre fazer uma tentativa direta API primeiro
+    debug(`Fazendo carregamento direto para venda ${saleId}...`);
+    fetch(`/api/sales/${saleId}/items`)
+      .then(response => {
+        if (!response.ok) throw new Error("Falha ao carregar itens");
+        return response.json();
+      })
+      .then(items => {
+        if (items && Array.isArray(items) && items.length > 0) {
+          debug(`API FORÇA-DIRETA: Carregados ${items.length} itens via fetch direto`);
+          
+          try {
+            // Limpar campos existentes se necessário
+            const fields = form.getValues().items || [];
+            if (fields.length > 0) {
+              debug(`Limpando ${fields.length} campos existentes...`);
+              for (let i = fields.length - 1; i >= 0; i--) {
+                remove(i);
+              }
+            }
+            
+            // Extrair apenas as propriedades necessárias e adicionar ao formulário
+            items.forEach((item: any) => {
+              debug(`Adicionando item ${item.serviceId} via API direta...`);
+              append({
+                serviceId: item.serviceId,
+                quantity: item.quantity || 1,
+                notes: item.notes || ""
+              });
+            });
+            
+            // Marcar que os itens foram carregados com sucesso
+            itemsLoaded.current = true;
+            debug(`✅ ${items.length} itens carregados com sucesso via API direta`);
+          } catch (error) {
+            debug(`❌ Erro ao processar itens da API direta: ${error}`);
+            
+            // Se falhou, tentar usar originalItems como fallback
+            if (originalItems && originalItems.length > 0) {
+              useFallbackOriginalItems();
+            } else {
+              // Incrementar contagem de tentativas para tentar outra abordagem
+              setLoadAttempts(prev => prev + 1);
+            }
+          }
+        } else {
+          debug("API FORÇA-DIRETA: Sem itens encontrados");
+          
+          // Se não há itens na API, tentar usar originalItems como fallback
+          if (originalItems && originalItems.length > 0) {
+            useFallbackOriginalItems();
+          } else {
+            // Incrementar contagem de tentativas para tentar outra abordagem
+            setLoadAttempts(prev => prev + 1);
           }
         }
+      })
+      .catch(error => {
+        debug(`❌ Erro na chamada à API direta: ${error}`);
         
-        // Adicionar cada item ao formulário
-        originalItems.forEach((item: MinimalSaleItem) => {
-          debug(`Adicionando item ${item.serviceId}...`);
-          append({
-            serviceId: item.serviceId,
-            quantity: item.quantity || 1,
-            notes: item.notes || ""
-          });
-        });
-        
-        // Marcar que os itens foram carregados com sucesso
-        itemsLoaded.current = true;
-        debug(`✅ ${originalItems.length} itens carregados com sucesso`);
-      } catch (error) {
-        debug(`❌ Erro ao adicionar itens originais: ${error}`);
-        // Incrementar contagem de tentativas para tentar outra abordagem
-        setLoadAttempts(prev => prev + 1);
+        // Se falhou, tentar usar originalItems como fallback
+        if (originalItems && originalItems.length > 0) {
+          useFallbackOriginalItems();
+        } else {
+          // Incrementar contagem de tentativas para tentar outra abordagem
+          setLoadAttempts(prev => prev + 1);
+        }
+      });
+  }, [saleId, form, append, remove, debugMode]);
+  
+  // Função auxiliar para usar os itens originais como fallback
+  function useFallbackOriginalItems() {
+    if (!originalItems || originalItems.length === 0 || itemsLoaded.current) return;
+    
+    debug(`FALLBACK: Tentando carregar ${originalItems.length} itens originais...`);
+    
+    try {
+      // Limpar campos existentes se necessário
+      const fields = form.getValues().items || [];
+      if (fields.length > 0) {
+        debug(`Limpando ${fields.length} campos existentes...`);
+        for (let i = fields.length - 1; i >= 0; i--) {
+          remove(i);
+        }
       }
-    } else {
-      debug("Sem itens originais disponíveis, tentando API...");
+      
+      // Adicionar cada item ao formulário
+      originalItems.forEach((item: MinimalSaleItem) => {
+        debug(`Adicionando item ${item.serviceId} de originalItems...`);
+        append({
+          serviceId: item.serviceId,
+          quantity: item.quantity || 1,
+          notes: item.notes || ""
+        });
+      });
+      
+      // Marcar que os itens foram carregados com sucesso
+      itemsLoaded.current = true;
+      debug(`✅ ${originalItems.length} itens carregados com sucesso de originalItems`);
+    } catch (error) {
+      debug(`❌ Erro ao adicionar itens originalItems: ${error}`);
+      // Incrementar contagem de tentativas para tentar outra abordagem
       setLoadAttempts(prev => prev + 1);
     }
-  }, [saleId, originalItems, form, append, remove, debugMode]);
+  }
   
   // ESTRATÉGIA 2: Chamada direta à API para buscar os itens
   useEffect(() => {
