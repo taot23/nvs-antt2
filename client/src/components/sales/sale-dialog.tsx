@@ -1820,93 +1820,20 @@ export default function SaleDialog({
                 )}
               />
               
-              {/* Data - VERSÃO MELHORADA 29/04/2025 */}
+              {/* SOLUÇÃO FINAL 30/04/2025 - Componente especializado de data */}
               <FormField
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Data
-                    </FormLabel>
-                    {console.log("🛎️ DETALHES DO CAMPO DATE:", {
-                      fieldValue: field.value,
-                      fieldValueType: typeof field.value,
-                      isDate: field.value instanceof Date,
-                      formValue: form.getValues().date
-                    })}
-                    <FormControl>
-                      <Input 
-                        type="text"
-                        placeholder="DD/MM/AAAA"
-                        // SOLUÇÃO ABRIL/2025: Usar formatIsoToBrazilian para garantir formato consistente
-                        value={
-                          // Se temos um valor no campo, formatamos adequadamente
-                          field.value ? (
-                            // Se é uma data, convertemos para string brasileira
-                            field.value instanceof Date ? 
-                              field.value.toLocaleDateString('pt-BR') :
-                              // Se é string, usamos nossa função especializada
-                              formatIsoToBrazilian(field.value as string)
-                          ) : (
-                            // Se não temos valor, usamos a data atual como default
-                            originalStatus === "returned" ? "" : new Date().toLocaleDateString('pt-BR')
-                          )
-                        }
-                        // Atributo de data para debug/rastreamento
-                        data-original-date={field.value}
-                        data-date-type={typeof field.value}
-                        onChange={(e) => {
-                          const input = e.target.value;
-                          console.log("🔄 Input data:", input);
-                          
-                          // SOLUÇÃO ABRIL/2025: Tratamento robusto de campo de data
-                          
-                          // Se o campo estiver vazio, define como null
-                          if (!input || input.trim() === '') {
-                            console.log("⚠️ Campo vazio, definindo como null");
-                            field.onChange(null);
-                            return;
-                          }
-                          
-                          // Formatação para permitir apenas números e barras
-                          const formattedInput = input.replace(/[^\d\/]/g, '');
-                          
-                          // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
-                          if (formattedInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-                            const [day, month, year] = formattedInput.split('/');
-                            
-                            // Validação extra dos componentes da data
-                            const dayNum = parseInt(day, 10);
-                            const monthNum = parseInt(month, 10);
-                            const yearNum = parseInt(year, 10);
-                            
-                            // Verificar se os valores são válidos
-                            if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 2000 || yearNum > 2050) {
-                              console.log("⚠️ Data inválida, valores fora dos limites");
-                              field.onChange(formattedInput); // Mantém o valor digitado para o usuário corrigir
-                              return;
-                            }
-                            
-                            const dateString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                            console.log("✅ Convertendo para formato ISO:", dateString);
-                            
-                            // Atualizar o campo com a data no formato ISO
-                            field.onChange(dateString);
-                            
-                            // Marcar que a data foi modificada manualmente
-                            setManuallyChangedDates(true);
-                          } else {
-                            // Caso contrário, mantém o valor como string para permitir a digitação
-                            console.log("⏳ Mantendo formato de digitação:", formattedInput);
-                            field.onChange(formattedInput);
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <StaticDateField
+                    originalDate={field.value}
+                    label="Data da Venda"
+                    readOnly={readOnly}
+                    onChange={(isoDate) => {
+                      console.log("🚀 SOLUÇÃO FINAL: Data selecionada e preservada:", isoDate);
+                      field.onChange(isoDate);
+                    }}
+                  />
                 )}
               />
             </div>
@@ -2689,89 +2616,49 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* SOLUÇÃO ANTI-FLICKERING: Componente estático via useMemo */}
+              {/* SOLUÇÃO RADICAL 30/04/2025: Componente totalmente independente com seu próprio sistema de estado para evitar flickering */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
-                {React.useMemo(() => {
-                  // Usamos uma chave de estabilidade para evitar renderizações desnecessárias
-                  // Apenas quando o tamanho dos campos muda ou quando forçamos um rerender
-                  const stabilityKey = `items-${fields?.length || 0}-${Date.now()}`; 
-                  console.log(`🛡️ ANTI-FLICKERING: Renderizando itens com chave de estabilidade ${stabilityKey}`);
-                  
-                  if (fields.length === 0) {
-                    return (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                        <p>Nenhum item adicionado</p>
-                        <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
-                      </div>
-                    );
-                  }
-                  
-                  // Extraímos TODOS os dados que precisamos de uma só vez para evitar re-renderizações
-                  const itemsSnapshot = fields.map((field, index) => {
+                {(() => {
+                  // Preparar os itens para o componente estático
+                  const staticItems = fields.map((field, index) => {
                     try {
-                      // Obtém o item do form uma única vez
+                      // Obtém o item do formulário
                       const formValues = form.getValues();
-                      const item = formValues.items?.[index] as SaleItem;
+                      const item = formValues.items?.[index];
                       
-                      if (!item) return { id: field.id, empty: true };
+                      if (!item) return null;
                       
-                      // Encontra o nome do serviço
+                      // Encontrar o serviço correspondente
                       const service = services.find((s: any) => s.id === item.serviceId);
                       const serviceName = service?.name || `Serviço #${item.serviceId}`;
                       
                       return {
                         id: field.id,
-                        index,
                         serviceId: item.serviceId,
                         serviceName,
                         quantity: item.quantity,
                         notes: item.notes
                       };
                     } catch (e) {
-                      console.error("Erro ao extrair dados do item:", e);
-                      return { id: field.id, empty: true, error: true };
+                      console.error("🚨 Erro ao preparar item estático:", e);
+                      return null;
                     }
-                  });
+                  }).filter(Boolean);
+
+                  console.log("🚀 SOLUÇÃO RADICAL: Preparados", staticItems.length, "itens para renderização estática");
                   
-                  console.log(`🔒 ANTI-FLICKERING: Snapshot de ${itemsSnapshot.length} itens criado`);
-                  
+                  // Usar componente completamente isolado
                   return (
-                    <div className="space-y-2">
-                      {itemsSnapshot.map(item => {
-                        if (item.empty) return null;
-                        
-                        // Renderiza cada item do snapshot (dados estáticos)
-                        return (
-                          <div key={item.id} className="rounded-md border p-3 relative">
-                            <div className="flex justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-medium">{item.serviceName}</h4>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <span>Quantidade: {item.quantity}</span>
-                                </div>
-                                {item.notes && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    <span className="font-medium">Observações:</span> {item.notes}
-                                  </p>
-                                )}
-                              </div>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900"
-                                onClick={() => remove(item.index)}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <StaticItemsRenderer
+                      items={staticItems}
+                      onRemove={(index) => {
+                        console.log("🚀 SOLUÇÃO RADICAL: Removendo item índice", index);
+                        remove(index);
+                      }}
+                      isReadOnly={readOnly}
+                    />
                   );
-                }, [fields, services, remove])} {/* SOLUÇÃO 29/04/2025: Removemos renderReady para evitar flickering */}
+                })()}
               </div>
             </div>
             
