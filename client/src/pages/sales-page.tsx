@@ -1796,7 +1796,6 @@ export default function SalesPage() {
         onMarkAsPaid={handleMarkAsPaid}
         onDeleteClick={handleDeleteClick}
         user={user}
-        ReenviaButton={ReenviaButton}
         DevolveButton={DevolveButton}
       />
       
@@ -2011,7 +2010,7 @@ export default function SalesPage() {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* O diálogo de reenvio está agora encapsulado no componente ReenviaButton */}
+      {/* Funcionalidade de reenvio de vendas removida */}
     </div>
   );
 }
