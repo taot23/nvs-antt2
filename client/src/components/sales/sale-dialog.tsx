@@ -135,6 +135,8 @@ export default function SaleDialog({
   
   // Estado para rastrear o status original da venda (para identificar vendas devolvidas)
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
+  // Estado para rastrear o status financeiro da venda (para bloqueio de campos)
+  const [financialStatus, setFinancialStatus] = useState<string | null>(null);
   // Estado para armazenar as observações de correção quando a venda está com status "returned"
   const [correctionNotes, setCorrectionNotes] = useState<string>("");
   
@@ -633,6 +635,22 @@ export default function SaleDialog({
     const serviceType = serviceTypes.find((t: any) => t.id === serviceTypeId);
     return serviceType ? serviceType.name : `Tipo #${serviceTypeId}`;
   };
+  
+  // Função auxiliar para verificar se os campos financeiros devem ser bloqueados
+  const shouldBlockFinancialFields = (): boolean => {
+    // Bloqueia campos financeiros se:
+    // 1. Venda estiver em processamento pelo departamento financeiro (financialStatus === "in_progress")
+    // 2. Venda estiver sendo alterada (não é reenvio de venda devolvida ou forceResendMode)
+    const isEditingExistingSale = !!sale?.id && originalStatus !== "returned" && !forceResendMode;
+    const isInFinancialProcessing = financialStatus === "in_progress";
+    
+    const shouldBlock = isEditingExistingSale && isInFinancialProcessing;
+    console.log("🔒 CONTROLE DE BLOQUEIO: isEditingExistingSale =", isEditingExistingSale, 
+                "isInFinancialProcessing =", isInFinancialProcessing, 
+                "shouldBlock =", shouldBlock);
+    
+    return shouldBlock;
+  };
 
   // Funções auxiliares para renderização de componentes
   
@@ -663,6 +681,10 @@ export default function SaleDialog({
       
       // Armazenar o status original da venda para verificações
       console.log("🔴 DEBUG STATUS: Definindo status original =", sale.status);
+      console.log("💲 DEBUG STATUS FINANCEIRO: Definindo status financeiro =", sale.financialStatus);
+      
+      // Captura o status financeiro para controle de bloqueio de campos
+      setFinancialStatus(sale.financialStatus || null);
       
       // Se forceResendMode está ativo, forçamos o status para "returned" para tratar como reenvio
       // independentemente do status atual no banco de dados
