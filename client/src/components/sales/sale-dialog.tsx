@@ -1479,8 +1479,19 @@ export default function SaleDialog({
       // Fallback: usar a abordagem normal/original se o bypass falhar
       console.log("⚠️ Usando abordagem normal como fallback...");
       
-      const url = sale ? `/api/sales/${sale.id}` : "/api/sales";
-      const method = sale ? "PATCH" : "POST";
+      // CORREÇÃO PARA EDIÇÃO: Verificar se o ID está nos dados formatados OU usar o ID da venda
+      // Se estamos editando, podemos ter o ID em dois lugares:
+      // 1. No objeto 'sale' original
+      // 2. No objeto 'formattedData' que estamos enviando (adicionado em correctedValues)
+      
+      // Obtemos o ID de onde estiver disponível
+      const saleId = formattedData.id || (sale ? sale.id : null);
+      console.log("🔑 ID DA VENDA PARA EDIÇÃO:", saleId);
+      
+      const url = saleId ? `/api/sales/${saleId}` : "/api/sales";
+      const method = saleId ? "PATCH" : "POST";
+      
+      console.log(`🛠️ MODO DE OPERAÇÃO: ${method} para URL ${url}`);
       
       const response = await fetch(url, {
         method,
@@ -1720,6 +1731,8 @@ export default function SaleDialog({
       
       const correctedValues = {
         ...values,
+        // CRITICAL FIX: Incluir ID da venda quando estiver editando
+        ...(sale && { id: sale.id }),
         // Garante que o número da OS esteja definido
         orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
         // Usa a data formatada
