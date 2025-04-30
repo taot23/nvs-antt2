@@ -257,7 +257,8 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
       </Button>
       
       {/* Permissão para editar (admin) e apenas se não estiver concluída */}
-      {user?.role === "admin" && sale.status !== "completed" && (
+      {/* Permissão para editar (admin/vendedor) apenas com status "pending" */}
+      {(user?.role === "admin" || user?.role === "vendedor" || user?.role === "supervisor") && sale.status === "pending" && (
         <Button
           variant="ghost"
           size="icon"
@@ -451,8 +452,8 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
               <ClipboardList className="h-4 w-4" />
             </Button>
             
-            {/* Permissão para editar (admin) e apenas se não estiver concluída */}
-            {user?.role === "admin" && sale.status !== "completed" && (
+            {/* Permissão para editar (admin/vendedor) apenas com status "pending" */}
+            {(user?.role === "admin" || user?.role === "vendedor" || user?.role === "supervisor") && sale.status === "pending" && (
               <Button
                 variant="ghost"
                 size="icon"
