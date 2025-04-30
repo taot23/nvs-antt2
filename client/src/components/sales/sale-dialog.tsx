@@ -1869,8 +1869,56 @@ export default function SaleDialog({
                     <FormControl>
                       <Input 
                         type="text"
-                        placeholder="DD/MM/AAAA" 
-                        defaultValue={new Date().toLocaleDateString('pt-BR')}
+                        placeholder="DD/MM/AAAA"
+                        // SOLUÇÃO DEFINITIVA:
+                        // 1. Se temos data original preservada, usar formato PT-BR
+                        // 2. Se não, verificar o valor do field atual
+                        // 3. Se nada funcionar, usar a data atual como fallback
+                        defaultValue={(() => {
+                          console.log("🗓️🗓️ SUPER IMPORTANTE - Data original preservada:", originalSaleDate);
+                          
+                          // Se temos uma data original preservada, usar ela com prioridade
+                          if (originalSaleDate) {
+                            // Converter o formato YYYY-MM-DD para DD/MM/AAAA se necessário
+                            if (originalSaleDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                              // Extrair componentes da data
+                              const [year, month, day] = originalSaleDate.split('-');
+                              const formattedDate = `${day}/${month}/${year}`;
+                              console.log("🎯 Data original convertida para DD/MM/AAAA:", formattedDate);
+                              return formattedDate;
+                            } else if (originalSaleDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                              // Já está no formato DD/MM/AAAA
+                              console.log("🎯 Data original já está em DD/MM/AAAA:", originalSaleDate);
+                              return originalSaleDate;
+                            }
+                          }
+                          
+                          // Se não tem data original, verificar o valor do field
+                          const fieldValue = field.value;
+                          console.log("🔍 Valor atual do campo date:", fieldValue, "tipo:", typeof fieldValue);
+                          
+                          if (fieldValue) {
+                            if (typeof fieldValue === 'string') {
+                              // Se é uma string no formato YYYY-MM-DD
+                              if (fieldValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                const [year, month, day] = fieldValue.split('-');
+                                return `${day}/${month}/${year}`;
+                              } 
+                              // Se já é DD/MM/AAAA
+                              else if (fieldValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                                return fieldValue;
+                              }
+                            } 
+                            // Se é um objeto Date
+                            else if (fieldValue instanceof Date) {
+                              return fieldValue.toLocaleDateString('pt-BR');
+                            }
+                          }
+                          
+                          // Fallback: Usar data atual
+                          console.log("⚠️ Nenhuma data encontrada, usando data atual como fallback");
+                          return new Date().toLocaleDateString('pt-BR');
+                        })()}
                         onChange={(e) => {
                           const input = e.target.value;
                           console.log("Input data:", input);
@@ -1890,6 +1938,11 @@ export default function SaleDialog({
                             const [day, month, year] = formattedInput.split('/');
                             const dateString = `${year}-${month}-${day}`;
                             console.log("Convertendo para formato ISO:", dateString);
+                            
+                            // SUPER IMPORTANTE: Salvar também na variável de data original
+                            console.log("🔄 Atualizando originalSaleDate com novo valor:", dateString);
+                            setOriginalSaleDate(dateString);
+                            
                             field.onChange(dateString);
                           } else {
                             // Caso contrário, mantém o valor como string para permitir a digitação
