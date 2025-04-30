@@ -127,6 +127,9 @@ export default function SaleDialog({
   const [showSellerPopover, setShowSellerPopover] = useState(false);
   const [showServicePopover, setShowServicePopover] = useState(false);
   
+  // Estado para armazenar a data original da venda (para preservação exata durante edições)
+  const [originalSaleDate, setOriginalSaleDate] = useState<string | null>(null);
+  
   // Estado para controlar o modal de cadastro de cliente
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   
@@ -165,8 +168,7 @@ export default function SaleDialog({
   // Estado para armazenar as observações de correção quando a venda está com status "returned"
   const [correctionNotes, setCorrectionNotes] = useState<string>("");
   
-  // Estado especial para preservar a data original da venda exatamente como está no banco
-  const [originalSaleDate, setOriginalSaleDate] = useState<string>("");
+  // Já definido anteriormente
   
   /**
    * Função para determinar se os campos financeiros (valor, forma de pagamento, parcelas, datas) 
@@ -476,6 +478,13 @@ export default function SaleDialog({
     
     if (currentSale && open && !formInitialized.current) {
       console.log("🔄 Preenchendo formulário com dados da venda:", currentSale.id);
+      
+      // SOLUÇÃO DEFINITIVA - 30/04/2025 - Preservar a data original da venda para edição
+      if (sale && sale.date) {
+        console.log("🔴 CORREÇÃO DE DATA: Armazenando data original da venda:", sale.date);
+        console.log("🔴 Tipo de data original:", typeof sale.date);
+        setOriginalSaleDate(sale.date);
+      }
       
       // Para vendas carregadas por props
       if (sale) {
@@ -1461,33 +1470,47 @@ export default function SaleDialog({
       
       // 🚀🚀🚀 ULTRA BYPASS (27/04/2025): 
       // Usar o novo endpoint de bypass que ignora completamente o Zod/Drizzle e executa SQL diretamente
-      console.log("🚀🚀🚀 ULTRA BYPASS: Tentando usar endpoint ultra-radical...");
+      console.log("🚀🚀🚀 ULTRA BYPASS: Verificando se é edição...");
       
       // Log para debug do payload
       console.log("Payload completo da venda:", JSON.stringify(formattedData, null, 2));
+
+      // SOLUÇÃO DEFINITIVA - 30/04/2025: Para edições, NÃO usar o bypass
+      // @ts-ignore - Ignorar erro de tipos
+      const isSaleBeingEdited = !!(formattedData.id || (sale && sale.id));
       
-      try {
-        // Primeiramente, tentar com o ULTRA BYPASS
-        const bypassResponse = await fetch("/api/ultra-bypass/sales", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formattedData),
-        });
-        
-        if (bypassResponse.ok) {
-          console.log("🚀🚀🚀 ULTRA BYPASS: Sucesso! Venda criada via bypass");
-          const bypassSale = await bypassResponse.json();
-          return bypassSale;
-        } else {
-          const error = await bypassResponse.json();
-          console.error("🚀🚀🚀 ULTRA BYPASS: Erro:", error);
-          console.log("Vamos tentar com a abordagem normal como fallback...");
+      // SUPER IMPORTANTE - Log para rastrear quando estamos em edição
+      console.log("🔑🔑🔑 CONTROLE DE EDIÇÃO - isSaleBeingEdited =", isSaleBeingEdited);
+      console.log("🔑 ID de venda nos dados formatados =", formattedData.id);
+      console.log("🔑 ID de venda no objeto sale =", sale?.id);
+      
+      if (!isSaleBeingEdited) {
+        console.log("🚀 É uma NOVA venda, podemos tentar usar o ULTRA BYPASS...");
+        try {
+          // Primeiramente, tentar com o ULTRA BYPASS (APENAS PARA NOVAS VENDAS)
+          const bypassResponse = await fetch("/api/ultra-bypass/sales", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formattedData),
+          });
+          
+          if (bypassResponse.ok) {
+            console.log("🚀🚀🚀 ULTRA BYPASS: Sucesso! Venda criada via bypass");
+            const bypassSale = await bypassResponse.json();
+            return bypassSale;
+          } else {
+            const error = await bypassResponse.json();
+            console.error("🚀🚀🚀 ULTRA BYPASS: Erro:", error);
+            console.log("Vamos tentar com a abordagem normal como fallback...");
+          }
+        } catch (bypassError) {
+          console.error("🚀🚀🚀 ULTRA BYPASS: Exceção:", bypassError);
+          console.log("Tentando abordagem normal como fallback devido à exceção...");
         }
-      } catch (bypassError) {
-        console.error("🚀🚀🚀 ULTRA BYPASS: Exceção:", bypassError);
-        console.log("Tentando abordagem normal como fallback devido à exceção...");
+      } else {
+        console.log("⚠️⚠️⚠️ É uma EDIÇÃO, vamos usar OBRIGATORIAMENTE o método PATCH padrão");
       }
       
       // Fallback: usar a abordagem normal/original se o bypass falhar
@@ -1689,11 +1712,20 @@ export default function SaleDialog({
       
       // CORREÇÃO CRÍTICA: Trata e valida todos os campos numéricos para garantir tipos corretos
       // Objeto para envio ao servidor com valores convertidos e validados
-      // Processamento da data para garantir formato correto
+      // SOLUÇÃO DEFINITIVA - 30/04/2025: Processamento com preservação de data original
       let formattedDate;
       
+      // CASO ESPECIAL: Se estamos editando e temos a data original armazenada,
+      // usamos ela diretamente em seu formato original para evitar conversões
+      const isEditingExisting = !!(sale?.id);
+      console.log("🔍 originalSaleDate =", originalSaleDate, "typeof =", typeof originalSaleDate);
+      
+      if (isEditingExisting && originalSaleDate) {
+        console.log("🔴 CORREÇÃO CRÍTICA DE DATA: Usando a data original preservada:", originalSaleDate);
+        formattedDate = originalSaleDate;
+      }
       // Se a data já estiver no formato ISO (YYYY-MM-DD)
-      if (typeof values.date === 'string' && values.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      else if (typeof values.date === 'string' && values.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         formattedDate = values.date;
       } 
       // Se estiver no formato brasileiro (DD/MM/YYYY)
@@ -1762,14 +1794,35 @@ export default function SaleDialog({
         installments: Number(validatedInstallments),
         // Também garantimos que qualquer valor de parcela seja formato corretamente
         installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
-        // Corrige os itens e preserva os IDs dos itens existentes quando estiver editando
-        items: values.items.map(item => ({
-          ...item,
-          // CRITICAL FIX: Manter o saleId dos itens quando estamos em modo de edição
-          ...(sale && { saleId: sale.id }),
-          serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
-          quantity: Number(item.quantity) || 1 // Garante que quantidade seja número
-        }))
+        // SOLUÇÃO DEFINITIVA - 30/04/2025: Preservação completa dos IDs durante edição
+        items: values.items.map(item => {
+          console.log("🔄 Processando item para envio:", item);
+          
+          // Construir item base com todas as propriedades necessárias
+          const processedItem = {
+            ...item,
+            // Garantir campos críticos
+            serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
+            quantity: Number(item.quantity) || 1, // Garante que quantidade seja número
+            // Formatação de valores para garantir tipo correto
+            price: typeof item.price === 'string' ? item.price.replace(',', '.') : String(item.price || "0"),
+            totalPrice: typeof item.totalPrice === 'string' ? item.totalPrice.replace(',', '.') : String(item.totalPrice || item.price || "0"),
+          };
+          
+          // CRÍTICO: Se estamos editando, vamos preservar exatamente o ID e saleId originais
+          if (sale && sale.id) {
+            console.log("🔄 Modo de edição: preservando IDs de item:", item.id, "saleId:", sale.id);
+            return {
+              ...processedItem,
+              // Preservar ID original do item se existir
+              ...(item.id && { id: item.id }),
+              // Sempre definir o saleId para o ID da venda que estamos editando
+              saleId: sale.id
+            };
+          }
+          
+          return processedItem;
+        })
       };
       
       console.log("Valores corrigidos:", correctedValues);
