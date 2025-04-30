@@ -772,14 +772,33 @@ export default function SaleDialog({
             isNull: sale.date === null
           });
           
-          // Se a data for null ou undefined, use a data atual
+          // SOLUÇÃO ULTRARROBUSTA FINAL - MAIO 2025:
+          // Se a data for null ou undefined, verificar se é uma venda retornada
           if (sale.date === null || sale.date === undefined) {
-            console.log("🚨 PRESERVAÇÃO DE DATA: Data nula, usando data atual");
-            const today = new Date();
-            // Formatar como YYYY-MM-DD para manter consistência
-            const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            console.log("🚨 PRESERVAÇÃO DE DATA: Data atual formatada:", formattedToday);
-            form.setValue("date", formattedToday);
+            console.log("🚨 PRESERVAÇÃO DE DATA: Data nula/indefinida - necessária análise especial");
+            console.log("🔍 Status da venda:", sale.status);
+            
+            // Verificar se estamos tratando de uma venda que foi retornada
+            if (sale.status === "returned") {
+              console.log("⚠️ PRESERVAÇÃO DE DATA: Venda com status RETURNED detectada!");
+              console.log("✅ SOLUÇÃO DEFINITIVA - Para vendas retornadas com data null:");
+              
+              // Preservar o valor null exatamente como está (MUITO IMPORTANTE!)
+              console.log("🔐 PRESERVAÇÃO CRÍTICA: Mantendo valor null como está");
+              // @ts-ignore - Ignorando erro de tipo, queremos explicitamente passar null aqui
+              form.setValue("date", null);
+              
+              // Definir flag para manuseio especial na interface
+              setOriginalStatus("returned");
+            } else {
+              // Para outros casos não críticos, usar a data atual
+              console.log("🚨 PRESERVAÇÃO DE DATA: Data nula em venda normal, usando data atual");
+              const today = new Date();
+              // Formatar como YYYY-MM-DD para manter consistência
+              const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              console.log("🚨 PRESERVAÇÃO DE DATA: Data atual formatada:", formattedToday);
+              form.setValue("date", formattedToday);
+            }
           } 
           // Se a data já for uma string (PRESERVAR EXATAMENTE COMO VEIO DO BANCO)
           else if (typeof sale.date === 'string') {
@@ -2874,11 +2893,21 @@ export default function SaleDialog({
                     finalFormattedDate = `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}`;
                     console.log("🚨 PRESERVAÇÃO DE DATA: Convertido de Date:", finalFormattedDate);
                   }
-                  // Caso não tenhamos uma data (null/undefined), usar a data atual
+                  // SOLUÇÃO ULTRARROBUSTA MAIO 2025 - PRESERVAÇÃO CRITÍTICA DE NULOS
                   else {
-                    const today = new Date();
-                    finalFormattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                    console.log("🚨 PRESERVAÇÃO DE DATA: Gerada data atual:", finalFormattedDate);
+                    // CASO ESPECIAL: Se for uma venda retornada com data originalmente nula, 
+                    // preservar o valor null para manter consistência com o banco
+                    if (originalStatus === "returned" && sale && sale.date === null) {
+                      console.log("⚠️ PRESERVAÇÃO DE DATA NULL: Detectada venda retornada com data nula");
+                      console.log("✅ SOLUÇÃO FINAL: Preservando valor NULL explicitamente");
+                      finalFormattedDate = null;
+                    } 
+                    // Caso normal: usar a data atual
+                    else {
+                      const today = new Date();
+                      finalFormattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                      console.log("🚨 PRESERVAÇÃO DE DATA: Gerada data atual:", finalFormattedDate);
+                    }
                   }
                   
                   // Monta o objeto manualmente ignorando a validação do Zod

@@ -42,15 +42,28 @@ export function SimpleDateField({
   
   // Ao inicializar ou quando o valor externo mudar, formatar para exibição
   useEffect(() => {
-    // Se ainda não temos um valor original, vamos armazenar
-    if (!isInitialized.current && value !== undefined && value !== null) {
+    // Se ainda não temos um valor original, vamos armazenar (até mesmo se for null)
+    if (!isInitialized.current) {
       originalValue.current = value;
       isInitialized.current = true;
-      console.log('📝 SimpleDateField - Valor original salvo:', value);
+      console.log('📝 SimpleDateField - Valor original salvo (até mesmo null):', value);
     }
     
-    if (!value) {
+    if (value === null || value === undefined || value === '') {
+      // SOLUÇÃO CRÍTICA - Mostrar data atual se for nulo, mas manter valor original como null
+      console.log('⚠️ SimpleDateField - Valor nulo/vazio, exibindo em branco');
       setDisplayValue('');
+      
+      // SOLUÇÃO MAIO 2025: Em modo de edição, fornecer uma data atual
+      if (!readOnly) {
+        const today = new Date();
+        const day = today.getDate().toString().padStart(2, '0');
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        const year = today.getFullYear();
+        const formatted = `${day}/${month}/${year}`;
+        console.log(`✅ SimpleDateField - Valor nulo, sugerindo data atual: ${formatted}`);
+        setDisplayValue(formatted);
+      }
       return;
     }
     
