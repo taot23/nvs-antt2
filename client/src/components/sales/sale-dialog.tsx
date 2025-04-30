@@ -2420,7 +2420,7 @@ export default function SaleDialog({
                                 data-installment-number={index + 1}
                                 placeholder="DD/MM/AAAA"
                                 disabled={shouldBlockFinancialFields()}
-                                className={shouldBlockFinancialFields() ? "bg-gray-100" : ""}
+                                className={shouldBlockFinancialFields() ? "bg-gray-100 w-28" : "w-28"}
                                 defaultValue={typeof date === 'string' ? 
                                   // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
                                   date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
@@ -2487,7 +2487,6 @@ export default function SaleDialog({
                                     console.error("Erro ao converter data:", error);
                                   }
                                 }}
-                                className="w-28"
                               />
                             </TableCell>
                             <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
