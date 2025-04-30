@@ -1367,74 +1367,37 @@ export class DatabaseStorage implements IStorage {
       // Importar o pool do banco de dados diretamente
       const { pool } = await import("./db");
 
-      console.log(`🔵 Buscando parcelas via SQL direto para venda #${saleId}`);
-
-      // Query corrigida considerando a estrutura real das tabelas
+      // Usar SQL puro para obter todas as colunas, incluindo as novas total_price e status
       const result = await pool.query(
-        `SELECT 
-          si.id, 
-          si.sale_id, 
-          si.service_id, 
-          si.service_type_id,
-          si.quantity, 
-          si.notes,
-          'pending' as status, -- Fornecemos um status padrão já que não existe na tabela
-          si.created_at,
-          si.updated_at,
-          si.price,
-          (si.price::numeric * si.quantity) as total_price, -- Calculamos dinamicamente
-          s.name as service_name,
-          si.price as service_price, -- Usamos o preço direto do item ao invés da tabela de serviços
-          s.description as service_description,
-          st.id as service_type_id,
-          st.name as service_type_name
-        FROM 
-          sale_items si
-        LEFT JOIN 
-          services s ON si.service_id = s.id
-        LEFT JOIN 
-          service_types st ON st.id = si.service_type_id
-        WHERE 
-          si.sale_id = $1
-        ORDER BY
-          si.id`,
+        `SELECT * FROM sale_items WHERE sale_id = $1`,
         [saleId],
       );
 
-      console.log(`🔵 Encontradas ${result.rows.length} parcelas para a venda #${saleId}`);
+      console.log("Resultado da consulta de itens:", result.rows);
 
       if (!result.rows || result.rows.length === 0) {
-        console.log(`⚠️ Nenhum item encontrado para a venda #${saleId}`);
         return [];
       }
 
-      console.log(`🔵 Retornando parcelas encontradas no banco`);
-
-      // Mapeia os resultados para o tipo esperado com informações adicionais
+      // Mapeia os resultados para o tipo esperado
       return result.rows.map((row) => {
-        // Usar o preço definido no item, ou o preço padrão do serviço, ou zero
-        const itemPrice = Number(row.price) || Number(row.service_price) || 0;
+        // Calcular o preço total para cada item se não existir na tabela
+        const itemPrice = Number(row.price) || 0;
         const itemQuantity = Number(row.quantity) || 1;
-        
-        // Se tivermos o total_price no banco, usamos ele, senão calculamos
-        const totalItemPrice = row.total_price || (itemPrice * itemQuantity).toString();
 
         return {
           id: row.id,
           saleId: row.sale_id,
           serviceId: row.service_id,
-          // Usar o service_type_id do serviço relacionado
-          serviceTypeId: row.service_type_id || null,
-          // Adicionar nomes para tornar a UI mais rica e evitar problemas
-          serviceName: row.service_name || `Serviço #${row.service_id}`,
-          serviceTypeName: row.service_type_name || null,
+          serviceTypeId: row.service_type_id,
           quantity: row.quantity,
-          price: row.price || row.service_price || "0",
-          totalPrice: totalItemPrice,
+          price: row.price,
+          // Usar o total_price da tabela se existir, senão calcular
+          totalPrice: row.total_price || (itemPrice * itemQuantity).toString(),
           notes: row.notes || null,
+          // Usar o status da tabela se existir, senão usar "pending"
           status: row.status || "pending",
           createdAt: row.created_at,
-          updatedAt: row.updated_at
         } as unknown as SaleItem;
       });
     } catch (error) {

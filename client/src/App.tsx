@@ -110,8 +110,6 @@ const ProtectedFinance = () => {
   );
 };
 
-
-
 const ProtectedCostTypes = () => {
   console.log("Renderizando ProtectedCostTypes");
   return (

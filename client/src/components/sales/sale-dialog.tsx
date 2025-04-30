@@ -7,15 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
-import { StaticSaleItems } from "./static-sale-items";
-
-// SOLUÇÃO ULTRA SIMPLIFICADA 30/04/2025: Novos componentes simples
-import { SimpleDateField } from "./simple-date-field";
-import { SimpleItemsField } from "./simple-items-field";
 import { format, addMonths, isValid } from "date-fns";
-import { formatDateToIso, formatIsoToBrazilian, preserveInstallmentDates } from "@/utils/date-formatter";
-import { sanitizeSaleItems, calculateItemPrices, calculateSaleTotal } from "@/utils/sale-items-utils";
-import { shouldLockFinancialFields, canEditSaleItems } from "./sale-items-loader";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -100,8 +92,6 @@ interface SaleDialogProps {
   readOnly?: boolean;
   renderAdditionalContent?: () => React.ReactNode;
   onSaveSuccess?: () => void;
-  forceReloadItems?: boolean;
-  isReturned?: boolean;
 }
 
 export default function SaleDialog({ 
@@ -111,9 +101,7 @@ export default function SaleDialog({
   saleId,
   readOnly = false,
   renderAdditionalContent,
-  onSaveSuccess,
-  forceReloadItems = false,
-  isReturned = false
+  onSaveSuccess 
 }: SaleDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -434,109 +422,16 @@ export default function SaleDialog({
     return dates;
   };
   
-  // State para controlar se as datas foram carregadas do banco
-  const [datesLoadedFromDB, setDatesLoadedFromDB] = useState(false);
-  
-  // SOLUÇÂO ANTI-PERDA DE DATAS: Verificador de mudança manual
-  const [manuallyChangedDates, setManuallyChangedDates] = useState(false);
-  
-  // Contador de atualizações para evitar ciclos infinitos
-  const installmentUpdateCount = useRef(0);
-  
-  // Efeito para atualizar as datas de vencimento APENAS quando o número de parcelas muda 
-  // ou quando nenhuma data foi carregada do banco ainda
+  // Efeito para atualizar as datas de vencimento quando o número de parcelas muda
   useEffect(() => {
     const installmentsValue = form.getValues("installments");
-    console.log("🔍 VERIFICAÇÃO CRÍTICA - Datas de parcelas:");
-    console.log("  - Parcelas solicitadas:", installmentsValue);
-    console.log("  - Datas carregadas do banco:", datesLoadedFromDB);
-    console.log("  - Datas modificadas manualmente:", manuallyChangedDates);
-    console.log("  - Número de atualizações:", installmentUpdateCount.current);
-    console.log("  - Datas no estado:", installmentDates.length);
-    
-    // SOLUÇÃO ABRIL/2025: PROTEÇÃO PARA NÃO PERDER DATAS EXISTENTES
-    // Verificamos aqui se já temos datas carregadas do banco OU modificadas pelo usuário
-    if (datesLoadedFromDB || manuallyChangedDates) {
-      // Se o número de parcelas DIMINUIU, removemos apenas as parcelas excedentes
-      if (installmentsValue < installmentDates.length) {
-        console.log(`⚠️ PROTEÇÃO DE DADOS: Número de parcelas diminuiu de ${installmentDates.length} para ${installmentsValue}`);
-        
-        // Preservar apenas as primeiras datas
-        const newDates = installmentDates.slice(0, installmentsValue);
-        console.log("✅ PROTEÇÃO DE DADOS: Mantendo apenas as primeiras datas:", newDates);
-        setInstallmentDates(newDates);
-      }
-      // Se o número de parcelas AUMENTOU, adicionamos novas parcelas com base na última
-      else if (installmentsValue > installmentDates.length && installmentDates.length > 0) {
-        console.log(`⚠️ PROTEÇÃO DE DADOS: Número de parcelas aumentou de ${installmentDates.length} para ${installmentsValue}`);
-        
-        const lastDate = installmentDates[installmentDates.length - 1];
-        let baseDate: Date;
-        
-        // Converter a última data para objeto Date para poder adicionar meses
-        if (typeof lastDate === 'string') {
-          // Remover parte de timestamp se existir
-          const simpleDateStr = lastDate.includes('T') ? lastDate.split('T')[0] : lastDate;
-          
-          // Se estiver no formato ISO (YYYY-MM-DD)
-          if (simpleDateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [year, month, day] = simpleDateStr.split('-').map(Number);
-            baseDate = new Date(year, month - 1, day); // Mês em JavaScript é 0-indexed
-          } else {
-            // Fallback: usar a data atual
-            baseDate = new Date();
-          }
-        } else if (lastDate instanceof Date) {
-          baseDate = new Date(lastDate); // Clone para não modificar o original
-        } else {
-          // Fallback: usar a data atual
-          baseDate = new Date();
-        }
-        
-        // Gerar as novas datas a partir da última
-        const newDates = [...installmentDates];
-        
-        for (let i = installmentDates.length; i < installmentsValue; i++) {
-          // Adicionar um mês à data base para cada nova parcela
-          const nextDate = new Date(baseDate);
-          nextDate.setMonth(nextDate.getMonth() + (i - installmentDates.length + 1));
-          
-          // Formatar a data no formato ISO sem timezone
-          const formattedDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
-          
-          newDates.push(formattedDate);
-          console.log(`✅ PROTEÇÃO DE DADOS: Gerada nova data #${i+1}: ${formattedDate}`);
-        }
-        
-        console.log("✅ PROTEÇÃO DE DADOS: Novas datas combinadas:", newDates);
-        setInstallmentDates(newDates);
-      }
-      // Se o número de parcelas é o mesmo, não fazemos nada
-      else if (installmentsValue === installmentDates.length) {
-        console.log("✓ PROTEÇÃO DE DADOS: Número de parcelas não mudou");
-      }
-      // Se não temos datas ainda (caso raro), geramos todas
-      else if (installmentDates.length === 0 && installmentsValue > 0) {
-        console.log("⚠️ PROTEÇÃO DE DADOS: Não temos datas salvas, gerando todas");
-        const dates = generateInstallmentDates(firstDueDate, installmentsValue);
-        setInstallmentDates(dates);
-      }
-    } 
-    // CASO INICIAL: Quando não temos datas carregadas do banco nem modificadas pelo usuário
-    else {
-      if (installmentsValue > 0) {
-        console.log(`🔄 Gerando ${installmentsValue} datas iniciais a partir de ${formatIsoToBrazilian(firstDueDate as string)}`);
-        const dates = generateInstallmentDates(firstDueDate, installmentsValue);
-        setInstallmentDates(dates);
-        
-        // Contamos as atualizações para controle
-        installmentUpdateCount.current += 1;
-      } else {
-        console.log("🔄 Limpando datas (0 parcelas)");
-        setInstallmentDates([]);
-      }
+    if (installmentsValue > 1) {
+      const dates = generateInstallmentDates(firstDueDate, installmentsValue);
+      setInstallmentDates(dates);
+    } else {
+      setInstallmentDates([]);
     }
-  }, [form.watch("installments"), firstDueDate, datesLoadedFromDB, manuallyChangedDates]);
+  }, [form.watch("installments"), firstDueDate]);
   
   // Efeito para monitorar quando a venda muda ou o ID muda
   useEffect(() => {
@@ -551,82 +446,66 @@ export default function SaleDialog({
     }
   }, [sale, saleId]);
 
-  // Função auxiliar para atualizar os itens - Implementação com sanitização
+  // Função auxiliar para atualizar os itens - Implementação Forçada
   const updateFormItems = useCallback((items: any[]) => {
     if (!items || items.length === 0) {
       console.log("🚫 Sem itens para atualizar no formulário");
       return;
     }
     
-    console.log("🔄 SANITIZER: Atualizando itens no formulário:", items);
+    console.log("🔄 FORÇA-RESET: Atualizando itens no formulário:", items);
     
     try {
-      // Usar nosso novo utilitário para sanitizar os itens
-      const sanitizedItems = sanitizeSaleItems(items);
-      console.log("🧹 SANITIZER: Itens após sanitização:", sanitizedItems);
+      // Estratégia otimizada - definir todos os itens de uma vez
+      const formattedItems = items.map((item: SaleItem) => ({
+        serviceId: item.serviceId,
+        serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+        quantity: item.quantity || 1,
+        notes: item.notes || "",
+        price: item.price || "0",
+        totalPrice: item.totalPrice || item.price || "0",
+        status: "pending"
+      }));
       
-      // Remover todos os itens existentes primeiro
-      const currentItems = fields || [];
-      if (currentItems.length > 0) {
-        console.log(`🧹 SANITIZER: Removendo ${currentItems.length} itens existentes`);
-        
-        // Use o método remove para cada item, começando do final para não afetar os índices
-        for (let i = currentItems.length - 1; i >= 0; i--) {
-          remove(i);
-        }
-        
-        // Garantir que o formulário reconheça a remoção
-        form.setValue("items", []);
-      }
+      // Define diretamente os itens no formulário, sem operações individuais de remoção/adição
+      form.setValue("items", formattedItems);
       
-      // Pequeno delay para garantir que a limpeza foi processada
+      console.log("✅ FORÇA-RESET: Todos os itens foram atualizados com uma única operação");
+      
+      // Limpa os campos anteriores e adiciona os novos
       setTimeout(() => {
-        // Adicionar os novos itens sanitizados
-        console.log(`🧹 SANITIZER: Adicionando ${sanitizedItems.length} itens sanitizados`);
-        
-        // Usar um método seguro de adição de itens
-        sanitizedItems.forEach(item => {
-          append({
-            serviceId: item.serviceId,
-            quantity: item.quantity || 1,
-            notes: item.notes || ""
+        const currentItems = fields || [];
+        if (currentItems.length > 0) {
+          // Remove todos os itens existentes
+          for (let i = currentItems.length - 1; i >= 0; i--) {
+            remove(i);
+          }
+          
+          // Adiciona os novos itens em uma nova chamada
+          setTimeout(() => {
+            formattedItems.forEach(item => {
+              append(item);
+            });
+          }, 50);
+        } else {
+          // Se não tiver itens, apenas adiciona
+          formattedItems.forEach(item => {
+            append(item);
           });
-        });
-        
-        console.log("✅ SANITIZER: Itens atualizados com sucesso!");
-      }, 100);
+        }
+      }, 10);
+      
     } catch (error) {
-      console.error("❌ ERRO ao atualizar itens:", error);
+      console.error("❌ FORÇA-RESET: Erro ao atualizar itens:", error);
     }
-  }, [form, fields, append, remove]);
+  }, [form, sale, fields, remove, append]);
   
   // Controle para execução única da atualização de itens
   const itemsWereProcessed = useRef(false);
   const [renderReady, setRenderReady] = useState(false);
   
-  // VERSÃO ANTI-FLICKERING 29/04/2025 - Sistema isolado de gestão de itens com sanitização e memorização
-  
-  // Memorizar os itens sanitizados para evitar re-renderizações desnecessárias
-  const memoizedSanitizedItems = useMemo(() => {
-    // Só processamos se temos dados válidos
-    if (!saleItems || saleItems.length === 0) {
-      console.log("🧠 MEMO: Sem itens para memorizar");
-      return [];
-    }
-    
-    console.log("🧠 MEMO: Sanitizando e memorizando", saleItems.length, "itens");
-    try {
-      // Aplicamos a sanitização
-      const sanitized = sanitizeSaleItems(saleItems);
-      console.log("🧠 MEMO: Itens sanitizados e memorizados com sucesso");
-      return sanitized;
-    } catch (error) {
-      console.error("🧠 MEMO: Erro durante sanitização:", error);
-      return [];
-    }
-  }, [saleItems]); // Só recalcula quando saleItems mudar
-  
-  // Controle refinado de renderização para evitar flickering
+  // ABORDAGEM TOTALMENTE NOVA: Sistema isolado de gestão de itens
+  // Este efeito roda apenas UMA vez por abertura de diálogo, usando um cache para evitar problemas
   useEffect(() => {
     // Não fazemos nada se o diálogo não estiver aberto
     if (!open) {
@@ -635,63 +514,106 @@ export default function SaleDialog({
       return;
     }
     
-    // Se temos o sinalizador forceReloadItems, resetamos o estado de processamento
-    if (forceReloadItems && itemsWereProcessed.current) {
-      console.log("🔄 MEMO-CONTROLLER: Recarregamento forçado detectado");
-      itemsWereProcessed.current = false;
-    }
-    
-    // Verificamos se temos os itens memorizados para processar
-    const canProcessItems = memoizedSanitizedItems.length > 0 && !isLoadingItems;
-    
-    console.log("🧠 MEMO-CONTROLLER: Estado do processamento:", {
-      open,
-      hasMemoizedItems: memoizedSanitizedItems.length > 0,
-      itemCount: memoizedSanitizedItems.length,
+    // Verificar se temos tudo o que precisamos para processar os itens
+    const canProcessItems = sale && saleItems && saleItems.length > 0 && !isLoadingItems;
+    console.log("⚙️ NOVA ABORDAGEM - Verificando se pode processar itens:", {
+      open, 
+      hasSale: !!sale, 
+      hasSaleItems: !!saleItems, 
+      itemCount: saleItems?.length || 0,
       isLoading: isLoadingItems,
       alreadyProcessed: itemsWereProcessed.current,
       canProcess: canProcessItems && !itemsWereProcessed.current
     });
     
-    // Se não podemos processar ou já processamos, cancelamos
+    // Se não temos o que precisamos ou já processamos, cancelamos
     if (!canProcessItems || itemsWereProcessed.current) {
       return;
     }
     
-    console.log("🔄 MEMO-CONTROLLER: Iniciando atualização controlada de itens");
+    console.log("🔄 NOVA ABORDAGEM - Iniciando processamento isolado de itens");
     
     // Marcamos que estamos processando para evitar duplicações
     itemsWereProcessed.current = true;
+    setRenderReady(false);
     
-    // ANTI-FLICKERING: Não desativamos renderReady, apenas atualizamos os dados
-    // Isso impede que o componente pisque durante atualizações
+    // Função para implementar sleep
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
     
-    // Usar o método seguro de atualização com os itens memorizados
-    try {
-      // Usar o método atualizado com um breve delay para sincronização
-      setTimeout(() => {
-        // SOLUÇÃO ANTI-FLICKERING: Usar dados memorizados e não reprocessar
-        updateFormItems(memoizedSanitizedItems);
+    // Função assíncrona para processar os itens em sequência controlada
+    const processItems = async () => {
+      try {
+        console.log("🧹 NOVA ABORDAGEM - Limpeza e preparação");
         
-        console.log("✅ MEMO-CONTROLLER: Atualização completa sem flickering");
-        // Ativar a renderização sempre ao final
+        // Preparar os dados dos itens novos
+        const preparedItems = saleItems.map((item: SaleItem) => ({
+          serviceId: item.serviceId,
+          serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
+          quantity: item.quantity || 1,
+          notes: item.notes || "",
+          price: item.price || "0",
+          totalPrice: item.totalPrice || item.price || "0",
+          status: "pending"
+        }));
+        
+        // ETAPA 1: Limpeza total de itens anteriores
+        console.log("🧹 NOVA ABORDAGEM - Etapa 1: Remover todos os itens anteriores");
+        const currentItems = fields || [];
+        for (let i = currentItems.length - 1; i >= 0; i--) {
+          remove(i);
+        }
+        
+        // Aguardar para garantir que a limpeza foi concluída
+        await sleep(100);
+        
+        // ETAPA 2: Definir valor no form para o novo array
+        console.log("🧹 NOVA ABORDAGEM - Etapa 2: Atribuição direta no formulário");
+        form.setValue("items", []);
+        
+        // Novamente aguardar para garantir processamento
+        await sleep(100);
+        
+        // ETAPA 3: Adicionar novos itens em sequência controlada
+        console.log("🧹 NOVA ABORDAGEM - Etapa 3: Adicionar itens em sequência controlada");
+        for (let i = 0; i < preparedItems.length; i++) {
+          append(preparedItems[i]);
+          // Pequeno intervalo entre operações
+          await sleep(50);
+        }
+        
+        // ETAPA 4: Verificação final e conclusão
+        console.log("🧹 NOVA ABORDAGEM - Etapa 4: Verificação e finalização");
+        await sleep(100);
+        
+        const formItems = form.getValues("items");
+        console.log("🧹 NOVA ABORDAGEM - Verificação do estado final: ", {
+          novosItens: preparedItems.length,
+          camposFormulario: fields.length,
+          valoresFormulario: formItems?.length || 0
+        });
+        
+        // Ativar a renderização
+        console.log("✅ NOVA ABORDAGEM - Processamento completo, ativando renderização");
         setRenderReady(true);
-      }, 0);
-    } catch (error) {
-      console.error("❌ MEMO-CONTROLLER: Erro durante atualização:", error);
-      // Em caso de erro, ainda ativamos a renderização
-      setRenderReady(true);
-    }
+      } catch (error) {
+        console.error("❌ NOVA ABORDAGEM - Erro durante processamento de itens:", error);
+        // Em caso de erro, ainda tentamos ativar a renderização
+        setRenderReady(true);
+      }
+    };
+    
+    // Iniciar o processamento assíncrono
+    processItems();
     
     // Limpar estado quando o diálogo fechar
     return () => {
       if (!open) {
         itemsWereProcessed.current = false;
         setRenderReady(false);
-        console.log("🧹 MEMO-CONTROLLER: Limpeza ao fechar diálogo");
+        console.log("🧹 NOVA ABORDAGEM - Limpeza ao fechar diálogo");
       }
     };
-  }, [open, memoizedSanitizedItems, isLoadingItems, fields.length, forceReloadItems, updateFormItems]);
+  }, [open, sale?.id, saleItems, isLoadingItems, fields.length]);
   
   // Função auxiliar para obter o nome do serviço pelo ID
   const getServiceNameById = (serviceId: number): string => {
@@ -765,75 +687,10 @@ export default function SaleDialog({
           console.log("- Definindo orderNumber:", sale.orderNumber);
           form.setValue("orderNumber", sale.orderNumber || "");
           
-          // Data - SOLUÇÃO 29/04/2025: Preservar o formato original
-          console.log("🚨 PRESERVAÇÃO DE DATA: Processando data da venda", {
-            rawDate: sale.date,
-            type: typeof sale.date,
-            isNull: sale.date === null
-          });
-          
-          // SOLUÇÃO ULTRARROBUSTA FINAL - MAIO 2025:
-          // Se a data for null ou undefined, verificar se é uma venda retornada
-          if (sale.date === null || sale.date === undefined) {
-            console.log("🚨 PRESERVAÇÃO DE DATA: Data nula/indefinida - necessária análise especial");
-            console.log("🔍 Status da venda:", sale.status);
-            
-            // Verificar se estamos tratando de uma venda que foi retornada
-            if (sale.status === "returned") {
-              console.log("⚠️ PRESERVAÇÃO DE DATA: Venda com status RETURNED detectada!");
-              console.log("✅ SOLUÇÃO DEFINITIVA - Para vendas retornadas com data null:");
-              
-              // Preservar o valor null exatamente como está (MUITO IMPORTANTE!)
-              console.log("🔐 PRESERVAÇÃO CRÍTICA: Mantendo valor null como está");
-              // @ts-ignore - Ignorando erro de tipo, queremos explicitamente passar null aqui
-              form.setValue("date", null);
-              
-              // Definir flag para manuseio especial na interface
-              setOriginalStatus("returned");
-            } else {
-              // Para outros casos não críticos, usar a data atual
-              console.log("🚨 PRESERVAÇÃO DE DATA: Data nula em venda normal, usando data atual");
-              const today = new Date();
-              // Formatar como YYYY-MM-DD para manter consistência
-              const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-              console.log("🚨 PRESERVAÇÃO DE DATA: Data atual formatada:", formattedToday);
-              form.setValue("date", formattedToday);
-            }
-          } 
-          // Se a data já for uma string (PRESERVAR EXATAMENTE COMO VEIO DO BANCO)
-          else if (typeof sale.date === 'string') {
-            // Remover parte de timestamp se existir
-            let cleanDate = sale.date;
-            if (cleanDate.includes('T')) {
-              cleanDate = cleanDate.split('T')[0];
-            }
-            console.log("🚨 PRESERVAÇÃO DE DATA: Usando string original limpa:", cleanDate);
-            form.setValue("date", cleanDate);
-          }
-          // Último caso: se por algum motivo for um objeto que parece uma data
-          else if (sale.date && typeof sale.date === 'object' && 'getFullYear' in sale.date) {
-            try {
-              // Converter para string YYYY-MM-DD
-              const dateObj = sale.date as Date;
-              const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-              console.log("🚨 PRESERVAÇÃO DE DATA: Usando objeto Date convertido para string:", formattedDate);
-              form.setValue("date", formattedDate);
-            } catch (err) {
-              console.error("❌ ERRO AO PROCESSAR OBJETO DATE:", err);
-              // Em caso de erro, usar data atual como fallback
-              const today = new Date();
-              const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-              console.log("🚨 PRESERVAÇÃO DE DATA: Fallback para data atual:", formattedToday);
-              form.setValue("date", formattedToday);
-            }
-          }
-          // Fallback final para qualquer outro caso
-          else {
-            console.log("🚨 PRESERVAÇÃO DE DATA: Usando data atual como fallback");
-            const today = new Date();
-            const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            form.setValue("date", formattedToday);
-          }
+          // Data
+          const dateValue = sale.date ? new Date(sale.date) : new Date();
+          console.log("- Definindo date:", dateValue);
+          form.setValue("date", dateValue);
           
           // Cliente
           console.log("- Definindo customerId:", Number(sale.customerId));
@@ -974,19 +831,80 @@ export default function SaleDialog({
           }
         }
         
-        // ABRIL 2025 - SOLUÇÃO DEFINITIVA
-        // Usar função especializada para preservar as datas exatamente como estão no banco
-        console.log("🚀 USANDO NOVA SOLUÇÃO preserveInstallmentDates() - Abril 2025");
-        const dates = preserveInstallmentDates(sortedInstallments);
-        console.log("✅ DATAS PRESERVADAS do banco de dados:", dates);
+        // Carregamos todas as datas de vencimento das parcelas existentes como strings YYYY-MM-DD
+        const dates = sortedInstallments.map((installment: any) => {
+          console.log("🛑 CORREÇÃO FINAL - Data do banco (parcela):", installment.dueDate);
+          
+          // CORREÇÃO ABRIL 2025 - PROBLEMA DE FORMATO DE DATA
+          // Usar a data exatamente como está no banco de dados sem nenhuma conversão
+          if (typeof installment.dueDate === 'string') {
+            // Se já for string, usar diretamente (pode ser YYYY-MM-DD ou com T)
+            let rawDate = installment.dueDate;
+            
+            // Se tiver T00:00:00, remover
+            if (rawDate.includes('T')) {
+              rawDate = rawDate.split('T')[0];
+            }
+            
+            // Verificar se está no formato ISO (YYYY-MM-DD)
+            if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              console.log("✅ SOLUÇÃO DEFINITIVA - Data ISO válida:", rawDate);
+              return rawDate;
+            } else {
+              console.log("⚠️ FORMATO INVÁLIDO - Tentando converter manualmente:", rawDate);
+              
+              // Se não for ISO, tente extrair os componentes da data
+              const parts = rawDate.split(/[-/]/);
+              if (parts.length === 3) {
+                // Verificar se o primeiro componente parece ser um ano (4 dígitos)
+                if (parts[0].length === 4) {
+                  // Já está no formato YYYY-MM-DD ou similar
+                  const fixedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                  console.log("✅ SOLUÇÃO DEFINITIVA - Data corrigida:", fixedDate);
+                  return fixedDate;
+                } else {
+                  // Formato DD/MM/YYYY ou similar
+                  const fixedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  console.log("✅ SOLUÇÃO DEFINITIVA - Data corrigida de DD/MM/YYYY:", fixedDate);
+                  return fixedDate;
+                }
+              }
+              
+              // Fallback - usar a data original
+              return rawDate;
+            }
+          } else {
+            // Se for um objeto Date, converter cuidadosamente para string ISO
+            try {
+              // Garantir que temos uma data válida
+              const date = new Date(installment.dueDate);
+              if (isNaN(date.getTime())) {
+                throw new Error("Data inválida");
+              }
+              
+              // SUPER CORREÇÃO: Usar os valores brutos da data sem ajuste de timezone
+              const year = date.getFullYear();
+              const month = date.getMonth() + 1; // Mês começa em 0
+              const day = date.getDate();
+              
+              // Verificar se os valores são números válidos
+              if (isNaN(year) || isNaN(month) || isNaN(day) || year < 2000 || year > 2050) {
+                throw new Error("Componentes de data inválidos");
+              }
+              
+              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              console.log("✅ SOLUÇÃO DEFINITIVA - Data convertida com segurança:", formattedDate);
+              return formattedDate;
+            } catch (error) {
+              console.error("❌ ERRO AO CONVERTER DATA:", error);
+              console.log("⚠️ FALLBACK - Usando string ISO da data atual");
+              return new Date().toISOString().split('T')[0];
+            }
+          }
+        });
         
-        // Atualizar o estado com as datas preservadas
+        console.log("🛑 CORREÇÃO FINAL - Datas das parcelas após processamento:", dates);
         setInstallmentDates(dates);
-        
-        // SOLUÇÃO ABRIL 2025: Marcar que as datas foram carregadas do banco
-        // Isso evita que elas sejam sobrescritas quando o número de parcelas mudar
-        console.log("🔒 PROTEÇÃO DE DADOS: Marcando que datas foram carregadas do banco");
-        setDatesLoadedFromDB(true);
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
       }
@@ -996,57 +914,6 @@ export default function SaleDialog({
     }
   }, [sale, saleItems, saleInstallments, customers, users, form]);
   
-  // Função para atualizar os itens da venda usando o utilitário sanitizeSaleItems
-  const updateSaleItems = useCallback((items: any[] = []) => {
-    if (!items || items.length === 0) {
-      console.log("🔄 Sem itens para atualizar");
-      return;
-    }
-
-    console.log("🔄 Atualizando itens usando sanitizeSaleItems:", items);
-    
-    // Use o utilitário para garantir formato consistente
-    const sanitizedItems = sanitizeSaleItems(items);
-    console.log("🔄 Itens sanitizados:", sanitizedItems);
-    
-    // Limpar o formulário completamente antes de adicionar novos itens
-    // para evitar duplicação ou mistura de estados
-    try {
-      // Remover todos os itens existentes
-      const currentItems = form.getValues("items") || [];
-      if (currentItems.length > 0) {
-        console.log(`🔄 Removendo ${currentItems.length} itens existentes`);
-        
-        // Use o método remove para cada item, começando do final para não afetar os índices
-        for (let i = fields.length - 1; i >= 0; i--) {
-          remove(i);
-        }
-        
-        // Garantir que o formulário reconheça a remoção
-        form.setValue("items", []);
-      }
-      
-      // Pequeno delay para garantir que a limpeza foi processada
-      setTimeout(() => {
-        // Adicionar os novos itens sanitizados
-        console.log(`🔄 Adicionando ${sanitizedItems.length} itens sanitizados`);
-        
-        // Usar um método seguro de adição de itens
-        sanitizedItems.forEach(item => {
-          append({
-            serviceId: item.serviceId,
-            quantity: item.quantity || 1,
-            notes: item.notes || ""
-          });
-        });
-        
-        console.log("✅ Itens atualizados com sucesso!");
-      }, 50);
-    } catch (error) {
-      console.error("❌ Erro ao atualizar itens:", error);
-    }
-  }, [form, fields.length, append, remove]);
-
   // Função para adicionar um item à venda
   const handleAddItem = () => {
     // Validação básica
@@ -1268,14 +1135,9 @@ export default function SaleDialog({
         installmentDatesToSend = generateInstallmentDates(firstDate, data.installments).map(date => {
           if (typeof date === 'string') {
             return date;
-          } else if (date && typeof date === 'object' && 'getFullYear' in date) {
-            // Converter Date para string YYYY-MM-DD sem ajuste de timezone
-            const dateObj = date as Date;
-            return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
           } else {
-            // Fallback para o caso de date não ser nem string nem Date
-            console.warn("Data em formato inesperado:", date);
-            return new Date().toISOString().split('T')[0]; // Retorna a data atual como fallback
+            // Converter Date para string YYYY-MM-DD sem ajuste de timezone
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
           }
         });
         console.log(`⚠️ SOLUÇÃO DEFINITIVA: Geradas ${installmentDatesToSend.length} novas datas para ${data.installments} parcelas`);
@@ -1341,10 +1203,9 @@ export default function SaleDialog({
                 if (typeof stateDate === 'string') {
                   // Se já é string, usar diretamente
                   isoDate = stateDate.includes('T') ? stateDate.split('T')[0] : stateDate;
-                } else if (stateDate && typeof stateDate === 'object' && 'getFullYear' in stateDate) {
+                } else if (stateDate instanceof Date) {
                   // Converter Date para string YYYY-MM-DD
-                  const dateObj = stateDate as Date;
-                  isoDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+                  isoDate = `${stateDate.getFullYear()}-${String(stateDate.getMonth() + 1).padStart(2, '0')}-${String(stateDate.getDate()).padStart(2, '0')}`;
                 }
                 
                 if (isoDate) {
@@ -1404,10 +1265,9 @@ export default function SaleDialog({
           if (typeof date === 'string') {
             // Se já é string, normalizar para YYYY-MM-DD
             return date.includes('T') ? date.split('T')[0] : date;
-          } else if (date && typeof date === 'object' && 'getFullYear' in date) {
+          } else if (date instanceof Date) {
             // Converter Date para string YYYY-MM-DD
-            const dateObj = date as Date;
-            return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
           }
           // Caso não seja string nem Date, retornar null (será filtrado depois)
           return null;
@@ -1465,7 +1325,6 @@ export default function SaleDialog({
         formattedData.installmentDates = generatedDates;
       }
       
-      // @ts-ignore - A propriedade installmentDates é adicionada dinamicamente
       console.log("📆 Datas de parcelas finais:", formattedData.installmentDates);
       
       // 🚀🚀🚀 ULTRA BYPASS (27/04/2025): 
@@ -1534,9 +1393,7 @@ export default function SaleDialog({
         description: sale ? "Venda atualizada com sucesso" : "Venda criada com sucesso",
       });
       setIsSubmitting(false);
-      if (onSaveSuccess) {
-        onSaveSuccess();
-      }
+      onSaveSuccess();
     },
     onError: (error: Error) => {
       toast({
@@ -1642,7 +1499,7 @@ export default function SaleDialog({
         }
         
         // Solução #3: Verificar a última seleção conhecida do usuário
-        const selectedInField = (field: string): string | null => {
+        const selectedInField = field => {
           try {
             const selectElement = document.getElementById(field) as HTMLSelectElement;
             return selectElement ? selectElement.value : null;
@@ -1758,8 +1615,7 @@ export default function SaleDialog({
         // Observe que estamos usando validatedInstallments diretamente e não values.installments
         installments: Number(validatedInstallments),
         // Também garantimos que qualquer valor de parcela seja formato corretamente
-        // @ts-ignore - A propriedade installmentValue pode não estar definida no tipo, mas é usada pelo backend
-        installmentValue: (values as any).installmentValue ? String((values as any).installmentValue).replace(',', '.') : null,
+        installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
         // Corrige os itens
         items: values.items.map(item => ({
           ...item,
@@ -1860,22 +1716,51 @@ export default function SaleDialog({
                 )}
               />
               
-              {/* NOVO COMPONENTE ULTRA SIMPLIFICADO - 30/04/2025 */}
+              {/* Data - Versão apenas com campo de texto */}
               <FormField
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <SimpleDateField
-                    value={field.value}
-                    label="Data da Venda"
-                    readOnly={readOnly}
-                    // SOLUÇÃO MAIO 2025: Usar preserveNull para vendas retornadas com data NULL
-                    preserveNull={sale && sale.status === 'returned' && sale.date === null}
-                    onChange={(isoDate) => {
-                      console.log("🔄 Data selecionada:", isoDate);
-                      field.onChange(isoDate);
-                    }}
-                  />
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Data
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="text"
+                        placeholder="DD/MM/AAAA" 
+                        defaultValue={new Date().toLocaleDateString('pt-BR')}
+                        onChange={(e) => {
+                          const input = e.target.value;
+                          console.log("Input data:", input);
+                          
+                          // Se o campo estiver vazio, define como null
+                          if (!input || input.trim() === '') {
+                            console.log("Campo vazio, definindo como null");
+                            field.onChange(null);
+                            return;
+                          }
+                          
+                          // Formatação para permitir apenas números e barras
+                          const formattedInput = input.replace(/[^\d\/]/g, '');
+                          
+                          // Se o usuário digitou no formato DD/MM/AAAA, converte para YYYY-MM-DD internamente
+                          if (formattedInput.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                            const [day, month, year] = formattedInput.split('/');
+                            const dateString = `${year}-${month}-${day}`;
+                            console.log("Convertendo para formato ISO:", dateString);
+                            field.onChange(dateString);
+                          } else {
+                            // Caso contrário, mantém o valor como string para permitir a digitação
+                            console.log("Mantendo formato de digitação:", formattedInput);
+                            field.onChange(formattedInput);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
             </div>
@@ -2145,10 +2030,9 @@ export default function SaleDialog({
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))}
                       value={field.value ? field.value.toString() : "0"}
-                      disabled={readOnly || shouldLockFinancialFields(sale)}
                     >
                       <FormControl>
-                        <SelectTrigger className={shouldLockFinancialFields(sale) ? "bg-gray-100" : ""}>
+                        <SelectTrigger>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
@@ -2160,11 +2044,6 @@ export default function SaleDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    {shouldLockFinancialFields(sale) && (
-                      <FormDescription className="text-amber-600 text-xs mt-1">
-                        Campo bloqueado pois o financeiro já iniciou a tratativa
-                      </FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2214,17 +2093,10 @@ export default function SaleDialog({
                     </FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="0,00"
-                        disabled={readOnly || shouldLockFinancialFields(sale)}
-                        style={{backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
+                        placeholder="0,00" 
                         {...field} 
                       />
                     </FormControl>
-                    {shouldLockFinancialFields(sale) && (
-                      <FormDescription className="text-amber-600 text-xs mt-1">
-                        Campo bloqueado pois o financeiro já iniciou a tratativa
-                      </FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2294,10 +2166,9 @@ export default function SaleDialog({
                         }
                       }}
                       value={field.value ? String(field.value) : "1"}
-                      disabled={readOnly || shouldLockFinancialFields(sale)}
                     >
                       <FormControl>
-                        <SelectTrigger className={shouldLockFinancialFields(sale) ? "bg-gray-100" : ""}>
+                        <SelectTrigger>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
@@ -2309,11 +2180,6 @@ export default function SaleDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    {shouldLockFinancialFields(sale) && (
-                      <FormDescription className="text-amber-600 text-xs mt-1">
-                        Campo bloqueado pois o financeiro já iniciou a tratativa
-                      </FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2346,10 +2212,8 @@ export default function SaleDialog({
                     </TableHeader>
                     <TableBody>
                       {installmentDates.map((date, index) => {
-                        // Obter o valor total com tratamento seguro para evitar erro "possibly undefined"
-                        const totalAmountValue = form.getValues("totalAmount") || "0";
-                        const installmentAmount = totalAmountValue 
-                          ? (parseFloat(totalAmountValue.replace(",", ".")) / installmentDates.length).toFixed(2)
+                        const installmentAmount = form.getValues("totalAmount") 
+                          ? (parseFloat(form.getValues("totalAmount").replace(",", ".")) / installmentDates.length).toFixed(2)
                           : "0.00";
                         
                         return (
@@ -2362,12 +2226,11 @@ export default function SaleDialog({
                                 data-installment-date
                                 data-installment-number={index + 1}
                                 placeholder="DD/MM/AAAA"
-                                disabled={readOnly || shouldLockFinancialFields(sale)}
-                                style={{width: "112px", backgroundColor: shouldLockFinancialFields(sale) ? "#f3f4f6" : "white"}}
-                                // SOLUÇÃO DEFINITIVA - ABRIL 2025
-                                // Mostra a data exatamente como vem do banco no formato brasileiro
-                                // Ignora qualquer transformação ou arredondamento
-                                value={formatIsoToBrazilian(date)}
+                                defaultValue={typeof date === 'string' ? 
+                                  // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
+                                  date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
+                                  // Se for objeto Date, formatar normalmente
+                                  : format(date, "dd/MM/yyyy")}
                                 onChange={(e) => {
                                   try {
                                     console.log(`🔄 Processando entrada de data: "${e.target.value}"`);
@@ -2380,7 +2243,7 @@ export default function SaleDialog({
                                       const year = parseInt(parts[2].length === 2 ? `20${parts[2]}` : parts[2]); // Permite anos com 2 ou 4 dígitos
                                       
                                       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                        // APRIMORAMENTO 29/04/2025: Garantir datas no formato ISO
+                                        // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
                                         // Armazena a data como string YYYY-MM-DD para evitar problemas de timezone
                                         const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                         console.log(`✅ SOLUÇÃO FINAL: Data preservada exatamente como digitada: ${fixedDate}`);
@@ -2396,10 +2259,6 @@ export default function SaleDialog({
                                         
                                         // Atualizar diretamente o atributo para captura
                                         e.target.setAttribute('data-final-date', fixedDate);
-                                        
-                                        // SOLUÇÃO 29/04/2025: Marcar que as datas foram modificadas manualmente
-                                        // Isso é crucial para evitar que sejam recalculadas automaticamente
-                                        setManuallyChangedDates(true);
                                       } else {
                                         console.log(`⚠️ Números inválidos: dia=${day}, mês=${month+1}, ano=${year}`);
                                       }
@@ -2412,7 +2271,7 @@ export default function SaleDialog({
                                         const day = parseInt(parts[2]);
                                         
                                         if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                                          // APRIMORAMENTO 29/04/2025: Garantir datas no formato ISO
+                                          // APRIMORAMENTO 26/04/2025: Garantir datas no formato ISO
                                           const fixedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                           console.log(`✅ SOLUÇÃO FINAL: Data preservada do formato ISO: ${fixedDate}`);
                                           
@@ -2426,9 +2285,6 @@ export default function SaleDialog({
                                           
                                           // Atualizar diretamente o atributo para captura
                                           e.target.setAttribute('data-final-date', fixedDate);
-                                          
-                                          // SOLUÇÃO 29/04/2025: Marcar que as datas foram modificadas manualmente
-                                          setManuallyChangedDates(true);
                                         }
                                       }
                                     }
@@ -2436,6 +2292,7 @@ export default function SaleDialog({
                                     console.error("Erro ao converter data:", error);
                                   }
                                 }}
+                                className="w-28"
                               />
                             </TableCell>
                             <TableCell>R$ {installmentAmount.replace(".", ",")}</TableCell>
@@ -2452,28 +2309,26 @@ export default function SaleDialog({
             <FormField
               control={form.control}
               name="notes"
-              render={({ field }) => {
-                return (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <AlignLeft className="h-4 w-4" />
-                      Observações
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Observações adicionais sobre a venda"
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <AlignLeft className="h-4 w-4" />
+                    Observações
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Observações adicionais sobre a venda"
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
             
             {/* Campo especial de observações para vendas devolvidas - DESTACADO E MELHORADO */}
-            {/* Debug do status para correção - {originalStatus} */}
+            {console.log("🔴 RENDERIZAÇÃO: Status original =", originalStatus, "- Condição campo correção:", originalStatus === "returned")}
             {originalStatus === "returned" && (
               <div className="space-y-2 mt-4 border-2 border-blue-600 pl-4 pr-4 pt-3 pb-3 bg-blue-50 rounded-md">
                 <div className="flex items-center gap-2 mb-2">
@@ -2488,7 +2343,7 @@ export default function SaleDialog({
                     <p className="text-sm text-red-700 mt-1">{sale.returnReason}</p>
                   </div>
                 )}
-                {/* Log de renderização do campo de correção */}
+                {console.log("🔴 CAMPO DE CORREÇÃO SENDO RENDERIZADO!")}
                 <FormLabel className="text-sm font-medium text-blue-800">
                   Observações sobre as correções realizadas:
                 </FormLabel>
@@ -2662,52 +2517,64 @@ export default function SaleDialog({
                 </Button>
               </div>
               
-              {/* VERSÃO SIMPLIFICADA - Resolução de problemas 30/04/2025 */}
+              {/* Lista de itens da venda - SOLUÇÃO DEFINITIVA PARA FLICKERING */}
               <div className="space-y-2 max-h-52 overflow-y-auto">
-                {(() => {
-                  // Preparar os itens para o componente estático de maneira simplificada
-                  let itemsToRender: any[] = [];
+                {/* RENDERIZAÇÃO ESTÁTICA ANTI-FLICKERING: Usa React.useMemo para evitar re-renderizações */}
+                {React.useMemo(() => {
+                  console.log("🔵 RENDERIZANDO ITENS: total=" + (fields?.length || 0));
                   
-                  // Extrair itens do formulário atual
-                  if (fields && fields.length > 0) {
-                    console.log("🛠️ Renderizando", fields.length, "itens do formulário");
-                    
-                    try {
-                      const formValues = form.getValues();
-                      
-                      itemsToRender = fields.map((field, index) => {
-                        const item = formValues.items?.[index];
+                  if (fields.length === 0) {
+                    return (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                        <p>Nenhum item adicionado</p>
+                        <p className="text-xs">Utilize o formulário acima para adicionar itens</p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-2">
+                      {fields.map((field, index) => {
+                        // Obtém o item do FormArray
+                        const item = form.getValues(`items.${index}`) as SaleItem;
                         if (!item) return null;
                         
-                        // Encontrar o serviço correspondente
+                        // Encontra o nome do serviço
                         const service = services.find((s: any) => s.id === item.serviceId);
                         const serviceName = service?.name || `Serviço #${item.serviceId}`;
                         
-                        return {
-                          id: field.id,
-                          serviceId: item.serviceId,
-                          serviceName,
-                          quantity: item.quantity,
-                          notes: item.notes
-                        };
-                      }).filter(Boolean);
-                    } catch (error) {
-                      console.error("Erro ao extrair itens:", error);
-                    }
-                  }
-                  
-                  // Renderizar com o novo componente ultra simples
-                  return (
-                    <SimpleItemsField
-                      items={itemsToRender}
-                      onRemove={(index) => {
-                        console.log("Removendo item índice", index);
-                        remove(index);
-                      }}
-                      isReadOnly={readOnly}
-                    />
+                        // Renderiza cada item como um card separado
+                        return (
+                          <div key={field.id} className="rounded-md border p-3 relative">
+                            <div className="flex justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium">{serviceName}</h4>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span>Quantidade: {item.quantity}</span>
+                                </div>
+                                {item.notes && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    <span className="font-medium">Observações:</span> {item.notes}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900"
+                                onClick={() => remove(index)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   );
-                })()}
+                }, [fields, services, remove])}
               </div>
             </div>
             
@@ -2871,53 +2738,11 @@ export default function SaleDialog({
                     console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
                   }
                   
-                  // SUPER-IMPORTANTE: Garantir o formato correto da data FINAL
-                  let finalFormattedDate;
-                  
-                  // SOLUÇÃO 29/04/2025 - PRESERVAÇÃO FORÇADA DE DATA
-                  console.log("🚨 VERIFICAÇÃO FINAL DA DATA DA VENDA:", {
-                    rawValue: values.date,
-                    type: typeof values.date
-                  });
-                  
-                  // Se a data já é uma string, usamos diretamente (já foi formatada anteriormente)
-                  if (typeof values.date === 'string') {
-                    // Remover parte de timestamp se existir
-                    finalFormattedDate = values.date.includes('T') 
-                      ? values.date.split('T')[0] 
-                      : values.date;
-                      
-                    console.log("🚨 PRESERVAÇÃO DE DATA: Usando string diretamente:", finalFormattedDate);
-                  }
-                  // Se é um objeto Date, formatamos manualmente
-                  else if (values.date instanceof Date) {
-                    // Garantir o formato YYYY-MM-DD sem ajuste de timezone
-                    finalFormattedDate = `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}`;
-                    console.log("🚨 PRESERVAÇÃO DE DATA: Convertido de Date:", finalFormattedDate);
-                  }
-                  // SOLUÇÃO ULTRARROBUSTA MAIO 2025 - PRESERVAÇÃO CRITÍTICA DE NULOS
-                  else {
-                    // CASO ESPECIAL: Se for uma venda retornada com data originalmente nula, 
-                    // preservar o valor null para manter consistência com o banco
-                    if (originalStatus === "returned" && sale && sale.date === null) {
-                      console.log("⚠️ PRESERVAÇÃO DE DATA NULL: Detectada venda retornada com data nula");
-                      console.log("✅ SOLUÇÃO FINAL: Preservando valor NULL explicitamente");
-                      finalFormattedDate = null;
-                    } 
-                    // Caso normal: usar a data atual
-                    else {
-                      const today = new Date();
-                      finalFormattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                      console.log("🚨 PRESERVAÇÃO DE DATA: Gerada data atual:", finalFormattedDate);
-                    }
-                  }
-                  
                   // Monta o objeto manualmente ignorando a validação do Zod
                   const saleData = {
                     // CORREÇÃO CRÍTICA: Usar o número da ordem definido pelo usuário
                     orderNumber: orderNumberToUse,
-                    // SOLUÇÃO 29/04/2025: Usar a data formatada corretamente
-                    date: finalFormattedDate,
+                    date: values.date || new Date(),
                     customerId: values.customerId,
                     paymentMethodId: values.paymentMethodId || 1,
                     serviceTypeId: values.serviceTypeId,
@@ -2961,8 +2786,7 @@ export default function SaleDialog({
                   if (isResending && correctionNotes) {
                     console.log("🔄 REENVIO: Adicionando observações de correção à venda devolvida #" + sale.id);
                     saleData.correctionNotes = correctionNotes;
-                    // @ts-ignore - Forçar mudança do status para "pending"
-                    saleData.status = "pending";
+                    saleData.status = "pending"; // Forçar mudança do status para "pending"
                   }
                   
                   // Define o endpoint e método apropriados
@@ -3041,9 +2865,7 @@ export default function SaleDialog({
                         });
                       }
                       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-                      if (onSaveSuccess) {
-                        onSaveSuccess();
-                      }
+                      onSaveSuccess();
                       onClose();
                     })
                     .catch(error => {

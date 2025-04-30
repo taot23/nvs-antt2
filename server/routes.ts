@@ -2021,8 +2021,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      console.log(`🔍 Processando reenvio da venda #${id}`);
-      
       // Verificar se a venda existe e está com status "returned"
       const { pool } = await import('./db');
       const saleResult = await pool.query(
@@ -2056,134 +2054,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         serviceProviderId,
         paymentMethodId,
         installments,
-        totalAmount,
-        preserveFinancialData,
-        installmentDates = []
+        totalAmount
       } = req.body;
       
-      // MELHORIA CRÍTICA: Verificar se o financeiro já iniciou análise desta venda
-      // e garantir que dados financeiros não sejam alterados
-      const financialStatus = sale.financial_status || '';
-      const blockFinancialChanges = financialStatus === 'in_progress' || 
-                                  financialStatus === 'approved' || 
-                                  financialStatus === 'partial_payment' || 
-                                  financialStatus === 'completed' || 
-                                  financialStatus === 'in_analysis' || 
-                                  financialStatus === 'paid';
-      
-      // Log detalhado para diagnóstico
-      console.log(`🔍 Verificação financeira para venda #${id}:`);
-      console.log(`🔍 Status financeiro atual: ${financialStatus || 'não definido'}`);
-      console.log(`🔍 Bloqueio de alterações financeiras: ${blockFinancialChanges ? 'SIM' : 'NÃO'}`);
-      console.log(`🔍 Flag preserveFinancialData recebida: ${preserveFinancialData ? 'SIM' : 'NÃO'}`);
-      
-      // CONTROLE DUPLO REFORÇADO: Se o financeiro já iniciou análise, forçamos a preservação dos dados financeiros
-      if (blockFinancialChanges) {
-        console.log(`⚠️ PROTEÇÃO FINANCEIRA: Financeiro já iniciou análise da venda #${id} - Protegendo dados financeiros`);
-        
-        // AQUI ESTÁ O BLOQUEIO CRÍTICO: ignoramos totalmente o que veio no request e usamos os valores do banco
-        const updateDataProtected = {
-          // Estes dados NÃO podem ser alterados quando financeiro já analisou
-          totalAmount: sale.total_amount, // Valor total original do banco
-          installments: sale.installments, // Número de parcelas original
-          // Estes dados PODEM ser alterados sempre
-          serviceTypeId: serviceTypeId || sale.service_type_id,
-          serviceProviderId: serviceProviderId || sale.service_provider_id,
-          paymentMethodId: paymentMethodId || sale.payment_method_id,
-          status: 'corrected', // Muda o status para "corrigida"
-          returnReason: null // Limpa o motivo da devolução
-        };
-        
-        // Atualização protegida - mantém os valores financeiros originais
-        const updateQuery = `
-          UPDATE sales 
-          SET 
-            service_type_id = $1,
-            service_provider_id = $2,
-            payment_method_id = $3,
-            status = $4,
-            return_reason = $5,
-            updated_at = NOW()
-          WHERE id = $6
-          RETURNING *
-        `;
-        
-        // Executar update protegido (sem mexer em valores financeiros)
-        const resultProtected = await pool.query(updateQuery, [
-          updateDataProtected.serviceTypeId,
-          updateDataProtected.serviceProviderId,
-          updateDataProtected.paymentMethodId,
-          updateDataProtected.status,
-          updateDataProtected.returnReason,
-          id
-        ]);
-        
-        if (resultProtected.rows.length === 0) {
-          return res.status(404).json({ error: "Venda não encontrada" });
-        }
-        
-        const updatedSale = resultProtected.rows[0];
-        
-        // Atualizar histórico com informação de proteção
-        await pool.query(`
-          INSERT INTO sales_status_history (
-            sale_id, from_status, to_status, user_id, notes, created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `, [
-          id,
-          'returned',
-          'corrected',
-          req.user!.id,
-          `Venda corrigida e reenviada com proteção de dados financeiros. Observações: ${correctionNotes || 'Não informadas'}`
-        ]);
-        
-        // Notificar todos os clientes sobre a atualização da venda
-        notifySalesUpdate();
-        
-        return res.json({
-          ...updatedSale,
-          protected: true,
-          message: "Venda corrigida com PROTEÇÃO de dados financeiros. Valores mantidos conforme análise financeira."
-        });
-      }
-      
-      // Se não estiver bloqueado, continua o fluxo normal
-      // CONTROLE DUPLO: Se o financeiro já iniciou análise, verificamos se o cliente está tentando
-      // modificar dados financeiros e geramos erro se necessário
-      if (blockFinancialChanges) {
-        // Se o cliente NÃO enviou a flag preserveFinancialData=true, retornamos erro
-        if (!preserveFinancialData) {
-          console.error(`❌ TENTATIVA DE MODIFICAR DADOS FINANCEIROS EM VENDA #${id} QUE JÁ ESTÁ EM ANÁLISE FINANCEIRA!`);
-          return res.status(403).json({ 
-            error: "Bloqueio de segurança financeira", 
-            message: "Esta venda já está em análise pelo departamento financeiro. Dados financeiros não podem ser modificados."
-          });
-        }
-        
-        // Logs para diagnóstico
-        console.log(`✅ Cliente enviou flag preserveFinancialData=true, verificando consistência...`);
-        
-        // Verificar se o valor total está sendo preservado
-        if (totalAmount && parseFloat(totalAmount.toString()) !== parseFloat(sale.total_amount)) {
-          console.error(`❌ BLOQUEIO: Cliente tentou alterar valor total de ${sale.total_amount} para ${totalAmount}`);
-          return res.status(403).json({
-            error: "Modificação financeira bloqueada",
-            message: "Não é possível alterar o valor total desta venda pois ela já está em análise financeira."
-          });
-        }
-        
-        // Verificar se o número de parcelas está sendo preservado
-        if (installments && parseInt(installments.toString()) !== sale.installments) {
-          console.error(`❌ BLOQUEIO: Cliente tentou alterar número de parcelas de ${sale.installments} para ${installments}`);
-          return res.status(403).json({
-            error: "Modificação financeira bloqueada",
-            message: "Não é possível alterar o número de parcelas desta venda pois ela já está em análise financeira."
-          });
-        }
-        
-        console.log(`✅ Verificação financeira concluída: dados financeiros preservados`);
-      }
+      console.log("Dados recebidos para reenvio:", { 
+        id, 
+        itens: items.length,
+        tipoServico: serviceTypeId,
+        formaPagamento: paymentMethodId,
+        parcelas: installments,
+        valor: totalAmount
+      });
       
       if (!correctionNotes) {
         return res.status(400).json({ error: "Observações de correção são obrigatórias" });
@@ -2223,25 +2104,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paramIndex++;
       }
       
-      // Se o financeiro já iniciou análise ou se foi explicitamente solicitado, 
-      // não alteramos dados financeiros
-      const devePreservarDadosFinanceiros = blockFinancialChanges || preserveFinancialData;
+      if (installments !== undefined) {
+        updateQuery += `, installments = $${paramIndex}`;
+        updateParams.push(installments);
+        paramIndex++;
+      }
       
-      if (!devePreservarDadosFinanceiros) {
-        // Apenas atualize valor e parcelas se o financeiro não tiver iniciado análise
-        if (installments !== undefined) {
-          updateQuery += `, installments = $${paramIndex}`;
-          updateParams.push(installments);
-          paramIndex++;
-        }
-        
-        if (totalAmount !== undefined) {
-          updateQuery += `, total_amount = $${paramIndex}`;
-          updateParams.push(totalAmount);
-          paramIndex++;
-        }
-      } else {
-        console.log(`🔒 Preservando dados financeiros da venda #${id} - Já em análise pelo financeiro`);
+      if (totalAmount !== undefined) {
+        updateQuery += `, total_amount = $${paramIndex}`;
+        updateParams.push(totalAmount);
+        paramIndex++;
       }
       
       // Finalizar query
@@ -2257,60 +2129,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Falha ao atualizar a venda" });
       }
       
-      // Atualizar os itens da venda com verificação robusta
-      try {
-        // Verificar se itens foram enviados no payload
-        if (items && items.length > 0) {
-          console.log(`📦 Processando ${items.length} itens para a venda #${id}`);
-          
-          // Primeiro, excluir os itens existentes 
-          await pool.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
-          console.log(`🗑️ Itens anteriores da venda #${id} removidos`);
-          
-          // Depois, adicionar os novos itens com validação individual
-          let itemsAdded = 0;
-          
-          for (const item of items) {
-            if (!item || typeof item !== 'object' || !item.serviceId) {
-              console.error(`⚠️ Item inválido encontrado na venda #${id}:`, item);
-              continue; // Pular itens inválidos
-            }
-            
-            // Validar serviceId
-            const serviceId = parseInt(String(item.serviceId));
-            if (isNaN(serviceId) || serviceId <= 0) {
-              console.error(`⚠️ Item com serviceId inválido na venda #${id}:`, item);
-              continue;
-            }
-            
-            // Validar quantity 
-            const quantity = parseInt(String(item.quantity));
-            if (isNaN(quantity) || quantity <= 0) {
-              console.error(`⚠️ Item com quantidade inválida na venda #${id}:`, item);
-              continue;
-            }
-            
-            // Inserir o item no banco
-            await pool.query(`
-              INSERT INTO sale_items (sale_id, service_id, quantity, notes, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, NOW(), NOW())
-            `, [id, serviceId, quantity, item.notes || null]);
-            
-            itemsAdded++;
-          }
-          
-          console.log(`✅ ${itemsAdded} itens adicionados com sucesso para a venda #${id}`);
-          
-          // Verificar se algum item foi adicionado
-          if (itemsAdded === 0) {
-            console.error(`⚠️ Nenhum item válido foi adicionado à venda #${id}`);
-          }
-        } else {
-          console.log(`⚠️ Nenhum item enviado para a venda #${id} - Mantendo os existentes`);
-        }
-      } catch (error) {
-        console.error(`❌ Erro ao processar itens da venda #${id}:`, error);
-      }
+      // Atualizar itens da venda se fornecidos
+      // IMPORTANTE: Não manipulamos os itens durante o reenvio para evitar duplicação
+      // Os itens existentes permanecerão no banco de dados exatamente como estão
+      console.log(`🔄 Venda #${id} reenviada sem manipular itens para evitar duplicação`);
       
       // Registrar no histórico a mudança de status
       await storage.createSalesStatusHistory({
@@ -2325,13 +2147,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Isso garante consistência em todo o sistema
       try {
         // Verificar se a venda agora está parcelada
-        const installmentsToCreate = devePreservarDadosFinanceiros 
-            ? sale.installments 
-            : (installments || sale.installments || 1);
-            
-        const saleAmount = devePreservarDadosFinanceiros 
-            ? sale.total_amount 
-            : (totalAmount || sale.total_amount || '0');
+        const installmentsToCreate = installments || sale.installments || 1;
+        const saleAmount = totalAmount || sale.total_amount || '0';
         
         console.log(`🔄 Venda reenviada #${id} - Recriando ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
         
@@ -2339,28 +2156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let dueDates: string[] | undefined = undefined;
         
         // Extrair datas de parcelas se enviadas com a requisição
-        if (!devePreservarDadosFinanceiros && req.body.installmentDates && Array.isArray(req.body.installmentDates)) {
+        if (req.body.installmentDates && Array.isArray(req.body.installmentDates)) {
           dueDates = req.body.installmentDates;
           console.log(`📅 Datas específicas recebidas para parcelas de venda #${id}:`, dueDates);
-        } else if (devePreservarDadosFinanceiros) {
-          // Se precisamos preservar dados financeiros, buscar as datas atuais das parcelas
-          const installmentResult = await pool.query(
-            "SELECT due_date FROM sale_installments WHERE sale_id = $1 ORDER BY installment_number",
-            [id]
-          );
-          
-          if (installmentResult.rows.length > 0) {
-            dueDates = installmentResult.rows.map(row => {
-              // Certifique-se de que a data está no formato correto (YYYY-MM-DD)
-              let dueDate = row.due_date;
-              if (typeof dueDate === 'string' && dueDate.includes('T')) {
-                dueDate = dueDate.split('T')[0];
-              }
-              return dueDate;
-            });
-            
-            console.log(`📅 Preservando datas existentes para parcelas de venda #${id}:`, dueDates);
-          }
         }
         
         // Usar nossa função auxiliar para garantir que as parcelas sejam criadas consistentemente
@@ -2521,9 +2319,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se o número de parcelas ou valor total foi alterado, atualizar as parcelas
       if (saleData.installments !== undefined || saleData.totalAmount !== undefined) {
         try {
-          // Obter os valores atualizados - Corrigido para usar as propriedades corretas
+          // Obter os valores atualizados
           const installmentsToCreate = saleData.installments || sale.installments || 1;
-          const saleAmount = saleData.totalAmount || sale.totalAmount || '0';
+          const saleAmount = saleData.totalAmount || sale.total_amount || '0';
           
           console.log(`🔄 Venda atualizada #${id} - Atualizando parcelas: ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
           

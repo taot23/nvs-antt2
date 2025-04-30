@@ -1,51 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { SendHorizontal, Loader2, Calendar, AlertTriangle } from 'lucide-react';
+import { SendHorizontal, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 
 type Sale = any;
-type Installment = {
-  id: number;
-  saleId: number;
-  installmentNumber: number;
-  amount: string;
-  dueDate: string;
-  status: string;
-  paymentDate: string | null;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type SaleItem = {
-  id: number;
-  saleId: number;
-  serviceId: number;
-  serviceTypeId: number | null;
-  quantity: number;
-  price: string;
-  totalPrice: string;
-  notes: string | null;
-  status: string;
-  serviceName: string;
-  serviceTypeName: string | null;
-};
 
 interface VendaReenviarButtonProps {
   sale: Sale;
@@ -55,72 +27,8 @@ interface VendaReenviarButtonProps {
 export default function VendaReenviarButton({ sale, iconOnly = false }: VendaReenviarButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observacoes, setObservacoes] = useState('');
-  const [installments, setInstallments] = useState<Installment[]>([]);
-  const [items, setItems] = useState<SaleItem[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Referencias para rastrear os valores originais
-  const originalItemsRef = useRef<SaleItem[]>([]);
-  const originalInstallmentsRef = useRef<Installment[]>([]);
-  
-  // Verifica se o financeiro já começou a tratar a venda - VERIFICAÇÃO COMPLETA
-  const financeiroJaIniciouAnalise = 
-    sale.financialStatus === 'in_progress' || 
-    sale.financialStatus === 'approved' || 
-    sale.financialStatus === 'partial_payment' || 
-    sale.financialStatus === 'completed' || 
-    sale.financialStatus === 'in_analysis' || 
-    sale.financialStatus === 'paid';
-
-  // Carregar as parcelas e itens ao abrir o diálogo
-  useEffect(() => {
-    if (dialogOpen && sale?.id) {
-      console.log('🔍 Inicializando carregamento de parcelas e itens da venda', sale.id);
-      
-      // Carregar parcelas
-      fetch(`/api/sales/${sale.id}/installments`)
-        .then(response => {
-          if (!response.ok) throw new Error('Falha ao carregar parcelas');
-          return response.json();
-        })
-        .then(data => {
-          console.log('📅 Parcelas carregadas:', data.length, 'parcelas encontradas');
-          setInstallments(data);
-          // Guardar cópia original para comparação
-          originalInstallmentsRef.current = [...data];
-        })
-        .catch(error => {
-          console.error('❌ Erro ao carregar parcelas:', error);
-          toast({
-            title: 'Erro ao carregar parcelas',
-            description: 'Não foi possível carregar as parcelas da venda.',
-            variant: 'destructive',
-          });
-        });
-      
-      // Carregar itens da venda
-      fetch(`/api/sales/${sale.id}/items`)
-        .then(response => {
-          if (!response.ok) throw new Error('Falha ao carregar itens');
-          return response.json();
-        })
-        .then(data => {
-          console.log('🛒 Itens carregados:', data.length, 'itens encontrados');
-          setItems(data);
-          // Guardar cópia original para comparação
-          originalItemsRef.current = [...data];
-        })
-        .catch(error => {
-          console.error('❌ Erro ao carregar itens:', error);
-          toast({
-            title: 'Erro ao carregar itens',
-            description: 'Não foi possível carregar os itens da venda.',
-            variant: 'destructive',
-          });
-        });
-    }
-  }, [dialogOpen, sale?.id, toast]);
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
@@ -135,7 +43,7 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       const installments = await installmentsResponse.json();
       
       // Extrair as datas de vencimento das parcelas
-      const installmentDates = installments.map((inst: Installment) => {
+      const installmentDates = installments.map(inst => {
         // Detectar e processar o formato da data corretamente
         console.log(`📅 Parcela ${inst.installmentNumber}, data original do banco:`, inst.dueDate, typeof inst.dueDate);
         
@@ -175,12 +83,10 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
         }
         
         // Se for objeto Date (raramente acontece aqui), converter para ISO
-        if (typeof inst.dueDate === 'object' && inst.dueDate && 'getFullYear' in inst.dueDate) {
-          // É um objeto Date válido
-          const dateObj = inst.dueDate as Date;
-          const year = dateObj.getFullYear();
-          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-          const day = String(dateObj.getDate()).padStart(2, '0');
+        if (inst.dueDate instanceof Date) {
+          const year = inst.dueDate.getFullYear();
+          const month = String(inst.dueDate.getMonth() + 1).padStart(2, '0');
+          const day = String(inst.dueDate.getDate()).padStart(2, '0');
           const formattedDate = `${year}-${month}-${day}`;
           console.log(`✅ Convertido objeto Date para string ISO: ${formattedDate}`);
           return formattedDate;
@@ -194,92 +100,17 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
       console.log("Itens atualizados para reenvio:", items);
       console.log("Datas de parcelas para reenvio:", installmentDates);
       
-      // Para todos os casos, o cliente deve FORÇAR a preservação dos dados financeiros 
-    // quando o financeiro já iniciou análise - isso é uma medida de segurança adicional
-    const statusFinanceiro = sale.financialStatus;
-    // Aqui estava o erro! A lista de status deve ser explícita, não uma verificação negativa
-    const financeiroComecouAnalise = statusFinanceiro === 'in_progress' || 
-                                   statusFinanceiro === 'approved' || 
-                                   statusFinanceiro === 'partial_payment' || 
-                                   statusFinanceiro === 'completed';
-    
-    // Obtém as datas de vencimento originais em caso de análise financeira
-    let duesDatesFinais = installmentDates;
-    
-    // Se financeiro estiver analisando, forçar os valores originais da venda
-    if (financeiroComecouAnalise) {
-      console.log('🚨 IMPORTANTE: Financeiro já iniciou análise - BLOQUEANDO modificações de dados financeiros');
-      
-      // Buscar valores originais da venda do banco
-      try {
-        // Vamos fazer uma chamada extra para garantir os dados financeiros originais
-        const response = await fetch(`/api/sales/${sale.id}`);
-        if (response.ok) {
-          const vendaOriginal = await response.json();
-          
-          // Buscar as parcelas originais para ter as datas de vencimento originais
-          const respParcelas = await fetch(`/api/sales/${sale.id}/installments`);
-          if (respParcelas.ok) {
-            const parcelasOriginais = await respParcelas.json();
-            
-            // Usar as datas das parcelas originais
-            if (parcelasOriginais && parcelasOriginais.length > 0) {
-              duesDatesFinais = parcelasOriginais.map((p: any) => {
-                let dueDate = p.dueDate;
-                if (typeof dueDate === 'string' && dueDate.includes('T')) {
-                  dueDate = dueDate.split('T')[0];
-                }
-                return dueDate;
-              });
-              console.log('📆 Usando datas de vencimento ORIGINAIS das parcelas:', duesDatesFinais);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('❌ Erro ao obter dados originais da venda:', err);
-      }
-    }
-    
-    // Prepara os dados para o reenvio
-    const requestData: any = {
-      correctionNotes: observacoes,
-      items: items,
-      serviceTypeId: sale.serviceTypeId,
-      serviceProviderId: sale.serviceProviderId,
-      paymentMethodId: sale.paymentMethodId
-    };
-    
-    // Se financeiro estiver analisando, forçar preservação de dados
-    if (financeiroComecouAnalise) {
-      // Forçar a preservação dos dados financeiros
-      requestData.totalAmount = sale.totalAmount;
-      requestData.installments = sale.installments;
-      requestData.preserveFinancialData = true; // Flag para o backend
-      
-      // Enviar datas de vencimento originais se disponíveis
-      if (duesDatesFinais && duesDatesFinais.length > 0) {
-        requestData.installmentDates = duesDatesFinais;
-      }
-      
-      console.log('🔒 Preservando dados financeiros pois a venda já está em análise financeira');
-      
-      // Adicionar alerta visual para o usuário
-      toast({
-        title: "Alerta de Proteção Financeira",
-        description: "Esta venda já está em análise pelo departamento financeiro. Os dados financeiros estão protegidos contra modificações.",
-        variant: "default",
-        className: "bg-amber-100 border-amber-500 text-amber-800",
-        duration: 6000,
-      });
-    } else {
-      // Se não estiver em análise, podemos permitir edição
-      requestData.totalAmount = sale.totalAmount;
-      requestData.installments = sale.installments;
-      requestData.installmentDates = installmentDates;
-    }
-      
       // Envia a requisição com todos os dados necessários
-      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, requestData);
+      const response = await apiRequest('PUT', `/api/sales/${sale.id}/resend`, {
+        correctionNotes: observacoes,
+        items: items,
+        serviceTypeId: sale.serviceTypeId,
+        serviceProviderId: sale.serviceProviderId,
+        paymentMethodId: sale.paymentMethodId,
+        installments: sale.installments,
+        totalAmount: sale.totalAmount,
+        installmentDates: installmentDates
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -332,11 +163,6 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
     }
   }
 
-  // Verificar status do financeiro
-  const statusFinanceiro = sale.financialStatus;
-  // Esta lógica está duplicada acima, então vamos reutilizar apenas a segunda parte
-  const emAnaliseFinanceira = statusFinanceiro === 'in_analysis' || statusFinanceiro === 'approved' || statusFinanceiro === 'partial_payment' || statusFinanceiro === 'paid';
-  
   // Essa venda pode ser reenviada?
   const podeReenviar = sale.status === 'returned';
 
@@ -408,42 +234,6 @@ export default function VendaReenviarButton({ sale, iconOnly = false }: VendaRee
                 </div>
               </div>
             </div>
-
-            {/* Exibir datas das parcelas */}
-            {installments.length > 0 && (
-              <div className="space-y-2 p-3 bg-muted/30 rounded-md">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  <Label className="text-base font-medium">Parcelas e Datas de Vencimento</Label>
-                </div>
-                
-                {emAnaliseFinanceira && (
-                  <Alert variant="default" className="mb-2 bg-amber-50 border-amber-500 text-amber-800">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle className="text-xs font-semibold">Atenção - Venda em Análise Financeira</AlertTitle>
-                    <AlertDescription className="text-xs">
-                      Esta venda já está sendo analisada pelo financeiro. 
-                      O valor, número de parcelas e datas de vencimento não poderão ser modificados.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                <div className="space-y-1">
-                  {installments.map((inst) => (
-                    <div key={inst.id} className="flex justify-between items-center text-sm p-1 border-b border-border/30">
-                      <span className="font-medium">Parcela {inst.installmentNumber}</span>
-                      <span>R$ {parseFloat(inst.amount).toFixed(2).replace('.', ',')}</span>
-                      <Badge variant="outline" className="ml-auto">
-                        {format(new Date(inst.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  As datas das parcelas serão mantidas ao reenviar a venda.
-                </p>
-              </div>
-            )}
 
             {sale.returnReason && (
               <div className="space-y-1 border-l-4 border-destructive pl-4 py-2 bg-destructive/10 rounded-sm">
