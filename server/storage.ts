@@ -1018,12 +1018,51 @@ export class DatabaseStorage implements IStorage {
       // @ts-ignore - Removemos para não causar erro na inserção
       delete saleData.installmentDates;
       
-      // SUPER SOLUÇÃO RADICAL: Remover quaisquer itens enviados para evitar duplicação
+      // ULTRA-MEGA-HYPER SOLUÇÃO RADICAL (30/04/2025): Gerenciamento completo de itens
       // @ts-ignore - Esta propriedade vem do frontend
-      if (saleData.items) {
-        console.log(`🔴 SUPER SOLUÇÃO RADICAL: REMOVENDO itens da requisição para evitar duplicação`);
-        // @ts-ignore - Removemos para não causar erro na inserção
-        delete saleData.items;
+      const items = saleData.items;
+      // @ts-ignore - Removemos da requisição principal para processamento separado
+      delete saleData.items;
+      
+      // Se temos itens enviados, vamos processá-los adequadamente
+      if (items && Array.isArray(items) && items.length > 0) {
+        console.log(`🔴🔴 ULTRA-MEGA-HYPER SOLUÇÃO: Processando ${items.length} itens para venda #${id}`);
+        
+        try {
+          // Verificar quais itens têm ID (já existentes) versus novos itens
+          const existingItems = items.filter(item => item.id);
+          const newItems = items.filter(item => !item.id);
+          
+          console.log(`🔴🔴 ULTRA-MEGA-HYPER SOLUÇÃO: ${existingItems.length} itens existentes, ${newItems.length} novos itens`);
+          
+          // PARTE 1: Processar itens existentes - Atualizar sem duplicar
+          if (existingItems.length > 0) {
+            console.log(`🔴🔴 ULTRA-MEGA-HYPER SOLUÇÃO: Atualizando ${existingItems.length} itens existentes`);
+            
+            for (const item of existingItems) {
+              // Garantir que o item sempre esteja associado a esta venda
+              item.saleId = id;
+              
+              console.log(`🔴🔴 ULTRA-MEGA-HYPER SOLUÇÃO: Atualizando item #${item.id}`);
+              await this.updateSaleItem(item.id, item);
+            }
+          }
+          
+          // PARTE 2: Processar novos itens - Adicionar sem duplicar
+          if (newItems.length > 0) {
+            console.log(`🔴🔴 ULTRA-MEGA-HYPER SOLUÇÃO: Adicionando ${newItems.length} novos itens`);
+            
+            for (const item of newItems) {
+              // Garantir que o item sempre esteja associado a esta venda
+              item.saleId = id;
+              
+              console.log(`🔴🔴 ULTRA-MEGA-HYPER SOLUÇÃO: Adicionando novo item`);
+              await this.createSaleItem(item);
+            }
+          }
+        } catch (error) {
+          console.error("❌ ERRO AO PROCESSAR ITENS:", error);
+        }
       }
 
       // Se estiver tentando atualizar o valor total, garantimos que ele seja preservado
