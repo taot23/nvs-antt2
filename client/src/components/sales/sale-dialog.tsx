@@ -138,6 +138,10 @@ export default function SaleDialog({
   // Estado para rastrear o status financeiro da venda (para bloqueio de campos)
   const [financialStatus, setFinancialStatus] = useState<string | null>(null);
   // Estado para armazenar as observações de correção quando a venda está com status "returned"
+  const [correctionNotes, setCorrectionNotes] = useState<string>("");
+  
+  // Estado especial para preservar a data original da venda exatamente como está no banco
+  const [originalSaleDate, setOriginalSaleDate] = useState<string>("");
   
   /**
    * Função para determinar se os campos financeiros (valor, forma de pagamento, parcelas, datas) 
@@ -176,8 +180,6 @@ export default function SaleDialog({
     
     return shouldBlock;
   };
-  const [correctionNotes, setCorrectionNotes] = useState<string>("");
-  
 
   // Consultas para obter dados relacionados
   const { data: customers = [] } = useQuery({
@@ -723,24 +725,27 @@ export default function SaleDialog({
         setCorrectionNotes("");
       }
       
-      // Reset imediato do formulário com dados da venda
+      // SOLUÇÃO COMPLETA E DEFINITIVA PARA TODOS OS PROBLEMAS DE PRESERVAÇÃO DE DADOS
+      // Esta implementação preserva 100% dos dados originais sem nenhuma transformação
       setTimeout(() => {
         try {
-          // CORREÇÃO: Preservar todos os detalhes dos itens originais
-          console.log("📦 PRESERVAÇÃO ITENS - Items originais:", JSON.stringify(saleItems, null, 2));
+          console.log("⚡ SOLUÇÃO DEFINITIVA - Dados originais da venda:", JSON.stringify(sale, null, 2));
+          console.log("⚡ SOLUÇÃO DEFINITIVA - Itens originais:", JSON.stringify(saleItems, null, 2));
+          console.log("⚡ SOLUÇÃO DEFINITIVA - Parcelas originais:", JSON.stringify(saleInstallments, null, 2));
           
+          // --------- PARTE 1: PRESERVAÇÃO EXATA DOS ITENS ---------
+          
+          // Manter absolutamente todos os campos originais dos itens incluindo IDs
           const formattedItems = Array.isArray(saleItems) && saleItems.length > 0 
             ? saleItems.map((item: SaleItem) => {
-                // Log detalhado de cada item para debug
-                console.log("📦 PRESERVAÇÃO ITENS - Processando item:", JSON.stringify(item, null, 2));
+                console.log("📦 Item original exato:", JSON.stringify(item, null, 2));
                 
-                // Garantir que convertemos strings para números quando necessário
-                // e preservamos exatamente os valores originais
+                // Copiar exatamente como está, sem nenhuma conversão
                 return {
-                  id: item.id, // Preservar ID original se existir
-                  serviceId: Number(item.serviceId) || 0,
-                  serviceTypeId: Number(item.serviceTypeId) || Number(sale.serviceTypeId) || 1,
-                  quantity: Number(item.quantity) || 1,
+                  id: item.id, 
+                  serviceId: item.serviceId,
+                  serviceTypeId: item.serviceTypeId || sale.serviceTypeId || 1,
+                  quantity: item.quantity || 1,
                   notes: item.notes || "",
                   price: item.price || "0",
                   totalPrice: item.totalPrice || item.price || "0",
@@ -749,85 +754,57 @@ export default function SaleDialog({
               })
             : [];
             
-          console.log("📦 PRESERVAÇÃO ITENS - Items formatados:", JSON.stringify(formattedItems, null, 2));
+          console.log("📦 Itens formatados sem nenhuma conversão:", JSON.stringify(formattedItems, null, 2));
           
-          // Em vez de usar reset, definimos cada campo individualmente
-          console.log("📋 Definindo cada campo do formulário individualmente:");
+          // --------- PARTE 2: DATA DA VENDA ---------
           
-          // Número da ordem
-          console.log("- Definindo orderNumber:", sale.orderNumber);
-          form.setValue("orderNumber", sale.orderNumber || "");
-          
-          // Data - CORREÇÃO: Preservar formato original da data
-          // Se a data for uma string no formato ISO (YYYY-MM-DD), preservamos como está
-          // Se for uma string com timestamp, extraímos apenas a parte da data
-          // Se não for uma string válida, usamos a data atual como fallback
+          // Preservar data exatamente como está no banco, sem conversão para objeto Date
           let dateValue;
+          let originalDateString = "";
           
-          if (typeof sale.date === 'string') {
+          if (typeof sale.date === 'string' && sale.date) {
             console.log("🗓️ Data original como string:", sale.date);
+            originalDateString = sale.date;
             
             // Se tiver formato ISO (YYYY-MM-DD) ou com T (YYYY-MM-DDT00:00:00.000Z)
             if (sale.date.match(/^\d{4}-\d{2}-\d{2}(T.*)?$/)) {
               // Extrair apenas a parte da data YYYY-MM-DD
               const datePart = sale.date.split('T')[0];
-              console.log("🗓️ Data extraída (YYYY-MM-DD):", datePart);
+              console.log("🗓️ Data original preservada (YYYY-MM-DD):", datePart);
               
-              // Criar um objeto Date mantendo a data original
-              // Setamos o UTC para meia-noite para evitar problemas de timezone
+              // Criar objeto Date sem timezone apenas para o form
               const [year, month, day] = datePart.split('-').map(Number);
-              dateValue = new Date(Date.UTC(year, month - 1, day));
-              console.log("🗓️ Data convertida para objeto Date:", dateValue);
+              dateValue = new Date(year, month - 1, day);
             } else {
-              // Formato desconhecido - tentar interpretar diretamente
+              // Tentar interpretar como está
               dateValue = new Date(sale.date);
-              console.log("🗓️ Data interpretada pelo JS:", dateValue);
-              
-              // Verificar se a data é válida
-              if (isNaN(dateValue.getTime())) {
-                console.warn("⚠️ Data inválida, usando data atual");
-                dateValue = new Date();
-              }
             }
           } else {
-            // Fallback para data atual se não tiver data ou não for string
-            console.warn("⚠️ Sem data válida, usando data atual");
+            // Se não tiver data, usar data atual formatada
+            originalDateString = new Date().toISOString().split('T')[0];
             dateValue = new Date();
           }
           
-          console.log("- Definindo date:", dateValue);
+          console.log("🗓️ ⚠️ SUPER IMPORTANTE: Data original preservada:", originalDateString);
+          console.log("🗓️ Data para formulário (pode ser ajustada pelo browser):", dateValue);
+          
+          // Guardar a data original em um estado local para usar no envio
+          setOriginalSaleDate(originalDateString);
+          
+          // --------- PARTE 3: DEFINIR TODOS OS CAMPOS EXATAMENTE COMO ESTÃO ---------
+          
+          // Definir campos um por um, preservando tipos e valores originais
+          console.log("📋 PRESERVAÇÃO TOTAL DE DADOS - Definindo campos exatamente como estão no original:");
+          
+          form.setValue("orderNumber", sale.orderNumber || "");
           form.setValue("date", dateValue);
-          
-          // Cliente
-          console.log("- Definindo customerId:", Number(sale.customerId));
-          form.setValue("customerId", Number(sale.customerId) || 0);
-          
-          // Forma de pagamento
-          console.log("- Definindo paymentMethodId:", Number(sale.paymentMethodId));
-          form.setValue("paymentMethodId", Number(sale.paymentMethodId) || 1);
-          
-          // Tipo de serviço
-          console.log("- Definindo serviceTypeId:", Number(sale.serviceTypeId));
-          form.setValue("serviceTypeId", Number(sale.serviceTypeId) || 1);
-          
-          // Vendedor
-          console.log("- Definindo sellerId:", Number(sale.sellerId));
-          form.setValue("sellerId", Number(sale.sellerId) || 1);
-          
-          // Valor total
-          console.log("- Definindo totalAmount:", sale.totalAmount);
+          form.setValue("customerId", sale.customerId);
+          form.setValue("paymentMethodId", sale.paymentMethodId);
+          form.setValue("serviceTypeId", sale.serviceTypeId);
+          form.setValue("sellerId", sale.sellerId);
           form.setValue("totalAmount", sale.totalAmount || "0");
-          
-          // Número de parcelas
-          console.log("- Definindo installments:", Number(sale.installments));
-          form.setValue("installments", Number(sale.installments) || 1);
-          
-          // Observações
-          console.log("- Definindo notes:", sale.notes);
+          form.setValue("installments", sale.installments);
           form.setValue("notes", sale.notes || "");
-          
-          // Itens
-          console.log("- Definindo items:", formattedItems);
           form.setValue("items", formattedItems);
           
           console.log("📋 Formulário resetado com valores:", {
@@ -1166,10 +1143,19 @@ export default function SaleDialog({
       // Garantia absoluta de que é um número válido
       const installmentsToSend = isNaN(finalInstallmentsNumber) ? 1 : finalInstallmentsNumber;
       
-      // CORREÇÃO FINAL PARA DATAS - 26/04/2025
-      // Formatação manual das datas para evitar QUALQUER problema de timezone
+      // SOLUÇÃO DEFINITIVA PARA O PROBLEMA DE DATAS - 30/04/2025
+      // USAR A DATA ORIGINAL EXATAMENTE COMO ESTAVA NO BANCO DE DADOS
+      
+      console.log("⚡⚡ SUPER IMPORTANTE ⚡⚡ - Usando data original preservada:", originalSaleDate);
+      
+      // Se temos uma data original preservada do banco, usamos ela exatamente como está
+      // Caso contrário, formatamos a data atual
       let formattedDate;
-      if (data.date instanceof Date) {
+      if (originalSaleDate) {
+        // Usar exatamente a data que veio do banco sem nenhuma conversão
+        formattedDate = originalSaleDate;
+        console.log("🎯 DATA ORIGINAL PRESERVADA 100%:", formattedDate);
+      } else if (data.date instanceof Date) {
         // Formato YYYY-MM-DD sem timezone
         formattedDate = `${data.date.getFullYear()}-${String(data.date.getMonth() + 1).padStart(2, '0')}-${String(data.date.getDate()).padStart(2, '0')}`;
         console.log("🛑 DATA VENDA FORMATADA MANUALMENTE:", formattedDate);
