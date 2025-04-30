@@ -1869,6 +1869,8 @@ export default function SaleDialog({
                     value={field.value}
                     label="Data da Venda"
                     readOnly={readOnly}
+                    // SOLUÇÃO MAIO 2025: Usar preserveNull para vendas retornadas com data NULL
+                    preserveNull={sale && sale.status === 'returned' && sale.date === null}
                     onChange={(isoDate) => {
                       console.log("🔄 Data selecionada:", isoDate);
                       field.onChange(isoDate);
