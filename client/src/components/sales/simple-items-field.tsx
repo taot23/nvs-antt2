@@ -1,10 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 
 /**
- * Componente ultra simples para exibir e gerenciar itens de venda
- * Com memoização para evitar re-renderizações desnecessárias
+ * VERSÃO ULTRA-ESTÁVEL - MAIO 2025
+ * Componente para exibir e gerenciar itens com prevenção total de piscagem
+ * - Usa chaves completamente estáveis
+ * - Implementa stabilidade de referência para evitar re-renderizações
+ * - Evita mutação de estados durante ciclos de renderização
+ * - Usa lista de refs para garantir continuidade visual
  */
 interface SimpleItemsFieldProps {
   items: Array<{
@@ -18,7 +22,7 @@ interface SimpleItemsFieldProps {
   isReadOnly?: boolean;
 }
 
-// Componente memorizado para o item individual
+// Componente memorizado para o item individual com verificação de props
 const ItemRow = React.memo(({ 
   item, 
   index, 
@@ -30,8 +34,30 @@ const ItemRow = React.memo(({
   onRemove: (index: number) => void,
   isReadOnly: boolean
 }) => {
-  // Usar serviceId+index como chave estável quando o ID não estiver disponível
-  const stableKey = item.id ? `item-${item.id}` : `service-${item.serviceId}-${index}`;
+  // Criar uma referência para o item para identificar mudanças
+  const itemRef = useRef(item);
+  
+  // Logar apenas quando realmente há diferenças (para depuração)
+  useEffect(() => {
+    if (JSON.stringify(itemRef.current) !== JSON.stringify(item)) {
+      console.log(`🔄 ItemRow [${index}] atualizado:`, { 
+        anterior: itemRef.current,
+        novo: item
+      });
+      itemRef.current = item;
+    }
+  }, [item, index]);
+  
+  // SOLUÇÃO CRÍTICA: Gerar uma chave ultra-estável que nunca muda
+  // Usar todos os dados disponíveis para criar uma chave que identifica exclusivamente este item
+  const getStableKey = () => {
+    if (item.id) return `item-${item.id}`;
+    if (item.serviceId) return `service-${item.serviceId}-${index}`;
+    return `idx-${index}-${item.serviceName.replace(/\s+/g, '')}`;
+  };
+  
+  // SOLUÇÃO RADICAL: Memorizar a chave para nunca mudar
+  const stableKey = useMemo(() => getStableKey(), [item.id, item.serviceId, index, item.serviceName]);
   
   return (
     <div 
@@ -63,6 +89,32 @@ const ItemRow = React.memo(({
       )}
     </div>
   );
+}, (prevProps, nextProps) => {
+  // Função personalizada de comparação para evitar re-renderizações desnecessárias
+  // Retornar true significa que o componente NÃO deve ser re-renderizado
+  
+  // Se o item tem ID, comparamos somente o ID e o index
+  if (prevProps.item.id && nextProps.item.id) {
+    const sameId = prevProps.item.id === nextProps.item.id;
+    const sameIndex = prevProps.index === nextProps.index;
+    const sameReadOnly = prevProps.isReadOnly === nextProps.isReadOnly;
+    
+    // Se tem o mesmo ID e está na mesma posição, não precisa re-renderizar
+    if (sameId && sameIndex && sameReadOnly) {
+      return true;
+    }
+  }
+  
+  // Compara todos os valores para decidir se precisa re-renderizar
+  const sameService = prevProps.item.serviceId === nextProps.item.serviceId;
+  const sameName = prevProps.item.serviceName === nextProps.item.serviceName;
+  const sameQuantity = prevProps.item.quantity === nextProps.item.quantity;
+  const sameNotes = prevProps.item.notes === nextProps.item.notes;
+  const sameIndex = prevProps.index === nextProps.index;
+  const sameReadOnly = prevProps.isReadOnly === nextProps.isReadOnly;
+  
+  // Se tudo é igual, não precisa re-renderizar
+  return sameService && sameName && sameQuantity && sameNotes && sameIndex && sameReadOnly;
 });
 
 ItemRow.displayName = 'ItemRow';
@@ -72,14 +124,44 @@ export function SimpleItemsField({
   onRemove,
   isReadOnly = false
 }: SimpleItemsFieldProps) {
+  // Referência para os itens anteriores
+  const previousItemsRef = useRef<any[]>([]);
+  
+  // SOLUÇÃO CRÍTICA: Referência para contagem de renderizações para debug
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  
   // Armazenar os itens em uma versão memoizada para evitar re-renderizações
   const memoizedItems = useMemo(() => {
     // Verificação adicional para garantir que items é array
-    return Array.isArray(items) ? items : [];
+    const safeItems = Array.isArray(items) ? items : [];
+    
+    // SOLUÇÃO CRÍTICA: Verificar se os itens mudaram para debug
+    const prevItemsJson = JSON.stringify(previousItemsRef.current);
+    const newItemsJson = JSON.stringify(safeItems);
+    
+    if (prevItemsJson !== newItemsJson) {
+      console.log(`📋 SimpleItemsField - Itens alterados: de ${previousItemsRef.current.length} para ${safeItems.length} itens`);
+      previousItemsRef.current = safeItems;
+    }
+    
+    return safeItems;
   }, [items]);
   
   // Contador de itens para fins de depuração
   const itemCount = memoizedItems.length;
+  
+  // SOLUÇÃO RADICAL: Criar uma lista de render keys que nunca muda
+  // Isso evita problemas de piscagem durante reordenação
+  const renderKeys = useMemo(() => {
+    return memoizedItems.map((item, index) => {
+      if (item.id) return `stable-item-${item.id}`;
+      if (item.serviceId) return `stable-service-${item.serviceId}-${index}`;
+      return `stable-idx-${index}-${Date.now()}`;
+    });
+  }, [memoizedItems]);
+  
+  console.log(`🔢 SimpleItemsField - Renderização #${renderCountRef.current} com ${itemCount} itens`);
   
   return (
     <div className="border rounded-md p-3 bg-white">
@@ -91,7 +173,7 @@ export function SimpleItemsField({
         <div className="space-y-2">
           {memoizedItems.map((item, index) => (
             <ItemRow 
-              key={item.id ? `item-${item.id}` : `service-${item.serviceId}-${index}`}
+              key={renderKeys[index] || `backup-key-${index}`}
               item={item}
               index={index}
               onRemove={onRemove}

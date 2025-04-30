@@ -10,39 +10,66 @@
 
 /**
  * Converte qualquer valor de data para o formato YYYY-MM-DD usado no banco
+ * 
+ * VERSÃO ULTRA ROBUSTA - MAIO 2025
+ * Esta versão resolve problemas críticos de conversão e preservação de datas
+ * - Detecta e preserva valores ISO existentes
+ * - Converte datas brasileiras (DD/MM/YYYY) para ISO
+ * - Trata objetos Date sem problemas de timezone
+ * - Log extensivo para rastreamento de comportamento
+ * 
  * @param dateValue - Valor da data em qualquer formato
  * @returns string - Data no formato YYYY-MM-DD
  */
 export function formatDateToIso(dateValue: any): string {
-  // Caso 1: Valor nulo ou undefined
+  // Log de entrada para depuração
+  console.log(`🔄 formatDateToIso - Entrada:`, {
+    valor: dateValue,
+    tipo: typeof dateValue,
+    isNull: dateValue === null,
+    isUndefined: dateValue === undefined
+  });
+  
+  // Caso 1: Valor nulo ou undefined - usar data atual
   if (!dateValue) {
     const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const result = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    console.log(`⚠️ formatDateToIso - Valor vazio, usando data atual: ${result}`);
+    return result;
   }
   
   // Caso 2: Já é uma string
   if (typeof dateValue === 'string') {
-    // Remover parte de hora/timezone
+    // Registrar detalhe para depuração
+    console.log(`🔍 formatDateToIso - Processando string: "${dateValue}"`);
+    
+    // Remover parte de hora/timezone se existir
     let rawDate = dateValue;
     if (rawDate.includes('T')) {
       rawDate = rawDate.split('T')[0];
+      console.log(`✂️ formatDateToIso - Removida parte de hora: "${rawDate}"`);
     }
     
-    // Já está no formato YYYY-MM-DD
+    // Já está no formato YYYY-MM-DD - PRESERVAR EXATAMENTE COMO ESTÁ
     if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      console.log(`✅ formatDateToIso - Já no formato ISO, preservando: "${rawDate}"`);
       return rawDate;
     }
     
-    // Formato DD/MM/YYYY
+    // Formato DD/MM/YYYY (formato brasileiro)
     if (rawDate.includes('/')) {
       const parts = rawDate.split('/');
       if (parts.length === 3) {
         // Verificar se o primeiro componente é dia (formato brasileiro)
         if (parts[0].length <= 2) {
-          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          const result = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          console.log(`✅ formatDateToIso - Convertido de DD/MM/YYYY para ISO: ${rawDate} -> ${result}`);
+          return result;
         } else {
           // Formato YYYY/MM/DD (raro)
-          return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          const result = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          console.log(`✅ formatDateToIso - Convertido de YYYY/MM/DD para ISO: ${rawDate} -> ${result}`);
+          return result;
         }
       }
     }
@@ -51,35 +78,78 @@ export function formatDateToIso(dateValue: any): string {
     if (rawDate.includes('-')) {
       const parts = rawDate.split('-');
       if (parts.length === 3 && parts[0].length !== 4) {
-        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        const result = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        console.log(`✅ formatDateToIso - Convertido de DD-MM-YYYY para ISO: ${rawDate} -> ${result}`);
+        return result;
       }
+    }
+    
+    // Se chegou aqui, é uma string em formato não reconhecido
+    console.log(`⚠️ formatDateToIso - Formato de string não reconhecido: "${rawDate}"`);
+    
+    // Tentativa final: ver se pode ser interpretado como data
+    try {
+      // Cuidado com interpretação automática de datas
+      const testDate = new Date(rawDate);
+      if (!isNaN(testDate.getTime())) {
+        const year = testDate.getFullYear();
+        const month = String(testDate.getMonth() + 1).padStart(2, '0');
+        const day = String(testDate.getDate()).padStart(2, '0');
+        const result = `${year}-${month}-${day}`;
+        console.log(`⚠️ formatDateToIso - String interpretada como data: ${rawDate} -> ${result}`);
+        return result;
+      } else {
+        console.log(`❌ formatDateToIso - String não pode ser interpretada como data: "${rawDate}"`);
+      }
+    } catch (error) {
+      console.error(`❌ formatDateToIso - Erro ao tentar interpretar string como data:`, error);
     }
   }
   
-  // Caso 3: É um objeto Date
-  if (dateValue instanceof Date) {
-    const year = dateValue.getFullYear();
-    const month = String(dateValue.getMonth() + 1).padStart(2, '0');
-    const day = String(dateValue.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  // Caso 3: É um objeto que parece uma Date
+  if (dateValue && typeof dateValue === 'object' && 'getFullYear' in dateValue) {
+    try {
+      const dateObj = dateValue as Date;
+      
+      // Verificar se é uma data válida
+      if (isNaN(dateObj.getTime())) {
+        throw new Error("Data inválida");
+      }
+      
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const result = `${year}-${month}-${day}`;
+      console.log(`✅ formatDateToIso - Objeto Date convertido para ISO: ${result}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ formatDateToIso - Erro ao processar objeto Date:`, error);
+    }
   }
   
   // Caso 4: Tentar converter para Date como último recurso
   try {
+    console.log(`⚠️ formatDateToIso - Tentativa final de conversão para Date: ${String(dateValue)}`);
     const date = new Date(dateValue);
     if (!isNaN(date.getTime())) {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      const result = `${year}-${month}-${day}`;
+      console.log(`✅ formatDateToIso - Conversão final bem-sucedida: ${result}`);
+      return result;
+    } else {
+      console.log(`❌ formatDateToIso - Conversão final falhou, data inválida`);
     }
-  } catch (e) {
-    console.error("Erro na conversão de data:", e);
+  } catch (error) {
+    console.error(`❌ formatDateToIso - Erro na conversão final:`, error);
   }
   
   // Fallback: data atual
   const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const result = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  console.log(`⚠️ formatDateToIso - Tudo falhou, usando data atual: ${result}`);
+  return result;
 }
 
 /**

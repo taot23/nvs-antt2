@@ -2325,8 +2325,10 @@ export default function SaleDialog({
                     </TableHeader>
                     <TableBody>
                       {installmentDates.map((date, index) => {
-                        const installmentAmount = form.getValues("totalAmount") 
-                          ? (parseFloat(form.getValues("totalAmount").replace(",", ".")) / installmentDates.length).toFixed(2)
+                        // Obter o valor total com tratamento seguro para evitar erro "possibly undefined"
+                        const totalAmountValue = form.getValues("totalAmount") || "0";
+                        const installmentAmount = totalAmountValue 
+                          ? (parseFloat(totalAmountValue.replace(",", ".")) / installmentDates.length).toFixed(2)
                           : "0.00";
                         
                         return (
@@ -2429,26 +2431,28 @@ export default function SaleDialog({
             <FormField
               control={form.control}
               name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <AlignLeft className="h-4 w-4" />
-                    Observações
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Observações adicionais sobre a venda"
-                      className="min-h-[100px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <AlignLeft className="h-4 w-4" />
+                      Observações
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Observações adicionais sobre a venda"
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             
             {/* Campo especial de observações para vendas devolvidas - DESTACADO E MELHORADO */}
-            {console.log("🔴 RENDERIZAÇÃO: Status original =", originalStatus, "- Condição campo correção:", originalStatus === "returned")}
+            {/* Debug do status para correção - {originalStatus} */}
             {originalStatus === "returned" && (
               <div className="space-y-2 mt-4 border-2 border-blue-600 pl-4 pr-4 pt-3 pb-3 bg-blue-50 rounded-md">
                 <div className="flex items-center gap-2 mb-2">
@@ -2463,7 +2467,7 @@ export default function SaleDialog({
                     <p className="text-sm text-red-700 mt-1">{sale.returnReason}</p>
                   </div>
                 )}
-                {console.log("🔴 CAMPO DE CORREÇÃO SENDO RENDERIZADO!")}
+                {/* Log de renderização do campo de correção */}
                 <FormLabel className="text-sm font-medium text-blue-800">
                   Observações sobre as correções realizadas:
                 </FormLabel>
