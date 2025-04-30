@@ -534,7 +534,7 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
         </TableCell>
       </TableRow>
     );
-  }, [data, updateProgress, user, onViewDetails, onViewHistory, onEdit, onStartExecution, 
+  }, [data, updateProgress, user, onViewDetails, onViewHistory, /* onEdit removido */, onStartExecution, 
       onCompleteExecution, onReturnClick, onMarkAsPaid, onDeleteClick, statusStyleCache, ReenviaButton, DevolveButton, usesFinancialStatus]);
 
   // Item de linha memoizado com função de comparação customizada

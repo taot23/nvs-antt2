@@ -1483,20 +1483,7 @@ export default function SalesPage() {
                     {/* Botões de ação com base no status e permissões */}
                     {/* Botão de editar visível para admin ou para vendedor quando a venda estiver devolvida */}
                     {/* Botão de editar com regra: apenas vendas com status "pendente" */}
-                    {(user?.role === "admin" || 
-                      user?.role === "vendedor" || 
-                      user?.role === "supervisor") && 
-                     sale.status === "pending" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 flex-grow"
-                        onClick={() => handleEdit(sale)}
-                      >
-                        <Edit className="h-3.5 w-3.5 mr-1" />
-                        Editar
-                      </Button>
-                    )}
+                    {/* BOTÃO DE EDIÇÃO REMOVIDO POR SOLICITAÇÃO DO CLIENTE (30/04/2025) */}
                     
                     {/* Botão para operacionais iniciarem execução */}
                     {(user?.role === "admin" || user?.role === "operacional") && 
