@@ -131,16 +131,25 @@ export default function SaleDialog({
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   
   // Função para lidar com o cliente criado pelo CustomerDialog
-  const handleCustomerDialogSuccess = () => {
+  const handleCustomerDialogSuccess = (newCustomer: any) => {
     // Fechar o diálogo
     setShowCustomerDialog(false);
     
     // Atualizar a lista de clientes
     queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
     
+    // Se recebemos um cliente, atualizamos o formulário
+    if (newCustomer && newCustomer.id) {
+      // Atualiza o formulário com o novo cliente
+      form.setValue("customerId", newCustomer.id);
+      setCustomerSearchTerm(newCustomer.name);
+      
+      console.log("✅ Cliente criado e selecionado:", newCustomer.name, "id:", newCustomer.id);
+    }
+    
     toast({
       title: "Cliente cadastrado",
-      description: "Cliente cadastrado com sucesso",
+      description: "Cliente cadastrado e selecionado com sucesso",
       className: "top-toast",
     });
   };
@@ -3042,6 +3051,12 @@ export default function SaleDialog({
           </form>
         </Form>
       </DialogContent>
+      {/* CustomerDialog para cadastro completo de cliente */}
+      <CustomerDialog 
+        open={showCustomerDialog}
+        onOpenChange={setShowCustomerDialog}
+        onSuccess={handleCustomerDialogSuccess}
+      />
     </Dialog>
   );
 }
