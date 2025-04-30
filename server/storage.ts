@@ -2535,28 +2535,29 @@ export class DatabaseStorage implements IStorage {
         }
         
         // 2. Registrar a mudança no histórico
+        // Incorporar informações adicionais nas notas, já que não temos uma coluna metadata
+        let notesWithAdditional = notes;
+        if (Object.keys(additionalData).length > 0) {
+          // Adicionar informações extras nas notas
+          notesWithAdditional += ` | Dados adicionais: ${JSON.stringify(additionalData)}`;
+        }
+        
         const historyQuery = `
           INSERT INTO sales_status_history (
-            sale_id, from_status, to_status, user_id, notes, 
-            metadata, created_at, updated_at
+            sale_id, from_status, to_status, user_id, notes, created_at
           )
           VALUES (
-            $1, $2, $3, $4, $5, 
-            $6, NOW(), NOW()
+            $1, $2, $3, $4, $5, NOW()
           )
           RETURNING *
         `;
-        
-        // Criar objeto de metadados com os dados adicionais
-        const metadata = JSON.stringify(additionalData);
         
         await client.query(historyQuery, [
           saleId, 
           fromStatus, 
           toStatus, 
           userId, 
-          notes,
-          metadata
+          notesWithAdditional
         ]);
         
         await client.query('COMMIT');
