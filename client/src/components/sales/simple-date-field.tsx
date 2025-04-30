@@ -3,25 +3,30 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from 'lucide-react';
 
 /**
- * VERSÃO ULTRA ROBUSTA - MAIO 2025
+ * VERSÃO ULTRA ROBUSTA FINAL - MAIO 2025
  * Componente de data com lógica simplificada e correções para problemas críticos
- * - Mantém o valor original quando vem do backend
+ * - Mantém o valor original quando vem do backend, INCLUSIVE null
  * - Preserva exatamente o formato do banco mesmo durante edições 
+ * - Tratamento especial para valores NULL em vendas retornadas
  * - Logs extensivos para depuração em produção
  */
 interface SimpleDateFieldProps {
   value?: string | Date | null;
-  onChange: (dateIsoString: string) => void;
+  onChange: (dateIsoString: string | null) => void; // Modificado para aceitar null explicitamente 
   label?: string;
   readOnly?: boolean;
+  preserveNull?: boolean; // Nova prop para indicar que valores null devem ser preservados
 }
 
 export function SimpleDateField({ 
   value, 
   onChange, 
   label = 'Data', 
-  readOnly = false
+  readOnly = false,
+  preserveNull = false // Novo parâmetro para controlar a preservação de valores null
 }: SimpleDateFieldProps) {
+  // Adicionar flag para rastrear se o valor original era null
+  const wasOriginallyNull = useRef<boolean>(value === null);
   // Estado local para manter o valor exibido
   const [displayValue, setDisplayValue] = useState<string>('');
   
@@ -45,25 +50,50 @@ export function SimpleDateField({
     // Se ainda não temos um valor original, vamos armazenar (até mesmo se for null)
     if (!isInitialized.current) {
       originalValue.current = value;
+      wasOriginallyNull.current = value === null;
       isInitialized.current = true;
-      console.log('📝 SimpleDateField - Valor original salvo (até mesmo null):', value);
+      console.log('📝 SimpleDateField - Valor original salvo:', {
+        value,
+        isNull: value === null,
+        wasOriginallyNull: wasOriginallyNull.current,
+        preserveNull
+      });
     }
     
     if (value === null || value === undefined || value === '') {
-      // SOLUÇÃO CRÍTICA - Mostrar data atual se for nulo, mas manter valor original como null
-      console.log('⚠️ SimpleDateField - Valor nulo/vazio, exibindo em branco');
-      setDisplayValue('');
+      // SOLUÇÃO CRÍTICA MAIO 2025 - Tratamento especial para valores nulos
+      console.log('⚠️ SimpleDateField - Valor nulo/vazio detectado');
       
-      // SOLUÇÃO MAIO 2025: Em modo de edição, fornecer uma data atual
-      if (!readOnly) {
-        const today = new Date();
-        const day = today.getDate().toString().padStart(2, '0');
-        const month = (today.getMonth() + 1).toString().padStart(2, '0');
-        const year = today.getFullYear();
-        const formatted = `${day}/${month}/${year}`;
-        console.log(`✅ SimpleDateField - Valor nulo, sugerindo data atual: ${formatted}`);
-        setDisplayValue(formatted);
+      // Se estamos preservando null, manter wasOriginallyNull ativo
+      if (preserveNull && value === null) {
+        console.log('🔵 PRESERVAÇÃO NULL: Mantendo flag wasOriginallyNull ativa');
+        wasOriginallyNull.current = true;
       }
+      
+      // Em modo de leitura, mostrar vazio
+      if (readOnly) {
+        console.log('⚠️ SimpleDateField - Modo leitura com valor nulo, exibindo em branco');
+        setDisplayValue('');
+        return;
+      }
+      
+      // Em modo de edição, exibir data sugerida, mas manter flags para preservar null
+      if (!readOnly) {
+        // Se preserveNull está habilitado, exibimos vazio para null
+        if (preserveNull && value === null) {
+          console.log('🔵 PRESERVAÇÃO NULL: Campo preserveNull=true para valor null, exibindo vazio');
+          setDisplayValue('');
+        } else {
+          const today = new Date();
+          const day = today.getDate().toString().padStart(2, '0');
+          const month = (today.getMonth() + 1).toString().padStart(2, '0');
+          const year = today.getFullYear();
+          const formatted = `${day}/${month}/${year}`;
+          console.log(`✅ SimpleDateField - Valor nulo, sugerindo data atual: ${formatted}`);
+          setDisplayValue(formatted);
+        }
+      }
+      
       return;
     }
     
@@ -144,6 +174,14 @@ export function SimpleDateField({
     // SOLUÇÃO CRÍTICA: Log extensivo para depuração
     console.log(`🔤 SimpleDateField - Input alterado para: "${newValue}"`);
     
+    // CASO ESPECIAL MAIO 2025: Se estiver vazio e preserveNull habilitado
+    if (newValue.trim() === '' && preserveNull && wasOriginallyNull.current) {
+      console.log(`🔵 PRESERVAÇÃO NULL: Campo vazio e preserveNull=true, enviando NULL explícito`);
+      // @ts-ignore - Ignorando erro de tipo, queremos explicitamente passar null aqui
+      onChange(null);
+      return;
+    }
+    
     // Verificar se corresponde ao formato DD/MM/AAAA
     const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
     if (datePattern.test(newValue)) {
@@ -152,6 +190,13 @@ export function SimpleDateField({
       // Converter para formato ISO
       const isoDate = `${year}-${month}-${day}`;
       console.log(`✅ SimpleDateField - Convertido para ISO: ${isoDate}`);
+      
+      // Se tinha valor originalmente null mas agora tem data, não manter como null
+      if (wasOriginallyNull.current) {
+        console.log(`🔄 SimpleDateField - Valor original era null, mas foi substituído`);
+        wasOriginallyNull.current = false;
+      }
+      
       onChange(isoDate);
     } else {
       // SOLUÇÃO RADICAL: Verificar formato parcial
@@ -160,9 +205,16 @@ export function SimpleDateField({
         console.log(`⚠️ SimpleDateField - Formato parcial, aguardando completar...`);
         // Não chamar onChange ainda para evitar estragar o valor
       } else {
-        // Passar o valor como está se não corresponder a nenhum padrão conhecido
-        console.log(`⚠️ SimpleDateField - Formato desconhecido, passando como está`);
-        onChange(newValue);
+        // CASO ESPECIAL: Se estiver completamente vazio e originalmente era null
+        if (newValue.trim() === '' && wasOriginallyNull.current && preserveNull) {
+          console.log(`🔵 PRESERVAÇÃO NULL: Campo limpo, retornando ao valor null original`);
+          // @ts-ignore - Ignorando erro de tipo, queremos explicitamente passar null aqui
+          onChange(null);
+        } else {
+          // Passar o valor como está se não corresponder a nenhum padrão conhecido
+          console.log(`⚠️ SimpleDateField - Formato desconhecido, passando como está`);
+          onChange(newValue);
+        }
       }
     }
   };
