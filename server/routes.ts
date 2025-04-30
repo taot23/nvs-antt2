@@ -2034,6 +2034,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const sale = saleResult.rows[0];
       
+      // SUPER LOG - Mostrar detalhes da venda original
+      console.log("🔴 SOLUÇÃO RADICAL - VENDA ORIGINAL:", JSON.stringify(sale, null, 2));
+      console.log("🔴 SOLUÇÃO RADICAL - DATA ORIGINAL:", sale.date);
+      
       // Verificar se o usuário tem permissão para reenviar esta venda
       // Administradores, supervisores ou o vendedor original podem reenviar
       if (req.user?.role !== 'admin' && req.user?.role !== 'supervisor' && 
@@ -2054,22 +2058,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         serviceProviderId,
         paymentMethodId,
         installments,
-        totalAmount
+        totalAmount,
+        date // Capturamos a data enviada para verificar
       } = req.body;
       
-      console.log("Dados recebidos para reenvio:", { 
+      console.log("🔴 SOLUÇÃO RADICAL - DADOS RECEBIDOS:", { 
         id, 
         itens: items.length,
         tipoServico: serviceTypeId,
         formaPagamento: paymentMethodId,
         parcelas: installments,
-        valor: totalAmount
+        valor: totalAmount,
+        data: date // Log da data recebida
       });
       
       if (!correctionNotes) {
         return res.status(400).json({ error: "Observações de correção são obrigatórias" });
       }
       
+      // SOLUÇÃO RADICAL: IGNORAR A DATA RECEBIDA E MANTER A ORIGINAL
       // Preparar dados para atualização
       let updateQuery = `
         UPDATE sales 
@@ -2084,6 +2091,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updateParams = [correctionNotes, id];
       let paramIndex = 3;
+      
+      // IMPORTANTE: NÃO alterar a data! A data original será mantida exatamente como está
+      console.log("🔴 SOLUÇÃO RADICAL - MANTENDO DATA ORIGINAL:", sale.date);
       
       // Adicionar campos opcionais à atualização se estiverem presentes
       if (serviceTypeId !== undefined) {
@@ -2232,26 +2242,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Validação dos dados para atualização
-      const today = new Date(); // Obter a data atual
+      // SOLUÇÃO RADICAL: TRATAMENTO ESPECIAL DA DATA NO PATCH
+      console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data recebida:", req.body.date, "tipo:", typeof req.body.date);
       
-      // Processamento da data
-      let saleDate = today; // Por padrão, usamos a data de hoje
+      // Buscar a data original da venda
+      const { pool } = await import('./db');
+      const originalSaleResult = await pool.query(
+        "SELECT date FROM sales WHERE id = $1",
+        [id]
+      );
       
-      if (req.body.date) {
+      let originalDate = null;
+      if (originalSaleResult.rows.length > 0) {
+        originalDate = originalSaleResult.rows[0].date;
+      }
+      
+      console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data original da venda:", originalDate);
+      
+      // Se não foi enviada uma nova data no corpo da requisição, manter a original
+      if (!req.body.date) {
+        console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data não enviada, mantendo original");
+        req.body.date = originalDate;
+      } else {
+        // Se a data enviada for diferente da original, formatar corretamente
         if (typeof req.body.date === 'string') {
-          // Se for string, convertemos para Date
-          saleDate = new Date(req.body.date);
+          console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Formatando data string:", req.body.date);
           
-          // Verificamos se a data é válida
-          if (isNaN(saleDate.getTime())) {
-            saleDate = today; // Se for inválida, usamos hoje
+          // Se for data no formato YYYY-MM-DD, usar diretamente
+          if (req.body.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data já está no formato YYYY-MM-DD");
+            // Manter como está
           }
-        } else {
-          // Se já for um objeto Date, usamos diretamente
-          saleDate = req.body.date;
+          // Se for data no formato DD/MM/YYYY, converter para YYYY-MM-DD
+          else if (req.body.date.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+            const parts = req.body.date.split('/');
+            req.body.date = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data convertida de DD/MM/YYYY:", req.body.date);
+          }
+        } else if (req.body.date instanceof Date) {
+          console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Formatando data objeto:", req.body.date);
+          const dateObj = req.body.date;
+          req.body.date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
         }
       }
+      
+      // Usar a data processada (ou a original)
+      const saleDate = req.body.date || originalDate;
       
       // Validação robusta de installments na atualização
       if (req.body.installments !== undefined) {
