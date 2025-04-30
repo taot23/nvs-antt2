@@ -32,10 +32,11 @@ export function SimpleDateField({
     
     try {
       // Converter Date para string no formato brasileiro
-      if (value instanceof Date) {
-        const day = value.getDate().toString().padStart(2, '0');
-        const month = (value.getMonth() + 1).toString().padStart(2, '0');
-        const year = value.getFullYear();
+      if (value && typeof value === 'object' && 'getFullYear' in value) {
+        const dateObj = value as Date;
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const year = dateObj.getFullYear();
         setDisplayValue(`${day}/${month}/${year}`);
         return;
       }
@@ -47,11 +48,17 @@ export function SimpleDateField({
       }
       
       // Se for string ISO, converter para DD/MM/AAAA
-      if (typeof value === 'string' && value.includes('-')) {
-        const parts = value.split('T')[0].split('-');
+      if (typeof value === 'string' && (value.includes('-') || value.includes('T'))) {
+        // Garantir que estamos tratando somente a parte da data (antes do T se existir)
+        const datePart = value.split('T')[0];
+        const parts = datePart.split('-');
+        
         if (parts.length === 3) {
           const [year, month, day] = parts;
-          setDisplayValue(`${day}/${month}/${year}`);
+          const formattedDay = day.padStart(2, '0');
+          const formattedMonth = month.padStart(2, '0');
+          setDisplayValue(`${formattedDay}/${formattedMonth}/${year}`);
+          console.log(`Data ISO convertida: ${value} -> ${formattedDay}/${formattedMonth}/${year}`);
           return;
         }
       }
