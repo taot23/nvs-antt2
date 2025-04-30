@@ -1801,7 +1801,7 @@ export default function SalesPage() {
       />
       
       {/* Diálogo apenas para edição de vendas existentes */}
-      {dialogOpen && (
+      {dialogOpen && selectedSale && (
         <SaleDialog
           open={dialogOpen}
           onClose={() => {
@@ -1809,6 +1809,7 @@ export default function SalesPage() {
             setDialogOpen(false);
           }}
           sale={selectedSale}
+          saleId={selectedSale.id}
           onSaveSuccess={() => {
             console.log("Venda atualizada com sucesso");
             toast({

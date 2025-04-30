@@ -471,36 +471,42 @@ export default function SaleDialog({
   // Efeito para monitorar quando a venda muda ou o ID muda
   // Efeito para preencher o formulário com os dados da venda quando ela estiver disponível
   useEffect(() => {
-    if (sale && open && !formInitialized.current) {
-      console.log("🔄 Preenchendo formulário com dados da venda:", sale.id);
+    // Verifica se temos uma venda atual (através de 'sale' ou 'saleId')
+    const currentSale = sale || (saleId ? { id: saleId } : null);
+    
+    if (currentSale && open && !formInitialized.current) {
+      console.log("🔄 Preenchendo formulário com dados da venda:", currentSale.id);
       
-      // Atualizamos todos os campos do formulário com os dados da venda
-      form.setValue("orderNumber", sale.orderNumber || "");
-      form.setValue("date", sale.date || new Date());
-      form.setValue("customerId", sale.customerId || 0);
-      form.setValue("paymentMethodId", sale.paymentMethodId || 0);
-      form.setValue("serviceTypeId", sale.serviceTypeId || 0);
-      form.setValue("sellerId", sale.sellerId || user?.id || 0);
-      form.setValue("totalAmount", sale.totalAmount || "");
-      form.setValue("installments", sale.installments || 1);
-      form.setValue("notes", sale.notes || "");
-      
-      // Atualiza os estados relacionados
-      setOriginalStatus(sale.status);
-      setFinancialStatus(sale.financialStatus);
-      setOriginalSaleDate(sale.date);
-      
-      // Se há dados do cliente, atualiza o campo de busca
-      const selectedCustomer = customers.find(c => c.id === sale.customerId);
-      if (selectedCustomer) {
-        setCustomerSearchTerm(selectedCustomer.name);
+      // Para vendas carregadas por props
+      if (sale) {
+        // Atualizamos todos os campos do formulário com os dados da venda
+        form.setValue("orderNumber", sale.orderNumber || "");
+        form.setValue("date", sale.date || new Date());
+        form.setValue("customerId", sale.customerId || 0);
+        form.setValue("paymentMethodId", sale.paymentMethodId || 0);
+        form.setValue("serviceTypeId", sale.serviceTypeId || 0);
+        form.setValue("sellerId", sale.sellerId || user?.id || 0);
+        form.setValue("totalAmount", sale.totalAmount || "");
+        form.setValue("installments", sale.installments || 1);
+        form.setValue("notes", sale.notes || "");
+        
+        // Atualiza os estados relacionados
+        setOriginalStatus(sale.status);
+        setFinancialStatus(sale.financialStatus);
+        setOriginalSaleDate(sale.date);
+        
+        // Se há dados do cliente, atualiza o campo de busca
+        const selectedCustomer = customers.find(c => c.id === sale.customerId);
+        if (selectedCustomer) {
+          setCustomerSearchTerm(selectedCustomer.name);
+        }
       }
       
       // Marca que o formulário foi inicializado
       formInitialized.current = true;
       console.log("✅ Formulário preenchido com sucesso");
     }
-  }, [sale, open, form, customers, user]);
+  }, [sale, open, form, customers, user, saleId]);
 
   // Função auxiliar para atualizar os itens - Implementação Forçada
   const updateFormItems = useCallback((items: any[]) => {
