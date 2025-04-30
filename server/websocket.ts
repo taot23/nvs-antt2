@@ -64,17 +64,26 @@ export function setupWebsocket(httpServer: HttpServer) {
     // Verificar periodicamente se a conexão ainda está ativa
     const interval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        // Agora enviamos "ping" para que o cliente responda com "pong"
-        // Assim a verificação de integridade é bidirecional
-        ws.send(JSON.stringify({ 
-          type: 'ping', 
-          payload: { message: 'Ping periódico do servidor' },
-          timestamp: Date.now() 
-        }));
-      } else {
+        try {
+          ws.send(JSON.stringify({ 
+            type: 'ping', 
+            payload: { message: 'Ping periódico do servidor' },
+            timestamp: Date.now() 
+          }));
+        } catch (error) {
+          log(`Erro ao enviar ping: ${error}`, 'websocket');
+          ws.terminate(); // Força o fechamento se houver erro
+        }
+      }
+      if (ws.readyState !== WebSocket.OPEN) {
         clearInterval(interval);
       }
-    }, 30000); // Ping a cada 30 segundos
+    }, 15000); // Ping a cada 15 segundos
+
+    // Cleanup do intervalo quando a conexão fechar
+    ws.on('close', () => {
+      clearInterval(interval);
+    });
   });
 
   return wss;
