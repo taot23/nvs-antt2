@@ -1099,11 +1099,12 @@ export default function SaleDialog({
     mutationFn: async (data: z.infer<typeof saleSchema>) => {
       setIsSubmitting(true);
       
-      // CORREÇÃO CRÍTICA: Determinar se estamos editando uma venda existente ou criando nova
-      const isEditing = !!(data.id || (sale && sale.id));
-      const saleId = data.id || (sale && sale.id) || null;
+      // SOLUÇÃO ULTRA-DEFINITIVA - 30/04/2025: FORÇAR método PATCH para edições
+      // Se temos ID na venda carregada, 100% garantido que é uma edição
+      const editingExistingSale = !!(sale && sale.id);
+      const saleId = (sale && sale.id) || null;
       
-      console.log("📋 CORREÇÃO DE MÉTODO HTTP: isEditing =", isEditing, "saleId =", saleId);
+      console.log("📋 MÉTODO FORÇADO:", editingExistingSale ? "PATCH" : "POST", "ID da venda =", saleId);
       
       // Calcula o valor de cada parcela com base no valor total e número de parcelas
       const totalAmountValue = parseFloat(data.totalAmount?.replace(',', '.') || "0");
