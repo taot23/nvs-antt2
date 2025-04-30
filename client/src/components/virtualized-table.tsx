@@ -452,18 +452,7 @@ export const VirtualizedTable: React.FC<VirtualizedTableProps> = ({
               <ClipboardList className="h-4 w-4" />
             </Button>
             
-            {/* Permissão para editar (admin/vendedor) apenas com status "pending" */}
-            {(user?.role === "admin" || user?.role === "vendedor" || user?.role === "supervisor") && sale.status === "pending" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(sale)}
-                className="h-8 w-8"
-                title="Editar"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Botão de edição removido conforme solicitação do cliente */}
             
             {/* Permissão para iniciar execução (operacional/admin) */}
             {(user?.role === "admin" || user?.role === "operacional") && 
