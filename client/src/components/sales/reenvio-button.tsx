@@ -76,7 +76,7 @@ export default function ReenvioButton({ sale }: ReenvioButtonProps) {
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/sales/${sale.id}/resubmit`, {
+      const response = await apiRequest(`/api/sales/${sale.id}/resubmit`, 'POST', {
         correctionNotes: observacoes,
       });
       return await response.json();

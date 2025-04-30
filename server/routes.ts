@@ -2278,7 +2278,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para excluir uma venda
+  // Endpoint para reenviar uma venda que foi devolvida para correção (returned -> corrected)
+  app.post("/api/sales/:id/resubmit", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está em status "returned"
+      if (sale.status !== "returned") {
+        return res.status(400).json({ 
+          error: "Status inválido", 
+          message: "Apenas vendas com status 'returned' podem ser reenviadas"
+        });
+      }
+      
+      // Verificar se o usuário tem permissão para reenviar esta venda
+      if (req.user?.role !== "admin" && 
+          req.user?.role !== "supervisor" && 
+          !(req.user?.role === "vendedor" && sale.sellerId === req.user?.id)) {
+        return res.status(403).json({ 
+          error: "Permissão negada", 
+          message: "Você não tem permissão para reenviar esta venda" 
+        });
+      }
+      
+      // Extrair as notas de correção da solicitação
+      const { correctionNotes } = req.body;
+      
+      if (!correctionNotes || typeof correctionNotes !== "string" || correctionNotes.trim() === "") {
+        return res.status(400).json({ 
+          error: "Descrição de correções é obrigatória", 
+          message: "Por favor, descreva as correções realizadas"
+        });
+      }
+      
+      // Atualizar o status da venda para "corrected"
+      const updatedSale = await storage.updateSaleStatus(
+        id, 
+        "returned", 
+        "corrected", 
+        `Venda reenviada após correções. Notas: ${correctionNotes}`,
+        req.user?.id || null,
+        { isResubmitted: true, correctionNotes }
+      );
+      
+      // Notificar clientes WebSocket sobre a mudança
+      notifySalesUpdate();
+      
+      return res.status(200).json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao reenviar venda:", error);
+      return res.status(500).json({ 
+        error: "Erro ao reenviar venda", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+
   app.delete("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
