@@ -1600,7 +1600,7 @@ export default function SaleDialog({
       let updatedStatus = undefined;
       let updatedNotes = values.notes;
       
-      if (originalStatus === "returned") {
+      if (originalStatus === "returned" || forceResendMode) {
         updatedStatus = "corrected";
         
         // Formatar data atual para o registro
@@ -1669,6 +1669,11 @@ export default function SaleDialog({
 
   // Log para debug
   console.log('SaleDialog renderizado, open =', open, 'sale =', sale ? sale.id : null);
+  console.log('🔴 RENDERIZAÇÃO: Status original =', originalStatus, '- forceResendMode:', forceResendMode, '- Condição campo correção:', (originalStatus === "returned" || forceResendMode));
+  
+  if (originalStatus === "returned" || forceResendMode) {
+    console.log("🔴 CAMPO DE CORREÇÃO SENDO RENDERIZADO!");
+  }
 
   // Se não estiver aberto, não renderizar o conteúdo para evitar problemas de performance
   if (!open) {
@@ -2795,7 +2800,7 @@ export default function SaleDialog({
                   console.log("Dados de venda preparados:", saleData);
                   
                   // Determina se estamos reenviando uma venda devolvida ou criando uma nova
-                  const isResending = originalStatus === "returned" && sale?.id;
+                  const isResending = (originalStatus === "returned" || forceResendMode) && sale?.id;
                   
                   // Adiciona notas de correção se for um reenvio
                   if (isResending && correctionNotes) {
