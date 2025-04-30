@@ -125,11 +125,9 @@ export default function SaleDialog({
   const [showCustomerPopover, setShowCustomerPopover] = useState(false);
   const [showSellerPopover, setShowSellerPopover] = useState(false);
   const [showServicePopover, setShowServicePopover] = useState(false);
-  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerDocument, setNewCustomerDocument] = useState("");
-  const [newCustomerPhone, setNewCustomerPhone] = useState("");
-  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  
+  // Estado para controlar o modal de cadastro de cliente
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   
   // Estados para controle das parcelas e datas de vencimento - aceitamos tanto Date quanto string no formato YYYY-MM-DD
   const [installmentDates, setInstallmentDates] = useState<(Date | string)[]>([]);
