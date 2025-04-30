@@ -138,6 +138,44 @@ export default function SaleDialog({
   // Estado para rastrear o status financeiro da venda (para bloqueio de campos)
   const [financialStatus, setFinancialStatus] = useState<string | null>(null);
   // Estado para armazenar as observações de correção quando a venda está com status "returned"
+  
+  /**
+   * Função para determinar se os campos financeiros (valor, forma de pagamento, parcelas, datas) 
+   * devem ser bloqueados para edição.
+   * 
+   * Os campos são bloqueados quando:
+   * 1. O status financeiro é "in_progress" (processamento pelo setor financeiro)
+   * 2. O status financeiro é "completed" (venda concluída financeiramente)
+   * 3. A venda está sendo editada (não é um reenvio de venda devolvida)
+   * 
+   * @returns {boolean} Retorna true se os campos devem ser bloqueados, false caso contrário
+   */
+  const shouldBlockFinancialFields = (): boolean => {
+    console.log("🔒 Verificando bloqueio de campos financeiros:", {
+      financialStatus,
+      originalStatus,
+      forceResendMode
+    });
+    
+    // Se a venda está em modo de reenvio (devolvida), não bloquear campos
+    if (originalStatus === "returned" || forceResendMode) {
+      console.log("🔓 Venda em modo de reenvio - campos liberados");
+      return false;
+    }
+    
+    // Bloqueia campos financeiros se:
+    // 1. Venda estiver em processamento pelo departamento financeiro (financialStatus === "in_progress")
+    // 2. Venda estiver sendo alterada (não é reenvio de venda devolvida ou forceResendMode)
+    const isEditingExistingSale = !!sale?.id && originalStatus !== "returned" && !forceResendMode;
+    const isInFinancialProcessing = financialStatus === "in_progress";
+    
+    const shouldBlock = isEditingExistingSale && isInFinancialProcessing;
+    console.log("🔒 CONTROLE DE BLOQUEIO: isEditingExistingSale =", isEditingExistingSale, 
+                "isInFinancialProcessing =", isInFinancialProcessing, 
+                "shouldBlock =", shouldBlock);
+    
+    return shouldBlock;
+  };
   const [correctionNotes, setCorrectionNotes] = useState<string>("");
   
 
@@ -634,22 +672,6 @@ export default function SaleDialog({
   const getServiceTypeNameById = (serviceTypeId: number): string => {
     const serviceType = serviceTypes.find((t: any) => t.id === serviceTypeId);
     return serviceType ? serviceType.name : `Tipo #${serviceTypeId}`;
-  };
-  
-  // Função auxiliar para verificar se os campos financeiros devem ser bloqueados
-  const shouldBlockFinancialFields = (): boolean => {
-    // Bloqueia campos financeiros se:
-    // 1. Venda estiver em processamento pelo departamento financeiro (financialStatus === "in_progress")
-    // 2. Venda estiver sendo alterada (não é reenvio de venda devolvida ou forceResendMode)
-    const isEditingExistingSale = !!sale?.id && originalStatus !== "returned" && !forceResendMode;
-    const isInFinancialProcessing = financialStatus === "in_progress";
-    
-    const shouldBlock = isEditingExistingSale && isInFinancialProcessing;
-    console.log("🔒 CONTROLE DE BLOQUEIO: isEditingExistingSale =", isEditingExistingSale, 
-                "isInFinancialProcessing =", isInFinancialProcessing, 
-                "shouldBlock =", shouldBlock);
-    
-    return shouldBlock;
   };
 
   // Funções auxiliares para renderização de componentes
@@ -2176,8 +2198,14 @@ export default function SaleDialog({
                     <FormLabel className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />
                       Parcelas
+                      {shouldBlockFinancialFields() && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 ml-2 text-[10px]">
+                          Bloqueado
+                        </Badge>
+                      )}
                     </FormLabel>
                     <Select 
+                      disabled={shouldBlockFinancialFields()}
                       onValueChange={(value) => {
                         console.log("🔄 CORREÇÃO EXTREMA - Seleção de parcelas alterada para:", value, "tipo:", typeof value);
                         
@@ -2258,9 +2286,19 @@ export default function SaleDialog({
                   <h3 className="text-lg font-medium flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Datas de Vencimento
+                    {shouldBlockFinancialFields() && (
+                      <Badge variant="outline" className="bg-amber-100 text-amber-800 ml-2 text-[10px]">
+                        Bloqueado
+                      </Badge>
+                    )}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     Configure as datas de vencimento para cada parcela
+                    {shouldBlockFinancialFields() && (
+                      <span className="text-amber-600 block mt-1">
+                        Datas bloqueadas - venda em processamento financeiro
+                      </span>
+                    )}
                   </p>
                 </div>
                 
@@ -2291,6 +2329,8 @@ export default function SaleDialog({
                                 data-installment-date
                                 data-installment-number={index + 1}
                                 placeholder="DD/MM/AAAA"
+                                disabled={shouldBlockFinancialFields()}
+                                className={shouldBlockFinancialFields() ? "bg-gray-100" : ""}
                                 defaultValue={typeof date === 'string' ? 
                                   // Se for string no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
                                   date.includes('-') ? `${date.split('-')[2]}/${date.split('-')[1]}/${date.split('-')[0]}` : date 
