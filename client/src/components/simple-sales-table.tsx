@@ -324,8 +324,11 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
                     <ClipboardList className="h-4 w-4" />
                   </Button>
                   
-                  {/* Permissão para editar (admin) e apenas se não estiver concluída */}
-                  {user?.role === "admin" && sale.status !== "completed" && (
+                  {/* Permissão para editar - apenas vendas com status pendente */}
+                  {(user?.role === "admin" || 
+                   user?.role === "vendedor" || 
+                   user?.role === "supervisor") && 
+                   sale.status === "pending" && (
                     <Button
                       variant="ghost"
                       size="icon"
