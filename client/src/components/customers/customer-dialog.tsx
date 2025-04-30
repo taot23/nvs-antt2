@@ -131,15 +131,19 @@ type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 interface CustomerDialogProps {
   open: boolean;
-  onClose: () => void;
-  customer: Customer | null;
-  onSaveSuccess: () => void;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  customer?: Customer | null;
+  onSuccess?: (customer: Customer) => void;
+  onSaveSuccess?: () => void;
 }
 
 export default function CustomerDialog({
   open,
+  onOpenChange,
   onClose,
-  customer,
+  customer = null,
+  onSuccess,
   onSaveSuccess,
 }: CustomerDialogProps) {
   const { toast } = useToast();
@@ -235,14 +239,27 @@ export default function CustomerDialog({
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Cliente cadastrado",
         description: "O cliente foi cadastrado com sucesso.",
         variant: "default",
         className: "top-toast",
       });
-      onSaveSuccess();
+      
+      // Chama o callback com o cliente criado
+      if (onSuccess) {
+        onSuccess(data);
+      } else if (onSaveSuccess) {
+        onSaveSuccess();
+      }
+      
+      // Fecha o diálogo
+      if (onOpenChange) {
+        onOpenChange(false);
+      } else if (onClose) {
+        onClose();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -288,14 +305,27 @@ export default function CustomerDialog({
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Cliente atualizado",
         description: "O cliente foi atualizado com sucesso.",
         variant: "default",
         className: "top-toast",
       });
-      onSaveSuccess();
+      
+      // Chama o callback com o cliente atualizado
+      if (onSuccess) {
+        onSuccess(data);
+      } else if (onSaveSuccess) {
+        onSaveSuccess();
+      }
+      
+      // Fecha o diálogo
+      if (onOpenChange) {
+        onOpenChange(false);
+      } else if (onClose) {
+        onClose();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -456,7 +486,10 @@ export default function CustomerDialog({
   const documentStatus = document ? validateDocument(document, documentType) : 0; // 0 = incompleto
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog 
+      open={open} 
+      onOpenChange={onOpenChange || (onClose ? () => onClose() : undefined)}
+    >
       <DialogContent className="dialog-content w-[90vw] max-w-[90vw] sm:max-w-[520px] md:max-w-[580px] lg:max-w-[650px] h-auto overflow-y-auto max-h-[85vh] sm:max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>
@@ -659,7 +692,13 @@ export default function CustomerDialog({
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={onClose} 
+                onClick={() => {
+                  if (onOpenChange) {
+                    onOpenChange(false);
+                  } else if (onClose) {
+                    onClose();
+                  }
+                }} 
                 disabled={isPending}
                 className="w-full sm:w-auto order-2 sm:order-1 h-11 sm:h-10 py-1 sm:py-2 px-4 sm:px-6"
                 style={{ WebkitAppearance: "none" }}
