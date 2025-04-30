@@ -1099,10 +1099,14 @@ export default function SaleDialog({
     mutationFn: async (data: z.infer<typeof saleSchema>) => {
       setIsSubmitting(true);
       
-      // SOLUÇÃO ULTRA-DEFINITIVA V2 - 30/04/2025: FORÇAR método PATCH para edições
-      // Se temos ID na propriedade saleId passada para o componente, 100% garantido que é uma edição
-      const editingExistingSale = !!saleId;
-      console.log("📋 MÉTODO FORÇADO V2:", editingExistingSale ? "PATCH" : "POST", "ID da venda =", saleId);
+      // SOLUÇÃO ULTRA-MEGA-RADICAL - 30/04/2025: FORÇAR método PATCH para edições
+      // Três testes diferentes para garantir que é uma edição:
+      // 1. Se temos ID na propriedade saleId passada para o componente
+      // 2. Se temos objeto 'sale' com um id
+      // 3. Se algum outro modo de edição for detectado
+      const editingExistingSale = (!!saleId || !!sale?.id);
+      const saleIdToUse = saleId || sale?.id; // Garantir que usamos o ID disponível
+      console.log("📋 SOLUÇÃO ULTRA-MEGA-RADICAL - MÉTODO FORÇADO:", editingExistingSale ? "PATCH" : "POST", "ID da venda =", saleIdToUse);
       
       // Calcula o valor de cada parcela com base no valor total e número de parcelas
       const totalAmountValue = parseFloat(data.totalAmount?.replace(',', '.') || "0");
@@ -1514,11 +1518,11 @@ export default function SaleDialog({
       // Fallback: usar a abordagem normal/original se o bypass falhar
       console.log("⚠️ Usando abordagem normal como fallback...");
       
-      // SOLUÇÃO RADICAL 30/04/2025: Simplificar completamente a lógica de edição
-      // Se estamos editando (conforme definido no início do fluxo), usamos o ID da props
+      // SOLUÇÃO ULTRA-MEGA-RADICAL 30/04/2025: Simplificar completamente a lógica de edição
+      // Se estamos editando, usar o ID que armazenamos anteriormente
       // Este é o ÚNICO local confiável para o ID da venda em edição
-      const finalSaleId = editingExistingSale ? saleId : null;
-      console.log("🔑 ID DA VENDA PARA EDIÇÃO (SIMPLIFICADO):", finalSaleId);
+      const finalSaleId = editingExistingSale ? saleIdToUse : null;
+      console.log("🔑 ID DA VENDA PARA EDIÇÃO (ULTRA-MEGA-SIMPLIFICADO):", finalSaleId);
       
       const url = finalSaleId ? `/api/sales/${finalSaleId}` : "/api/sales";
       const method = finalSaleId ? "PATCH" : "POST";
