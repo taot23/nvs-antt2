@@ -33,7 +33,6 @@ interface PaginatedSalesTableProps {
   onMarkAsPaid: (sale: Sale) => void;
   onDeleteClick: (sale: Sale) => void;
   user: { id: number; username: string; role: string } | null;
-  ReenviaButton: React.ComponentType<{ sale: Sale }>;
   DevolveButton: React.ComponentType<{ sale: Sale }>;
   totalItems: number;
 }
@@ -59,7 +58,6 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   onMarkAsPaid,
   onDeleteClick,
   user,
-  ReenviaButton,
   DevolveButton,
   totalItems,
 }) => {
@@ -96,7 +94,6 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
           onMarkAsPaid={onMarkAsPaid}
           onDeleteClick={onDeleteClick}
           user={user}
-          ReenviaButton={ReenviaButton}
           DevolveButton={DevolveButton}
         />
         
