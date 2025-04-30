@@ -47,7 +47,7 @@ export default function OptimizedSalesTable({
   user,
   onViewDetails,
   onViewHistory,
-  onEdit,
+  onEdit, // Edição desativada
   onStartExecution,
   onCompleteExecution,
   onReturnClick,

@@ -51,7 +51,7 @@ const PaginatedSalesTable: React.FC<PaginatedSalesTableProps> = ({
   onPageSizeChange,
   onViewDetails,
   onViewHistory,
-  onEdit,
+  onEdit, // Edição desativada por solicitação do cliente
   onStartExecution,
   onCompleteExecution,
   onReturnClick,
