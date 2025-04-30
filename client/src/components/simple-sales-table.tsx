@@ -66,7 +66,6 @@ interface SimpleSalesTableProps {
   onMarkAsPaid: (sale: Sale) => void;
   onDeleteClick: (sale: Sale) => void;
   user: { id: number; username: string; role: string } | null;
-  ReenviaButton: React.ComponentType<{ sale: Sale }>;
   DevolveButton: React.ComponentType<{ sale: Sale }>;
 }
 
@@ -86,7 +85,6 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
   onMarkAsPaid,
   onDeleteClick,
   user,
-  ReenviaButton,
   DevolveButton,
 }) => {
   
@@ -381,12 +379,7 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
                     </Button>
                   )}
                   
-                  {/* Botão de reenvio para vendedor */}
-                  {(user?.role === "admin" || 
-                    user?.role === "supervisor" || 
-                    (user?.role === "vendedor" && sale.sellerId === user?.id)) && (
-                    <ReenviaButton sale={sale} />
-                  )}
+                  {/* Funcionalidade de reenvio removida */}
                   
                   {/* Botão de devolução para vendas com status "corrected" */}
                   {(user?.role === "admin" || user?.role === "operacional") && 
