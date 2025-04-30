@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Plus, Trash2, Search, Check, User, UserPlus, CreditCard, AlignLeft, FileText, Calendar, DollarSign, Cog, Save, AlertTriangle, X, Package, Trash } from "lucide-react";
 import { SaleItemsFix } from "./sale-items-fix";
 import { format, addMonths, isValid } from "date-fns";
+import CustomerDialog from "@/components/customers/customer-dialog";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -128,6 +129,21 @@ export default function SaleDialog({
   
   // Estado para controlar o modal de cadastro de cliente
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  
+  // Função para lidar com o cliente criado pelo CustomerDialog
+  const handleCustomerDialogSuccess = () => {
+    // Fechar o diálogo
+    setShowCustomerDialog(false);
+    
+    // Atualizar a lista de clientes
+    queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+    
+    toast({
+      title: "Cliente cadastrado",
+      description: "Cliente cadastrado com sucesso",
+      className: "top-toast",
+    });
+  };
   
   // Estados para controle das parcelas e datas de vencimento - aceitamos tanto Date quanto string no formato YYYY-MM-DD
   const [installmentDates, setInstallmentDates] = useState<(Date | string)[]>([]);
@@ -367,52 +383,7 @@ export default function SaleDialog({
     enabled: !!(sale?.id || saleId)
   });
   
-  // Mutation para criar novo cliente
-  const createCustomerMutation = useMutation({
-    mutationFn: async (customerData: { 
-      name: string; 
-      document: string;
-      documentType: string;
-      phone: string;
-      email: string;
-    }) => {
-      const response = await fetch("/api/customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(customerData),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao criar cliente");
-      }
-      
-      return await response.json();
-    },
-    onSuccess: (customer) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      toast({
-        title: "Cliente criado",
-        description: "Cliente criado com sucesso",
-        className: "top-toast",
-      });
-      
-      // Atualiza o formulário com o novo cliente
-      form.setValue("customerId", customer.id);
-      setCustomerSearchTerm(customer.name);
-      setShowNewCustomerForm(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao criar cliente",
-        description: error.message,
-        variant: "destructive",
-        className: "top-toast",
-      });
-    },
-  });
+  // Não precisamos mais da mutation de criar cliente, pois usaremos o CustomerDialog
 
   // Filtra clientes com base no termo de busca
   const filteredCustomers = customers.filter((customer: any) => {
@@ -1091,25 +1062,7 @@ export default function SaleDialog({
   };
 
   // Função para criar novo cliente
-  const handleCreateCustomer = () => {
-    if (!newCustomerName || !newCustomerDocument || !newCustomerPhone || !newCustomerEmail) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Nome, documento, telefone e email são obrigatórios",
-        variant: "destructive",
-        className: "top-toast",
-      });
-      return;
-    }
-
-    createCustomerMutation.mutate({
-      name: newCustomerName,
-      document: newCustomerDocument,
-      documentType: "cpf", // Valor padrão
-      phone: newCustomerPhone,
-      email: newCustomerEmail,
-    });
-  };
+  // Função não mais necessária, pois usaremos o CustomerDialog
   
   // Mutation para salvar a venda
   const saveMutation = useMutation({
@@ -2016,7 +1969,7 @@ export default function SaleDialog({
                             type="button" 
                             variant="outline" 
                             size="icon"
-                            onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                            onClick={() => setShowCustomerDialog(true)}
                             className="h-10 w-10 shrink-0"
                           >
                             <UserPlus className="h-4 w-4" />
@@ -2041,7 +1994,7 @@ export default function SaleDialog({
                                     variant="secondary" 
                                     size="sm"
                                     onClick={() => {
-                                      setShowNewCustomerForm(true);
+                                      setShowCustomerDialog(true);
                                       setShowCustomerPopover(false);
                                     }}
                                   >
@@ -2082,72 +2035,7 @@ export default function SaleDialog({
                 )}
               />
 
-              {/* Formulário para novo cliente */}
-              {showNewCustomerForm && (
-                <div className="bg-muted/30 p-4 rounded border border-primary/20 animate-in fade-in-50 slide-in-from-top-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-base font-medium">Cadastrar Novo Cliente</h4>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <FormLabel>Nome/Razão Social</FormLabel>
-                      <Input 
-                        value={newCustomerName} 
-                        onChange={(e) => setNewCustomerName(e.target.value)} 
-                        placeholder="Nome completo ou razão social"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>CPF/CNPJ</FormLabel>
-                      <Input 
-                        value={newCustomerDocument} 
-                        onChange={(e) => setNewCustomerDocument(e.target.value)} 
-                        placeholder="CPF ou CNPJ com pontuação"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>Telefone</FormLabel>
-                      <Input 
-                        value={newCustomerPhone} 
-                        onChange={(e) => setNewCustomerPhone(e.target.value)} 
-                        placeholder="(00) 00000-0000"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>E-mail</FormLabel>
-                      <Input 
-                        value={newCustomerEmail} 
-                        onChange={(e) => setNewCustomerEmail(e.target.value)} 
-                        placeholder="email@exemplo.com"
-                        type="email"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-4 gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setShowNewCustomerForm(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleCreateCustomer}
-                      disabled={createCustomerMutation.isPending}
-                    >
-                      {createCustomerMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Criando...
-                        </>
-                      ) : (
-                        "Criar Cliente"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              {/* O formulário simplificado foi removido e substituído pelo CustomerDialog */}
               
               {/* Vendedor */}
               <FormField
