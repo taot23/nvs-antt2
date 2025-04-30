@@ -1482,10 +1482,11 @@ export default function SalesPage() {
                     
                     {/* Botões de ação com base no status e permissões */}
                     {/* Botão de editar visível para admin ou para vendedor quando a venda estiver devolvida */}
+                    {/* Botão de editar com regra: apenas vendas com status "pendente" */}
                     {(user?.role === "admin" || 
-                     (sale.status === "returned" && 
-                      (user?.role === "vendedor" && sale.sellerId === user?.id) || 
-                      user?.role === "supervisor")) && (
+                      user?.role === "vendedor" || 
+                      user?.role === "supervisor") && 
+                     sale.status === "pending" && (
                       <Button
                         size="sm"
                         variant="outline"

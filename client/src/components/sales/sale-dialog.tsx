@@ -469,17 +469,38 @@ export default function SaleDialog({
   }, [form.watch("installments"), firstDueDate]);
   
   // Efeito para monitorar quando a venda muda ou o ID muda
+  // Efeito para preencher o formulário com os dados da venda quando ela estiver disponível
   useEffect(() => {
-    if (sale) {
-      console.log("🚨 Venda mudou:", sale);
-      console.log("🚨 Valor de date:", sale.date);
-      console.log("🚨 Valor de orderNumber:", sale.orderNumber);
-      console.log("🚨 Valor de customerId:", sale.customerId);
-      console.log("🚨 Tipo de date:", typeof sale.date);
-    } else {
-      console.log("🚨 Venda ainda não está disponível");
+    if (sale && open && !formInitialized.current) {
+      console.log("🔄 Preenchendo formulário com dados da venda:", sale.id);
+      
+      // Atualizamos todos os campos do formulário com os dados da venda
+      form.setValue("orderNumber", sale.orderNumber || "");
+      form.setValue("date", sale.date || new Date());
+      form.setValue("customerId", sale.customerId || 0);
+      form.setValue("paymentMethodId", sale.paymentMethodId || 0);
+      form.setValue("serviceTypeId", sale.serviceTypeId || 0);
+      form.setValue("sellerId", sale.sellerId || user?.id || 0);
+      form.setValue("totalAmount", sale.totalAmount || "");
+      form.setValue("installments", sale.installments || 1);
+      form.setValue("notes", sale.notes || "");
+      
+      // Atualiza os estados relacionados
+      setOriginalStatus(sale.status);
+      setFinancialStatus(sale.financialStatus);
+      setOriginalSaleDate(sale.date);
+      
+      // Se há dados do cliente, atualiza o campo de busca
+      const selectedCustomer = customers.find(c => c.id === sale.customerId);
+      if (selectedCustomer) {
+        setCustomerSearchTerm(selectedCustomer.name);
+      }
+      
+      // Marca que o formulário foi inicializado
+      formInitialized.current = true;
+      console.log("✅ Formulário preenchido com sucesso");
     }
-  }, [sale, saleId]);
+  }, [sale, open, form, customers, user]);
 
   // Função auxiliar para atualizar os itens - Implementação Forçada
   const updateFormItems = useCallback((items: any[]) => {
