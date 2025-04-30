@@ -83,7 +83,6 @@ export function Sidebar() {
   };
   
   const userRole = user?.role || '';
-  console.log('Sidebar: usuário atual com perfil:', userRole);
   
   // Definir os itens de menu
   const menuItems: MenuItem[] = [

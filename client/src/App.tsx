@@ -20,13 +20,11 @@ import { AppLayout } from "@/components/layout/app-layout";
 
 // Componente que envolve as rotas protegidas com o layout 
 const ProtectedApp = ({ children }: { children: React.ReactNode }) => {
-  console.log("Renderizando ProtectedApp");
   return <AppLayout>{children}</AppLayout>;
 };
 
 // Componentes específicos para cada rota
 const ProtectedHome = () => {
-  console.log("Renderizando ProtectedHome");
   return (
     <ProtectedApp>
       <HomePage />
@@ -35,7 +33,6 @@ const ProtectedHome = () => {
 };
 
 const ProtectedCustomers = () => {
-  console.log("Renderizando ProtectedCustomers");
   return (
     <ProtectedApp>
       <CustomersPage />
@@ -44,7 +41,6 @@ const ProtectedCustomers = () => {
 };
 
 const ProtectedUsers = () => {
-  console.log("Renderizando ProtectedUsers");
   return (
     <ProtectedApp>
       <UsersPage />
