@@ -481,7 +481,16 @@ export default function SaleDialog({
       if (sale) {
         // Atualizamos todos os campos do formulário com os dados da venda
         form.setValue("orderNumber", sale.orderNumber || "");
-        form.setValue("date", sale.date || new Date());
+        
+        // Tratamento especial para a data, garantindo que seja preservada exatamente como está
+        if (sale.date) {
+          console.log("📅 Data original da venda:", sale.date);
+          form.setValue("date", sale.date);
+        } else {
+          console.log("📅 Sem data na venda, usando data atual");
+          form.setValue("date", new Date());
+        }
+        
         form.setValue("customerId", sale.customerId || 0);
         form.setValue("paymentMethodId", sale.paymentMethodId || 0);
         form.setValue("serviceTypeId", sale.serviceTypeId || 0);
@@ -566,116 +575,92 @@ export default function SaleDialog({
   const itemsWereProcessed = useRef(false);
   const [renderReady, setRenderReady] = useState(false);
   
-  // ABORDAGEM TOTALMENTE NOVA: Sistema isolado de gestão de itens
-  // Este efeito roda apenas UMA vez por abertura de diálogo, usando um cache para evitar problemas
+  // SOLUÇÃO DEFINITIVA 2023: Sistema simples e direto para carregamento de itens
+  // Este efeito roda apenas UMA vez por abertura de diálogo
   useEffect(() => {
-    // Não fazemos nada se o diálogo não estiver aberto
+    // Se o diálogo não estiver aberto, não fazemos nada
     if (!open) {
       itemsWereProcessed.current = false;
       setRenderReady(false);
       return;
     }
     
-    // Verificar se temos tudo o que precisamos para processar os itens
-    const canProcessItems = sale && saleItems && saleItems.length > 0 && !isLoadingItems;
-    console.log("⚙️ NOVA ABORDAGEM - Verificando se pode processar itens:", {
-      open, 
-      hasSale: !!sale, 
-      hasSaleItems: !!saleItems, 
-      itemCount: saleItems?.length || 0,
-      isLoading: isLoadingItems,
-      alreadyProcessed: itemsWereProcessed.current,
-      canProcess: canProcessItems && !itemsWereProcessed.current
-    });
-    
-    // Se não temos o que precisamos ou já processamos, cancelamos
-    if (!canProcessItems || itemsWereProcessed.current) {
+    // Se não temos o que precisamos para processar itens, saímos
+    if (!sale || isLoadingItems || !saleItems || itemsWereProcessed.current) {
+      console.log("⏭️ Pulando processamento de itens: condições não atendem os requisitos", {
+        hasSale: !!sale,
+        isLoading: isLoadingItems,
+        hasSaleItems: !!saleItems && Array.isArray(saleItems),
+        itemCount: saleItems?.length || 0,
+        alreadyProcessed: itemsWereProcessed.current
+      });
       return;
     }
     
-    console.log("🔄 NOVA ABORDAGEM - Iniciando processamento isolado de itens");
+    console.log("🔄 SOLUÇÃO DEFINITIVA - Iniciando processamento único de itens");
+    console.log("🔄 SOLUÇÃO DEFINITIVA - Itens a processar:", saleItems);
     
     // Marcamos que estamos processando para evitar duplicações
     itemsWereProcessed.current = true;
     setRenderReady(false);
     
-    // Função para implementar sleep
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    
-    // Função assíncrona para processar os itens em sequência controlada
-    const processItems = async () => {
+    // Solução definitiva - processo único com timeout para garantir sequência
+    setTimeout(() => {
       try {
-        console.log("🧹 NOVA ABORDAGEM - Limpeza e preparação");
+        // 1. Limpamos completamente o campo de itens
+        form.setValue("items", []);
         
-        // Preparar os dados dos itens novos
-        const preparedItems = saleItems.map((item: SaleItem) => ({
+        // Limpamos todos os itens do FieldArray
+        const fieldsLength = fields.length;
+        if (fieldsLength > 0) {
+          for (let i = fieldsLength - 1; i >= 0; i--) {
+            remove(i);
+          }
+          console.log("🧹 SOLUÇÃO DEFINITIVA - Todos os itens anteriores foram removidos");
+        }
+        
+        // 2. Convertemos os itens para o formato correto
+        const formattedItems = saleItems.map((item: SaleItem) => ({
+          id: item.id, // Preservar ID original
           serviceId: item.serviceId,
           serviceTypeId: item.serviceTypeId || (sale?.serviceTypeId) || 1,
           quantity: item.quantity || 1,
           notes: item.notes || "",
           price: item.price || "0",
           totalPrice: item.totalPrice || item.price || "0",
-          status: "pending"
+          status: item.status || "pending"
         }));
         
-        // ETAPA 1: Limpeza total de itens anteriores
-        console.log("🧹 NOVA ABORDAGEM - Etapa 1: Remover todos os itens anteriores");
-        const currentItems = fields || [];
-        for (let i = currentItems.length - 1; i >= 0; i--) {
-          remove(i);
-        }
+        // Depois de um timeout para garantir que a limpeza terminou
+        setTimeout(() => {
+          // 3. Adicionamos apenas os itens originais, garantindo que não haja duplicação
+          if (formattedItems.length > 0) {
+            formattedItems.forEach(item => {
+              append(item);
+            });
+            console.log("✅ SOLUÇÃO DEFINITIVA - Itens adicionados com sucesso:", formattedItems.length);
+          } else {
+            console.log("⚠️ SOLUÇÃO DEFINITIVA - Sem itens para adicionar");
+          }
+          
+          // 4. Marcamos como concluído e ativamos a renderização
+          setRenderReady(true);
+        }, 100);
         
-        // Aguardar para garantir que a limpeza foi concluída
-        await sleep(100);
-        
-        // ETAPA 2: Definir valor no form para o novo array
-        console.log("🧹 NOVA ABORDAGEM - Etapa 2: Atribuição direta no formulário");
-        form.setValue("items", []);
-        
-        // Novamente aguardar para garantir processamento
-        await sleep(100);
-        
-        // ETAPA 3: Adicionar novos itens em sequência controlada
-        console.log("🧹 NOVA ABORDAGEM - Etapa 3: Adicionar itens em sequência controlada");
-        for (let i = 0; i < preparedItems.length; i++) {
-          append(preparedItems[i]);
-          // Pequeno intervalo entre operações
-          await sleep(50);
-        }
-        
-        // ETAPA 4: Verificação final e conclusão
-        console.log("🧹 NOVA ABORDAGEM - Etapa 4: Verificação e finalização");
-        await sleep(100);
-        
-        const formItems = form.getValues("items");
-        console.log("🧹 NOVA ABORDAGEM - Verificação do estado final: ", {
-          novosItens: preparedItems.length,
-          camposFormulario: fields.length,
-          valoresFormulario: formItems?.length || 0
-        });
-        
-        // Ativar a renderização
-        console.log("✅ NOVA ABORDAGEM - Processamento completo, ativando renderização");
-        setRenderReady(true);
       } catch (error) {
-        console.error("❌ NOVA ABORDAGEM - Erro durante processamento de itens:", error);
-        // Em caso de erro, ainda tentamos ativar a renderização
+        console.error("❌ SOLUÇÃO DEFINITIVA - Erro processando itens:", error);
         setRenderReady(true);
       }
-    };
+    }, 100);
     
-    // Iniciar o processamento assíncrono
-    processItems();
-    
-    // Limpar estado quando o diálogo fechar
+    // Limpeza ao desmontar
     return () => {
       if (!open) {
         itemsWereProcessed.current = false;
         setRenderReady(false);
-        console.log("🧹 NOVA ABORDAGEM - Limpeza ao fechar diálogo");
       }
     };
-  }, [open, sale?.id, saleItems, isLoadingItems, fields.length]);
+  }, [open, sale?.id, saleItems, isLoadingItems]);
   
   // Função auxiliar para obter o nome do serviço pelo ID
   const getServiceNameById = (serviceId: number): string => {
