@@ -1585,7 +1585,7 @@ export default function SaleDialog({
       console.log("📅 Data a ser enviada:", formattedDate, "Tipo:", typeof formattedDate);
       
       // Verifica se estamos editando uma venda devolvida e se as observações de correção foram preenchidas
-      if (originalStatus === "returned" && !correctionNotes.trim()) {
+      if ((originalStatus === "returned" || forceResendMode) && !correctionNotes.trim()) {
         toast({
           title: "Observações de correção obrigatórias",
           description: "Para reenviar uma venda devolvida, é necessário informar quais correções foram realizadas.",
@@ -2343,8 +2343,8 @@ export default function SaleDialog({
             />
             
             {/* Campo especial de observações para vendas devolvidas - DESTACADO E MELHORADO */}
-            {console.log("🔴 RENDERIZAÇÃO: Status original =", originalStatus, "- Condição campo correção:", originalStatus === "returned")}
-            {originalStatus === "returned" && (
+            {console.log("🔴 RENDERIZAÇÃO: Status original =", originalStatus, "- forceResendMode:", forceResendMode, "- Condição campo correção:", originalStatus === "returned" || forceResendMode)}
+            {(originalStatus === "returned" || forceResendMode) && (
               <div className="space-y-2 mt-4 border-2 border-blue-600 pl-4 pr-4 pt-3 pb-3 bg-blue-50 rounded-md">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="h-5 w-5 text-blue-700" />
@@ -2646,7 +2646,7 @@ export default function SaleDialog({
                   
                   // Verifica se é uma venda devolvida sendo corrigida
                   // e se as observações de correção foram preenchidas
-                  if (originalStatus === "returned" && !correctionNotes.trim()) {
+                  if ((originalStatus === "returned" || forceResendMode) && !correctionNotes.trim()) {
                     toast({
                       title: "Observações de correção obrigatórias",
                       description: "Descreva as correções realizadas antes de reenviar esta venda",
@@ -2768,8 +2768,8 @@ export default function SaleDialog({
                     installments: numberOfInstallments,
                     // CORREÇÃO CRÍTICA: Usar as datas efetivamente editadas pelo usuário
                     installmentDates: datesForApi,
-                    // Se a venda estava com status "returned", incluir observações de correção
-                    ...(originalStatus === "returned" && {
+                    // Se a venda estava com status "returned" ou forceResendMode, incluir observações de correção
+                    ...((originalStatus === "returned" || forceResendMode) && {
                       correctionNotes: correctionNotes.trim(),
                       isResubmitted: true
                     }),
@@ -2863,7 +2863,7 @@ export default function SaleDialog({
                       }
                       
                       // Mensagem de sucesso específica para cada caso
-                      if (originalStatus === "returned") {
+                      if (originalStatus === "returned" || forceResendMode) {
                         toast({
                           title: "Venda corrigida e reenviada",
                           description: "As correções foram registradas e a venda foi reenviada para processamento",
@@ -2900,10 +2900,10 @@ export default function SaleDialog({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {originalStatus === "returned" ? "Reenviando..." : "Salvando..."}
+                    {(originalStatus === "returned" || forceResendMode) ? "Reenviando..." : "Salvando..."}
                   </>
                 ) : (
-                  originalStatus === "returned" ? "Reenviar" : "Salvar"
+                  (originalStatus === "returned" || forceResendMode) ? "Reenviar" : "Salvar"
                 )}
               </Button>
             </DialogFooter>
