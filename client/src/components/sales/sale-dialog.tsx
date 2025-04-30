@@ -663,10 +663,18 @@ export default function SaleDialog({
       
       // Armazenar o status original da venda para verificações
       console.log("🔴 DEBUG STATUS: Definindo status original =", sale.status);
-      setOriginalStatus(sale.status);
       
-      // Se a venda está com status "returned", resetar o campo de observações de correção
-      if (sale.status === "returned") {
+      // Se forceResendMode está ativo, forçamos o status para "returned" para tratar como reenvio
+      // independentemente do status atual no banco de dados
+      if (forceResendMode) {
+        console.log("🔄 FORÇA REENVIO: Forçando modo de reenvio de venda devolvida");
+        setOriginalStatus("returned");
+      } else {
+        setOriginalStatus(sale.status);
+      }
+      
+      // Se a venda está com status "returned" ou forceResendMode está ativo, prepara campo de observações
+      if (sale.status === "returned" || forceResendMode) {
         console.log("🔴 VENDA DEVOLVIDA DETECTADA: Preparando campo de observações para correção");
         setCorrectionNotes("");
       }
@@ -1675,18 +1683,18 @@ export default function SaleDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader className="mb-6">
           <DialogTitle className="text-2xl font-bold">
-            {sale ? (originalStatus === "returned" ? "Corrigir Venda Devolvida" : "Editar Venda") : "Nova Venda"}
+            {sale ? ((originalStatus === "returned" || forceResendMode) ? "Corrigir Venda Devolvida" : "Editar Venda") : "Nova Venda"}
           </DialogTitle>
           <DialogDescription>
             {sale 
-              ? (originalStatus === "returned" 
+              ? ((originalStatus === "returned" || forceResendMode) 
                 ? "Faça as correções necessárias e informe o que foi corrigido. Após salvar, a venda será reenviada." 
                 : "Atualize os dados da venda conforme necessário")
               : "Preencha os dados para criar uma nova venda"}
           </DialogDescription>
           
           {/* Alerta especial para vendas devolvidas */}
-          {originalStatus === "returned" && (
+          {(originalStatus === "returned" || forceResendMode) && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
