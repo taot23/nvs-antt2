@@ -92,6 +92,12 @@ interface SaleDialogProps {
   readOnly?: boolean;
   renderAdditionalContent?: () => React.ReactNode;
   onSaveSuccess?: () => void;
+  /**
+   * Força o modo de reenvio de venda devolvida.
+   * Quando true, o componente tratará como um reenvio de venda com status "returned",
+   * mesmo que no backend o status já tenha sido alterado.
+   */
+  forceResendMode?: boolean;
 }
 
 export default function SaleDialog({ 
@@ -101,7 +107,8 @@ export default function SaleDialog({
   saleId,
   readOnly = false,
   renderAdditionalContent,
-  onSaveSuccess 
+  onSaveSuccess,
+  forceResendMode = false
 }: SaleDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
