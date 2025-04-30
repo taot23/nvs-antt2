@@ -239,6 +239,16 @@ export interface IStorage {
     saleId: number,
     financialId: number,
   ): Promise<Sale | undefined>;
+  
+  // Atualizar status de uma venda e registrar no histórico
+  updateSaleStatus(
+    saleId: number, 
+    fromStatus: string, 
+    toStatus: string, 
+    notes: string, 
+    userId: number | null,
+    additionalData?: Record<string, any>,
+  ): Promise<Sale | undefined>;
 
   sessionStore: any; // Using any to avoid type errors
 }
@@ -2473,6 +2483,96 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Erro ao excluir custo operacional:", error);
       return false;
+    }
+  }
+  
+  /**
+   * Atualiza o status de uma venda e registra a mudança no histórico
+   * @param saleId - ID da venda
+   * @param fromStatus - Status atual da venda
+   * @param toStatus - Novo status da venda
+   * @param notes - Observações sobre a mudança de status
+   * @param userId - ID do usuário que está fazendo a alteração
+   * @param additionalData - Dados adicionais para salvar no histórico (como notas de correção)
+   * @returns Venda atualizada ou undefined se não encontrada
+   */
+  async updateSaleStatus(
+    saleId: number, 
+    fromStatus: string, 
+    toStatus: string, 
+    notes: string, 
+    userId: number | null,
+    additionalData: Record<string, any> = {}
+  ): Promise<Sale | undefined> {
+    try {
+      // Verificar se a venda existe e está no status esperado
+      const sale = await this.getSale(saleId);
+      if (!sale) {
+        return undefined;
+      }
+      
+      if (sale.status !== fromStatus) {
+        throw new Error(`A venda não está no status esperado. Status atual: ${sale.status}, esperado: ${fromStatus}`);
+      }
+      
+      // Iniciar uma transação SQL
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // 1. Atualizar o status da venda
+        const updateQuery = `
+          UPDATE sales
+          SET status = $1, updated_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `;
+        const updateResult = await client.query(updateQuery, [toStatus, saleId]);
+        
+        if (updateResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return undefined;
+        }
+        
+        // 2. Registrar a mudança no histórico
+        const historyQuery = `
+          INSERT INTO sales_status_history (
+            sale_id, from_status, to_status, user_id, notes, 
+            metadata, created_at, updated_at
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, 
+            $6, NOW(), NOW()
+          )
+          RETURNING *
+        `;
+        
+        // Criar objeto de metadados com os dados adicionais
+        const metadata = JSON.stringify(additionalData);
+        
+        await client.query(historyQuery, [
+          saleId, 
+          fromStatus, 
+          toStatus, 
+          userId, 
+          notes,
+          metadata
+        ]);
+        
+        await client.query('COMMIT');
+        
+        // Buscar a venda atualizada com todos os relacionamentos
+        return await this.getSale(saleId);
+      } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao atualizar status da venda:', error);
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status da venda:', error);
+      throw error;
     }
   }
 }
