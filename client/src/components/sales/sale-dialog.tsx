@@ -1090,6 +1090,12 @@ export default function SaleDialog({
     mutationFn: async (data: z.infer<typeof saleSchema>) => {
       setIsSubmitting(true);
       
+      // CORREÇÃO CRÍTICA: Determinar se estamos editando uma venda existente ou criando nova
+      const isEditing = !!(data.id || (sale && sale.id));
+      const saleId = data.id || (sale && sale.id) || null;
+      
+      console.log("📋 CORREÇÃO DE MÉTODO HTTP: isEditing =", isEditing, "saleId =", saleId);
+      
       // Calcula o valor de cada parcela com base no valor total e número de parcelas
       const totalAmountValue = parseFloat(data.totalAmount?.replace(',', '.') || "0");
       const installmentValueCalculated = data.installments > 1 
@@ -1265,6 +1271,14 @@ export default function SaleDialog({
       // Adicionamos a propriedade para o backend
       // @ts-ignore - Ignoramos o erro de tipo porque sabemos que o backend espera essa propriedade
       formattedData.installmentDates = installmentDatesToSend;
+      
+      // CORREÇÃO CRÍTICA: Conforme determinação anterior, se estamos editando, usamos o ID
+      const editId = data.id || (sale && sale.id);
+      if (isEditing && editId) {
+        // @ts-ignore - Ignorar erro de tipos, sabemos que é seguro
+        formattedData.id = editId;
+        console.log("🔄 MODO EDIÇÃO ATIVADO - ID da venda incluído:", editId);
+      }
       
       // 🛑🛑🛑 SUPER CORREÇÃO - 26/04/2025
       // Verificação extrema do tipo e valor das parcelas
@@ -1485,11 +1499,12 @@ export default function SaleDialog({
       // 2. No objeto 'formattedData' que estamos enviando (adicionado em correctedValues)
       
       // Obtemos o ID de onde estiver disponível
-      const saleId = formattedData.id || (sale ? sale.id : null);
-      console.log("🔑 ID DA VENDA PARA EDIÇÃO:", saleId);
+      // @ts-ignore - Ignorar erro de tipos, sabemos que é seguro
+      const finalSaleId = formattedData.id || (sale ? sale.id : null);
+      console.log("🔑 ID DA VENDA PARA EDIÇÃO:", finalSaleId);
       
-      const url = saleId ? `/api/sales/${saleId}` : "/api/sales";
-      const method = saleId ? "PATCH" : "POST";
+      const url = finalSaleId ? `/api/sales/${finalSaleId}` : "/api/sales";
+      const method = finalSaleId ? "PATCH" : "POST";
       
       console.log(`🛠️ MODO DE OPERAÇÃO: ${method} para URL ${url}`);
       
