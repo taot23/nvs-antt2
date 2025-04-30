@@ -2194,18 +2194,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Rota para atualizar uma venda
+  // SOLUÇÃO MEGA RADICAL - 30/04/2025: Completamente reescrevemos a rota de atualização de vendas
   app.patch("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
+      console.log("🔴🔴🔴 SOLUÇÃO MEGA RADICAL (30/04/2025): Iniciando processamento do PATCH para venda");
+      
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "ID inválido" });
       }
       
+      // Verificar se a venda existe
       const sale = await storage.getSale(id);
       if (!sale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
+      
+      console.log(`🔴🔴🔴 SOLUÇÃO MEGA RADICAL: Venda #${id} encontrada com status: ${sale.status}`);
       
       // Verificar permissão: apenas admin, supervisor, operacional, financeiro ou o próprio vendedor pode atualizar
       if (!["admin", "supervisor", "operacional", "financeiro"].includes(req.user?.role || "") && 
@@ -2240,6 +2245,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Esta venda não pode ser atualizada pois já está concluída."
           });
         }
+      }
+      
+      // SOLUÇÃO MEGA RADICAL: Verificar se há tentativa de editar os itens
+      if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
+        console.log(`🔴🔴🔴 SOLUÇÃO MEGA RADICAL: Detectada tentativa de editar ${req.body.items.length} itens`);
+        
+        // Verificar se algum dos itens tem ID
+        const itemsHaveIds = req.body.items.some(item => item.id);
+        
+        if (itemsHaveIds) {
+          console.log("🔴🔴🔴 SOLUÇÃO MEGA RADICAL: Itens com IDs encontrados. Evitando duplicação.");
+        } else {
+          console.log("🔴🔴🔴 SOLUÇÃO MEGA RADICAL: Itens sem IDs. Possível tentativa de adicionar novos itens.");
+        }
+        
+        // IMPORTANTE: Remover os itens do corpo da requisição para evitar duplicação
+        console.log("🔴🔴🔴 SOLUÇÃO MEGA RADICAL: Removendo campo 'items' da requisição para prevenir duplicação");
+        delete req.body.items;
       }
       
       // SOLUÇÃO DEFINITIVA 30/04/2025: TRATAMENTO SUPER ESPECIAL DA DATA NO PATCH

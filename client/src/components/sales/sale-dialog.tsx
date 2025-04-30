@@ -1788,10 +1788,22 @@ export default function SaleDialog({
         installments: Number(validatedInstallments),
         // Também garantimos que qualquer valor de parcela seja formato corretamente
         installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
-        // SOLUÇÃO DEFINITIVA - 30/04/2025: Preservação completa dos IDs durante edição
+        // SUPER SOLUÇÃO RADICAL - 30/04/2025: Preservação extrema dos itens durante edição
         items: values.items.map(item => {
           console.log("🔄 Processando item para envio:", item);
           
+          // SUPER SOLUÇÃO RADICAL: Se estamos editando e o item tem ID, mantemos 100% os dados originais
+          // Isso é crucial para evitar duplicações, pois no servidor removeremos os itens durante edição
+          if (sale && sale.id && item.id) {
+            console.log("🔴 SUPER SOLUÇÃO RADICAL: Item com ID existente, preservando 100% dos dados originais");
+            return {
+              ...item,
+              // A ÚNICA alteração é garantir o saleId correto
+              saleId: sale.id
+            };
+          }
+          
+          // Para itens novos ou sem ID, processamos normalmente
           // Construir item base com todas as propriedades necessárias
           const processedItem = {
             ...item,
@@ -1803,14 +1815,11 @@ export default function SaleDialog({
             totalPrice: typeof item.totalPrice === 'string' ? item.totalPrice.replace(',', '.') : String(item.totalPrice || item.price || "0"),
           };
           
-          // CRÍTICO: Se estamos editando, vamos preservar exatamente o ID e saleId originais
+          // Se estamos editando, sempre definimos o saleId
           if (sale && sale.id) {
-            console.log("🔄 Modo de edição: preservando IDs de item:", item.id, "saleId:", sale.id);
+            console.log("🔄 Modo de edição: definindo saleId para um novo item:", sale.id);
             return {
               ...processedItem,
-              // Preservar ID original do item se existir
-              ...(item.id && { id: item.id }),
-              // Sempre definir o saleId para o ID da venda que estamos editando
               saleId: sale.id
             };
           }

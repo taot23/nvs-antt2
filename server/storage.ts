@@ -991,6 +991,8 @@ export class DatabaseStorage implements IStorage {
     saleData: Partial<InsertSale>,
   ): Promise<Sale | undefined> {
     try {
+      console.log(`🔴 SUPER SOLUÇÃO RADICAL (30/04/2025): Início da atualização da venda #${id}`);
+      
       // Verificar se a venda existe antes da atualização
       const [existingSale] = await db
         .select()
@@ -998,7 +1000,16 @@ export class DatabaseStorage implements IStorage {
         .where(eq(sales.id, id));
 
       if (!existingSale) {
+        console.log(`🔴 SUPER SOLUÇÃO RADICAL: Venda #${id} não encontrada`);
         return undefined;
+      }
+
+      console.log(`🔴 SUPER SOLUÇÃO RADICAL: Encontrada venda existente #${id} com data: ${existingSale.date}`);
+
+      // SUPER SOLUÇÃO RADICAL: Sempre preservar a data original
+      if (existingSale.date && saleData.date) {
+        console.log(`🔴 SUPER SOLUÇÃO RADICAL: PRESERVANDO data original: ${existingSale.date} (ignorando nova data: ${saleData.date})`);
+        saleData.date = existingSale.date;
       }
 
       // Extraímos as datas de instalações se existirem (propriedade customizada)
@@ -1006,6 +1017,14 @@ export class DatabaseStorage implements IStorage {
       const installmentDates = saleData.installmentDates;
       // @ts-ignore - Removemos para não causar erro na inserção
       delete saleData.installmentDates;
+      
+      // SUPER SOLUÇÃO RADICAL: Remover quaisquer itens enviados para evitar duplicação
+      // @ts-ignore - Esta propriedade vem do frontend
+      if (saleData.items) {
+        console.log(`🔴 SUPER SOLUÇÃO RADICAL: REMOVENDO itens da requisição para evitar duplicação`);
+        // @ts-ignore - Removemos para não causar erro na inserção
+        delete saleData.items;
+      }
 
       // Se estiver tentando atualizar o valor total, garantimos que ele seja preservado
       if (saleData.totalAmount) {
@@ -1015,7 +1034,7 @@ export class DatabaseStorage implements IStorage {
         }
 
         console.log(
-          `Atualizando valor total da venda #${id} para ${saleData.totalAmount}`,
+          `🔴 SUPER SOLUÇÃO RADICAL: Atualizando valor total da venda #${id} para ${saleData.totalAmount}`,
         );
       }
 
