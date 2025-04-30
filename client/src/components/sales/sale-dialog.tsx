@@ -2068,13 +2068,19 @@ export default function SaleDialog({
                     <FormLabel className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />
                       Forma de Pagamento
+                      {shouldBlockFinancialFields() && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 ml-2 text-[10px]">
+                          Bloqueado
+                        </Badge>
+                      )}
                     </FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))}
                       value={field.value ? field.value.toString() : "0"}
+                      disabled={shouldBlockFinancialFields()}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={shouldBlockFinancialFields() ? "bg-gray-100" : ""}>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
@@ -2086,6 +2092,11 @@ export default function SaleDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    {shouldBlockFinancialFields() && (
+                      <FormDescription className="text-amber-600 text-xs mt-1">
+                        Campo bloqueado - venda em processamento financeiro
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2132,13 +2143,25 @@ export default function SaleDialog({
                     <FormLabel className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
                       Valor Total
+                      {shouldBlockFinancialFields() && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 ml-2 text-[10px]">
+                          Bloqueado
+                        </Badge>
+                      )}
                     </FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="0,00" 
                         {...field} 
+                        disabled={shouldBlockFinancialFields()}
+                        className={shouldBlockFinancialFields() ? "bg-gray-100" : ""}
                       />
                     </FormControl>
+                    {shouldBlockFinancialFields() && (
+                      <FormDescription className="text-amber-600 text-xs mt-1">
+                        Campo bloqueado - venda em processamento financeiro
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
