@@ -133,16 +133,27 @@ export function formatIsoToBrazilian(dateValue: any): string {
       return dateValue;
     }
     
-    // Caso 3: Se for um objeto Date
-    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
-      // Extrai dia, mês e ano do objeto Date sem ajustes de timezone
-      const day = String(dateValue.getDate()).padStart(2, '0');
-      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
-      const year = dateValue.getFullYear();
-      
-      const result = `${day}/${month}/${year}`;
-      console.log(`✅ formatIsoToBrazilian: Date para BR: ${dateValue} -> ${result}`);
-      return result;
+    // Caso 3: Se for um objeto que parece uma Date
+    if (dateValue && typeof dateValue === 'object' && 'getFullYear' in dateValue) {
+      try {
+        // Extrai dia, mês e ano do objeto Date sem ajustes de timezone
+        const dateObj = dateValue as Date;
+        
+        // Verificar se é uma data válida
+        if (isNaN(dateObj.getTime())) {
+          throw new Error("Data inválida");
+        }
+        
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        
+        const result = `${day}/${month}/${year}`;
+        console.log(`✅ formatIsoToBrazilian: Date para BR: ${dateValue} -> ${result}`);
+        return result;
+      } catch (err) {
+        console.error("❌ formatIsoToBrazilian: Erro ao processar objeto Date:", err);
+      }
     }
     
     // Caso 4: Tentativa final - tenta converter para Date e depois formato BR
@@ -254,11 +265,19 @@ export function preserveInstallmentDates(installments: any[]): string[] {
       return rawDate;
     }
     
-    // Se for um objeto Date, converte para string ISO
-    if (installment.dueDate instanceof Date) {
-      const isoDate = `${installment.dueDate.getFullYear()}-${String(installment.dueDate.getMonth() + 1).padStart(2, '0')}-${String(installment.dueDate.getDate()).padStart(2, '0')}`;
-      console.log(`🔄 Data de parcela convertida de objeto Date para ISO: ${isoDate}`);
-      return isoDate;
+    // Se for um objeto que parece uma Date, converte para string ISO
+    if (installment.dueDate && typeof installment.dueDate === 'object' && 'getFullYear' in installment.dueDate) {
+      try {
+        const dateObj = installment.dueDate as Date;
+        const isoDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+        console.log(`🔄 Data de parcela convertida de objeto Date para ISO: ${isoDate}`);
+        return isoDate;
+      } catch (err) {
+        console.error("❌ Erro ao processar objeto Date:", err);
+        // Em caso de erro, usar data atual
+        const today = new Date();
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      }
     }
     
     // Caso não consiga processar, log detalhado e retorna a data atual

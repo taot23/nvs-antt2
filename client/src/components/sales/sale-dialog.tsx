@@ -791,12 +791,22 @@ export default function SaleDialog({
             console.log("🚨 PRESERVAÇÃO DE DATA: Usando string original limpa:", cleanDate);
             form.setValue("date", cleanDate);
           }
-          // Último caso: se por algum motivo for um objeto Date
-          else if (sale.date instanceof Date) {
-            // Converter para string YYYY-MM-DD
-            const formattedDate = `${sale.date.getFullYear()}-${String(sale.date.getMonth() + 1).padStart(2, '0')}-${String(sale.date.getDate()).padStart(2, '0')}`;
-            console.log("🚨 PRESERVAÇÃO DE DATA: Usando Date convertido para string:", formattedDate);
-            form.setValue("date", formattedDate);
+          // Último caso: se por algum motivo for um objeto que parece uma data
+          else if (sale.date && typeof sale.date === 'object' && 'getFullYear' in sale.date) {
+            try {
+              // Converter para string YYYY-MM-DD
+              const dateObj = sale.date as Date;
+              const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+              console.log("🚨 PRESERVAÇÃO DE DATA: Usando objeto Date convertido para string:", formattedDate);
+              form.setValue("date", formattedDate);
+            } catch (err) {
+              console.error("❌ ERRO AO PROCESSAR OBJETO DATE:", err);
+              // Em caso de erro, usar data atual como fallback
+              const today = new Date();
+              const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              console.log("🚨 PRESERVAÇÃO DE DATA: Fallback para data atual:", formattedToday);
+              form.setValue("date", formattedToday);
+            }
           }
           // Fallback final para qualquer outro caso
           else {
