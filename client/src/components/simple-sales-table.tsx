@@ -1,6 +1,8 @@
 import React from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import ReenvioButton from "./sales/reenvio-button";
+import DevolveButton from "./sales/devolve-button";
 
 // Função para formatar datas sem problema de timezone
 const formatDateWithoutTimezone = (date: string | Date): string => {
@@ -66,7 +68,6 @@ interface SimpleSalesTableProps {
   onMarkAsPaid: (sale: Sale) => void;
   onDeleteClick: (sale: Sale) => void;
   user: { id: number; username: string; role: string } | null;
-  DevolveButton: React.ComponentType<{ sale: Sale }>;
 }
 
 const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
@@ -85,7 +86,6 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
   onMarkAsPaid,
   onDeleteClick,
   user,
-  DevolveButton,
 }) => {
   
   // Badge para status
@@ -368,7 +368,13 @@ const SimpleSalesTable: React.FC<SimpleSalesTableProps> = ({
                     </Button>
                   )}
                   
-                  {/* Funcionalidade de reenvio removida */}
+                  {/* Botão de reenvio para vendas com status "returned" */}
+                  {(user?.role === "admin" || 
+                    user?.role === "supervisor" || 
+                    (user?.role === "vendedor" && sale.sellerId === user?.id)) && 
+                    sale.status === "returned" && (
+                    <ReenvioButton sale={sale} />
+                  )}
                   
                   {/* Botão de devolução para vendas com status "corrected" */}
                   {(user?.role === "admin" || user?.role === "operacional") && 
