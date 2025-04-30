@@ -15,9 +15,6 @@ export function useIsMobile() {
     // Verificar na montagem
     checkSize();
 
-    // Log para debug
-    console.log("Detectado como:", isMobile ? "Mobile" : "Desktop", "- Largura:", window.innerWidth);
-
     // Adicionar evento de resize
     window.addEventListener('resize', checkSize);
 

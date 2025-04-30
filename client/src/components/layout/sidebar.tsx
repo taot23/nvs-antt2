@@ -56,9 +56,6 @@ export function Sidebar() {
   
   // Atualizar o estado apenas quando mudar entre mobile e desktop
   useEffect(() => {
-    // Log para debug
-    console.log("Sidebar - Mudou dispositivo:", isMobile ? "Mobile" : "Desktop");
-    
     // Em mobile, sempre fechar o menu mobile
     if (isMobile) {
       setMobileMenuOpen(false);
@@ -158,8 +155,7 @@ export function Sidebar() {
     return item.roles.includes(userRole);
   });
 
-  // Certifique-se de que mobileMenuOpen seja mostrado no console para debug
-  console.log("Mobile:", isMobile, "Menu aberto:", mobileMenuOpen);
+  // Removido log de debug de dispositivo
 
   return (
     <>
