@@ -1790,7 +1790,9 @@ export default function SalesPage() {
         }}
         onViewDetails={handleViewDetails}
         onViewHistory={handleViewHistory}
-        onEdit={handleEdit}
+        onEdit={() => {
+          console.log("Função de edição desativada por solicitação do cliente");
+        }}
         onStartExecution={handleStartExecution}
         onCompleteExecution={handleCompleteExecution}
         onReturnClick={handleReturnClick}
