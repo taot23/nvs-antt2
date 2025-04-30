@@ -726,18 +726,30 @@ export default function SaleDialog({
       // Reset imediato do formulário com dados da venda
       setTimeout(() => {
         try {
-          // Preparamos os itens se existirem
+          // CORREÇÃO: Preservar todos os detalhes dos itens originais
+          console.log("📦 PRESERVAÇÃO ITENS - Items originais:", JSON.stringify(saleItems, null, 2));
+          
           const formattedItems = Array.isArray(saleItems) && saleItems.length > 0 
-            ? saleItems.map((item: SaleItem) => ({
-                serviceId: item.serviceId,
-                serviceTypeId: item.serviceTypeId || sale.serviceTypeId || 1,
-                quantity: item.quantity || 1,
-                notes: item.notes || "",
-                price: item.price || "0",
-                totalPrice: item.totalPrice || item.price || "0",
-                status: "pending"
-              }))
+            ? saleItems.map((item: SaleItem) => {
+                // Log detalhado de cada item para debug
+                console.log("📦 PRESERVAÇÃO ITENS - Processando item:", JSON.stringify(item, null, 2));
+                
+                // Garantir que convertemos strings para números quando necessário
+                // e preservamos exatamente os valores originais
+                return {
+                  id: item.id, // Preservar ID original se existir
+                  serviceId: Number(item.serviceId) || 0,
+                  serviceTypeId: Number(item.serviceTypeId) || Number(sale.serviceTypeId) || 1,
+                  quantity: Number(item.quantity) || 1,
+                  notes: item.notes || "",
+                  price: item.price || "0",
+                  totalPrice: item.totalPrice || item.price || "0",
+                  status: item.status || "pending"
+                };
+              })
             : [];
+            
+          console.log("📦 PRESERVAÇÃO ITENS - Items formatados:", JSON.stringify(formattedItems, null, 2));
           
           // Em vez de usar reset, definimos cada campo individualmente
           console.log("📋 Definindo cada campo do formulário individualmente:");
@@ -746,8 +758,43 @@ export default function SaleDialog({
           console.log("- Definindo orderNumber:", sale.orderNumber);
           form.setValue("orderNumber", sale.orderNumber || "");
           
-          // Data
-          const dateValue = sale.date ? new Date(sale.date) : new Date();
+          // Data - CORREÇÃO: Preservar formato original da data
+          // Se a data for uma string no formato ISO (YYYY-MM-DD), preservamos como está
+          // Se for uma string com timestamp, extraímos apenas a parte da data
+          // Se não for uma string válida, usamos a data atual como fallback
+          let dateValue;
+          
+          if (typeof sale.date === 'string') {
+            console.log("🗓️ Data original como string:", sale.date);
+            
+            // Se tiver formato ISO (YYYY-MM-DD) ou com T (YYYY-MM-DDT00:00:00.000Z)
+            if (sale.date.match(/^\d{4}-\d{2}-\d{2}(T.*)?$/)) {
+              // Extrair apenas a parte da data YYYY-MM-DD
+              const datePart = sale.date.split('T')[0];
+              console.log("🗓️ Data extraída (YYYY-MM-DD):", datePart);
+              
+              // Criar um objeto Date mantendo a data original
+              // Setamos o UTC para meia-noite para evitar problemas de timezone
+              const [year, month, day] = datePart.split('-').map(Number);
+              dateValue = new Date(Date.UTC(year, month - 1, day));
+              console.log("🗓️ Data convertida para objeto Date:", dateValue);
+            } else {
+              // Formato desconhecido - tentar interpretar diretamente
+              dateValue = new Date(sale.date);
+              console.log("🗓️ Data interpretada pelo JS:", dateValue);
+              
+              // Verificar se a data é válida
+              if (isNaN(dateValue.getTime())) {
+                console.warn("⚠️ Data inválida, usando data atual");
+                dateValue = new Date();
+              }
+            }
+          } else {
+            // Fallback para data atual se não tiver data ou não for string
+            console.warn("⚠️ Sem data válida, usando data atual");
+            dateValue = new Date();
+          }
+          
           console.log("- Definindo date:", dateValue);
           form.setValue("date", dateValue);
           
@@ -963,7 +1010,50 @@ export default function SaleDialog({
         });
         
         console.log("🛑 CORREÇÃO FINAL - Datas das parcelas após processamento:", dates);
-        setInstallmentDates(dates);
+        
+        // SUPER CORREÇÃO ABRIL 2025: Garantir que as datas são strings no formato YYYY-MM-DD
+        // e que estão na ordem correta (um mês de diferença entre cada)
+        const cleanedDates = dates.filter(date => 
+          typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)
+        );
+        
+        console.log("🧹 LIMPEZA DATAS - Datas após filtragem de formatos inválidos:", cleanedDates);
+        
+        // Se temos datas limpas, usamos. Caso contrário, recriamos a partir da primeira data
+        if (cleanedDates.length === sortedInstallments.length) {
+          console.log("✅ PRESERVAÇÃO TOTAL - Usando exatamente as datas originais:", cleanedDates);
+          setInstallmentDates(cleanedDates);
+        } else {
+          console.warn("⚠️ RECRIAÇÃO PARCIAL - Algumas datas foram perdidas. Reconstruindo a partir da primeira data");
+          
+          // Pegar a primeira data válida como referência
+          const firstValidDate = cleanedDates[0] || 
+            (typeof firstDueDate === 'string' ? firstDueDate : new Date().toISOString().split('T')[0]);
+          
+          console.log("📆 RECRIAÇÃO - Usando primeira data como base:", firstValidDate);
+          
+          try {
+            // Converter para objeto Date para calcular próximas datas
+            const [year, month, day] = firstValidDate.split('-').map(Number);
+            const baseDate = new Date(year, month - 1, day);
+            
+            // Criar array com todas as datas
+            const recalculatedDates = [];
+            for (let i = 0; i < sale.installments; i++) {
+              const nextDate = new Date(baseDate);
+              nextDate.setMonth(baseDate.getMonth() + i);
+              
+              const nextDateStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+              recalculatedDates.push(nextDateStr);
+            }
+            
+            console.log("📆 RECRIAÇÃO - Datas recalculadas:", recalculatedDates);
+            setInstallmentDates(recalculatedDates);
+          } catch (error) {
+            console.error("❌ ERRO AO RECALCULAR DATAS:", error);
+            setInstallmentDates(cleanedDates);
+          }
+        }
         
         console.log("Parcelas carregadas:", sortedInstallments.length);
       }
