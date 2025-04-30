@@ -1797,9 +1797,10 @@ export default function SaleDialog({
           console.log("🔄 Processando item para envio:", item);
           
           // PARTE 1: DETECÇÃO DE EDIÇÃO DE VENDA - 100% precisa
-          // Usamos exatamente o mesmo método que determina se estamos editando uma venda
-          const isEditingMode = editingExistingSale;
-          const currentSaleId = saleIdToUse;
+          // ULTRA-MEGA-HYPER SOLUÇÃO RADICAL DE ROBUSTEZ (30/04/2025)
+          // Usar a variável correta para detectar edição (com duas camadas de segurança)
+          const isEditingMode = !!sale?.id; // isEditingExisting definido anteriormente
+          const currentSaleId = sale?.id; // saleId disponível diretamente via prop sale.id
           
           // PARTE 2: DETECÇÃO DE ITEM EXISTENTE - múltiplas camadas de segurança
           // Verificamos a presença de ID no item
