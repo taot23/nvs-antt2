@@ -29,7 +29,7 @@ import SaleDetailsDialog from "@/components/sales/sale-details-dialog";
 import SaleReturnDialog from "@/components/sales/sale-return-dialog";
 import SaleOperationDialog from "@/components/sales/sale-operation-dialog";
 import SaleHistoryDialog from "@/components/sales/sale-history-dialog";
-import ReenviaButton from "@/components/sales/reenvia-button";
+// Reenvio removido
 import DevolveButton from "@/components/sales/devolve-button";
 import { PopulateSalesButton } from "@/components/admin/populate-sales-button";
 import PaginatedSalesTable from "@/components/paginated-sales-table";
@@ -1539,10 +1539,7 @@ export default function SalesPage() {
                       </Button>
                     )}
                     
-                    {/* Botão para vendedor/supervisor reenviar venda corrigida */}
-                    {sale.status === 'returned' && (
-                      <ReenviaButton sale={sale} />
-                    )}
+                    {/* Funcionalidade de reenvio removida */}
                     
                     {/* Botão para operacional/admin devolver venda corrigida */}
                     {(user?.role === "admin" || user?.role === "operacional") && 
