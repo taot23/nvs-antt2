@@ -128,6 +128,8 @@ export default function SaleDialog({
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerDocument, setNewCustomerDocument] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
   
   // Estados para controle das parcelas e datas de vencimento - aceitamos tanto Date quanto string no formato YYYY-MM-DD
   const [installmentDates, setInstallmentDates] = useState<(Date | string)[]>([]);
@@ -369,7 +371,13 @@ export default function SaleDialog({
   
   // Mutation para criar novo cliente
   const createCustomerMutation = useMutation({
-    mutationFn: async (customerData: { name: string; document: string }) => {
+    mutationFn: async (customerData: { 
+      name: string; 
+      document: string;
+      documentType: string;
+      phone: string;
+      email: string;
+    }) => {
       const response = await fetch("/api/customers", {
         method: "POST",
         headers: {
@@ -1086,10 +1094,10 @@ export default function SaleDialog({
 
   // Função para criar novo cliente
   const handleCreateCustomer = () => {
-    if (!newCustomerName || !newCustomerDocument) {
+    if (!newCustomerName || !newCustomerDocument || !newCustomerPhone || !newCustomerEmail) {
       toast({
         title: "Campos obrigatórios",
-        description: "Nome e documento são obrigatórios",
+        description: "Nome, documento, telefone e email são obrigatórios",
         variant: "destructive",
         className: "top-toast",
       });
@@ -1099,6 +1107,9 @@ export default function SaleDialog({
     createCustomerMutation.mutate({
       name: newCustomerName,
       document: newCustomerDocument,
+      documentType: "cpf", // Valor padrão
+      phone: newCustomerPhone,
+      email: newCustomerEmail,
     });
   };
   
@@ -2093,7 +2104,24 @@ export default function SaleDialog({
                       <Input 
                         value={newCustomerDocument} 
                         onChange={(e) => setNewCustomerDocument(e.target.value)} 
-                        placeholder="CPF ou CNPJ sem pontuação"
+                        placeholder="CPF ou CNPJ com pontuação"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel>Telefone</FormLabel>
+                      <Input 
+                        value={newCustomerPhone} 
+                        onChange={(e) => setNewCustomerPhone(e.target.value)} 
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel>E-mail</FormLabel>
+                      <Input 
+                        value={newCustomerEmail} 
+                        onChange={(e) => setNewCustomerEmail(e.target.value)} 
+                        placeholder="email@exemplo.com"
+                        type="email"
                       />
                     </div>
                   </div>
