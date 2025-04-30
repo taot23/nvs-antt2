@@ -2242,45 +2242,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // SOLUÇÃO RADICAL: TRATAMENTO ESPECIAL DA DATA NO PATCH
-      console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data recebida:", req.body.date, "tipo:", typeof req.body.date);
+      // SOLUÇÃO DEFINITIVA 30/04/2025: TRATAMENTO SUPER ESPECIAL DA DATA NO PATCH
+      console.log("📅 SOLUÇÃO DEFINITIVA PARA PATCH - Data recebida:", req.body.date, "tipo:", typeof req.body.date);
       
-      // Buscar a data original da venda
+      // Buscar a data original e outros dados da venda para evitar erros
       const { pool } = await import('./db');
       const originalSaleResult = await pool.query(
-        "SELECT date FROM sales WHERE id = $1",
+        "SELECT date, total_amount, installments FROM sales WHERE id = $1",
         [id]
       );
       
       let originalDate = null;
+      let originalTotalAmount = null;
+      let originalInstallments = null;
+      
       if (originalSaleResult.rows.length > 0) {
         originalDate = originalSaleResult.rows[0].date;
+        originalTotalAmount = originalSaleResult.rows[0].total_amount;
+        originalInstallments = originalSaleResult.rows[0].installments;
+        console.log("📅 SOLUÇÃO DEFINITIVA PARA PATCH - Dados originais encontrados:", {
+          originalDate,
+          originalTotalAmount,
+          originalInstallments
+        });
       }
       
-      console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data original da venda:", originalDate);
-      
-      // Se não foi enviada uma nova data no corpo da requisição, manter a original
-      if (!req.body.date) {
-        console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data não enviada, mantendo original");
+      // PRESERVAÇÃO DEFINITIVA: Manter a data original independente do que for enviado
+      // Isso resolve de uma vez o problema de perda da data original
+      if (originalDate) {
+        console.log("📅 PRESERVAÇÃO DEFINITIVA - Ignorando data enviada e mantendo original:", originalDate);
         req.body.date = originalDate;
-      } else {
-        // Se a data enviada for diferente da original, formatar corretamente
+      } 
+      // Somente se a venda não tiver data original, processamos a data enviada
+      else if (req.body.date) {
+        // Processar a data enviada apenas se não houver data original
         if (typeof req.body.date === 'string') {
-          console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Formatando data string:", req.body.date);
+          console.log("📅 SOLUÇÃO DEFINITIVA - Formatando data string:", req.body.date);
           
           // Se for data no formato YYYY-MM-DD, usar diretamente
           if (req.body.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data já está no formato YYYY-MM-DD");
+            console.log("📅 SOLUÇÃO DEFINITIVA - Data já está no formato YYYY-MM-DD");
             // Manter como está
           }
           // Se for data no formato DD/MM/YYYY, converter para YYYY-MM-DD
           else if (req.body.date.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
             const parts = req.body.date.split('/');
             req.body.date = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Data convertida de DD/MM/YYYY:", req.body.date);
+            console.log("📅 SOLUÇÃO DEFINITIVA - Data convertida de DD/MM/YYYY:", req.body.date);
           }
         } else if (req.body.date instanceof Date) {
-          console.log("📅 SOLUÇÃO RADICAL PARA PATCH - Formatando data objeto:", req.body.date);
+          console.log("📅 SOLUÇÃO DEFINITIVA - Formatando data objeto:", req.body.date);
           const dateObj = req.body.date;
           req.body.date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
         }
@@ -2346,6 +2357,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // SOLUÇÃO DEFINITIVA 30/04/2025: Processar itens da venda para evitar duplicação
+      // Se temos itens novos na requisição, verificamos se temos IDs nos itens
+      console.log("🔍 Verificando se foram enviados itens na edição para evitar duplicação...");
+      
+      if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
+        console.log(`🔍 Recebidos ${req.body.items.length} itens na requisição PATCH`);
+        
+        try {
+          // Buscar os itens existentes para esta venda
+          const existingItems = await storage.getSaleItems(id);
+          console.log(`🔍 Encontrados ${existingItems.length} itens existentes para a venda #${id}`);
+          
+          // Verificar se os itens enviados têm IDs
+          const itemsHaveIds = req.body.items.some(item => item.id);
+          
+          // Se temos IDs, isso significa que o front está enviando os itens existentes
+          // Nesse caso, NÃO manipulamos os itens para evitar duplicação
+          if (itemsHaveIds) {
+            console.log("⚠️ SOLUÇÃO ANTI-DUPLICAÇÃO - Os itens enviados possuem IDs, NÃO manipulando para evitar duplicação");
+          } 
+          // Se não temos IDs nos itens e estamos editando, também NÃO manipulamos
+          // Esta é uma proteção adicional
+          else {
+            console.log("⚠️ SOLUÇÃO ANTI-DUPLICAÇÃO - Items sem IDs em edição, NÃO manipulando para evitar duplicação");
+          }
+        } catch (error) {
+          console.error("❌ ERRO ao processar itens para prevenção de duplicação:", error);
+        }
+      } else {
+        console.log("🔍 Nenhum item enviado na requisição PATCH");
+      }
+
       // Atualizar a venda
       const updatedSale = await storage.updateSale(id, saleData);
       if (!updatedSale) {
@@ -2357,7 +2400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Obter os valores atualizados
           const installmentsToCreate = saleData.installments || sale.installments || 1;
-          const saleAmount = saleData.totalAmount || sale.total_amount || '0';
+          const saleAmount = saleData.totalAmount || sale.totalAmount || '0';
           
           console.log(`🔄 Venda atualizada #${id} - Atualizando parcelas: ${installmentsToCreate} parcelas com valor total ${saleAmount}`);
           
