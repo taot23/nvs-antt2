@@ -1747,9 +1747,11 @@ export default function SaleDialog({
         installments: Number(validatedInstallments),
         // Também garantimos que qualquer valor de parcela seja formato corretamente
         installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
-        // Corrige os itens
+        // Corrige os itens e preserva os IDs dos itens existentes quando estiver editando
         items: values.items.map(item => ({
           ...item,
+          // CRITICAL FIX: Manter o saleId dos itens quando estamos em modo de edição
+          ...(sale && { saleId: sale.id }),
           serviceTypeId: values.serviceTypeId, // Usa o serviceTypeId da venda para todos os itens
           quantity: Number(item.quantity) || 1 // Garante que quantidade seja número
         }))
