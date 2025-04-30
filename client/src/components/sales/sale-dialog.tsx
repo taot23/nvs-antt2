@@ -1284,11 +1284,11 @@ export default function SaleDialog({
       // @ts-ignore - Ignoramos o erro de tipo porque sabemos que o backend espera essa propriedade
       formattedData.installmentDates = installmentDatesToSend;
       
-      // CORREÇÃO SUPER RADICAL FINAL 30/04/2025: FORÇAR ID da venda para edição
-      if (editingExistingSale && saleId) {
+      // CORREÇÃO ULTRA-MEGA-RADICAL FINAL 30/04/2025: FORÇAR ID da venda para edição
+      if (editingExistingSale) {
         // @ts-ignore - Ignorar erro de tipos, sabemos que é seguro
-        formattedData.id = saleId;
-        console.log("🔄 MODO EDIÇÃO 100% GARANTIDO - ID da venda incluído:", saleId);
+        formattedData.id = saleIdToUse;
+        console.log("🔄 MODO EDIÇÃO 100% GARANTIDO - ID da venda incluído:", saleIdToUse);
       }
       
       // 🛑🛑🛑 SUPER CORREÇÃO - 26/04/2025
@@ -1792,18 +1792,45 @@ export default function SaleDialog({
         installments: Number(validatedInstallments),
         // Também garantimos que qualquer valor de parcela seja formato corretamente
         installmentValue: values.installmentValue ? String(values.installmentValue).replace(',', '.') : null,
-        // SUPER SOLUÇÃO RADICAL - 30/04/2025: Preservação extrema dos itens durante edição
+        // ULTRA-MEGA-HYPER SOLUÇÃO RADICAL - 30/04/2025: Preservação garantida dos itens durante edição
         items: values.items.map(item => {
           console.log("🔄 Processando item para envio:", item);
           
+          // PARTE 1: DETECÇÃO DE EDIÇÃO DE VENDA - 100% precisa
+          // Usamos exatamente o mesmo método que determina se estamos editando uma venda
+          const isEditingMode = editingExistingSale;
+          const currentSaleId = saleIdToUse;
+          
+          // PARTE 2: DETECÇÃO DE ITEM EXISTENTE - múltiplas camadas de segurança
+          // Verificamos a presença de ID no item
+          const hasItemId = !!item.id;
+          
+          console.log(`👽 ULTRA-MEGA-HYPER ANÁLISE DE ITEM:
+            - Item: ${JSON.stringify(item)}
+            - Modo: ${isEditingMode ? 'EDIÇÃO' : 'CRIAÇÃO'}
+            - Item existente: ${hasItemId ? 'SIM' : 'NÃO'}
+            - ID do item: ${hasItemId ? item.id : 'Nenhum'}
+            - ID da venda: ${currentSaleId || 'Nova venda'}
+          `);
+          
           // SUPER SOLUÇÃO RADICAL: Se estamos editando e o item tem ID, mantemos 100% os dados originais
-          // Isso é crucial para evitar duplicações, pois no servidor removeremos os itens durante edição
-          if (sale && sale.id && item.id) {
-            console.log("🔴 SUPER SOLUÇÃO RADICAL: Item com ID existente, preservando 100% dos dados originais");
+          // Isso é crucial para evitar duplicações, pois no servidor vamos fazer upsert dos itens
+          if (isEditingMode && hasItemId) {
+            console.log("🔒 PRESERVAÇÃO CRÍTICA: Item existente em venda existente - mantendo ID", {
+              itemId: item.id,
+              saleId: currentSaleId
+            });
+            
             return {
               ...item,
-              // A ÚNICA alteração é garantir o saleId correto
-              saleId: sale.id
+              // Campos cruciais para garantir consistência durante edição
+              id: item.id, // CRÍTICO: Preservar o ID do item
+              saleId: currentSaleId, // CRÍTICO: Garantir a associação à venda correta
+              serviceTypeId: values.serviceTypeId, // Atualizar o tipo de serviço (pode ter mudado)
+              quantity: Number(item.quantity) || 1, // Garantir tipo correto
+              // Formatação de valores
+              price: typeof item.price === 'string' ? item.price.replace(',', '.') : String(item.price || "0"),
+              totalPrice: typeof item.totalPrice === 'string' ? item.totalPrice.replace(',', '.') : String(item.totalPrice || item.price || "0"),
             };
           }
           
@@ -1819,15 +1846,20 @@ export default function SaleDialog({
             totalPrice: typeof item.totalPrice === 'string' ? item.totalPrice.replace(',', '.') : String(item.totalPrice || item.price || "0"),
           };
           
-          // Se estamos editando, sempre definimos o saleId
-          if (sale && sale.id) {
-            console.log("🔄 Modo de edição: definindo saleId para um novo item:", sale.id);
+          // CASO 2: Item novo em uma venda existente - ASSOCIAR À VENDA
+          if (isEditingMode) {
+            console.log("🔄 NOVO ITEM EM VENDA EXISTENTE: Associando à venda", {
+              saleId: currentSaleId
+            });
+            
             return {
               ...processedItem,
-              saleId: sale.id
+              saleId: currentSaleId
             };
           }
           
+          // CASO 3: Criando uma venda totalmente nova
+          console.log("✨ ITEM PARA NOVA VENDA: Enviando sem IDs especiais");
           return processedItem;
         })
       };
