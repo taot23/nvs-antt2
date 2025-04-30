@@ -1099,12 +1099,10 @@ export default function SaleDialog({
     mutationFn: async (data: z.infer<typeof saleSchema>) => {
       setIsSubmitting(true);
       
-      // SOLUÇÃO ULTRA-DEFINITIVA - 30/04/2025: FORÇAR método PATCH para edições
-      // Se temos ID na venda carregada, 100% garantido que é uma edição
-      const editingExistingSale = !!(sale && sale.id);
-      const saleId = (sale && sale.id) || null;
-      
-      console.log("📋 MÉTODO FORÇADO:", editingExistingSale ? "PATCH" : "POST", "ID da venda =", saleId);
+      // SOLUÇÃO ULTRA-DEFINITIVA V2 - 30/04/2025: FORÇAR método PATCH para edições
+      // Se temos ID na propriedade saleId passada para o componente, 100% garantido que é uma edição
+      const editingExistingSale = !!saleId;
+      console.log("📋 MÉTODO FORÇADO V2:", editingExistingSale ? "PATCH" : "POST", "ID da venda =", saleId);
       
       // Calcula o valor de cada parcela com base no valor total e número de parcelas
       const totalAmountValue = parseFloat(data.totalAmount?.replace(',', '.') || "0");
@@ -1282,12 +1280,11 @@ export default function SaleDialog({
       // @ts-ignore - Ignoramos o erro de tipo porque sabemos que o backend espera essa propriedade
       formattedData.installmentDates = installmentDatesToSend;
       
-      // CORREÇÃO CRÍTICA: Conforme determinação anterior, se estamos editando, usamos o ID
-      const editId = data.id || (sale && sale.id);
-      if (isEditing && editId) {
+      // CORREÇÃO SUPER RADICAL FINAL 30/04/2025: FORÇAR ID da venda para edição
+      if (editingExistingSale && saleId) {
         // @ts-ignore - Ignorar erro de tipos, sabemos que é seguro
-        formattedData.id = editId;
-        console.log("🔄 MODO EDIÇÃO ATIVADO - ID da venda incluído:", editId);
+        formattedData.id = saleId;
+        console.log("🔄 MODO EDIÇÃO 100% GARANTIDO - ID da venda incluído:", saleId);
       }
       
       // 🛑🛑🛑 SUPER CORREÇÃO - 26/04/2025
@@ -1476,14 +1473,14 @@ export default function SaleDialog({
       // Log para debug do payload
       console.log("Payload completo da venda:", JSON.stringify(formattedData, null, 2));
 
-      // SOLUÇÃO DEFINITIVA - 30/04/2025: Para edições, NÃO usar o bypass
-      // @ts-ignore - Ignorar erro de tipos
-      const isSaleBeingEdited = !!(formattedData.id || (sale && sale.id));
+      // SOLUÇÃO DEFINITIVA V2 - 30/04/2025: Usar o mesmo critério que já usamos antes
+      // Sem ambiguidade, baseado no editingExistingSale que é determinado 100% pelo parâmetro saleId
+      const isSaleBeingEdited = editingExistingSale;
       
       // SUPER IMPORTANTE - Log para rastrear quando estamos em edição
-      console.log("🔑🔑🔑 CONTROLE DE EDIÇÃO - isSaleBeingEdited =", isSaleBeingEdited);
-      console.log("🔑 ID de venda nos dados formatados =", formattedData.id);
-      console.log("🔑 ID de venda no objeto sale =", sale?.id);
+      console.log("🔑🔑🔑 CONTROLE DE EDIÇÃO V2 - isSaleBeingEdited =", isSaleBeingEdited);
+      console.log("🔑 ID de venda =", saleId);
+      console.log("🔑 Modo 100% confirmado:", editingExistingSale ? "EDIÇÃO" : "CRIAÇÃO");
       
       if (!isSaleBeingEdited) {
         console.log("🚀 É uma NOVA venda, podemos tentar usar o ULTRA BYPASS...");
@@ -1517,15 +1514,11 @@ export default function SaleDialog({
       // Fallback: usar a abordagem normal/original se o bypass falhar
       console.log("⚠️ Usando abordagem normal como fallback...");
       
-      // CORREÇÃO PARA EDIÇÃO: Verificar se o ID está nos dados formatados OU usar o ID da venda
-      // Se estamos editando, podemos ter o ID em dois lugares:
-      // 1. No objeto 'sale' original
-      // 2. No objeto 'formattedData' que estamos enviando (adicionado em correctedValues)
-      
-      // Obtemos o ID de onde estiver disponível
-      // @ts-ignore - Ignorar erro de tipos, sabemos que é seguro
-      const finalSaleId = formattedData.id || (sale ? sale.id : null);
-      console.log("🔑 ID DA VENDA PARA EDIÇÃO:", finalSaleId);
+      // SOLUÇÃO RADICAL 30/04/2025: Simplificar completamente a lógica de edição
+      // Se estamos editando (conforme definido no início do fluxo), usamos o ID da props
+      // Este é o ÚNICO local confiável para o ID da venda em edição
+      const finalSaleId = editingExistingSale ? saleId : null;
+      console.log("🔑 ID DA VENDA PARA EDIÇÃO (SIMPLIFICADO):", finalSaleId);
       
       const url = finalSaleId ? `/api/sales/${finalSaleId}` : "/api/sales";
       const method = finalSaleId ? "PATCH" : "POST";
