@@ -169,13 +169,13 @@ export function ReportList({ onExecuteReport, onViewExecution }: ReportListProps
       parameters.endDate = format(endDate, 'yyyy-MM-dd');
     }
     
-    // Adicionar filtro de vendedor se selecionado
-    if (sellerFilter) {
+    // Adicionar filtro de vendedor se selecionado e não for "all"
+    if (sellerFilter && sellerFilter !== "all") {
       parameters.sellerId = sellerFilter;
     }
     
-    // Adicionar filtro de status se selecionado
-    if (statusFilter) {
+    // Adicionar filtro de status se selecionado e não for "all"
+    if (statusFilter && statusFilter !== "all") {
       parameters.status = statusFilter;
     }
     
@@ -522,7 +522,7 @@ export function ReportList({ onExecuteReport, onViewExecution }: ReportListProps
                       <SelectValue placeholder="Todos os vendedores" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos os vendedores</SelectItem>
+                      <SelectItem value="all">Todos os vendedores</SelectItem>
                       {users && users.map((user: any) => (
                         user.role === "vendedor" && (
                           <SelectItem key={user.id} value={user.id.toString()}>
@@ -549,7 +549,7 @@ export function ReportList({ onExecuteReport, onViewExecution }: ReportListProps
                     <SelectValue placeholder="Todos os status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os status</SelectItem>
+                    <SelectItem value="all">Todos os status</SelectItem>
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="in_progress">Em Progresso</SelectItem>
                     <SelectItem value="completed">Concluído</SelectItem>
