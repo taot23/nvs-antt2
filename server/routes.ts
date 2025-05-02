@@ -3386,10 +3386,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const success = await storage.deleteSaleOperationalCost(id);
       
-      // Emitir evento de atualização
-      notifySalesUpdate();
+      if (!success) {
+        return res.status(500).json({ error: "Não foi possível excluir o custo operacional" });
+      }
       
-      res.json({ success });
+      // Emitir evento de atualização via WebSocket
+      broadcastEvent({ 
+        type: 'sales_update', 
+        payload: { action: 'operational-cost-deleted', saleId, operationalCostId: id } 
+      });
+      
+      // Responder com 204 No Content (operação realizada com sucesso, sem conteúdo de retorno)
+      res.status(204).end();
     } catch (error) {
       console.error("Erro ao excluir custo operacional:", error);
       res.status(500).json({ error: "Erro ao excluir custo operacional" });

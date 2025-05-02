@@ -166,11 +166,18 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao excluir custo operacional');
+        // Só tentamos analisar como JSON se houver um erro
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erro ao excluir custo operacional');
+        } catch (e) {
+          throw new Error('Erro ao excluir custo operacional');
+        }
       }
       
-      return response.json();
+      // Não tentamos analisar a resposta se for bem-sucedida
+      // Alguns endpoints retornam 204 No Content
+      return true;
     },
     onSuccess: () => {
       // Atualizar dados
