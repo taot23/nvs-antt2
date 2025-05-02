@@ -606,7 +606,7 @@ export function ReportExecution({
                 className="h-8"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />
-                Excel
+                Exportar Excel
               </Button>
               <Button 
                 variant="outline" 
@@ -615,7 +615,7 @@ export function ReportExecution({
                 className="h-8"
               >
                 <File className="h-3.5 w-3.5 mr-1" />
-                PDF
+                Exportar PDF
               </Button>
             </div>
           </div>
