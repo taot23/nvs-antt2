@@ -8,8 +8,8 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
-  url: string,
   method: string,
+  url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
   // Adicionar cabeçalhos anti-cache
@@ -23,7 +23,7 @@ export async function apiRequest(
     headers.append('Content-Type', 'application/json');
   }
 
-  console.log(`🔄 API REQUEST: ${method} ${url}`, data ? JSON.stringify(data, null, 2) : 'sem dados');
+  console.log(`🔄 API REQUEST: ${url} ${method}`, data ? JSON.stringify(data, null, 2) : 'sem dados');
 
   const res = await fetch(url, {
     method,
