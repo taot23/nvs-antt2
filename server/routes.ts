@@ -1619,15 +1619,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await pool.query(`
               INSERT INTO sale_items (
                 sale_id, service_id, service_type_id, quantity, price, 
-                notes, created_at, updated_at
+                total_price, status, notes, created_at, updated_at
               ) 
-              VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
             `, [
               createdSale.id,
               item.serviceId,
               item.serviceTypeId || saleData.serviceTypeId,
               item.quantity || 1,
               item.price || "0",
+              item.totalPrice || item.price || "0", // Adiciona total_price
+              "pending", // Adiciona status padrão
               item.notes || null
             ]);
             console.log("🔄 IMPLEMENTAÇÃO RADICAL: Item salvo com sucesso para a venda", createdSale.id);
@@ -1862,15 +1864,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     await pool.query(`
                       INSERT INTO sale_items (
                         sale_id, service_id, service_type_id, quantity, price, 
-                        notes, created_at, updated_at
+                        total_price, status, notes, created_at, updated_at
                       ) 
-                      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
                     `, [
                       createdSale.id,
                       item.serviceId,
                       item.serviceTypeId || serviceTypeId,
                       item.quantity || 1,
                       item.price || "0",
+                      item.totalPrice || item.price || "0", // Total price = price se não tiver total específico
+                      "pending", // Status padrão
                       item.notes || null
                     ]);
                   }
