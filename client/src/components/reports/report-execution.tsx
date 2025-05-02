@@ -33,6 +33,36 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Interfaces para tipagem
+interface ReportData {
+  id: number;
+  name: string;
+  description?: string;
+  query: string;
+  parameters?: string;
+  permissions: string;
+  createdBy: number;
+  createdAt: string;
+}
+
+interface ReportExecutionData {
+  id: number;
+  report_id?: number;
+  reportId?: number;
+  user_id?: number;
+  userId?: number;
+  parameters: Record<string, string>;
+  results: any[];
+  execution_time?: number;
+  status: string;
+  error_message?: string;
+  created_at: string;
+  report_name?: string;
+  name?: string;
+  description?: string;
+  username?: string;
+}
+
 interface ReportExecutionProps {
   reportId?: number;
   executionId?: number;
@@ -62,7 +92,7 @@ export function ReportExecution({
     data: report, 
     isLoading: isLoadingReport,
     error: reportError,
-  } = useQuery({
+  } = useQuery<ReportData>({
     queryKey: ["/api/reports", reportId],
     enabled: !!reportId && !executionId,
   });
@@ -72,7 +102,7 @@ export function ReportExecution({
     data: execution, 
     isLoading: isLoadingExecution,
     error: executionError
-  } = useQuery({
+  } = useQuery<ReportExecutionData>({
     queryKey: ["/api/report-executions", executionId],
     enabled: !!executionId,
   });

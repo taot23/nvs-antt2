@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { ReportList } from "@/components/reports/report-list";
 import { ReportExecution } from "@/components/reports/report-execution";
+import { RecentExecutions } from "@/components/reports/recent-executions";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -222,58 +223,63 @@ export default function ReportsPage() {
         </div>
 
         {/* Seção para mensagens importantes e dicas */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Análise de Tendências</CardTitle>
-            <CardDescription>
-              Informações baseadas nos dados de vendas recentes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {salesSummary ? (
-                <>
-                  <div className="rounded-lg border p-4">
-                    <h4 className="text-sm font-medium">Análise de Margem</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {financialSummary && financialSummary.margin > 20 
-                        ? "A margem de lucro está saudável, acima dos 20% desejados."
-                        : financialSummary && financialSummary.margin > 0
-                        ? "A margem de lucro está positiva, mas abaixo do ideal de 20%."
-                        : "Atenção: a margem de lucro está negativa ou muito baixa."}
-                    </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Análise de Tendências</CardTitle>
+              <CardDescription>
+                Informações baseadas nos dados de vendas recentes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {salesSummary ? (
+                  <>
+                    <div className="rounded-lg border p-4">
+                      <h4 className="text-sm font-medium">Análise de Margem</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {financialSummary && financialSummary.margin > 20 
+                          ? "A margem de lucro está saudável, acima dos 20% desejados."
+                          : financialSummary && financialSummary.margin > 0
+                          ? "A margem de lucro está positiva, mas abaixo do ideal de 20%."
+                          : "Atenção: a margem de lucro está negativa ou muito baixa."}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <h4 className="text-sm font-medium">Conversão de Vendas</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {salesSummary.completedSales > salesSummary.pendingSales
+                          ? "A taxa de conversão está saudável, com mais vendas concluídas que pendentes."
+                          : "Atenção: há muitas vendas pendentes, o que pode afetar o fluxo de caixa."}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <h4 className="text-sm font-medium">Dicas de Ação</h4>
+                      <ul className="text-sm text-muted-foreground mt-1 space-y-1 ml-4 list-disc">
+                        {salesSummary.returnedSales > salesSummary.totalSales * 0.1 && (
+                          <li>Reduzir a taxa de devolução de vendas que está acima de 10%.</li>
+                        )}
+                        {financialSummary && Number(financialSummary.pendingRevenue) > Number(financialSummary.paidRevenue) && (
+                          <li>Intensificar cobrança de pagamentos pendentes.</li>
+                        )}
+                        {sellerPerformance && sellerPerformance.some((s: any) => s.completionRate < 70) && (
+                          <li>Verificar vendedores com baixa taxa de conclusão de vendas.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-muted-foreground text-sm">Carregando dados...</p>
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <h4 className="text-sm font-medium">Conversão de Vendas</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {salesSummary.completedSales > salesSummary.pendingSales
-                        ? "A taxa de conversão está saudável, com mais vendas concluídas que pendentes."
-                        : "Atenção: há muitas vendas pendentes, o que pode afetar o fluxo de caixa."}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <h4 className="text-sm font-medium">Dicas de Ação</h4>
-                    <ul className="text-sm text-muted-foreground mt-1 space-y-1 ml-4 list-disc">
-                      {salesSummary.returnedSales > salesSummary.totalSales * 0.1 && (
-                        <li>Reduzir a taxa de devolução de vendas que está acima de 10%.</li>
-                      )}
-                      {financialSummary && Number(financialSummary.pendingRevenue) > Number(financialSummary.paidRevenue) && (
-                        <li>Intensificar cobrança de pagamentos pendentes.</li>
-                      )}
-                      {sellerPerformance && sellerPerformance.some((s: any) => s.completionRate < 70) && (
-                        <li>Verificar vendedores com baixa taxa de conclusão de vendas.</li>
-                      )}
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-32">
-                  <p className="text-muted-foreground text-sm">Carregando dados...</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Execuções Recentes de Relatórios */}
+          <RecentExecutions onViewExecution={handleViewExecution} limit={5} />
+        </div>
       </div>
     );
   };
