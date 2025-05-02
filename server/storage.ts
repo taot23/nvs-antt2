@@ -62,6 +62,16 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
+  
+  // Report methods
+  getReports(userRole: string): Promise<any[]>;
+  getReport(id: number): Promise<any | undefined>;
+  createReport(report: any): Promise<any>;
+  updateReport(id: number, report: any): Promise<any | undefined>;
+  deleteReport(id: number): Promise<boolean>;
+  executeReport(reportId: number, parameters: any, userId: number): Promise<any>;
+  getReportExecutions(reportId: number): Promise<any[]>;
+  getReportExecution(id: number): Promise<any | undefined>;
 
   // Customer methods
   getCustomers(): Promise<Customer[]>;
@@ -2721,6 +2731,201 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Erro ao atualizar status da venda:', error);
       throw error;
+    }
+  }
+
+  // Métodos para Relatórios
+  async getReports(userRole: string): Promise<any[]> {
+    try {
+      // Buscar relatórios e filtrar pelos que o usuário tem permissão
+      const result = await pool.query(
+        `SELECT * FROM reports WHERE permissions LIKE $1 ORDER BY id ASC`,
+        [`%${userRole}%`]
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar relatórios:", error);
+      throw new Error("Não foi possível buscar os relatórios. Tente novamente mais tarde.");
+    }
+  }
+
+  async getReport(id: number): Promise<any | undefined> {
+    try {
+      const result = await pool.query(`SELECT * FROM reports WHERE id = $1`, [id]);
+      return result.rows.length > 0 ? result.rows[0] : undefined;
+    } catch (error) {
+      console.error(`Erro ao buscar relatório ${id}:`, error);
+      throw new Error("Não foi possível buscar as informações do relatório.");
+    }
+  }
+
+  async createReport(report: any): Promise<any> {
+    try {
+      const { name, description, type, query, parameters, permissions, created_by } = report;
+      const result = await pool.query(
+        `INSERT INTO reports (name, description, type, query, parameters, permissions, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [name, description, type, query, parameters, permissions, created_by]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao criar relatório:", error);
+      throw new Error("Não foi possível criar o relatório.");
+    }
+  }
+
+  async updateReport(id: number, report: any): Promise<any | undefined> {
+    try {
+      const { name, description, type, query, parameters, permissions } = report;
+      const result = await pool.query(
+        `UPDATE reports 
+         SET name = COALESCE($1, name),
+             description = COALESCE($2, description),
+             type = COALESCE($3, type),
+             query = COALESCE($4, query),
+             parameters = COALESCE($5, parameters),
+             permissions = COALESCE($6, permissions),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $7
+         RETURNING *`,
+        [name, description, type, query, parameters, permissions, id]
+      );
+      return result.rows.length > 0 ? result.rows[0] : undefined;
+    } catch (error) {
+      console.error(`Erro ao atualizar relatório ${id}:`, error);
+      throw new Error("Não foi possível atualizar o relatório.");
+    }
+  }
+
+  async deleteReport(id: number): Promise<boolean> {
+    try {
+      // Primeiro apagar todas as execuções desse relatório
+      await pool.query(
+        `DELETE FROM report_executions WHERE report_id = $1`,
+        [id]
+      );
+      
+      // Depois apagar o relatório
+      const result = await pool.query(
+        `DELETE FROM reports WHERE id = $1 RETURNING id`,
+        [id]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error(`Erro ao excluir relatório ${id}:`, error);
+      throw new Error("Não foi possível excluir o relatório.");
+    }
+  }
+
+  async executeReport(reportId: number, userId: number, parameters?: any): Promise<{data: any[], execution: any}> {
+    try {
+      // 1. Buscar informações do relatório
+      const report = await this.getReport(reportId);
+      if (!report) {
+        throw new Error(`Relatório com ID ${reportId} não encontrado.`);
+      }
+
+      // 2. Preparar e executar a consulta com parâmetros
+      let query = report.query;
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+
+      // Substituir parâmetros nomeados no formato :paramName por $1, $2, etc.
+      if (parameters) {
+        // Para cada parâmetro definido no relatório
+        Object.keys(report.parameters || {}).forEach(key => {
+          const pattern = new RegExp(`:${key}\\b`, 'g');
+          
+          if (query.match(pattern)) {
+            // Se o parâmetro é uma data, converter para o formato do banco
+            if (report.parameters[key].type === 'date' && parameters[key]) {
+              const date = new Date(parameters[key]);
+              queryParams.push(date.toISOString().split('T')[0]);
+            } else {
+              queryParams.push(parameters[key]);
+            }
+            
+            // Substituir o marcador nomeado pelo posicional
+            query = query.replace(pattern, `$${paramIndex}`);
+            paramIndex++;
+          }
+        });
+      }
+
+      // 3. Registrar início da execução
+      const startTime = performance.now();
+      
+      // 4. Executar a consulta SQL
+      const queryResult = await pool.query(query, queryParams);
+      
+      // 5. Calcular tempo de execução
+      const endTime = performance.now();
+      const executionTime = (endTime - startTime) / 1000; // em segundos
+      
+      // 6. Salvar execução no histórico
+      const executionResult = await pool.query(
+        `INSERT INTO report_executions 
+         (report_id, user_id, parameters, execution_time, status, results, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) 
+         RETURNING *`,
+        [reportId, userId, parameters, executionTime, 'completed', JSON.stringify(queryResult.rows)]
+      );
+      
+      return {
+        data: queryResult.rows,
+        execution: executionResult.rows[0]
+      };
+    } catch (error) {
+      console.error(`Erro ao executar relatório ${reportId}:`, error);
+      
+      // Registrar erro na execução
+      try {
+        await pool.query(
+          `INSERT INTO report_executions 
+           (report_id, user_id, parameters, status, error_message, created_at) 
+           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+          [reportId, userId, parameters, 'error', error instanceof Error ? error.message : String(error)]
+        );
+      } catch (insertError) {
+        console.error("Erro ao registrar falha de execução:", insertError);
+      }
+      
+      throw new Error("Erro ao executar relatório: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async getReportExecutions(reportId: number, limit: number = 20): Promise<any[]> {
+    try {
+      const result = await pool.query(
+        `SELECT e.*, u.username 
+         FROM report_executions e
+         JOIN users u ON e.user_id = u.id
+         WHERE e.report_id = $1 
+         ORDER BY e.created_at DESC 
+         LIMIT $2`,
+        [reportId, limit]
+      );
+      return result.rows;
+    } catch (error) {
+      console.error(`Erro ao buscar execuções do relatório ${reportId}:`, error);
+      throw new Error("Não foi possível buscar o histórico de execuções do relatório.");
+    }
+  }
+
+  async getReportExecution(id: number): Promise<any | undefined> {
+    try {
+      const result = await pool.query(
+        `SELECT e.*, u.username, r.name as report_name
+         FROM report_executions e
+         JOIN reports r ON e.report_id = r.id
+         JOIN users u ON e.user_id = u.id
+         WHERE e.id = $1`,
+        [id]
+      );
+      return result.rows.length > 0 ? result.rows[0] : undefined;
+    } catch (error) {
+      console.error(`Erro ao buscar execução de relatório ${id}:`, error);
+      throw new Error("Não foi possível buscar os detalhes da execução do relatório.");
     }
   }
 }
