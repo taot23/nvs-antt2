@@ -2928,6 +2928,261 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Não foi possível buscar os detalhes da execução do relatório.");
     }
   }
+
+  // Métodos para Análise de Dados
+  async getSalesSummary(filters?: {
+    startDate?: string;
+    endDate?: string;
+    sellerId?: number;
+    status?: string;
+    financialStatus?: string;
+  }): Promise<{
+    totalSales: number;
+    totalAmount: string;
+    averageAmount: string;
+    completedSales: number;
+    pendingSales: number;
+    returnedSales: number;
+  }> {
+    try {
+      // Preparar a consulta SQL com filtros opcionais
+      let query = `
+        SELECT 
+          COUNT(*) as total_sales,
+          COALESCE(SUM(total_amount::numeric), 0) as total_amount,
+          COUNT(*) FILTER (WHERE status IN ('completed', 'paid')) as completed_sales,
+          COUNT(*) FILTER (WHERE status IN ('pending', 'in_progress', 'processing')) as pending_sales,
+          COUNT(*) FILTER (WHERE status IN ('returned', 'returned_to_seller')) as returned_sales
+        FROM sales
+        WHERE 1=1
+      `;
+      
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      // Adicionar filtros se fornecidos
+      if (filters?.startDate) {
+        query += ` AND date >= $${paramIndex++}`;
+        queryParams.push(filters.startDate);
+      } else {
+        // Por padrão, filtrar últimos 30 dias
+        query += ` AND date >= $${paramIndex++}`;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        queryParams.push(thirtyDaysAgo.toISOString().split('T')[0]);
+      }
+      
+      if (filters?.endDate) {
+        query += ` AND date <= $${paramIndex++}`;
+        queryParams.push(filters.endDate);
+      }
+      
+      if (filters?.sellerId) {
+        query += ` AND seller_id = $${paramIndex++}`;
+        queryParams.push(filters.sellerId);
+      }
+      
+      if (filters?.status) {
+        query += ` AND status = $${paramIndex++}`;
+        queryParams.push(filters.status);
+      }
+      
+      if (filters?.financialStatus) {
+        if (filters.financialStatus === 'paid') {
+          query += ` AND status = 'paid'`;
+        } else if (filters.financialStatus === 'pending') {
+          query += ` AND status != 'paid' AND status != 'returned' AND status != 'returned_to_seller'`;
+        }
+      }
+      
+      // Executar consulta
+      const result = await pool.query(query, queryParams);
+      const summary = result.rows[0];
+      
+      // Calcular média do valor de vendas
+      const averageAmount = summary.total_sales > 0 
+        ? (Number(summary.total_amount) / Number(summary.total_sales)).toFixed(2)
+        : "0.00";
+      
+      return {
+        totalSales: Number(summary.total_sales),
+        totalAmount: summary.total_amount,
+        averageAmount,
+        completedSales: Number(summary.completed_sales),
+        pendingSales: Number(summary.pending_sales),
+        returnedSales: Number(summary.returned_sales)
+      };
+    } catch (error) {
+      console.error("Erro ao buscar resumo de vendas:", error);
+      throw new Error("Não foi possível gerar o resumo de vendas.");
+    }
+  }
+  
+  async getSellerPerformance(filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    sellerId: number;
+    sellerName: string;
+    totalSales: number;
+    totalAmount: string;
+    returnRate: number;
+    completionRate: number;
+  }[]> {
+    try {
+      // Preparar a consulta SQL com filtros opcionais
+      let query = `
+        SELECT 
+          seller_id,
+          u.username as seller_name,
+          COUNT(*) as total_sales,
+          COALESCE(SUM(total_amount::numeric), 0) as total_amount,
+          COUNT(*) FILTER (WHERE status IN ('completed', 'paid')) as completed_sales,
+          COUNT(*) FILTER (WHERE status IN ('returned', 'returned_to_seller')) as returned_sales
+        FROM sales s
+        JOIN users u ON s.seller_id = u.id
+        WHERE 1=1
+      `;
+      
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      // Adicionar filtros se fornecidos
+      if (filters?.startDate) {
+        query += ` AND date >= $${paramIndex++}`;
+        queryParams.push(filters.startDate);
+      } else {
+        // Por padrão, filtrar últimos 30 dias
+        query += ` AND date >= $${paramIndex++}`;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        queryParams.push(thirtyDaysAgo.toISOString().split('T')[0]);
+      }
+      
+      if (filters?.endDate) {
+        query += ` AND date <= $${paramIndex++}`;
+        queryParams.push(filters.endDate);
+      }
+      
+      // Agrupar e ordenar resultados
+      query += ` 
+        GROUP BY seller_id, u.username
+        ORDER BY total_amount DESC
+      `;
+      
+      // Executar consulta
+      const result = await pool.query(query, queryParams);
+      
+      // Calcular taxas de devolução e conclusão
+      return result.rows.map(row => {
+        const totalSales = Number(row.total_sales);
+        const completedSales = Number(row.completed_sales);
+        const returnedSales = Number(row.returned_sales);
+        
+        const completionRate = totalSales > 0 ? (completedSales / totalSales) * 100 : 0;
+        const returnRate = totalSales > 0 ? (returnedSales / totalSales) * 100 : 0;
+        
+        return {
+          sellerId: row.seller_id,
+          sellerName: row.seller_name,
+          totalSales,
+          totalAmount: row.total_amount,
+          returnRate,
+          completionRate
+        };
+      });
+    } catch (error) {
+      console.error("Erro ao buscar desempenho dos vendedores:", error);
+      throw new Error("Não foi possível gerar o relatório de desempenho dos vendedores.");
+    }
+  }
+  
+  async getFinancialOverview(filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    totalRevenue: string;
+    pendingRevenue: string;
+    paidRevenue: string;
+    totalCost: string;
+    profit: string;
+    margin: number;
+  }> {
+    try {
+      // Preparar filtros de data
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      // Data inicial padrão: 30 dias atrás
+      let startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      let startDateStr = startDate.toISOString().split('T')[0];
+      
+      // Substituir por filtro fornecido, se existir
+      if (filters?.startDate) {
+        startDateStr = filters.startDate;
+      }
+      
+      queryParams.push(startDateStr);
+      
+      // Data final padrão: hoje
+      let endDateParam = paramIndex++;
+      let endDateCondition = `AND s.date <= $${endDateParam}`;
+      queryParams.push(new Date().toISOString().split('T')[0]);
+      
+      // Substituir por filtro fornecido, se existir
+      if (filters?.endDate) {
+        queryParams[endDateParam - 1] = filters.endDate;
+      }
+      
+      // Consulta para receita total e paga
+      const revenueQuery = `
+        SELECT 
+          COALESCE(SUM(s.total_amount::numeric), 0) as total_revenue,
+          COALESCE(SUM(s.total_amount::numeric) FILTER (WHERE s.status = 'paid'), 0) as paid_revenue,
+          COALESCE(SUM(s.total_amount::numeric) FILTER (WHERE s.status != 'paid' AND s.status != 'returned' AND s.status != 'returned_to_seller'), 0) as pending_revenue
+        FROM sales s
+        WHERE s.date >= $1 ${endDateCondition}
+      `;
+      
+      // Consulta para custos operacionais
+      const costQuery = `
+        SELECT 
+          COALESCE(SUM(c.amount::numeric), 0) as total_cost
+        FROM sale_operational_costs c
+        JOIN sales s ON c.sale_id = s.id
+        WHERE s.date >= $1 ${endDateCondition}
+      `;
+      
+      // Executar consultas
+      const revenueResult = await pool.query(revenueQuery, queryParams);
+      const costResult = await pool.query(costQuery, queryParams);
+      
+      // Extrair valores
+      const totalRevenue = revenueResult.rows[0].total_revenue;
+      const paidRevenue = revenueResult.rows[0].paid_revenue;
+      const pendingRevenue = revenueResult.rows[0].pending_revenue;
+      const totalCost = costResult.rows[0].total_cost;
+      
+      // Calcular lucro e margem
+      const profit = (Number(totalRevenue) - Number(totalCost)).toFixed(2);
+      const margin = Number(totalRevenue) > 0 
+        ? (Number(profit) / Number(totalRevenue)) * 100 
+        : 0;
+      
+      return {
+        totalRevenue,
+        pendingRevenue,
+        paidRevenue,
+        totalCost,
+        profit,
+        margin
+      };
+    } catch (error) {
+      console.error("Erro ao buscar visão geral financeira:", error);
+      throw new Error("Não foi possível gerar a visão geral financeira.");
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

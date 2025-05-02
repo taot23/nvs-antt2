@@ -12,18 +12,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-export interface DatePickerProps {
+interface DatePickerProps {
   date?: Date
-  setDate: (date: Date | undefined) => void
-  disabled?: boolean
+  setDate: (date?: Date) => void
   placeholder?: string
+  className?: string
+  disabled?: boolean
 }
 
 export function DatePicker({
   date,
   setDate,
-  disabled = false,
   placeholder = "Selecione uma data",
+  className,
+  disabled = false,
 }: DatePickerProps) {
   return (
     <Popover>
@@ -32,12 +34,17 @@ export function DatePicker({
           variant={"outline"}
           className={cn(
             "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground"
+            !date && "text-muted-foreground",
+            className
           )}
           disabled={disabled}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP", { locale: ptBR }) : <span>{placeholder}</span>}
+          {date ? (
+            format(date, "PPP", { locale: ptBR })
+          ) : (
+            <span>{placeholder}</span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
