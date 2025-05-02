@@ -192,6 +192,32 @@ export function ReportExecution({
                   }
                 }
                 
+                // Traduzir valores status comuns
+                if (typeof value === 'string') {
+                  // Traduzir estados de status
+                  const statusTranslations: Record<string, string> = {
+                    'pending': 'Pendente',
+                    'in_progress': 'Em Andamento',
+                    'completed': 'Concluído',
+                    'canceled': 'Cancelado',
+                    'success': 'Sucesso',
+                    'error': 'Erro',
+                    'waiting': 'Aguardando',
+                    'approved': 'Aprovado',
+                    'rejected': 'Rejeitado',
+                    'paid': 'Pago',
+                    'unpaid': 'Não Pago',
+                    'overdue': 'Atrasado',
+                    'active': 'Ativo',
+                    'inactive': 'Inativo',
+                    'delivery': 'Entrega'
+                  };
+                  
+                  if (statusTranslations[value.toLowerCase()]) {
+                    return statusTranslations[value.toLowerCase()];
+                  }
+                }
+                
                 return value;
               }
             }));
@@ -263,6 +289,32 @@ export function ReportExecution({
             formattedRow[key] = value;
           }
           return;
+        }
+        
+        // Traduzir valores de status para o português
+        if (typeof value === 'string') {
+          const statusTranslations: Record<string, string> = {
+            'pending': 'Pendente',
+            'in_progress': 'Em Andamento',
+            'completed': 'Concluído',
+            'canceled': 'Cancelado',
+            'success': 'Sucesso',
+            'error': 'Erro',
+            'waiting': 'Aguardando',
+            'approved': 'Aprovado',
+            'rejected': 'Rejeitado',
+            'paid': 'Pago',
+            'unpaid': 'Não Pago',
+            'overdue': 'Atrasado',
+            'active': 'Ativo',
+            'inactive': 'Inativo',
+            'delivery': 'Entrega'
+          };
+          
+          if (statusTranslations[value.toLowerCase()]) {
+            formattedRow[key] = statusTranslations[value.toLowerCase()];
+            return;
+          }
         }
         
         // Passar valor normal
