@@ -593,6 +593,149 @@ export function ReportExecution({
     }
   };
 
+  // Função para preparar dados do dashboard baseado nos resultados do relatório
+  const prepareReportDashboard = (data: any[], reportName: string) => {
+    if (!data || data.length === 0) return;
+    
+    try {
+      const summaries = [];
+      let hasFinancialData = false;
+      let chartData = null;
+      
+      // Verificar se temos dados financeiros (valores, montantes, etc)
+      const hasMoneyValues = data.some(row => 
+        Object.keys(row).some(key => 
+          key.toLowerCase().includes('valor') || 
+          key.toLowerCase().includes('amount') || 
+          key.toLowerCase().includes('total') || 
+          key.toLowerCase().includes('price') || 
+          key.toLowerCase().includes('preco')
+        )
+      );
+      
+      if (hasMoneyValues) {
+        hasFinancialData = true;
+      }
+      
+      // Total de registros
+      summaries.push({
+        label: "Total de Registros",
+        value: data.length,
+        icon: <File className="h-4 w-4 text-blue-500" />,
+        color: "bg-blue-50"
+      });
+      
+      // Processar dados específicos dependendo do tipo de relatório
+      if (reportName.toLowerCase().includes("fluxo") || reportName.toLowerCase().includes("financeiro")) {
+        // Para relatórios financeiros, mostrar somatório total
+        let totalValue = 0;
+        
+        // Encontrar a coluna que parece conter valores monetários
+        const moneyColumn = Object.keys(data[0]).find(key => 
+          key.toLowerCase().includes('valor') || 
+          key.toLowerCase().includes('amount') || 
+          key.toLowerCase().includes('total')
+        );
+        
+        if (moneyColumn) {
+          // Calcular valor total
+          totalValue = data.reduce((sum, row) => {
+            const val = row[moneyColumn];
+            if (val && !isNaN(Number(val))) {
+              return sum + Number(val);
+            }
+            return sum;
+          }, 0);
+          
+          summaries.push({
+            label: "Valor Total",
+            value: `R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            icon: <Percent className="h-4 w-4 text-green-500" />,
+            color: "bg-green-50"
+          });
+        }
+        
+        // Se tiver uma coluna de status, mostrar resumo por status
+        const statusColumn = Object.keys(data[0]).find(key => key.toLowerCase() === 'status');
+        if (statusColumn) {
+          const statusCount: Record<string, number> = {};
+          data.forEach(row => {
+            const status = row[statusColumn];
+            if (status) {
+              statusCount[status] = (statusCount[status] || 0) + 1;
+            }
+          });
+          
+          if (Object.keys(statusCount).length > 0) {
+            // Adicionar contagem de status
+            Object.entries(statusCount).forEach(([status, count]) => {
+              const statusTranslated = status === 'completed' ? 'Concluído' : 
+                                        status === 'pending' ? 'Pendente' : 
+                                        status === 'in_progress' ? 'Em Andamento' : status;
+              
+              summaries.push({
+                label: `${statusTranslated}`,
+                value: count,
+                icon: status === 'completed' ? <Check className="h-4 w-4 text-green-500" /> : 
+                      <Timer className="h-4 w-4 text-yellow-500" />,
+                color: status === 'completed' ? "bg-green-50" : "bg-yellow-50"
+              });
+            });
+          }
+        }
+      } else if (reportName.toLowerCase().includes("vendas")) {
+        // Para relatórios de vendas, mostrar média e maior valor
+        let totalValue = 0;
+        let maxValue = 0;
+        
+        // Encontrar coluna de valor
+        const valueColumn = Object.keys(data[0]).find(key => 
+          key.toLowerCase().includes('valor') || 
+          key.toLowerCase().includes('total') || 
+          key.toLowerCase().includes('amount')
+        );
+        
+        if (valueColumn) {
+          // Calcular valor total, valor médio e valor máximo
+          data.forEach(row => {
+            const val = row[valueColumn];
+            if (val && !isNaN(Number(val))) {
+              const numVal = Number(val);
+              totalValue += numVal;
+              maxValue = Math.max(maxValue, numVal);
+            }
+          });
+          
+          const avgValue = totalValue / data.length;
+          
+          summaries.push({
+            label: "Valor Total",
+            value: `R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            icon: <Percent className="h-4 w-4 text-green-500" />,
+            color: "bg-green-50"
+          });
+          
+          summaries.push({
+            label: "Valor Médio",
+            value: `R$ ${avgValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            icon: <LineChart className="h-4 w-4 text-purple-500" />,
+            color: "bg-purple-50"
+          });
+        }
+      }
+      
+      // Atualizar o estado do dashboard
+      setDashboardData({
+        summaries,
+        chartData,
+        hasFinancialData
+      });
+      
+    } catch (error) {
+      console.error("Erro ao preparar dados do dashboard:", error);
+    }
+  };
+  
   // Verificar se está carregando
   const isLoading = isLoadingReport || isLoadingExecution;
   
