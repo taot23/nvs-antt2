@@ -12,7 +12,11 @@ import {
   Timer, 
   AlertCircle,
   Check,
-  File
+  File,
+  BarChart3,
+  PieChart,
+  LineChart,
+  Percent
 } from "lucide-react";
 import {
   Card,
@@ -76,9 +80,18 @@ export function ReportExecution({
 }: ReportExecutionProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"data" | "params" | "info">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "params" | "info" | "dashboard">("data");
   const [columns, setColumns] = useState<any[]>([]);
   const exportDataRef = useRef<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<{
+    summaries: Array<{label: string, value: string | number, icon: React.ReactNode, color: string}>,
+    chartData: any,
+    hasFinancialData: boolean,
+  }>({
+    summaries: [],
+    chartData: null,
+    hasFinancialData: false,
+  });
   
   // Estado para armazenar o cabeçalho do relatório para exportação
   const [reportHeader, setReportHeader] = useState({
@@ -122,6 +135,9 @@ export function ReportExecution({
             
         if (resultsArray.length > 0) {
           console.log("Processando resultados do relatório:", resultsArray.length, "registros");
+          
+          // Processar dados para o dashboard se houver dados
+          prepareReportDashboard(resultsArray, execution.report_name || execution.name || "");
           
           // Construir as colunas dinamicamente com base nos resultados
           const sampleRow = resultsArray[0];
