@@ -935,6 +935,100 @@ export function ReportExecution({
     );
   };
 
+  // Renderizar conteúdo da aba de dashboard
+  const renderDashboardTab = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      );
+    }
+    
+    if (hasError) {
+      return (
+        <div className="bg-red-50 p-4 rounded-md text-red-800">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">Erro ao gerar dashboard</h3>
+          </div>
+          <p className="mt-2 text-sm">
+            Ocorreu um erro ao processar os dados para visualização.
+          </p>
+        </div>
+      );
+    }
+    
+    if (!dashboardData.summaries.length) {
+      return (
+        <div className="bg-yellow-50 p-4 rounded-md text-yellow-800">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">Dados insuficientes</h3>
+          </div>
+          <p className="mt-2 text-sm">
+            Não foi possível gerar um dashboard para este relatório com os dados disponíveis.
+            Verifique se o relatório retornou resultados válidos.
+          </p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Dashboard - {reportName}</CardTitle>
+            <CardDescription>
+              Visão consolidada dos dados do relatório
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {dashboardData.summaries.map((summary, index) => (
+                <Card key={index} className={`border ${summary.color}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">{summary.label}</p>
+                        <p className="text-2xl font-bold mt-1">{summary.value}</p>
+                      </div>
+                      <div className={`p-2 rounded-full ${summary.color}`}>
+                        {summary.icon}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            {dashboardData.hasFinancialData && (
+              <div className="mt-8 p-6 border rounded-lg">
+                <h3 className="text-lg font-medium mb-4">Análise visual</h3>
+                <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-md">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">As visualizações detalhadas estarão disponíveis em breve.</p>
+                    <p className="text-gray-400 text-sm mt-2">
+                      Para mais detalhes, consulte os dados na aba "Dados".
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4">
+            <p className="text-xs text-muted-foreground">
+              O dashboard apresenta uma visão geral dos dados do relatório. Para uma análise mais detalhada, consulte a aba "Dados".
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  };
+  
   // Renderizar conteúdo da aba de informações
   const renderInfoTab = () => {
     if (isLoading) {
@@ -1074,11 +1168,15 @@ export function ReportExecution({
       <Tabs defaultValue="data" value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
         <TabsList>
           <TabsTrigger value="data">Dados</TabsTrigger>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
         <TabsContent value="data" className="mt-4">
           {renderDataTab()}
+        </TabsContent>
+        <TabsContent value="dashboard" className="mt-4">
+          {renderDashboardTab()}
         </TabsContent>
         <TabsContent value="params" className="mt-4">
           {renderParamsTab()}
