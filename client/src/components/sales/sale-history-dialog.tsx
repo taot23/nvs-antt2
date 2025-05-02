@@ -200,7 +200,21 @@ export default function SaleHistoryDialog({ open, onClose, saleId }: SaleHistory
                           <div className="mt-2 p-3 bg-muted rounded-md text-sm">
                             <p className="font-medium mb-1">Observações:</p>
                             <div className="whitespace-pre-wrap break-words">
-                              {entry.notes}
+                              {(() => {
+                                try {
+                                  // Verifica se as notas contêm JSON estruturado com dados adicionais
+                                  if (entry.notes.includes('{"isResubmitted":true') || 
+                                      entry.notes.includes('| Dados adicionais:')) {
+                                    // Extrai apenas a parte textual antes do JSON
+                                    const mainNotes = entry.notes.split(/\s*\|\s*Dados adicionais:/)[0];
+                                    return mainNotes.trim();
+                                  }
+                                  return entry.notes;
+                                } catch (error) {
+                                  console.error("Erro ao processar notas:", error);
+                                  return entry.notes;
+                                }
+                              })()}
                             </div>
                           </div>
                         )}
