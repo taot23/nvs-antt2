@@ -2593,6 +2593,11 @@ export class DatabaseStorage implements IStorage {
         updates.push(`payment_receipt_url = $${paramIndex++}`);
         values.push(data.paymentReceiptUrl);
       }
+ 
+      if (data.paymentDate !== undefined) {
+        updates.push(`payment_date = $${paramIndex++}`);
+        values.push(data.paymentDate);
+      }
 
       // Sempre atualizar o updated_at
       updates.push(`updated_at = $${paramIndex++}`);
@@ -2626,6 +2631,7 @@ export class DatabaseStorage implements IStorage {
         costTypeId: row.cost_type_id,
         amount: row.amount,
         date: row.date, // Mantendo como string para compatibilidade
+        paymentDate: row.payment_date, // Adicionando o campo de data de pagamento
         responsibleId: row.responsible_id,
         serviceProviderId: row.service_provider_id || null,
         notes: row.notes || null,
