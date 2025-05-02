@@ -2828,10 +2828,30 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`Relatório com ID ${reportId} não encontrado.`);
       }
 
-      // 2. Preparar e executar a consulta com parâmetros
+      // 2. Buscar informações do usuário
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error(`Usuário com ID ${userId} não encontrado.`);
+      }
+
+      // 3. Preparar e executar a consulta com parâmetros
       let query = report.query;
       const queryParams: any[] = [];
       let paramIndex = 1;
+      
+      // Verificar se é o relatório "Minhas Vendas do Período" (id = 2) e usuário é vendedor
+      if (reportId === 2 && user.role === 'vendedor') {
+        // Adicionar filtro de vendedor para o usuário atual
+        if (query.includes('WHERE')) {
+          query = query.replace('WHERE', `WHERE s.seller_id = $${paramIndex} AND`);
+          queryParams.push(userId);
+          paramIndex++;
+        } else {
+          query = query + ` WHERE s.seller_id = $${paramIndex}`;
+          queryParams.push(userId);
+          paramIndex++;
+        }
+      }
 
       // Substituir parâmetros nomeados no formato :paramName por $1, $2, etc.
       if (parameters) {
