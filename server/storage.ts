@@ -2528,6 +2528,7 @@ export class DatabaseStorage implements IStorage {
         description: row.description,
         costTypeId: row.cost_type_id,
         amount: row.amount,
+        paymentDate: row.payment_date, // Adicionando o campo de data de pagamento
         date: row.date, // Mantendo como string para compatibilidade
         responsibleId: row.responsible_id,
         serviceProviderId: row.service_provider_id || null,

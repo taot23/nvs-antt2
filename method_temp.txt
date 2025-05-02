@@ -1,0 +1,61 @@
+  createSaleOperationalCost(
+    cost: InsertSaleOperationalCost,
+  ): Promise<SaleOperationalCost>;
+  updateSaleOperationalCost(
+    id: number,
+    cost: Partial<InsertSaleOperationalCost>,
+  ): Promise<SaleOperationalCost | undefined>;
+  deleteSaleOperationalCost(id: number): Promise<boolean>;
+
+  // Payment Receipt methods
+  getSalePaymentReceipts(installmentId: number): Promise<SalePaymentReceipt[]>;
+  getSalePaymentReceipt(id: number): Promise<SalePaymentReceipt | undefined>;
+  createSalePaymentReceipt(
+    receipt: InsertSalePaymentReceipt,
+  ): Promise<SalePaymentReceipt>;
+  updateSalePaymentReceipt(
+    id: number,
+    receipt: Partial<InsertSalePaymentReceipt>,
+  ): Promise<SalePaymentReceipt | undefined>;
+  deleteSalePaymentReceipt(id: number): Promise<boolean>;
+
+  // Cost Types methods
+  getCostTypes(): Promise<CostType[]>;
+  getCostType(id: number): Promise<CostType | undefined>;
+  getCostTypeByName(name: string): Promise<CostType | undefined>;
+  createCostType(costType: InsertCostType): Promise<CostType>;
+  updateCostType(
+    id: number,
+    costType: Partial<InsertCostType>,
+  ): Promise<CostType | undefined>;
+  deleteCostType(id: number): Promise<boolean>;
+
+  // Gerenciar confirmação de pagamentos de parcelas
+  confirmInstallmentPayment(
+    installmentId: number,
+    userId: number,
+    paymentDate: string, // Alterado para string para preservar exatamente o formato digitado pelo usuário
+    receiptData?: { type: string; url?: string; data?: any; notes?: string },
+  ): Promise<SaleInstallment | undefined>;
+
+  // Special Sale operations
+  returnSaleToSeller(
+    saleId: number,
+    userId: number,
+    reason: string,
+  ): Promise<Sale | undefined>;
+  markSaleInProgress(
+    saleId: number,
+    operationalId: number,
+    serviceTypeId?: number,
+    serviceProviderId?: number,
+  ): Promise<Sale | undefined>;
+  completeSaleExecution(
+    saleId: number,
+    operationalId: number,
+  ): Promise<Sale | undefined>;
+  markSaleAsPaid(
+    saleId: number,
+    financialId: number,
+  ): Promise<Sale | undefined>;
+  
