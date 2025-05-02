@@ -51,6 +51,7 @@ interface AddCostFormData {
   costTypeId: number;
   amount: string;
   description: string;
+  paymentDate: string;
 }
 
 export default function OperationalCosts({ saleId, canManage = true }: OperationalCostsProps) {
@@ -60,7 +61,8 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
   const [formData, setFormData] = useState<AddCostFormData>({
     costTypeId: 0,
     amount: "",
-    description: ""
+    description: "",
+    paymentDate: ""
   });
   
   // Buscar custos operacionais existentes para esta venda
@@ -130,7 +132,8 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
       setFormData({
         costTypeId: 0,
         amount: "",
-        description: ""
+        description: "",
+        paymentDate: ""
       });
       
       // Fechar diálogo
@@ -360,6 +363,19 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
                   />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="paymentDate">Data de Pagamento</Label>
+                  <Input
+                    id="paymentDate"
+                    type="date"
+                    value={formData.paymentDate}
+                    onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se o custo já foi pago, informe a data de pagamento. Caso contrário, deixe em branco.
+                  </p>
                 </div>
                 
                 <DialogFooter>

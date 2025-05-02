@@ -228,6 +228,7 @@ export const saleOperationalCosts = pgTable("sale_operational_costs", {
   costTypeId: integer("cost_type_id").references(() => costTypes.id), // Tipo de custo padronizado
   amount: numeric("amount").notNull(), // Valor do custo
   date: date("date").notNull(), // Data do custo
+  paymentDate: date("payment_date"), // Data em que o custo foi pago
   responsibleId: integer("responsible_id").notNull().references(() => users.id), // Responsável pelo registro
   serviceProviderId: integer("service_provider_id").references(() => serviceProviders.id), // Prestador de serviço (para SINDICATO)
   notes: text("notes"), // Observações adicionais
