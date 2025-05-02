@@ -111,52 +111,76 @@ export function ReportExecution({
 
   // Preparar os dados para exibição quando a execução for carregada
   useEffect(() => {
-    if (execution && execution.results && execution.results.length > 0) {
-      // Construir as colunas dinamicamente com base nos resultados
-      const sampleRow = execution.results[0];
-      const newColumns = Object.keys(sampleRow).map(key => ({
-        accessorKey: key,
-        header: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        cell: ({ row }: any) => {
-          const value = row.getValue(key);
+    if (execution && execution.results) {
+      try {
+        // Garantir que os resultados sejam um array
+        const resultsArray = Array.isArray(execution.results) 
+          ? execution.results 
+          : typeof execution.results === 'string'
+            ? JSON.parse(execution.results)
+            : [];
+            
+        if (resultsArray.length > 0) {
+          console.log("Processando resultados do relatório:", resultsArray.length, "registros");
           
-          // Formatar valores de data
-          if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}(T.*)?$/)) {
-            try {
-              const date = new Date(value);
-              return format(date, "dd/MM/yyyy", { locale: ptBR });
-            } catch (e) {
-              return value;
-            }
-          }
+          // Construir as colunas dinamicamente com base nos resultados
+          const sampleRow = resultsArray[0];
           
-          // Formatar valores numéricos
-          if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)))) {
-            // Se parecer um valor monetário
-            if (key.includes('valor') || key.includes('price') || key.includes('amount') || key.includes('total')) {
-              try {
-                return `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-              } catch (e) {
+          // Garantir que temos uma linha de amostra válida
+          if (sampleRow && typeof sampleRow === 'object') {
+            const newColumns = Object.keys(sampleRow).map(key => ({
+              accessorKey: key,
+              header: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              cell: ({ row }: any) => {
+                const value = row.getValue(key);
+                
+                // Formatar valores de data
+                if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}(T.*)?$/)) {
+                  try {
+                    const date = new Date(value);
+                    return format(date, "dd/MM/yyyy", { locale: ptBR });
+                  } catch (e) {
+                    return value;
+                  }
+                }
+                
+                // Formatar valores numéricos
+                if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)))) {
+                  // Se parecer um valor monetário
+                  if (key.includes('valor') || key.includes('price') || key.includes('amount') || key.includes('total')) {
+                    try {
+                      return `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    } catch (e) {
+                      return value;
+                    }
+                  }
+                }
+                
                 return value;
               }
-            }
+            }));
+            
+            setColumns(newColumns);
+            
+            // Armazenar dados para exportação
+            exportDataRef.current = resultsArray;
+            
+            // Configurar o cabeçalho do relatório para exportação
+            setReportHeader({
+              title: execution.name || execution.report_name || "Relatório",
+              date: new Date(execution.created_at),
+              parameters: execution.parameters || {},
+            });
           }
-          
-          return value;
         }
-      }));
-      
-      setColumns(newColumns);
-      
-      // Armazenar dados para exportação
-      exportDataRef.current = execution.results;
-      
-      // Configurar o cabeçalho do relatório para exportação
-      setReportHeader({
-        title: execution.name || execution.report_name || "Relatório",
-        date: new Date(execution.created_at),
-        parameters: execution.parameters || {},
-      });
+      } catch (error) {
+        console.error("Erro ao processar resultados:", error);
+        toast({
+          title: "Erro ao processar resultados",
+          description: "Ocorreu um erro ao processar os resultados do relatório.",
+          variant: "destructive",
+        });
+      }
     }
   }, [execution]);
 
@@ -412,7 +436,9 @@ export function ReportExecution({
         margin: { top: paramY + 5, right: 14, bottom: 20, left: 14 },
         didDrawPage: (data) => {
           // Adicionar rodapé com numeração de página em cada página
-          const pageNumber = doc.internal.getNumberOfPages();
+          // @ts-ignore - o tipo interno da biblioteca não está atualizado
+          const pageInfo = doc.internal.getCurrentPageInfo();
+          const pageNumber = pageInfo ? pageInfo.pageNumber : 1;
           const totalPages = `Página ${pageNumber}`;
           
           // Adicionar rodapé com data e número da página

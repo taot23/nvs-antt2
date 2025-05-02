@@ -4233,8 +4233,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Execução não encontrada" });
       }
       
-      console.log(`Execução encontrada: ${JSON.stringify(execution)}`);
-      console.log(`Report ID: ${execution.report_id}`);
+      // Tratamento de dados para garantir que os resultados sejam um objeto JSON válido
+      if (execution.results) {
+        try {
+          // Se já estiver em formato de objeto, manter como está
+          if (typeof execution.results === 'object' && !Array.isArray(execution.results)) {
+            // Nada a fazer, já é um objeto
+          } 
+          // Se for string, tentar fazer parse
+          else if (typeof execution.results === 'string') {
+            execution.results = JSON.parse(execution.results);
+          }
+          // Se for array, manter como está
+          else if (Array.isArray(execution.results)) {
+            // Nada a fazer, já é um array
+          }
+          
+          // Verificar se os resultados são válidos após processamento
+          if (!execution.results || (Array.isArray(execution.results) && execution.results.length === 0)) {
+            console.log(`Execução ${id} contém resultados vazios`);
+            execution.results = [];
+            execution.status = 'completed'; // Garantir status consistente
+          }
+        } catch (jsonError) {
+          console.error(`Erro ao processar JSON dos resultados da execução ${id}:`, jsonError);
+          execution.results = [];
+          execution.status = 'error';
+          execution.error_message = `Erro ao processar resultados: ${jsonError.message}`;
+        }
+      } else {
+        execution.results = [];
+      }
+      
+      console.log(`Execução processada: ${execution.id}, Status: ${execution.status}, Resultados: ${Array.isArray(execution.results) ? execution.results.length : 'não é array'}`);
       
       // Verificar se o relatório existe e se o usuário tem permissão para acessá-lo
       // Obter o ID do relatório - pode estar como report_id ou reportId
