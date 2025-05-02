@@ -20,7 +20,8 @@ import {
   Tags,
   HardHat,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  BarChart
 } from 'lucide-react';
 
 // Interface para os itens do menu
@@ -95,6 +96,12 @@ export function Sidebar() {
       path: '/sales',
       icon: <ShoppingCart className="h-5 w-5" />,
       label: 'Vendas'
+      // Sem roles = todos os perfis têm acesso
+    },
+    {
+      path: '/reports',
+      icon: <BarChart className="h-5 w-5" />,
+      label: 'Relatórios'
       // Sem roles = todos os perfis têm acesso
     },
     {
