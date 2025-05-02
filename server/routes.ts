@@ -1609,33 +1609,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Erro ao salvar venda no banco de dados" });
       }
 
-      // 6. Criar itens da venda
+      // 6. Criar itens da venda - VERSÃO ULTRA-ROBUSTA (02/05/2025)
       if (items && Array.isArray(items) && items.length > 0) {
-        console.log("🔄 IMPLEMENTAÇÃO RADICAL: Tentando salvar", items.length, "itens para a venda");
-        for (const item of items) {
-          try {
-            const { pool } = await import('./db');
-            // SQL corrigido para corresponder às colunas reais da tabela
-            await pool.query(`
-              INSERT INTO sale_items (
-                sale_id, service_id, service_type_id, quantity, price, 
-                total_price, status, notes, created_at, updated_at
-              ) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-            `, [
-              createdSale.id,
-              item.serviceId,
-              item.serviceTypeId || saleData.serviceTypeId,
-              item.quantity || 1,
-              "0", // Preço sempre fixo em 0 - não usamos preço por produto
-              "0", // Total price também fixo em 0 - o valor real é na venda
-              "pending", // Status padrão para o item
-              item.notes || null
-            ]);
-            console.log("🔄 IMPLEMENTAÇÃO RADICAL: Item salvo com sucesso para a venda", createdSale.id);
-          } catch (itemError) {
-            console.error("🔄 IMPLEMENTAÇÃO RADICAL: Erro ao criar item:", itemError, "Para venda ID:", createdSale.id);
+        console.log("🛠️ VERSÃO ULTRA-ROBUSTA: Recebidos", items.length, "itens para processar");
+        console.log("🛠️ ITEMS RECEBIDOS:", JSON.stringify(items, null, 2));
+        
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          console.log(`🛠️ Processando item #${i+1}:`, JSON.stringify(item, null, 2));
+          
+          // Validar se temos o ID do serviço (campo obrigatório)
+          if (!item.serviceId) {
+            console.error(`🛠️ ERRO: Item #${i+1} não tem serviceId`, item);
+            continue; // Pular este item
           }
+          
+          try {
+            // Garantir que o serviceId seja um número
+            const serviceId = Number(item.serviceId);
+            if (isNaN(serviceId)) {
+              console.error(`🛠️ ERRO: serviceId inválido no item #${i+1}:`, item.serviceId);
+              continue; // Pular este item
+            }
+            
+            // Garantir que temos um serviceTypeId (do item ou da venda)
+            const serviceTypeId = item.serviceTypeId || saleData.serviceTypeId;
+            if (!serviceTypeId) {
+              console.error(`🛠️ ERRO: Tipo de serviço não encontrado para o item #${i+1}`);
+              continue; // Pular este item
+            }
+            
+            // Quantidade padrão é 1 se não especificada
+            const quantity = item.quantity ? Number(item.quantity) : 1;
+            
+            // Preparar consulta SQL com todos os campos obrigatórios
+            const { pool } = await import('./db');
+            
+            console.log(`🛠️ Executando SQL para item #${i+1} com valores:`, {
+              saleId: createdSale.id,
+              serviceId,
+              serviceTypeId,
+              quantity,
+              price: "0",
+              totalPrice: "0",
+              status: "pending",
+              notes: item.notes || null
+            });
+            
+            // Execução ultra-segura com tratamento de exceções
+            try {
+              const result = await pool.query(`
+                INSERT INTO sale_items (
+                  sale_id, service_id, service_type_id, quantity, price, 
+                  total_price, status, notes, created_at, updated_at
+                ) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+                RETURNING id
+              `, [
+                createdSale.id,
+                serviceId,
+                serviceTypeId,
+                quantity,
+                "0", // Preço sempre fixo em 0 - não usamos preço por produto
+                "0", // Total price também fixo em 0 - o valor real é na venda
+                "pending", // Status padrão para o item
+                item.notes || null
+              ]);
+              
+              if (result.rows && result.rows.length > 0) {
+                console.log(`✅ SUCESSO: Item #${i+1} salvo com ID ${result.rows[0].id} para venda ${createdSale.id}`);
+              } else {
+                console.error(`❌ ERRO: Item #${i+1} foi processado mas não retornou ID`);
+              }
+            } catch (sqlError) {
+              console.error(`❌ ERRO SQL para item #${i+1}:`, sqlError);
+              // Tentar novamente com SQL mais simples como última tentativa
+              try {
+                console.log(`🔄 Tentativa de recuperação com SQL simplificado para item #${i+1}`);
+                await pool.query(`
+                  INSERT INTO sale_items (sale_id, service_id, service_type_id, quantity, price, total_price, status)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `, [
+                  createdSale.id,
+                  serviceId,
+                  serviceTypeId,
+                  quantity,
+                  "0",
+                  "0",
+                  "pending"
+                ]);
+                console.log(`✅ RECUPERAÇÃO: Item #${i+1} salvo com SQL simplificado`);
+              } catch (finalError) {
+                console.error(`❌ FALHA FINAL: Não foi possível salvar o item #${i+1} mesmo com SQL simplificado:`, finalError);
+              }
+            }
+          } catch (itemError) {
+            console.error(`❌ ERRO GERAL no processamento do item #${i+1}:`, itemError);
+          }
+        }
+        
+        // Verificação final - consultar os itens salvos para confirmação
+        try {
+          const { pool } = await import('./db');
+          const checkResult = await pool.query('SELECT COUNT(*) FROM sale_items WHERE sale_id = $1', [createdSale.id]);
+          
+          if (checkResult.rows && checkResult.rows.length > 0) {
+            const savedCount = parseInt(checkResult.rows[0].count);
+            console.log(`🔍 VERIFICAÇÃO FINAL: ${savedCount} de ${items.length} itens foram salvos para a venda ${createdSale.id}`);
+          }
+        } catch (checkError) {
+          console.error('❌ ERRO na verificação final de itens:', checkError);
         }
       }
 

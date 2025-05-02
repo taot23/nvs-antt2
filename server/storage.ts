@@ -1483,6 +1483,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSaleItem(saleItemData: InsertSaleItem): Promise<SaleItem> {
+    console.log("📦 VERSÃO ULTRA-ROBUSTA (02/05/2025): Criando item de venda com dados:", 
+                JSON.stringify(saleItemData, null, 2));
+    
+    // Verificar campos obrigatórios
+    if (!saleItemData.saleId) {
+      console.error("📦 ERRO: ID da venda não fornecido");
+      throw new Error("ID da venda é obrigatório");
+    }
+    
+    if (!saleItemData.serviceId) {
+      console.error("📦 ERRO: ID do serviço não fornecido");
+      throw new Error("ID do serviço é obrigatório");
+    }
+
     // Verificar se os dados incluem totalPrice e status, e adicionar se não existirem
     const completeData = {
       ...saleItemData,
@@ -1491,19 +1505,84 @@ export class DatabaseStorage implements IStorage {
       // Calcular totalPrice como 0 - apenas como formalidade já que não usamos
       totalPrice: "0",
       // Definir status padrão se não fornecido
-      status: saleItemData.status || "pending"
+      status: saleItemData.status || "pending",
+      // Garantir que temos um tipo de serviço
+      serviceTypeId: saleItemData.serviceTypeId || null,
+      // Garantir que temos uma quantidade
+      quantity: saleItemData.quantity || 1
     };
 
-    // Inserir o item com os dados completos
-    const [createdItem] = await db
-      .insert(saleItems)
-      .values(completeData)
-      .returning();
-
-    // Atualizar o valor total da venda
-    await this.updateSaleTotalAmount(createdItem.saleId);
-
-    return createdItem;
+    console.log("📦 VERSÃO ULTRA-ROBUSTA: Dados completos do item:", 
+                JSON.stringify(completeData, null, 2));
+    
+    try {
+      // Inserir o item com os dados completos usando drizzle
+      const [createdItem] = await db
+        .insert(saleItems)
+        .values(completeData)
+        .returning();
+  
+      console.log("📦 VERSÃO ULTRA-ROBUSTA: Item criado com sucesso:", 
+                  JSON.stringify(createdItem, null, 2));
+      
+      // Atualizar o valor total da venda
+      await this.updateSaleTotalAmount(createdItem.saleId);
+  
+      return createdItem;
+    } catch (error) {
+      // Se falhar com Drizzle, tentar diretamente com SQL
+      console.error("📦 ERRO ao criar item com Drizzle:", error);
+      console.log("📦 Tentando alternativa com SQL direto");
+      
+      try {
+        const result = await pool.query(`
+          INSERT INTO sale_items (
+            sale_id, service_id, service_type_id, quantity, price, 
+            total_price, status, notes, created_at, updated_at
+          ) 
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+          RETURNING *
+        `, [
+          completeData.saleId,
+          completeData.serviceId,
+          completeData.serviceTypeId,
+          completeData.quantity,
+          completeData.price,
+          completeData.totalPrice,
+          completeData.status,
+          completeData.notes || null
+        ]);
+        
+        if (result.rows && result.rows.length > 0) {
+          console.log("📦 SUCESSO: Item criado via SQL direto");
+          
+          // Atualizar o valor total da venda
+          await this.updateSaleTotalAmount(completeData.saleId);
+          
+          // Mapear o resultado para o formato esperado
+          const item: SaleItem = {
+            id: result.rows[0].id,
+            saleId: result.rows[0].sale_id,
+            serviceId: result.rows[0].service_id,
+            serviceTypeId: result.rows[0].service_type_id,
+            quantity: result.rows[0].quantity,
+            price: result.rows[0].price,
+            totalPrice: result.rows[0].total_price,
+            status: result.rows[0].status,
+            notes: result.rows[0].notes,
+            createdAt: result.rows[0].created_at,
+            updatedAt: result.rows[0].updated_at
+          };
+          
+          return item;
+        } else {
+          throw new Error("Item criado, mas não retornado");
+        }
+      } catch (sqlError) {
+        console.error("📦 ERRO FINAL: Não foi possível criar o item, mesmo com SQL direto:", sqlError);
+        throw new Error("Falha ao criar item da venda");
+      }
+    }
   }
 
   async updateSaleItem(
