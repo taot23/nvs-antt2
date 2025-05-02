@@ -447,7 +447,7 @@ export function ReportExecution({
           
           // Adicionar empresa e data à esquerda
           doc.text(
-            `Sistema Gerenciamento - ${format(new Date(), 'dd/MM/yyyy')}`,
+            `Sistema de Gerenciamento - ${format(new Date(), 'dd/MM/yyyy')}`,
             14,
             doc.internal.pageSize.height - 10
           );
