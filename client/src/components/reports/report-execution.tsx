@@ -308,8 +308,28 @@ export function ReportExecution({
             <h3 className="font-medium">Erro ao carregar relatório</h3>
           </div>
           <p className="mt-2 text-sm">
-            Ocorreu um erro ao carregar os dados do relatório. Tente novamente mais tarde.
+            Ocorreu um erro ao carregar os dados do relatório.
           </p>
+          <div className="mt-4 bg-red-100 p-3 rounded-md text-sm">
+            <p className="font-medium">Detalhes do erro:</p>
+            <p className="mt-1">
+              {executionError ? 
+                `Erro na execução: ${executionError instanceof Error ? executionError.message : 'Erro desconhecido'}` : 
+                reportError ? 
+                `Erro no relatório: ${reportError instanceof Error ? reportError.message : 'Erro desconhecido'}` : 
+                'Ocorreu um erro inesperado. Tente novamente mais tarde.'}
+            </p>
+          </div>
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onBack}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para lista de relatórios
+            </Button>
+          </div>
         </div>
       );
     }
@@ -318,13 +338,67 @@ export function ReportExecution({
     if (!execution?.results || execution.results.length === 0) {
       return (
         <div className="bg-yellow-50 p-4 rounded-md text-yellow-800">
-          <p>Nenhum resultado encontrado para os critérios selecionados.</p>
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">Nenhum resultado encontrado</h3>
+          </div>
+          <p className="mt-2 text-sm">
+            Não foram encontrados registros para os critérios selecionados.
+          </p>
+          <div className="mt-4 bg-yellow-100 p-3 rounded-md text-sm">
+            <p className="font-medium">Sugestões:</p>
+            <ul className="mt-1 list-disc pl-5 space-y-1">
+              <li>Verifique se os parâmetros de filtro estão corretos</li>
+              <li>Tente ampliar o período de datas, se aplicável</li>
+              <li>Verifique se existem dados correspondentes no sistema</li>
+            </ul>
+          </div>
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onBack}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para lista de relatórios
+            </Button>
+          </div>
         </div>
       );
     }
     
     return (
       <div className="space-y-4">
+        <div className="bg-slate-50 p-3 rounded-md mb-2">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-medium">Resultados da consulta</h3>
+              <p className="text-xs text-muted-foreground">
+                {execution.results.length} registros encontrados
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={exportToExcel} 
+                className="h-8"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />
+                Excel
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={exportToPdf}
+                className="h-8"
+              >
+                <File className="h-3.5 w-3.5 mr-1" />
+                PDF
+              </Button>
+            </div>
+          </div>
+        </div>
         <DataTable
           columns={columns}
           data={execution.results}
@@ -353,22 +427,38 @@ export function ReportExecution({
     
     if (!hasParameters) {
       return (
-        <div className="text-center py-8 text-muted-foreground">
-          <p>Nenhum parâmetro foi utilizado nesta execução.</p>
+        <div className="bg-blue-50 p-4 rounded-md text-blue-800">
+          <div className="flex items-center space-x-2">
+            <FileText className="h-5 w-5" />
+            <h3 className="font-medium">Relatório sem parâmetros</h3>
+          </div>
+          <p className="mt-2 text-sm">
+            Este relatório foi executado sem nenhum parâmetro de filtro.
+          </p>
+          <p className="mt-2 text-sm">
+            Isso significa que os resultados representam todos os dados disponíveis 
+            no período padrão (geralmente últimos 30 dias ou conforme definido no relatório).
+          </p>
         </div>
       );
     }
     
     return (
       <div className="space-y-4">
+        <div className="bg-blue-50 p-3 rounded-md mb-4">
+          <div className="flex items-center">
+            <FileText className="h-5 w-5 mr-2 text-blue-600" />
+            <h3 className="text-sm font-medium text-blue-800">Parâmetros utilizados na consulta</h3>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(parameters).map(([key, value]) => (
-            <Card key={key}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{key}</CardTitle>
+            <Card key={key} className="border-blue-100">
+              <CardHeader className="pb-2 bg-blue-50/50">
+                <CardTitle className="text-sm text-blue-700">{key}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-base">{value as string}</p>
+                <p className="text-base font-medium">{value as string}</p>
               </CardContent>
             </Card>
           ))}
@@ -444,25 +534,52 @@ export function ReportExecution({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {execution?.status === "success" ? (
-                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                  <Check className="h-3 w-3 mr-1" />
-                  Concluído com sucesso
-                </Badge>
-              ) : execution?.status === "error" ? (
-                <Badge variant="destructive">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Erro
-                </Badge>
-              ) : (
-                <Badge variant="outline">Processando</Badge>
-              )}
-              
-              {execution?.error_message && (
-                <div className="mt-2 p-2 bg-red-50 text-red-800 text-sm rounded">
-                  {execution.error_message}
-                </div>
-              )}
+              <div className="flex flex-col space-y-2">
+                {execution?.status === "success" ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-green-700">Concluído com sucesso</p>
+                      <p className="text-xs text-green-600">
+                        Relatório gerado e pronto para visualização
+                      </p>
+                    </div>
+                  </div>
+                ) : execution?.status === "error" ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-red-700">Erro na execução</p>
+                      <p className="text-xs text-red-600">
+                        Ocorreu um problema ao gerar o relatório
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Timer className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-blue-700">Processando</p>
+                      <p className="text-xs text-blue-600">
+                        Relatório em geração
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {execution?.error_message && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                    <p className="font-medium mb-1">Mensagem de erro:</p>
+                    <p className="text-sm">{execution.error_message}</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -475,29 +592,8 @@ export function ReportExecution({
       <div className="flex justify-between items-center">
         <Button variant="outline" size="sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
+          Voltar para Lista
         </Button>
-        
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={exportToExcel} 
-            disabled={isLoading || !execution?.results || execution.results.length === 0}
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={exportToPdf} 
-            disabled={isLoading || !execution?.results || execution.results.length === 0}
-          >
-            <File className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
-        </div>
       </div>
       
       <div>
