@@ -3281,7 +3281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair dados do corpo da requisição
-      const { description, amount, date, notes, serviceProviderId, costTypeId } = req.body;
+      const { description, amount, date, paymentDate, notes, serviceProviderId, costTypeId } = req.body;
       
       // A descrição não é mais obrigatória, já que pode ser vazia
       // Apenas garantir que seja uma string no restante do código
@@ -3304,6 +3304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: descriptionText, // Usando a variável com valor padrão definido acima
         amount: amount.toString(),
         date: date ? date : new Date().toISOString(),
+        paymentDate: paymentDate || null, // Nova coluna para data de pagamento
         responsibleId: req.user!.id,
         notes: notes || null,
         costTypeId: costTypeId || null // Incluindo o tipo de custo, pode ser null se não especificado
@@ -3346,7 +3347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair dados do corpo da requisição
-      const { description, amount, date, notes } = req.body;
+      const { description, amount, date, paymentDate, notes } = req.body;
       
       // Preparar dados para atualização
       const updateData: Partial<InsertSaleOperationalCost> = {};
@@ -3354,6 +3355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (description !== undefined) updateData.description = description || " "; // Usando espaço em branco para evitar null
       if (amount !== undefined) updateData.amount = amount.toString();
       if (date !== undefined) updateData.date = date;
+      if (paymentDate !== undefined) updateData.paymentDate = paymentDate;
       if (notes !== undefined) updateData.notes = notes;
       
       // Atualizar o custo operacional
