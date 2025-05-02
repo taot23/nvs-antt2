@@ -158,6 +158,59 @@ export function ReportExecution({
     }
   }, [execution]);
 
+  // Preparar dados para exportação (formatar valores)
+  const prepareDataForExport = () => {
+    if (!exportDataRef.current || exportDataRef.current.length === 0) return [];
+    
+    // Criar cópia profunda dos dados para não modificar os originais
+    const preparedData = JSON.parse(JSON.stringify(exportDataRef.current));
+    
+    // Formatar os dados para melhor visualização na exportação
+    return preparedData.map((row: Record<string, any>) => {
+      const formattedRow: Record<string, any> = {};
+      
+      // Percorrer cada coluna
+      Object.entries(row).forEach(([key, value]) => {
+        // Tratar valores nulos ou undefined
+        if (value === null || value === undefined) {
+          formattedRow[key] = '';
+          return;
+        }
+        
+        // Verificar se é uma data ISO
+        if (typeof value === 'string' && 
+            /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?Z?)?$/.test(value)) {
+          try {
+            formattedRow[key] = format(new Date(value), 'dd/MM/yyyy HH:mm', { locale: ptBR });
+          } catch (e) {
+            formattedRow[key] = value;
+          }
+          return;
+        }
+        
+        // Verificar se é um número que pode ser um valor monetário
+        if ((typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)))) && 
+            (key.toLowerCase().includes('valor') || 
+            key.toLowerCase().includes('preco') || 
+            key.toLowerCase().includes('total') || 
+            key.toLowerCase().includes('amount'))) {
+          try {
+            const numValue = typeof value === 'string' ? Number(value) : value;
+            formattedRow[key] = numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          } catch (e) {
+            formattedRow[key] = value;
+          }
+          return;
+        }
+        
+        // Passar valor normal
+        formattedRow[key] = value;
+      });
+      
+      return formattedRow;
+    });
+  };
+
   // Exportar para Excel
   const exportToExcel = () => {
     try {
@@ -173,9 +226,24 @@ export function ReportExecution({
       const reportTitle = reportHeader.title;
       const dateStr = format(reportHeader.date, "dd/MM/yyyy HH:mm", { locale: ptBR });
       
+      // Formatar dados
+      const formattedData = prepareDataForExport();
+      
       // Criar nova planilha
-      const ws = XLSX.utils.json_to_sheet(exportDataRef.current);
+      const ws = XLSX.utils.json_to_sheet(formattedData);
       const wb = XLSX.utils.book_new();
+      
+      // Ajustar largura das colunas
+      const columnWidths = Object.keys(formattedData[0]).reduce((acc, key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...formattedData.map((row: Record<string, any>) => String(row[key]).length)
+        );
+        acc[key] = Math.min(maxLength + 2, 50); // Limitar a 50 caracteres
+        return acc;
+      }, {} as Record<string, number>);
+      
+      ws['!cols'] = Object.values(columnWidths).map(width => ({ width }));
       
       // Adicionar metadados
       wb.Props = {
@@ -185,20 +253,43 @@ export function ReportExecution({
       };
       
       // Adicionar planilha ao workbook
-      XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+      XLSX.utils.book_append_sheet(wb, ws, "Dados");
+      
+      // Adicionar informações do relatório em uma nova aba
+      const infoWorksheet = XLSX.utils.json_to_sheet([{
+        "Nome do Relatório": reportTitle,
+        "Descrição": reportDescription || "Sem descrição",
+        "Data de Geração": dateStr,
+        "Gerado por": user?.username || "Sistema",
+        "Total de Registros": exportDataRef.current.length
+      }]);
+      
+      // Adicionar parâmetros em uma nova aba, se houver
+      if (Object.keys(reportHeader.parameters).length > 0) {
+        const paramData = Object.entries(reportHeader.parameters).map(([key, value]) => ({
+          "Parâmetro": key,
+          "Valor": value
+        }));
+        const paramWorksheet = XLSX.utils.json_to_sheet(paramData);
+        XLSX.utils.book_append_sheet(wb, paramWorksheet, "Parâmetros");
+      }
+      
+      XLSX.utils.book_append_sheet(wb, infoWorksheet, "Informações");
       
       // Salvar arquivo
       const fileName = `${reportTitle.replace(/\s+/g, '_')}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.xlsx`;
       XLSX.writeFile(wb, fileName);
       
       toast({
-        description: "Relatório exportado com sucesso!",
+        title: "Excel exportado com sucesso",
+        description: `O arquivo ${fileName} foi baixado.`,
+        variant: "default",
       });
     } catch (error) {
       console.error("Erro ao exportar para Excel:", error);
       toast({
         title: "Erro ao exportar",
-        description: "Não foi possível exportar para Excel.",
+        description: "Não foi possível exportar para Excel. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -219,47 +310,136 @@ export function ReportExecution({
       const reportTitle = reportHeader.title;
       const dateStr = format(reportHeader.date, "dd/MM/yyyy HH:mm", { locale: ptBR });
       
-      // Criar documento PDF
-      const doc = new jsPDF();
+      // Obter dados formatados para exibição no PDF
+      const formattedData = prepareDataForExport();
       
-      // Adicionar título e data
-      doc.setFontSize(16);
-      doc.text(reportTitle, 14, 20);
-      doc.setFontSize(10);
-      doc.text(`Gerado em: ${dateStr}`, 14, 28);
-      doc.text(`Usuário: ${user?.username || "Sistema"}`, 14, 34);
+      // Criar documento PDF com orientação paisagem para mais dados
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Adicionar cabeçalho com título
+      doc.setFontSize(18);
+      doc.setTextColor(50, 50, 100);
+      doc.text(reportTitle, 14, 15);
+      
+      // Adicionar descrição se existir
+      if (reportDescription) {
+        doc.setFontSize(11);
+        doc.setTextColor(80, 80, 80);
+        // Limitar descrição para evitar que saia da página
+        const maxDescLength = 150;
+        const desc = reportDescription.length > maxDescLength 
+          ? reportDescription.substring(0, maxDescLength) + '...' 
+          : reportDescription;
+        doc.text(desc, 14, 22);
+      }
+      
+      // Adicionar linha horizontal
+      doc.setDrawColor(220, 220, 220);
+      doc.line(14, 25, doc.internal.pageSize.width - 14, 25);
+      
+      // Adicionar metadados
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 30);
+      doc.text(`Usuário: ${user?.username || "Sistema"}`, 14, 35);
+      doc.text(`Total de Registros: ${exportDataRef.current.length}`, 14, 40);
       
       // Adicionar parâmetros se existirem
       let paramY = 40;
       if (Object.keys(reportHeader.parameters).length > 0) {
-        doc.text("Parâmetros:", 14, paramY);
-        paramY += 6;
+        paramY += 5;
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 100);
+        doc.text("Parâmetros Utilizados:", 14, paramY);
+        paramY += 5;
         
-        Object.entries(reportHeader.parameters).forEach(([key, value]) => {
-          doc.text(`${key}: ${value}`, 14, paramY);
-          paramY += 6;
-        });
+        doc.setFontSize(9);
+        doc.setTextColor(80, 80, 80);
+        
+        const paramList = Object.entries(reportHeader.parameters)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(' | ');
+        
+        doc.text(paramList, 14, paramY);
+        paramY += 5;
       }
       
-      // Organizar dados para a tabela - tipagem adequada para jspdf-autotable
-      const tableData: (string | number)[][] = exportDataRef.current.map(row => {
-        return Object.values(row).map(value => 
-          // Converter todos os valores para string ou número
-          typeof value === 'object' && value !== null ? JSON.stringify(value) : value as string | number
-        );
+      // Extrair as colunas para exibição
+      const pdfColumns = columns.map(col => ({
+        header: col.header,
+        dataKey: col.accessorKey as string
+      }));
+      
+      // Preparar dados para exibição
+      // Garantir que todas as propriedades dos dados formatados sejam strings
+      const pdfData = formattedData.map((row: Record<string, any>) => {
+        const newRow: Record<string, string> = {};
+        Object.entries(row).forEach(([key, value]) => {
+          // Converter todos os valores para string
+          newRow[key] = value === null || value === undefined 
+            ? '' 
+            : typeof value === 'object' 
+              ? JSON.stringify(value) 
+              : String(value);
+        });
+        return newRow;
       });
       
-      // Cabeçalhos da tabela
-      const headers = columns.map(col => col.header);
-      
-      // Adicionar a tabela
+      // Adicionar tabela com dados formatados
       autoTable(doc, {
-        head: [headers],
-        body: tableData,
-        startY: paramY + 4,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [60, 60, 60] },
-        margin: { top: 10 },
+        startY: paramY + 5,
+        columns: pdfColumns,
+        body: pdfData,
+        headStyles: {
+          fillColor: [60, 90, 150],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 250]
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        margin: { top: paramY + 5, right: 14, bottom: 20, left: 14 },
+        didDrawPage: (data) => {
+          // Adicionar rodapé com numeração de página em cada página
+          const pageNumber = doc.internal.getNumberOfPages();
+          const totalPages = `Página ${pageNumber}`;
+          
+          // Adicionar rodapé com data e número da página
+          doc.setFontSize(8);
+          doc.setTextColor(80, 80, 80);
+          
+          // Adicionar empresa e data à esquerda
+          doc.text(
+            `Sistema Gerenciamento - ${format(new Date(), 'dd/MM/yyyy')}`,
+            14,
+            doc.internal.pageSize.height - 10
+          );
+          
+          // Adicionar numeração de página centralizada
+          doc.text(
+            totalPages,
+            doc.internal.pageSize.width / 2,
+            doc.internal.pageSize.height - 10,
+            { align: 'center' }
+          );
+          
+          // Adicionar username à direita
+          doc.text(
+            `Gerado por: ${user?.username || "Sistema"}`,
+            doc.internal.pageSize.width - 14,
+            doc.internal.pageSize.height - 10,
+            { align: 'right' }
+          );
+        }
       });
       
       // Salvar arquivo
@@ -267,13 +447,15 @@ export function ReportExecution({
       doc.save(fileName);
       
       toast({
-        description: "Relatório exportado com sucesso!",
+        title: "PDF exportado com sucesso",
+        description: `O arquivo ${fileName} foi baixado.`,
+        variant: "default",
       });
     } catch (error) {
       console.error("Erro ao exportar para PDF:", error);
       toast({
         title: "Erro ao exportar",
-        description: "Não foi possível exportar para PDF.",
+        description: "Não foi possível exportar para PDF. Tente novamente.",
         variant: "destructive",
       });
     }
