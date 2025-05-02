@@ -1483,9 +1483,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSaleItem(saleItemData: InsertSaleItem): Promise<SaleItem> {
+    // Verificar se os dados incluem totalPrice e status, e adicionar se não existirem
+    const completeData = {
+      ...saleItemData,
+      // Garantir que o preço seja zero de acordo com o padrão da aplicação
+      price: "0",
+      // Calcular totalPrice como 0 - apenas como formalidade já que não usamos
+      totalPrice: "0",
+      // Definir status padrão se não fornecido
+      status: saleItemData.status || "pending"
+    };
+
+    // Inserir o item com os dados completos
     const [createdItem] = await db
       .insert(saleItems)
-      .values(saleItemData)
+      .values(completeData)
       .returning();
 
     // Atualizar o valor total da venda

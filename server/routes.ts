@@ -1619,17 +1619,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await pool.query(`
               INSERT INTO sale_items (
                 sale_id, service_id, service_type_id, quantity, price, 
-                total_price, status, notes, created_at, updated_at
+                notes, created_at, updated_at
               ) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+              VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
             `, [
               createdSale.id,
               item.serviceId,
               item.serviceTypeId || saleData.serviceTypeId,
               item.quantity || 1,
-              item.price || "0",
-              item.totalPrice || item.price || "0", // Adiciona total_price
-              "pending", // Adiciona status padrão
+              "0", // Preço sempre fixo em 0 - não usamos preço por produto
               item.notes || null
             ]);
             console.log("🔄 IMPLEMENTAÇÃO RADICAL: Item salvo com sucesso para a venda", createdSale.id);
@@ -1872,8 +1870,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       item.serviceId,
                       item.serviceTypeId || serviceTypeId,
                       item.quantity || 1,
-                      item.price || "0",
-                      item.totalPrice || item.price || "0", // Total price = price se não tiver total específico
+                      "0", // Preço sempre fixo em 0 - não usamos preço por produto 
+                      "0", // totalPrice também fixo em 0 - o valor real fica só na venda
                       "pending", // Status padrão
                       item.notes || null
                     ]);
@@ -1938,22 +1936,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validação básica dos dados do item
       const itemData = req.body;
-      if (!itemData.serviceId || !itemData.serviceTypeId || !itemData.price) {
+      if (!itemData.serviceId || !itemData.serviceTypeId) {
         return res.status(400).json({ error: "Dados do item inválidos" });
       }
       
-      // Calcular o preço total do item
+      // No nosso padrão, preço sempre é 0, usamos apenas o preço total da venda
       const quantity = itemData.quantity || 1;
-      const totalPrice = Number(itemData.price) * quantity;
       
-      // Criar o item
+      // Criar o item - Incluindo totalPrice obrigatório de acordo com o schema
       const createdItem = await storage.createSaleItem({
         saleId: id,
         serviceId: itemData.serviceId,
         serviceTypeId: itemData.serviceTypeId,
         quantity,
-        price: itemData.price.toString(),
-        totalPrice: totalPrice.toString(),
+        price: "0", // Preço sempre fixo em 0 - não usamos preço por produto
+        totalPrice: "0", // Total também fixo em 0 - o valor real fica só na venda 
         notes: itemData.notes || null,
         status: "pending"
       });
