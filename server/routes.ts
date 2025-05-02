@@ -2617,7 +2617,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rota para devolver uma venda para correção (operacional para vendedor)
+  // Aceita tanto PUT quanto POST para compatibilidade
   app.post("/api/sales/:id/return", canManageSaleOperations, async (req, res) => {
+    // Implementação original mantida para compatibilidade, mas recomendamos usar o PUT
+    console.log("⚠️ ALERTA: POST /api/sales/:id/return está sendo deprecado. Use o método PUT em seu lugar.");
+    
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se foi informado o motivo da devolução
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ error: "É necessário informar o motivo da devolução" });
+      }
+      
+      const sale = await storage.getSale(id);
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Verificar se a venda está no status correto para ser devolvida
+      if (sale.status !== "pending" && sale.status !== "in_progress" && sale.status !== "corrected") {
+        return res.status(400).json({ 
+          error: "Não é possível devolver a venda", 
+          message: "Só é possível devolver vendas que estão pendentes, em andamento ou corrigidas aguardando operacional."
+        });
+      }
+      
+      // Devolver a venda
+      const updatedSale = await storage.returnSaleToSeller(id, req.user!.id, reason);
+      if (!updatedSale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Notificar todos os clientes sobre a atualização da venda
+      notifySalesUpdate();
+      
+      res.json(updatedSale);
+    } catch (error) {
+      console.error("Erro ao devolver venda:", error);
+      res.status(500).json({ error: "Erro ao devolver venda" });
+    }
+  });
+  
+  // Nova rota PUT para devolver uma venda para correção (mais RESTful)
+  app.put("/api/sales/:id/return", canManageSaleOperations, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {

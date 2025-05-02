@@ -73,7 +73,7 @@ export default function DevolveButton({ sale }: DevolveButtonProps) {
 
   const devolverMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/sales/${sale.id}/return`, {
+      const response = await apiRequest('PUT', `/api/sales/${sale.id}/return`, {
         reason: observacoes,
       });
       return await response.json();
