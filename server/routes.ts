@@ -4250,6 +4250,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para obter as execuções de relatórios mais recentes
+  app.get("/api/recent-executions", canAccessReports, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const userRole = req.user?.role || '';
+      const userId = req.user?.id;
+      
+      // Buscar execuções recentes com base no perfil do usuário
+      const executions = await storage.getRecentExecutions(userId, userRole, limit);
+      res.json(executions);
+    } catch (error) {
+      console.error("Erro ao buscar execuções recentes:", error);
+      res.status(500).json({ error: "Erro ao buscar execuções recentes" });
+    }
+  });
+  
   // Rotas para análises e dashboards
   
   // Resumo geral de vendas

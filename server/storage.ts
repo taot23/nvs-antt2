@@ -3183,6 +3183,41 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Não foi possível gerar a visão geral financeira.");
     }
   }
+  
+  async getRecentExecutions(userId: number, userRole: string, limit: number = 10): Promise<any[]> {
+    try {
+      let executions;
+      // Se não for admin ou supervisor, só pode ver suas próprias execuções
+      if (userRole === 'admin' || userRole === 'supervisor' || userRole === 'financeiro') {
+        executions = await pool.query(
+          `SELECT e.*, r.name as report_name, u.username 
+           FROM report_executions e
+           JOIN reports r ON e.report_id = r.id
+           JOIN users u ON e.user_id = u.id
+           ORDER BY e.created_at DESC
+           LIMIT $1`,
+          [limit]
+        );
+      } else {
+        // Usuários normais só veem suas próprias execuções
+        executions = await pool.query(
+          `SELECT e.*, r.name as report_name, u.username 
+           FROM report_executions e
+           JOIN reports r ON e.report_id = r.id
+           JOIN users u ON e.user_id = u.id
+           WHERE e.user_id = $1 OR r.permissions LIKE $2
+           ORDER BY e.created_at DESC
+           LIMIT $3`,
+          [userId, `%${userRole}%`, limit]
+        );
+      }
+      
+      return executions.rows;
+    } catch (error) {
+      console.error("Erro ao buscar execuções recentes:", error);
+      throw new Error("Não foi possível buscar as execuções recentes de relatórios.");
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

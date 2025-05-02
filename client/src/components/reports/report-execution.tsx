@@ -1,9 +1,19 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { 
+  ArrowLeft, 
+  FileDown, 
+  FileSpreadsheet, 
+  FileText, 
+  User, 
+  Calendar, 
+  Timer, 
+  AlertCircle,
+  Check,
+  FilePdf
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -12,39 +22,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  ArrowLeft,
-  Book,
-  Calendar,
-  Download,
-  File,
-  Filter,
-  Play,
-  X,
-} from "lucide-react";
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface ReportExecutionProps {
   reportId?: number;
@@ -59,437 +46,450 @@ export function ReportExecution({
 }: ReportExecutionProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("parameters");
-  const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"excel" | "pdf">("excel");
+  const [activeTab, setActiveTab] = useState<"data" | "params" | "info">("data");
+  const [columns, setColumns] = useState<any[]>([]);
+  const exportDataRef = useRef<any[]>([]);
   
-  // Estado para armazenar os parâmetros do relatório
-  const [parameters, setParameters] = useState<any>({});
-  
-  // Buscar informações do relatório
-  const { data: report, isLoading: isLoadingReport } = useQuery({
-    queryKey: ["/api/reports", reportId],
-    enabled: !!reportId,
+  // Estado para armazenar o cabeçalho do relatório para exportação
+  const [reportHeader, setReportHeader] = useState({
+    title: "",
+    date: new Date(),
+    parameters: {} as Record<string, string>,
   });
-  
-  // Buscar execução específica do relatório
-  const { data: execution, isLoading: isLoadingExecution } = useQuery({
-    queryKey: ["/api/reports/executions", executionId],
+
+  // Buscar relatório por ID (para executar um novo relatório)
+  const { 
+    data: report, 
+    isLoading: isLoadingReport,
+    error: reportError,
+  } = useQuery({
+    queryKey: ["/api/reports", reportId],
+    enabled: !!reportId && !executionId,
+  });
+
+  // Buscar execução específica (para visualizar resultados existentes)
+  const { 
+    data: execution, 
+    isLoading: isLoadingExecution,
+    error: executionError
+  } = useQuery({
+    queryKey: ["/api/report-executions", executionId],
     enabled: !!executionId,
   });
 
-  // Mutation para executar relatório
-  const executeReportMutation = useMutation({
-    mutationFn: async () => {
-      if (!reportId) throw new Error("ID do relatório não informado");
-      const res = await apiRequest(
-        "POST",
-        `/api/reports/${reportId}/execute`,
-        { parameters }
-      );
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Relatório executado com sucesso",
-        description: `O relatório foi executado em ${data.execution.execution_time.toFixed(2)} segundos.`,
-      });
-      
-      // Invalidar cache e mudar para tab de resultados
-      queryClient.invalidateQueries({ queryKey: ["/api/reports", reportId, "executions"] });
-      setActiveTab("results");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao executar relatório",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Definir resultados da execução ou do relatório
-  const results = execution ? 
-    (typeof execution.results === "string" ? JSON.parse(execution.results) : execution.results) 
-    : 
-    (executeReportMutation.data?.data || []);
-
-  // Verificar se há resultados
-  const hasResults = results && results.length > 0;
-
-  // Preparar colunas para a tabela de resultados
-  const columns = hasResults
-    ? Object.keys(results[0]).map((key) => ({
+  // Preparar os dados para exibição quando a execução for carregada
+  useEffect(() => {
+    if (execution && execution.results && execution.results.length > 0) {
+      // Construir as colunas dinamicamente com base nos resultados
+      const sampleRow = execution.results[0];
+      const newColumns = Object.keys(sampleRow).map(key => ({
         accessorKey: key,
-        header: key
-          .split("_")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" "),
-        cell: ({ getValue }: any) => {
-          const value = getValue();
-          // Verificar se é uma data e formatá-la
-          if (value && typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-            return format(new Date(value), "dd/MM/yyyy", { locale: ptBR });
-          }
-          return String(value ?? "");
-        },
-      }))
-    : [];
-
-  // Função para exportar resultados
-  const exportData = () => {
-    if (!hasResults) return;
-
-    try {
-      if (exportFormat === "excel") {
-        // Exportar para Excel
-        const worksheet = XLSX.utils.json_to_sheet(results);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Resultados");
-        
-        // Definir nome do arquivo
-        const reportName = report?.name || execution?.report_name || "relatorio";
-        const fileName = `${reportName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.xlsx`;
-        
-        // Baixar arquivo
-        XLSX.writeFile(workbook, fileName);
-      } else if (exportFormat === "pdf") {
-        // Exportar para PDF
-        const doc = new jsPDF();
-        
-        // Adicionar título
-        const reportName = report?.name || execution?.report_name || "Relatório";
-        doc.setFontSize(16);
-        doc.text(reportName, 14, 22);
-        
-        // Adicionar data de execução
-        doc.setFontSize(10);
-        const executionDate = execution?.created_at ? 
-          format(new Date(execution.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }) : 
-          format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR });
-        doc.text(`Executado em: ${executionDate}`, 14, 30);
-        
-        // Adicionar informações do usuário
-        const username = execution?.username || user?.username || "usuário";
-        doc.text(`Executado por: ${username}`, 14, 36);
-        
-        // Adicionar tabela com resultados
-        const tableColumn = columns.map((col) => col.header);
-        const tableRows = results.map((row: any) =>
-          columns.map((col: any) => {
-            const value = row[col.accessorKey];
-            if (value && typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-              return format(new Date(value), "dd/MM/yyyy", { locale: ptBR });
+        header: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        cell: ({ row }: any) => {
+          const value = row.getValue(key);
+          
+          // Formatar valores de data
+          if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}(T.*)?$/)) {
+            try {
+              const date = new Date(value);
+              return format(date, "dd/MM/yyyy", { locale: ptBR });
+            } catch (e) {
+              return value;
             }
-            return String(value ?? "");
-          })
-        );
-        
-        autoTable(doc, { 
-          head: [tableColumn], 
-          body: tableRows,
-          startY: 45,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [60, 60, 60] },
+          }
+          
+          // Formatar valores numéricos
+          if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)))) {
+            // Se parecer um valor monetário
+            if (key.includes('valor') || key.includes('price') || key.includes('amount') || key.includes('total')) {
+              try {
+                return `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              } catch (e) {
+                return value;
+              }
+            }
+          }
+          
+          return value;
+        }
+      }));
+      
+      setColumns(newColumns);
+      
+      // Armazenar dados para exportação
+      exportDataRef.current = execution.results;
+      
+      // Configurar o cabeçalho do relatório para exportação
+      setReportHeader({
+        title: execution.name || execution.report_name || "Relatório",
+        date: new Date(execution.created_at),
+        parameters: execution.parameters || {},
+      });
+    }
+  }, [execution]);
+
+  // Exportar para Excel
+  const exportToExcel = () => {
+    try {
+      if (!exportDataRef.current.length) {
+        toast({
+          title: "Erro ao exportar",
+          description: "Não há dados para exportar.",
+          variant: "destructive",
         });
-        
-        // Definir nome do arquivo
-        const fileName = `${reportName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
-        
-        // Baixar arquivo
-        doc.save(fileName);
+        return;
       }
       
+      const reportTitle = reportHeader.title;
+      const dateStr = format(reportHeader.date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+      
+      // Criar nova planilha
+      const ws = XLSX.utils.json_to_sheet(exportDataRef.current);
+      const wb = XLSX.utils.book_new();
+      
+      // Adicionar metadados
+      wb.Props = {
+        Title: reportTitle,
+        Author: user?.username || "Sistema",
+        CreatedDate: new Date()
+      };
+      
+      // Adicionar planilha ao workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+      
+      // Salvar arquivo
+      const fileName = `${reportTitle.replace(/\s+/g, '_')}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
       toast({
-        title: "Exportação concluída",
-        description: `Os resultados foram exportados com sucesso para ${exportFormat === "excel" ? "Excel" : "PDF"}.`,
+        description: "Relatório exportado com sucesso!",
       });
     } catch (error) {
-      console.error("Erro ao exportar dados:", error);
+      console.error("Erro ao exportar para Excel:", error);
       toast({
-        title: "Erro ao exportar dados",
-        description: "Não foi possível exportar os resultados. Tente novamente.",
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar para Excel.",
         variant: "destructive",
       });
     }
   };
 
-  // Renderizar formulário de parâmetros baseado no schema do relatório
-  const renderParameterForm = () => {
-    if (!report || !report.parameters) return null;
+  // Exportar para PDF
+  const exportToPdf = () => {
+    try {
+      if (!exportDataRef.current.length) {
+        toast({
+          title: "Erro ao exportar",
+          description: "Não há dados para exportar.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const reportTitle = reportHeader.title;
+      const dateStr = format(reportHeader.date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+      
+      // Criar documento PDF
+      const doc = new jsPDF();
+      
+      // Adicionar título e data
+      doc.setFontSize(16);
+      doc.text(reportTitle, 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Gerado em: ${dateStr}`, 14, 28);
+      doc.text(`Usuário: ${user?.username || "Sistema"}`, 14, 34);
+      
+      // Adicionar parâmetros se existirem
+      let paramY = 40;
+      if (Object.keys(reportHeader.parameters).length > 0) {
+        doc.text("Parâmetros:", 14, paramY);
+        paramY += 6;
+        
+        Object.entries(reportHeader.parameters).forEach(([key, value]) => {
+          doc.text(`${key}: ${value}`, 14, paramY);
+          paramY += 6;
+        });
+      }
+      
+      // Organizar dados para a tabela
+      const tableData = exportDataRef.current.map(row => {
+        return Object.values(row);
+      });
+      
+      // Cabeçalhos da tabela
+      const headers = columns.map(col => col.header);
+      
+      // Adicionar a tabela
+      autoTable(doc, {
+        head: [headers],
+        body: tableData,
+        startY: paramY + 4,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [60, 60, 60] },
+        margin: { top: 10 },
+      });
+      
+      // Salvar arquivo
+      const fileName = `${reportTitle.replace(/\s+/g, '_')}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        description: "Relatório exportado com sucesso!",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar para PDF:", error);
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar para PDF.",
+        variant: "destructive",
+      });
+    }
+  };
 
-    return (
-      <div className="grid gap-4">
-        {Object.entries(report.parameters).map(([key, param]: [string, any]) => (
-          <div key={key} className="space-y-2">
-            <Label htmlFor={key}>{param.label || key}</Label>
-            {param.type === "date" ? (
-              <DatePicker
-                date={parameters[key] ? new Date(parameters[key]) : undefined}
-                setDate={(date) => setParameters({ ...parameters, [key]: date })}
-                placeholder={`Selecione a ${param.label || key}`}
-              />
-            ) : param.type === "select" && param.options ? (
-              <Select
-                value={parameters[key] || ""}
-                onValueChange={(value) => setParameters({ ...parameters, [key]: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={`Selecione ${param.label || key}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {param.options.map((option: any) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                id={key}
-                value={parameters[key] || ""}
-                onChange={(e) => setParameters({ ...parameters, [key]: e.target.value })}
-                placeholder={param.placeholder || `Digite ${param.label || key}`}
-                type={param.type === "number" ? "number" : "text"}
-              />
-            )}
-            {param.description && (
-              <p className="text-xs text-muted-foreground">{param.description}</p>
-            )}
+  // Verificar se está carregando
+  const isLoading = isLoadingReport || isLoadingExecution;
+  
+  // Verificar se houve erro
+  const hasError = reportError || executionError;
+  
+  // Informações do relatório
+  const reportName = execution?.name || execution?.report_name || report?.name || "Relatório";
+  const reportDescription = execution?.description || report?.description || "";
+
+  // Renderizar conteúdo da aba de dados
+  const renderDataTab = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      );
+    }
+    
+    if (hasError) {
+      return (
+        <div className="bg-red-50 p-4 rounded-md text-red-800">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">Erro ao carregar relatório</h3>
           </div>
-        ))}
+          <p className="mt-2 text-sm">
+            Ocorreu um erro ao carregar os dados do relatório. Tente novamente mais tarde.
+          </p>
+        </div>
+      );
+    }
+    
+    // Verificar se há resultados
+    if (!execution?.results || execution.results.length === 0) {
+      return (
+        <div className="bg-yellow-50 p-4 rounded-md text-yellow-800">
+          <p>Nenhum resultado encontrado para os critérios selecionados.</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="space-y-4">
+        <DataTable
+          columns={columns}
+          data={execution.results}
+          showPagination={true}
+          searchable={true}
+          searchPlaceholder="Buscar nos resultados..."
+        />
       </div>
     );
   };
 
-  // Renderizar seção de filtros ativos (parâmetros usados na execução)
-  const renderActiveFilters = () => {
-    if (!execution || !execution.parameters) return null;
+  // Renderizar conteúdo da aba de parâmetros
+  const renderParamsTab = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-1/2" />
+          <Skeleton className="h-10 w-3/4" />
+        </div>
+      );
+    }
     
-    const execParams = execution.parameters;
-    if (Object.keys(execParams).length === 0) return null;
-
+    const parameters = execution?.parameters || {};
+    const hasParameters = Object.keys(parameters).length > 0;
+    
+    if (!hasParameters) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>Nenhum parâmetro foi utilizado nesta execução.</p>
+        </div>
+      );
+    }
+    
     return (
-      <div className="mb-4">
-        <h3 className="text-sm font-medium mb-2 flex items-center">
-          <Filter className="inline-block mr-1 h-4 w-4" /> Filtros aplicados:
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(execParams).map(([key, value]: [string, any]) => {
-            let displayValue = value;
-            
-            // Formatação especial para datas
-            if (value && typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}/)) {
-              displayValue = format(new Date(value), "dd/MM/yyyy", { locale: ptBR });
-            }
-            
-            // Obter o label do parâmetro se disponível
-            const paramLabel = execution.report_parameters && execution.report_parameters[key]?.label || key;
-            
-            return (
-              <Badge key={key} variant="outline" className="flex items-center gap-1">
-                <span className="font-medium">{paramLabel}:</span> {displayValue}
-              </Badge>
-            );
-          })}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Object.entries(parameters).map(([key, value]) => (
+            <Card key={key}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">{key}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-base">{value as string}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
   };
 
-  // Mostrar informações da execução
-  const renderExecutionInfo = () => {
-    if (!execution) return null;
-
+  // Renderizar conteúdo da aba de informações
+  const renderInfoTab = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-1/2" />
+          <Skeleton className="h-10 w-3/4" />
+        </div>
+      );
+    }
+    
     return (
-      <div className="flex flex-col gap-1 text-sm mb-4">
-        <p className="flex items-center">
-          <Calendar className="inline-block mr-1 h-4 w-4" />
-          <span className="font-medium mr-1">Data:</span>
-          {format(new Date(execution.created_at), "PPp", { locale: ptBR })}
-        </p>
-        <p>
-          <span className="font-medium mr-1">Executado por:</span>
-          {execution.username}
-        </p>
-        {execution.execution_time && (
-          <p>
-            <span className="font-medium mr-1">Tempo:</span>
-            {execution.execution_time.toFixed(2)} segundos
-          </p>
-        )}
-        <p>
-          <span className="font-medium mr-1">Status:</span>
-          <Badge
-            variant={execution.status === "completed" ? "default" : "destructive"}
-          >
-            {execution.status === "completed" ? "Concluído" : "Erro"}
-          </Badge>
-        </p>
-        {execution.error_message && (
-          <p className="mt-2 text-destructive">
-            <span className="font-medium">Erro:</span> {execution.error_message}
-          </p>
-        )}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center">
+                <Calendar className="h-4 w-4 mr-2" />
+                Data de Execução
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-base">
+                {execution?.created_at 
+                  ? format(new Date(execution.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) 
+                  : "Não disponível"}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center">
+                <User className="h-4 w-4 mr-2" />
+                Executado por
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-base">{execution?.username || "Não disponível"}</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center">
+                <Timer className="h-4 w-4 mr-2" />
+                Tempo de Execução
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-base">
+                {execution?.execution_time 
+                  ? `${execution.execution_time.toFixed(2)} segundos` 
+                  : "Não disponível"}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {execution?.status === "success" ? (
+                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                  <Check className="h-3 w-3 mr-1" />
+                  Concluído com sucesso
+                </Badge>
+              ) : execution?.status === "error" ? (
+                <Badge variant="destructive">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Erro
+                </Badge>
+              ) : (
+                <Badge variant="outline">Processando</Badge>
+              )}
+              
+              {execution?.error_message && (
+                <div className="mt-2 p-2 bg-red-50 text-red-800 text-sm rounded">
+                  {execution.error_message}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   };
-
-  // Loading state
-  if (isLoadingReport || isLoadingExecution) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
-        <p className="text-muted-foreground">Carregando relatório...</p>
-      </div>
-    );
-  }
-
-  // Relatório ou execução não encontrada
-  if (!report && !execution) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Relatório não encontrado</CardTitle>
-          <CardDescription>
-            Não foi possível encontrar o relatório ou execução solicitada.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button onClick={onBack}>Voltar</Button>
-        </CardFooter>
-      </Card>
-    );
-  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <Button variant="outline" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar
         </Button>
-        <div>
-          <h2 className="text-2xl font-bold">
-            {report?.name || execution?.report_name}
-          </h2>
-          <p className="text-muted-foreground">
-            {report?.description || "Visualização de resultados"}
-          </p>
+        
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={exportToExcel} 
+            disabled={isLoading || !execution?.results || execution.results.length === 0}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={exportToPdf} 
+            disabled={isLoading || !execution?.results || execution.results.length === 0}
+          >
+            <FilePdf className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
         </div>
       </div>
-
-      {execution && renderExecutionInfo()}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2">
-          <TabsTrigger value="parameters" disabled={!!executionId}>
-            <Book className="h-4 w-4 mr-2" /> Parâmetros
-          </TabsTrigger>
-          <TabsTrigger value="results" disabled={!hasResults && !execution}>
-            <File className="h-4 w-4 mr-2" /> Resultados {hasResults && `(${results.length})`}
-          </TabsTrigger>
+      
+      <div>
+        <h1 className="text-2xl font-bold">{reportName}</h1>
+        {reportDescription && (
+          <p className="text-muted-foreground mt-1">{reportDescription}</p>
+        )}
+      </div>
+      
+      <Tabs defaultValue="data" value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="data">Dados</TabsTrigger>
+          <TabsTrigger value="params">Parâmetros</TabsTrigger>
+          <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="parameters" className="py-4">
-          {renderParameterForm()}
-          <div className="mt-4 flex justify-end">
-            <Button
-              onClick={() => executeReportMutation.mutate()}
-              disabled={executeReportMutation.isPending}
-            >
-              {executeReportMutation.isPending ? (
-                <>
-                  <div className="animate-spin h-4 w-4 mr-2 border-2 border-current border-t-transparent rounded-full"></div>
-                  Executando...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" /> Executar Relatório
-                </>
-              )}
-            </Button>
-          </div>
+        <TabsContent value="data" className="mt-4">
+          {renderDataTab()}
         </TabsContent>
-
-        <TabsContent value="results" className="py-4">
-          {execution && renderActiveFilters()}
-          
-          {!hasResults ? (
-            <div className="text-center p-8 border rounded-lg">
-              <p className="text-muted-foreground">
-                Nenhum resultado encontrado para os parâmetros informados.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between items-center mb-4">
-                <p className="text-sm text-muted-foreground">
-                  {results.length} resultados encontrados
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => setExportConfirmOpen(true)}
-                >
-                  <Download className="h-4 w-4 mr-2" /> Exportar
-                </Button>
-              </div>
-              
-              <div className="border rounded-md">
-                <DataTable
-                  data={results}
-                  columns={columns}
-                  searchable={results.length > 10}
-                />
-              </div>
-            </>
-          )}
+        <TabsContent value="params" className="mt-4">
+          {renderParamsTab()}
+        </TabsContent>
+        <TabsContent value="info" className="mt-4">
+          {renderInfoTab()}
         </TabsContent>
       </Tabs>
-
-      {/* Diálogo de confirmação de exportação */}
-      <AlertDialog open={exportConfirmOpen} onOpenChange={setExportConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Exportar resultados</AlertDialogTitle>
-            <AlertDialogDescription>
-              Escolha o formato para exportar os resultados do relatório:
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex gap-4 py-4">
-            <div 
-              className={`border rounded-lg p-4 flex-1 flex flex-col items-center gap-2 cursor-pointer ${exportFormat === 'excel' ? 'border-primary bg-primary/5' : ''}`}
-              onClick={() => setExportFormat("excel")}
-            >
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <File className="h-6 w-6 text-green-600" />
-              </div>
-              <span className="font-medium">Excel</span>
-              <span className="text-xs text-center text-muted-foreground">
-                Exportar para planilha Excel (.xlsx)
-              </span>
-            </div>
-            <div 
-              className={`border rounded-lg p-4 flex-1 flex flex-col items-center gap-2 cursor-pointer ${exportFormat === 'pdf' ? 'border-primary bg-primary/5' : ''}`}
-              onClick={() => setExportFormat("pdf")}
-            >
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <File className="h-6 w-6 text-red-600" />
-              </div>
-              <span className="font-medium">PDF</span>
-              <span className="text-xs text-center text-muted-foreground">
-                Exportar para documento PDF
-              </span>
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={exportData}>
-              Exportar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
