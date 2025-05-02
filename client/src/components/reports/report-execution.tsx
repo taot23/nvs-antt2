@@ -105,6 +105,8 @@ export function ReportExecution({
   } = useQuery<ReportExecutionData>({
     queryKey: ["/api/report-executions", executionId],
     enabled: !!executionId,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Preparar os dados para exibição quando a execução for carregada
@@ -466,6 +468,17 @@ export function ReportExecution({
   
   // Verificar se houve erro
   const hasError = reportError || executionError;
+
+  useEffect(() => {
+    if (executionError) {
+      console.error("Erro ao carregar execução:", executionError);
+      toast({
+        title: "Erro ao carregar relatório",
+        description: "Ocorreu um erro ao carregar os dados do relatório. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  }, [executionError, toast]);
   
   // Informações do relatório
   const reportName = execution?.name || execution?.report_name || report?.name || "Relatório";
