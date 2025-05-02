@@ -272,3 +272,47 @@ export type InsertSaleOperationalCost = z.infer<typeof insertSaleOperationalCost
 export type SaleOperationalCost = typeof saleOperationalCosts.$inferSelect;
 export type InsertSalePaymentReceipt = z.infer<typeof insertSalePaymentReceiptSchema>;
 export type SalePaymentReceipt = typeof salePaymentReceipts.$inferSelect;
+
+// Tabela de relatórios
+export const reports = pgTable("reports", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // sales, financial, operational, performance
+  permissions: text("permissions").notNull(), // Roles que podem acessar este relatório (formato: admin,financeiro,vendedor)
+  parameters: json("parameters"), // Parâmetros configuráveis do relatório em formato JSON
+  query: text("query").notNull(), // Query SQL ou lógica do relatório
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de relatórios
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Tabela de histórico de execução de relatórios
+export const reportExecutions = pgTable("report_executions", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull().references(() => reports.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  parameters: json("parameters"), // Parâmetros usados na execução
+  startTime: timestamp("start_time").notNull().defaultNow(),
+  endTime: timestamp("end_time"),
+  status: text("status").notNull().default("pending"), // pending, completed, failed
+  rowCount: integer("row_count"), // Número de linhas no resultado
+  error: text("error"), // Mensagem de erro, se houver
+});
+
+// Schema para inserção de execuções de relatórios
+export const insertReportExecutionSchema = createInsertSchema(reportExecutions).omit({
+  id: true,
+});
+
+export type InsertReport = z.infer<typeof insertReportSchema>;
+export type Report = typeof reports.$inferSelect;
+export type InsertReportExecution = z.infer<typeof insertReportExecutionSchema>;
+export type ReportExecution = typeof reportExecutions.$inferSelect;

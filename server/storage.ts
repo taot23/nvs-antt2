@@ -38,6 +38,12 @@ import {
   costTypes,
   type CostType,
   type InsertCostType,
+  reports,
+  type Report,
+  type InsertReport,
+  reportExecutions,
+  type ReportExecution,
+  type InsertReportExecution,
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -249,6 +255,56 @@ export interface IStorage {
     userId: number | null,
     additionalData?: Record<string, any>,
   ): Promise<Sale | undefined>;
+
+  // Métodos para Relatórios
+  getReport(id: number): Promise<Report | undefined>;
+  getReports(userRole: string): Promise<Report[]>;
+  createReport(report: InsertReport): Promise<Report>;
+  updateReport(id: number, report: Partial<Report>): Promise<Report | undefined>;
+  deleteReport(id: number): Promise<boolean>;
+  executeReport(reportId: number, userId: number, parameters?: any): Promise<{data: any[], execution: ReportExecution}>;
+  getReportExecutions(reportId: number, limit?: number): Promise<ReportExecution[]>;
+  getReportExecution(id: number): Promise<ReportExecution | undefined>;
+  
+  // Métodos para Análise de Dados
+  getSalesSummary(filters?: {
+    startDate?: string;
+    endDate?: string;
+    sellerId?: number;
+    status?: string;
+    financialStatus?: string;
+  }): Promise<{
+    totalSales: number;
+    totalAmount: string;
+    averageAmount: string;
+    completedSales: number;
+    pendingSales: number;
+    returnedSales: number;
+  }>;
+  
+  getSellerPerformance(filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    sellerId: number;
+    sellerName: string;
+    totalSales: number;
+    totalAmount: string;
+    returnRate: number;
+    completionRate: number;
+  }[]>;
+  
+  getFinancialOverview(filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    totalRevenue: string;
+    pendingRevenue: string;
+    paidRevenue: string;
+    totalCost: string;
+    profit: string;
+    margin: number;
+  }>;
 
   sessionStore: any; // Using any to avoid type errors
 }
