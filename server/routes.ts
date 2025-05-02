@@ -1619,15 +1619,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await pool.query(`
               INSERT INTO sale_items (
                 sale_id, service_id, service_type_id, quantity, price, 
-                notes, created_at, updated_at
+                total_price, status, notes, created_at, updated_at
               ) 
-              VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
             `, [
               createdSale.id,
               item.serviceId,
               item.serviceTypeId || saleData.serviceTypeId,
               item.quantity || 1,
               "0", // Preço sempre fixo em 0 - não usamos preço por produto
+              "0", // Total price também fixo em 0 - o valor real é na venda
+              "pending", // Status padrão para o item
               item.notes || null
             ]);
             console.log("🔄 IMPLEMENTAÇÃO RADICAL: Item salvo com sucesso para a venda", createdSale.id);
