@@ -4030,6 +4030,291 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== Rotas para o Módulo de Relatórios ==========
+  
+  // Middleware para verificar permissões - acesso a relatórios
+  const canAccessReports = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Qualquer usuário autenticado pode acessar relatórios, mas veremos apenas os que tem permissão
+    return next();
+  };
+  
+  // Listar todos os relatórios (filtrados pelo papel do usuário)
+  app.get("/api/reports", canAccessReports, async (req, res) => {
+    try {
+      const reports = await storage.getReports(req.user?.role || '');
+      res.json(reports);
+    } catch (error) {
+      console.error("Erro ao buscar relatórios:", error);
+      res.status(500).json({ error: "Erro ao buscar relatórios" });
+    }
+  });
+  
+  // Buscar um relatório específico
+  app.get("/api/reports/:id", canAccessReports, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const report = await storage.getReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Relatório não encontrado" });
+      }
+      
+      // Verificar se o usuário tem permissão para acessar este relatório
+      const userRole = req.user?.role || '';
+      const permissionsArray = report.permissions.split(',');
+      
+      if (!permissionsArray.includes(userRole) && userRole !== 'admin') {
+        return res.status(403).json({ error: "Você não tem permissão para acessar este relatório" });
+      }
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Erro ao buscar relatório:", error);
+      res.status(500).json({ error: "Erro ao buscar relatório" });
+    }
+  });
+  
+  // Criar um novo relatório (apenas admin)
+  app.post("/api/reports", isAuthenticated, async (req, res) => {
+    try {
+      // Verificar permissões (apenas admins podem criar relatórios)
+      const currentUser = req.user;
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem criar relatórios." });
+      }
+      
+      const reportData = {
+        ...req.body,
+        createdBy: currentUser.id
+      };
+      
+      const report = await storage.createReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Erro ao criar relatório:", error);
+      res.status(500).json({ error: "Erro ao criar relatório" });
+    }
+  });
+  
+  // Atualizar um relatório existente (apenas admin)
+  app.put("/api/reports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar permissões (apenas admins podem atualizar relatórios)
+      const currentUser = req.user;
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem atualizar relatórios." });
+      }
+      
+      const report = await storage.updateReport(id, req.body);
+      if (!report) {
+        return res.status(404).json({ error: "Relatório não encontrado" });
+      }
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Erro ao atualizar relatório:", error);
+      res.status(500).json({ error: "Erro ao atualizar relatório" });
+    }
+  });
+  
+  // Excluir um relatório (apenas admin)
+  app.delete("/api/reports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar permissões (apenas admins podem excluir relatórios)
+      const currentUser = req.user;
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Permissão negada. Apenas administradores podem excluir relatórios." });
+      }
+      
+      const success = await storage.deleteReport(id);
+      if (!success) {
+        return res.status(404).json({ error: "Relatório não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir relatório:", error);
+      res.status(500).json({ error: "Erro ao excluir relatório" });
+    }
+  });
+  
+  // Executar um relatório
+  app.post("/api/reports/:id/execute", canAccessReports, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se o relatório existe
+      const report = await storage.getReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Relatório não encontrado" });
+      }
+      
+      // Verificar se o usuário tem permissão para acessar este relatório
+      const userRole = req.user?.role || '';
+      const permissionsArray = report.permissions.split(',');
+      
+      if (!permissionsArray.includes(userRole) && userRole !== 'admin') {
+        return res.status(403).json({ error: "Você não tem permissão para acessar este relatório" });
+      }
+      
+      // Executar o relatório com os parâmetros fornecidos
+      const result = await storage.executeReport(id, req.user?.id || 0, req.body.parameters);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Erro ao executar relatório:", error);
+      res.status(500).json({ error: error.message || "Erro ao executar relatório" });
+    }
+  });
+  
+  // Obter o histórico de execuções de um relatório
+  app.get("/api/reports/:id/executions", canAccessReports, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Verificar se o relatório existe
+      const report = await storage.getReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Relatório não encontrado" });
+      }
+      
+      // Verificar se o usuário tem permissão para acessar este relatório
+      const userRole = req.user?.role || '';
+      const permissionsArray = report.permissions.split(',');
+      
+      if (!permissionsArray.includes(userRole) && userRole !== 'admin') {
+        return res.status(403).json({ error: "Você não tem permissão para acessar este relatório" });
+      }
+      
+      // Obter as execuções recentes do relatório
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const executions = await storage.getReportExecutions(id, limit);
+      res.json(executions);
+    } catch (error) {
+      console.error("Erro ao buscar execuções:", error);
+      res.status(500).json({ error: "Erro ao buscar execuções" });
+    }
+  });
+  
+  // Obter detalhes de uma execução específica
+  app.get("/api/report-executions/:id", canAccessReports, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const execution = await storage.getReportExecution(id);
+      if (!execution) {
+        return res.status(404).json({ error: "Execução não encontrada" });
+      }
+      
+      // Verificar se o relatório existe e se o usuário tem permissão para acessá-lo
+      const report = await storage.getReport(execution.reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Relatório não encontrado" });
+      }
+      
+      const userRole = req.user?.role || '';
+      const permissionsArray = report.permissions.split(',');
+      
+      if (!permissionsArray.includes(userRole) && userRole !== 'admin') {
+        return res.status(403).json({ error: "Você não tem permissão para acessar esta execução" });
+      }
+      
+      res.json(execution);
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da execução:", error);
+      res.status(500).json({ error: "Erro ao buscar detalhes da execução" });
+    }
+  });
+  
+  // Rotas para análises e dashboards
+  
+  // Resumo geral de vendas
+  app.get("/api/analytics/sales-summary", canAccessReports, async (req, res) => {
+    try {
+      const filters = {
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+        sellerId: req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined,
+        status: req.query.status as string | undefined,
+        financialStatus: req.query.financialStatus as string | undefined,
+      };
+      
+      const summary = await storage.getSalesSummary(filters);
+      res.json(summary);
+    } catch (error) {
+      console.error("Erro ao gerar resumo de vendas:", error);
+      res.status(500).json({ error: "Erro ao gerar resumo de vendas" });
+    }
+  });
+  
+  // Desempenho de vendedores
+  app.get("/api/analytics/seller-performance", canAccessReports, async (req, res) => {
+    try {
+      // Verificar permissões adicionais (apenas admin, supervisor e financeiro)
+      const userRole = req.user?.role || '';
+      if (!['admin', 'supervisor', 'financeiro'].includes(userRole)) {
+        return res.status(403).json({ error: "Você não tem permissão para acessar estas informações" });
+      }
+      
+      const filters = {
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+      };
+      
+      const performance = await storage.getSellerPerformance(filters);
+      res.json(performance);
+    } catch (error) {
+      console.error("Erro ao gerar desempenho de vendedores:", error);
+      res.status(500).json({ error: "Erro ao gerar desempenho de vendedores" });
+    }
+  });
+  
+  // Resumo financeiro
+  app.get("/api/analytics/financial-overview", canAccessReports, async (req, res) => {
+    try {
+      // Verificar permissões adicionais (apenas admin e financeiro)
+      const userRole = req.user?.role || '';
+      if (!['admin', 'financeiro'].includes(userRole)) {
+        return res.status(403).json({ error: "Você não tem permissão para acessar estas informações" });
+      }
+      
+      const filters = {
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+      };
+      
+      const overview = await storage.getFinancialOverview(filters);
+      res.json(overview);
+    } catch (error) {
+      console.error("Erro ao gerar resumo financeiro:", error);
+      res.status(500).json({ error: "Erro ao gerar resumo financeiro" });
+    }
+  });
+
   // Registrar rotas personalizadas para manipulação de datas exatas
   registerCustomRoutes(app);
   
