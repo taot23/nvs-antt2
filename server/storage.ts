@@ -2937,6 +2937,7 @@ export class DatabaseStorage implements IStorage {
 
   async getReportExecution(id: number): Promise<any | undefined> {
     try {
+      console.log(`Buscando execução de relatório com ID ${id}`);
       const result = await pool.query(
         `SELECT e.*, u.username, r.name as report_name
          FROM report_executions e
@@ -2945,7 +2946,14 @@ export class DatabaseStorage implements IStorage {
          WHERE e.id = $1`,
         [id]
       );
-      return result.rows.length > 0 ? result.rows[0] : undefined;
+      
+      if (result.rows.length === 0) {
+        console.log(`Nenhuma execução encontrada para o ID ${id}`);
+        return undefined;
+      }
+      
+      console.log(`Execução encontrada para relatório ${result.rows[0].report_id}`);
+      return result.rows[0];
     } catch (error) {
       console.error(`Erro ao buscar execução de relatório ${id}:`, error);
       throw new Error("Não foi possível buscar os detalhes da execução do relatório.");

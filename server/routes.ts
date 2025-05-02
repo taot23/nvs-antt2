@@ -4225,19 +4225,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
+      console.log(`Buscando execução de relatório com ID ${id}`);
       const execution = await storage.getReportExecution(id);
+      
       if (!execution) {
+        console.log(`Execução com ID ${id} não encontrada`);
         return res.status(404).json({ error: "Execução não encontrada" });
       }
       
+      console.log(`Execução encontrada: ${JSON.stringify(execution)}`);
+      console.log(`Report ID: ${execution.report_id}`);
+      
       // Verificar se o relatório existe e se o usuário tem permissão para acessá-lo
-      const report = await storage.getReport(execution.reportId);
+      // Obter o ID do relatório - pode estar como report_id ou reportId
+      const reportId = execution.report_id || execution.reportId;
+      console.log(`Buscando relatório com ID ${reportId}`);
+      
+      const report = await storage.getReport(reportId);
       if (!report) {
+        console.log(`Relatório com ID ${reportId} não encontrado`);
         return res.status(404).json({ error: "Relatório não encontrado" });
       }
       
       const userRole = req.user?.role || '';
       const permissionsArray = report.permissions.split(',');
+      
+      console.log(`Usuário com perfil ${userRole} acessando relatório com permissões ${permissionsArray}`);
       
       if (!permissionsArray.includes(userRole) && userRole !== 'admin') {
         return res.status(403).json({ error: "Você não tem permissão para acessar esta execução" });
