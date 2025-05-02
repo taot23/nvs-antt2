@@ -428,10 +428,11 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[25%]">Tipo de Custo</TableHead>
-                      <TableHead className="w-[15%]">Valor</TableHead>
-                      <TableHead className="w-[35%]">Descrição</TableHead>
-                      <TableHead className="w-[15%]">Data</TableHead>
+                      <TableHead className="w-[20%]">Tipo de Custo</TableHead>
+                      <TableHead className="w-[12%]">Valor</TableHead>
+                      <TableHead className="w-[30%]">Descrição</TableHead>
+                      <TableHead className="w-[12%]">Data</TableHead>
+                      <TableHead className="w-[16%]">Data Pagamento</TableHead>
                       <TableHead className="w-[10%] text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -453,6 +454,13 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
                             </div>
                           </TableCell>
                           <TableCell>{formatDate(cost.date || cost.createdAt)}</TableCell>
+                          <TableCell>
+                            {cost.paymentDate ? (
+                              <span className="text-emerald-600">{formatDate(cost.paymentDate)}</span>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Não pago</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             {canManage && (
                               <Button
