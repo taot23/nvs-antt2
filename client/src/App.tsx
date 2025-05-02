@@ -14,6 +14,7 @@ import ServiceProvidersPage from "@/pages/service-providers-page";
 import SalesPage from "@/pages/sales-page";
 import FinancePage from "@/pages/finance-page-updated";
 import CostTypesPage from "@/pages/cost-types-page";
+import ReportsPage from "@/pages/reports-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -115,6 +116,15 @@ const ProtectedCostTypes = () => {
   );
 };
 
+const ProtectedReports = () => {
+  console.log("Renderizando ProtectedReports");
+  return (
+    <ProtectedApp>
+      <ReportsPage />
+    </ProtectedApp>
+  );
+};
+
 function Router() {
   console.log("Renderizando Router");
   return (
@@ -130,6 +140,7 @@ function Router() {
       <ProtectedRoute path="/sales" component={ProtectedSales} />
       <ProtectedRoute path="/finance" component={ProtectedFinance} />
       <ProtectedRoute path="/cost-types" component={ProtectedCostTypes} />
+      <ProtectedRoute path="/reports" component={ProtectedReports} />
       <Route component={NotFound} />
     </Switch>
   );
