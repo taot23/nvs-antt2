@@ -104,8 +104,8 @@ export function ReportExecution({
     error: executionError
   } = useQuery<ReportExecutionData>({
     queryKey: ["/api/report-executions", executionId],
-    enabled: !!executionId,
-    retry: 2,
+    enabled: !!executionId && !!user, // Executar somente se usuário estiver autenticado
+    retry: 3,
     retryDelay: 1000,
   });
 
