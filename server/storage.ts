@@ -2495,12 +2495,15 @@ export class DatabaseStorage implements IStorage {
 
       // Garantir que temos uma data
       const date = data.date || new Date().toISOString().split("T")[0];
+      
+      // Verificar se temos data de pagamento
+      const paymentDate = data.paymentDate || null;
 
       const result = await pool.query(
         `INSERT INTO sale_operational_costs 
-         (sale_id, description, cost_type_id, amount, date, responsible_id, 
+         (sale_id, description, cost_type_id, amount, date, payment_date, responsible_id, 
           service_provider_id, notes, payment_receipt_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           data.saleId,
@@ -2508,6 +2511,7 @@ export class DatabaseStorage implements IStorage {
           data.costTypeId,
           data.amount,
           date,
+          paymentDate,
           responsibleId,
           data.serviceProviderId || null,
           data.notes || null,
