@@ -12,7 +12,7 @@ import {
   Timer, 
   AlertCircle,
   Check,
-  FilePdf
+  File
 } from "lucide-react";
 import {
   Card,
@@ -461,7 +461,7 @@ export function ReportExecution({
             onClick={exportToPdf} 
             disabled={isLoading || !execution?.results || execution.results.length === 0}
           >
-            <FilePdf className="h-4 w-4 mr-2" />
+            <File className="h-4 w-4 mr-2" />
             PDF
           </Button>
         </div>

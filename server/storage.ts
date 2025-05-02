@@ -315,6 +315,8 @@ export interface IStorage {
     profit: string;
     margin: number;
   }>;
+  
+  getRecentExecutions(userId: number, userRole: string, limit?: number): Promise<any[]>;
 
   sessionStore: any; // Using any to avoid type errors
 }

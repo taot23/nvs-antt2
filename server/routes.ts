@@ -4258,7 +4258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id;
       
       // Buscar execuções recentes com base no perfil do usuário
-      const executions = await storage.getRecentExecutions(userId, userRole, limit);
+      const executions = await storage.getRecentExecutions(userId || 0, userRole, limit);
       res.json(executions);
     } catch (error) {
       console.error("Erro ao buscar execuções recentes:", error);
