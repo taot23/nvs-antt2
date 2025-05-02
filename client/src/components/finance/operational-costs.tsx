@@ -107,6 +107,7 @@ export default function OperationalCosts({ saleId, canManage = true }: Operation
         ...data,
         amount: parsedAmount,
         saleId,
+        paymentDate: data.paymentDate || null, // Enviar null se não houver data de pagamento
         costTypeId: data.costTypeId || null // Enviar explicitamente null se não houver valor
       };
       
