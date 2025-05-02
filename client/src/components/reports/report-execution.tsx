@@ -128,9 +128,45 @@ export function ReportExecution({
           
           // Garantir que temos uma linha de amostra válida
           if (sampleRow && typeof sampleRow === 'object') {
+            // Mapear nomes de colunas em inglês para português
+            const columnTranslations: Record<string, string> = {
+              // Traduções comuns para campos de relatórios
+              'status': 'Status',
+              'quantity': 'Quantidade',
+              'quantidade': 'Quantidade',
+              'amount': 'Valor',
+              'total': 'Total',
+              'date': 'Data',
+              'price': 'Preço',
+              'value': 'Valor',
+              'name': 'Nome',
+              'description': 'Descrição',
+              'seller': 'Vendedor',
+              'customer': 'Cliente',
+              'service': 'Serviço',
+              'created_at': 'Data de Criação',
+              'updated_at': 'Data de Atualização',
+              'order_number': 'Número do Pedido',
+              'id': 'ID',
+              'user': 'Usuário',
+              'payment_method': 'Método de Pagamento',
+              'installments': 'Parcelas',
+              'installment_value': 'Valor da Parcela',
+              'due_date': 'Data de Vencimento',
+              'payment_date': 'Data de Pagamento',
+              'notes': 'Observações',
+              'valor_medio': 'Valor Médio',
+              'valor_total': 'Valor Total',
+              'completed': 'Concluído',
+              'pending': 'Pendente',
+              'in_progress': 'Em Progresso'
+            };
+            
             const newColumns = Object.keys(sampleRow).map(key => ({
               accessorKey: key,
-              header: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              // Verificar se temos uma tradução para este campo, senão usar formatação padrão
+              header: columnTranslations[key.toLowerCase()] || 
+                     key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
               cell: ({ row }: any) => {
                 const value = row.getValue(key);
                 
