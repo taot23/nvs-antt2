@@ -22,20 +22,48 @@ export default function ReportsPage() {
   const [selectedExecutionId, setSelectedExecutionId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"reports" | "dashboard">("reports");
 
+  // Interfaces para tipagem
+  interface FinancialOverview {
+    totalRevenue: string;
+    pendingRevenue: string;
+    paidRevenue: string;
+    totalCost: string;
+    profit: string;
+    margin: number;
+  }
+
+  interface SellerPerformance {
+    sellerId: number;
+    sellerName: string;
+    totalSales: number;
+    totalAmount: string;
+    returnRate: number;
+    completionRate: number;
+  }
+
+  interface SalesSummary {
+    totalSales: number;
+    totalAmount: string;
+    averageAmount: string;
+    completedSales: number;
+    pendingSales: number;
+    returnedSales: number;
+  }
+
   // Buscar resumo financeiro para o dashboard
-  const { data: financialSummary } = useQuery({
+  const { data: financialSummary } = useQuery<FinancialOverview>({
     queryKey: ["/api/analytics/financial-overview"],
     enabled: activeTab === "dashboard",
   });
 
   // Buscar desempenho dos vendedores para o dashboard
-  const { data: sellerPerformance } = useQuery({
+  const { data: sellerPerformance } = useQuery<SellerPerformance[]>({
     queryKey: ["/api/analytics/seller-performance"],
     enabled: activeTab === "dashboard",
   });
 
   // Buscar resumo de vendas para o dashboard
-  const { data: salesSummary } = useQuery({
+  const { data: salesSummary } = useQuery<SalesSummary>({
     queryKey: ["/api/analytics/sales-summary"],
     enabled: activeTab === "dashboard",
   });
@@ -186,7 +214,7 @@ export default function ReportsPage() {
             <CardContent>
               {sellerPerformance && sellerPerformance.length > 0 ? (
                 <div className="space-y-4">
-                  {sellerPerformance.slice(0, 3).map((seller: any) => (
+                  {sellerPerformance.slice(0, 3).map((seller) => (
                     <div key={seller.sellerId} className="space-y-1">
                       <div className="flex justify-between items-center">
                         <p className="font-medium">{seller.sellerName}</p>
@@ -262,7 +290,7 @@ export default function ReportsPage() {
                         {financialSummary && Number(financialSummary.pendingRevenue) > Number(financialSummary.paidRevenue) && (
                           <li>Intensificar cobrança de pagamentos pendentes.</li>
                         )}
-                        {sellerPerformance && sellerPerformance.some((s: any) => s.completionRate < 70) && (
+                        {sellerPerformance && sellerPerformance.some((s) => s.completionRate < 70) && (
                           <li>Verificar vendedores com baixa taxa de conclusão de vendas.</li>
                         )}
                       </ul>

@@ -241,9 +241,12 @@ export function ReportExecution({
         });
       }
       
-      // Organizar dados para a tabela
-      const tableData = exportDataRef.current.map(row => {
-        return Object.values(row);
+      // Organizar dados para a tabela - tipagem adequada para jspdf-autotable
+      const tableData: (string | number)[][] = exportDataRef.current.map(row => {
+        return Object.values(row).map(value => 
+          // Converter todos os valores para string ou número
+          typeof value === 'object' && value !== null ? JSON.stringify(value) : value as string | number
+        );
       });
       
       // Cabeçalhos da tabela

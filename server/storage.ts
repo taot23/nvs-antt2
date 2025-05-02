@@ -69,9 +69,10 @@ export interface IStorage {
   createReport(report: any): Promise<any>;
   updateReport(id: number, report: any): Promise<any | undefined>;
   deleteReport(id: number): Promise<boolean>;
-  executeReport(reportId: number, parameters: any, userId: number): Promise<any>;
-  getReportExecutions(reportId: number): Promise<any[]>;
+  executeReport(reportId: number, userId: number, parameters: any): Promise<any>;
+  getReportExecutions(reportId: number, limit?: number): Promise<any[]>;
   getReportExecution(id: number): Promise<any | undefined>;
+  getRecentExecutions(userId: number, userRole: string, limit?: number): Promise<any[]>;
 
   // Customer methods
   getCustomers(): Promise<Customer[]>;
