@@ -1,4 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -7,14 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertCircle, 
-  XCircle, 
-  Calendar
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";

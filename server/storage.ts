@@ -3228,6 +3228,146 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  async getSalesByDate(filters?: {
+    startDate?: string;
+    endDate?: string;
+    sellerId?: number;
+  }) {
+    try {
+      // Validar filtros e definir valores padrão
+      const startDate = filters?.startDate
+        ? new Date(filters.startDate)
+        : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      
+      const endDate = filters?.endDate 
+        ? new Date(filters.endDate) 
+        : new Date();
+      
+      // Preparar condições SQL
+      let conditions = "WHERE s.date BETWEEN $1 AND $2";
+      const params = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
+      
+      if (filters?.sellerId) {
+        conditions += " AND s.seller_id = $3";
+        params.push(filters.sellerId);
+      }
+      
+      // Consulta para obter vendas agrupadas por data
+      const query = `
+        SELECT 
+          TO_CHAR(s.date, 'YYYY-MM-DD') as date,
+          COUNT(*) as count,
+          COALESCE(SUM(s.total_amount::numeric), 0) as amount
+        FROM sales s
+        ${conditions}
+        GROUP BY TO_CHAR(s.date, 'YYYY-MM-DD')
+        ORDER BY date
+      `;
+      
+      const result = await pool.query(query, params);
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar vendas por data:", error);
+      throw new Error("Não foi possível obter as vendas por data");
+    }
+  }
+
+  async getRecentActivities(filters?: {
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<any[]> {
+    try {
+      // Validar filtros e definir valores padrão
+      const limit = filters?.limit || 10;
+      const startDate = filters?.startDate
+        ? new Date(filters.startDate)
+        : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      
+      const endDate = filters?.endDate 
+        ? new Date(filters.endDate) 
+        : new Date();
+      
+      // Consulta para obter vendas recentes
+      const salesQuery = `
+        SELECT 
+          s.id,
+          'Venda' as type,
+          CASE 
+            WHEN c.company_name IS NOT NULL AND c.company_name != '' 
+            THEN c.company_name 
+            ELSE CONCAT(c.first_name, ' ', c.last_name) 
+          END as description,
+          s.status,
+          s.date,
+          s.total_amount::numeric as amount,
+          u.username as user
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        JOIN users u ON s.seller_id = u.id
+        WHERE s.date BETWEEN $1 AND $2
+        ORDER BY s.date DESC
+        LIMIT $3
+      `;
+      
+      // Consulta para obter pagamentos recentes
+      const paymentsQuery = `
+        SELECT 
+          i.id,
+          'Pagamento' as type,
+          CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
+          i.status,
+          i.payment_date as date,
+          i.amount::numeric as amount,
+          u.username as user
+        FROM sale_installments i
+        JOIN sales s ON i.sale_id = s.id
+        JOIN users u ON s.seller_id = u.id
+        WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid'
+        ORDER BY i.payment_date DESC
+        LIMIT $3
+      `;
+      
+      // Consulta para obter atualizações de status recentes
+      const statusUpdateQuery = `
+        SELECT 
+          sh.id,
+          'Atualização de Status' as type,
+          CONCAT('Venda #', s.order_number, ' atualizada para ', sh.new_status) as description,
+          s.status,
+          sh.created_at as date,
+          s.total_amount::numeric as amount,
+          u.username as user
+        FROM sale_status_history sh
+        JOIN sales s ON sh.sale_id = s.id
+        JOIN users u ON sh.user_id = u.id
+        WHERE sh.created_at BETWEEN $1 AND $2
+        ORDER BY sh.created_at DESC
+        LIMIT $3
+      `;
+      
+      // Executar consultas
+      const [salesResult, paymentsResult, statusResult] = await Promise.all([
+        pool.query(salesQuery, [startDate.toISOString(), endDate.toISOString(), limit]),
+        pool.query(paymentsQuery, [startDate.toISOString(), endDate.toISOString(), limit]),
+        pool.query(statusUpdateQuery, [startDate.toISOString(), endDate.toISOString(), limit]),
+      ]);
+      
+      // Combinar resultados e ordenar por data (mais recente primeiro)
+      const allActivities = [
+        ...salesResult.rows,
+        ...paymentsResult.rows,
+        ...statusResult.rows,
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      // Retornar apenas os primeiros 'limit' resultados
+      return allActivities.slice(0, limit);
+    } catch (error) {
+      console.error("Erro ao buscar atividades recentes:", error);
+      return [];
+    }
+  }
+
   async getRecentExecutions(userId: number, userRole: string, limit: number = 10): Promise<any[]> {
     try {
       let executions;

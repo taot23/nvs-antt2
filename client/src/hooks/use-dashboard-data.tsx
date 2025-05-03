@@ -60,22 +60,34 @@ export function useDashboardData(dateRange?: DateRange) {
     queries: [
       {
         queryKey: ["/api/dashboard/financial", startDate, endDate],
-        queryFn: getQueryFn(),
+        queryFn: () => fetch(`/api/dashboard/financial${queryParams}`).then(res => {
+          if (!res.ok) throw new Error("Falha ao buscar dados financeiros");
+          return res.json();
+        }),
         select: (data: any) => data as FinancialOverview,
       },
       {
         queryKey: ["/api/dashboard/sales", startDate, endDate],
-        queryFn: getQueryFn(),
+        queryFn: () => fetch(`/api/dashboard/sales${queryParams}`).then(res => {
+          if (!res.ok) throw new Error("Falha ao buscar dados de vendas");
+          return res.json();
+        }),
         select: (data: any) => data as SalesSummary,
       },
       {
         queryKey: ["/api/dashboard/sellers", startDate, endDate],
-        queryFn: getQueryFn(),
+        queryFn: () => fetch(`/api/dashboard/sellers${queryParams}`).then(res => {
+          if (!res.ok) throw new Error("Falha ao buscar dados de vendedores");
+          return res.json();
+        }),
         select: (data: any) => data as SalesBySeller[],
       },
       {
         queryKey: ["/api/dashboard/activities", startDate, endDate],
-        queryFn: getQueryFn(),
+        queryFn: () => fetch(`/api/dashboard/activities${queryParams}`).then(res => {
+          if (!res.ok) throw new Error("Falha ao buscar atividades recentes");
+          return res.json();
+        }),
         select: (data: any) => data as RecentActivity[],
       },
     ],

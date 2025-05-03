@@ -4385,6 +4385,301 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para dashboard financeiro
+  app.get("/api/dashboard/financial", isAuthenticated, async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+
+      // Buscar dados do dashboard financeiro
+      const financialData = await storage.getFinancialOverview({ startDate, endDate });
+      
+      // Buscar dados de parcelas
+      const installmentsQuery = `
+        SELECT 
+          COUNT(*) as total_installments,
+          COUNT(*) FILTER (WHERE status = 'paid') as paid_installments,
+          COUNT(*) FILTER (WHERE status = 'pending') as pending_installments
+        FROM sale_installments
+        WHERE due_date BETWEEN $1 AND $2
+      `;
+      
+      const installmentsResult = await pool.query(installmentsQuery, [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ]);
+      
+      const installmentsData = installmentsResult.rows[0];
+      
+      // Calcular tendência (comparando com período anterior)
+      let trend = 0;
+      
+      if (startDate && endDate) {
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        
+        // Calcular duração em dias
+        const duration = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Definir período anterior de mesma duração
+        const prevStartDate = new Date(startDateObj);
+        prevStartDate.setDate(prevStartDate.getDate() - duration);
+        
+        const prevEndDate = new Date(startDateObj);
+        prevEndDate.setDate(prevEndDate.getDate() - 1);
+        
+        // Consultar vendas no período anterior
+        const trendQuery = `
+          SELECT COALESCE(SUM(total_amount::numeric), 0) as prev_total
+          FROM sales
+          WHERE date BETWEEN $1 AND $2
+        `;
+        
+        const trendResult = await pool.query(trendQuery, [
+          prevStartDate.toISOString().split('T')[0],
+          prevEndDate.toISOString().split('T')[0]
+        ]);
+        
+        const prevTotal = parseFloat(trendResult.rows[0].prev_total || '0');
+        const currentTotal = parseFloat(financialData.totalRevenue || '0');
+        
+        // Calcular percentual de crescimento
+        if (prevTotal > 0) {
+          trend = ((currentTotal - prevTotal) / prevTotal) * 100;
+        }
+      }
+      
+      // Construir resposta
+      res.json({
+        totalSales: await getTotalSalesCount(startDate, endDate),
+        totalInstallments: parseInt(installmentsData.total_installments) || 0,
+        paidInstallments: parseInt(installmentsData.paid_installments) || 0,
+        pendingInstallments: parseInt(installmentsData.pending_installments) || 0,
+        totalAmount: parseFloat(financialData.totalRevenue) || 0,
+        paidAmount: parseFloat(financialData.paidRevenue) || 0,
+        pendingAmount: parseFloat(financialData.pendingRevenue) || 0,
+        trend: parseFloat(trend.toFixed(2))
+      });
+    } catch (error) {
+      console.error("Erro ao buscar dados do dashboard financeiro:", error);
+      res.status(500).json({ error: "Erro ao buscar dados do dashboard financeiro" });
+    }
+  });
+
+  // Função auxiliar para obter contagem total de vendas
+  async function getTotalSalesCount(startDate?: string, endDate?: string): Promise<number> {
+    try {
+      const query = `
+        SELECT COUNT(*) as total 
+        FROM sales 
+        WHERE date BETWEEN $1 AND $2
+      `;
+      
+      const result = await pool.query(query, [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ]);
+      
+      return parseInt(result.rows[0].total) || 0;
+    } catch (error) {
+      console.error("Erro ao contar vendas:", error);
+      return 0;
+    }
+  }
+
+  // Endpoint para resumo de vendas do dashboard
+  app.get("/api/dashboard/sales", isAuthenticated, async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+
+      // Contar vendas por status
+      const statusQuery = `
+        SELECT 
+          COUNT(*) FILTER (WHERE status = 'completed') as completed,
+          COUNT(*) FILTER (WHERE status = 'pending') as pending,
+          COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
+          COUNT(*) FILTER (WHERE status = 'canceled') as canceled,
+          COUNT(*) as total
+        FROM sales
+        WHERE date BETWEEN $1 AND $2
+      `;
+      
+      const statusResult = await pool.query(statusQuery, [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ]);
+      
+      const statusData = statusResult.rows[0];
+      
+      // Buscar vendas agrupadas por data
+      const byDateQuery = `
+        SELECT 
+          TO_CHAR(date, 'YYYY-MM-DD') as date,
+          COUNT(*) as count,
+          COALESCE(SUM(total_amount::numeric), 0) as amount
+        FROM sales
+        WHERE date BETWEEN $1 AND $2
+        GROUP BY TO_CHAR(date, 'YYYY-MM-DD')
+        ORDER BY date
+      `;
+      
+      const byDateResult = await pool.query(byDateQuery, [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ]);
+      
+      res.json({
+        total: parseInt(statusData.total) || 0,
+        completed: parseInt(statusData.completed) || 0,
+        inProgress: parseInt(statusData.in_progress) || 0,
+        pending: parseInt(statusData.pending) || 0,
+        canceled: parseInt(statusData.canceled) || 0,
+        byStatus: {
+          completed: parseInt(statusData.completed) || 0,
+          in_progress: parseInt(statusData.in_progress) || 0,
+          pending: parseInt(statusData.pending) || 0,
+          canceled: parseInt(statusData.canceled) || 0
+        },
+        byDate: byDateResult.rows
+      });
+    } catch (error) {
+      console.error("Erro ao buscar dados do resumo de vendas:", error);
+      res.status(500).json({ error: "Erro ao buscar dados do resumo de vendas" });
+    }
+  });
+
+  // Endpoint para desempenho dos vendedores no dashboard
+  app.get("/api/dashboard/sellers", isAuthenticated, async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+
+      // Consulta para obter desempenho dos vendedores
+      const query = `
+        SELECT 
+          s.seller_id as "sellerId",
+          u.username as "sellerName",
+          COUNT(*) as count,
+          COALESCE(SUM(s.total_amount::numeric), 0) as amount
+        FROM sales s
+        JOIN users u ON s.seller_id = u.id
+        WHERE s.date BETWEEN $1 AND $2
+        GROUP BY s.seller_id, u.username
+        ORDER BY amount DESC
+      `;
+      
+      const result = await pool.query(query, [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ]);
+      
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Erro ao buscar dados de desempenho dos vendedores:", error);
+      res.status(500).json({ error: "Erro ao buscar dados de desempenho dos vendedores" });
+    }
+  });
+
+  // Endpoint para atividades recentes no dashboard
+  app.get("/api/dashboard/activities", isAuthenticated, async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const limit = Number(req.query.limit) || 10;
+
+      // Consulta para obter vendas recentes
+      const salesQuery = `
+        SELECT 
+          s.id,
+          'Venda' as type,
+          CASE 
+            WHEN c.company_name IS NOT NULL AND c.company_name != '' 
+            THEN c.company_name 
+            ELSE CONCAT(c.first_name, ' ', c.last_name) 
+          END as description,
+          s.status,
+          s.date,
+          s.total_amount::numeric as amount,
+          u.username as "user"
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        JOIN users u ON s.seller_id = u.id
+        WHERE s.date BETWEEN $1 AND $2
+        ORDER BY s.date DESC
+        LIMIT $3
+      `;
+      
+      // Consulta para obter pagamentos recentes
+      const paymentsQuery = `
+        SELECT 
+          i.id,
+          'Pagamento' as type,
+          CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
+          i.status,
+          i.payment_date as date,
+          i.amount::numeric as amount,
+          u.username as "user"
+        FROM sale_installments i
+        JOIN sales s ON i.sale_id = s.id
+        JOIN users u ON s.seller_id = u.id
+        WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid'
+        ORDER BY i.payment_date DESC
+        LIMIT $3
+      `;
+      
+      // Consulta para obter atualizações de status recentes
+      const statusUpdateQuery = `
+        SELECT 
+          sh.id,
+          'Atualização de Status' as type,
+          CONCAT('Venda #', s.order_number, ' atualizada para ', sh.new_status) as description,
+          s.status,
+          sh.created_at as date,
+          s.total_amount::numeric as amount,
+          u.username as "user"
+        FROM sale_status_history sh
+        JOIN sales s ON sh.sale_id = s.id
+        JOIN users u ON sh.user_id = u.id
+        WHERE sh.created_at BETWEEN $1 AND $2
+        ORDER BY sh.created_at DESC
+        LIMIT $3
+      `;
+      
+      // Executar consultas
+      const [salesResult, paymentsResult, statusResult] = await Promise.all([
+        pool.query(salesQuery, [
+          startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+          endDate || new Date().toISOString().split('T')[0],
+          limit
+        ]),
+        pool.query(paymentsQuery, [
+          startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+          endDate || new Date().toISOString().split('T')[0],
+          limit
+        ]),
+        pool.query(statusUpdateQuery, [
+          startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+          endDate || new Date().toISOString().split('T')[0],
+          limit
+        ]),
+      ]);
+      
+      // Combinar resultados e ordenar por data (mais recente primeiro)
+      const allActivities = [
+        ...salesResult.rows,
+        ...paymentsResult.rows,
+        ...statusResult.rows,
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      // Retornar apenas os primeiros 'limit' resultados
+      res.json(allActivities.slice(0, limit));
+    } catch (error) {
+      console.error("Erro ao buscar atividades recentes:", error);
+      res.status(500).json({ error: "Erro ao buscar atividades recentes" });
+    }
+  });
+
   // Registrar rotas personalizadas para manipulação de datas exatas
   registerCustomRoutes(app);
   
