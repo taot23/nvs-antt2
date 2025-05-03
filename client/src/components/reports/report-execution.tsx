@@ -87,10 +87,25 @@ export function ReportExecution({
     summaries: Array<{label: string, value: string | number, icon: React.ReactNode, color: string}>,
     chartData: any,
     hasFinancialData: boolean,
+    timeData: boolean,
+    statusData: boolean,
+    trends: Array<{
+      label: string, 
+      trend: 'up' | 'down' | 'stable', 
+      percentage?: number,
+      description: string
+    }>,
+    topItems?: Array<{name: string, value: number | string}>,
+    insights: Array<string>
   }>({
     summaries: [],
     chartData: null,
     hasFinancialData: false,
+    timeData: false,
+    statusData: false,
+    trends: [],
+    topItems: [],
+    insights: []
   });
   
   // Estado para armazenar o cabeçalho do relatório para exportação
@@ -598,91 +613,259 @@ export function ReportExecution({
     if (!data || data.length === 0) return;
     
     try {
-      const summaries = [];
+      const summaries: Array<{label: string, value: string | number, icon: React.ReactNode, color: string}> = [];
+      const trends: Array<{label: string, trend: 'up' | 'down' | 'stable', percentage?: number, description: string}> = [];
+      const insights: Array<string> = [];
+      const topItems: Array<{name: string, value: number | string}> = [];
       let hasFinancialData = false;
+      let timeData = false;
+      let statusData = false;
       let chartData = null;
       
-      // Verificar se temos dados financeiros (valores, montantes, etc)
-      const hasMoneyValues = data.some(row => 
-        Object.keys(row).some(key => 
-          key.toLowerCase().includes('valor') || 
-          key.toLowerCase().includes('amount') || 
-          key.toLowerCase().includes('total') || 
-          key.toLowerCase().includes('price') || 
-          key.toLowerCase().includes('preco')
+      // Mapear campos importantes nos dados
+      const sampleRow = data[0];
+      const fields = Object.keys(sampleRow);
+      
+      // Mapear possíveis campos relevantes
+      const fieldMap = {
+        financial: fields.filter(f => 
+          f.toLowerCase().includes('valor') || 
+          f.toLowerCase().includes('amount') || 
+          f.toLowerCase().includes('price') ||
+          f.toLowerCase().includes('total') || 
+          f.toLowerCase().includes('preco')
+        ),
+        date: fields.filter(f => 
+          f.toLowerCase().includes('data') || 
+          f.toLowerCase().includes('date') || 
+          f.toLowerCase().includes('created') ||
+          f.toLowerCase().includes('due') || 
+          f.toLowerCase().includes('payment') ||
+          f.toLowerCase().includes('vencimento')
+        ),
+        status: fields.filter(f => 
+          f.toLowerCase().includes('status') || 
+          f.toLowerCase().includes('situacao')
+        ),
+        customer: fields.filter(f => 
+          f.toLowerCase().includes('cliente') || 
+          f.toLowerCase().includes('customer') || 
+          f.toLowerCase().includes('nome')
+        ),
+        quantity: fields.filter(f => 
+          f.toLowerCase().includes('quantidade') || 
+          f.toLowerCase().includes('quantity') || 
+          f.toLowerCase().includes('qtd') ||
+          f.toLowerCase().includes('count')
+        ),
+        service: fields.filter(f => 
+          f.toLowerCase().includes('servico') || 
+          f.toLowerCase().includes('service') || 
+          f.toLowerCase().includes('produto') ||
+          f.toLowerCase().includes('product')
+        ),
+        installment: fields.filter(f => 
+          f.toLowerCase().includes('parcela') || 
+          f.toLowerCase().includes('installment') || 
+          f.toLowerCase().includes('numero_parcela')
         )
-      );
+      };
       
-      if (hasMoneyValues) {
+      // 1. ANÁLISE FINANCEIRA
+      if (fieldMap.financial.length > 0) {
         hasFinancialData = true;
-      }
-      
-      // Total de registros
-      summaries.push({
-        label: "Total de Registros",
-        value: data.length,
-        icon: <File className="h-4 w-4 text-blue-500" />,
-        color: "bg-blue-50"
-      });
-      
-      // Processar dados específicos dependendo do tipo de relatório
-      if (reportName.toLowerCase().includes("fluxo") || reportName.toLowerCase().includes("financeiro")) {
-        // Para relatórios financeiros, mostrar somatório total
-        let totalValue = 0;
+        const primaryFinancialField = fieldMap.financial[0];
         
-        // Encontrar a coluna que parece conter valores monetários
-        const moneyColumn = Object.keys(data[0]).find(key => 
-          key.toLowerCase().includes('valor') || 
-          key.toLowerCase().includes('amount') || 
-          key.toLowerCase().includes('total')
-        );
+        // Calcular o valor total
+        const total = data.reduce((sum, item) => {
+          const valStr = String(item[primaryFinancialField]);
+          const value = parseFloat(valStr.replace ? valStr.replace(/[^0-9.-]+/g, '') : valStr);
+          return sum + (isNaN(value) ? 0 : value);
+        }, 0);
         
-        if (moneyColumn) {
-          // Calcular valor total
-          totalValue = data.reduce((sum, row) => {
-            const val = row[moneyColumn];
-            if (val && !isNaN(Number(val))) {
-              return sum + Number(val);
-            }
-            return sum;
-          }, 0);
-          
-          summaries.push({
-            label: "Valor Total",
-            value: `R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            icon: <Percent className="h-4 w-4 text-green-500" />,
-            color: "bg-green-50"
-          });
-        }
+        // Adicionar sumário financeiro
+        summaries.push({
+          label: 'Valor Total',
+          value: `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+          icon: <CreditCard className="h-5 w-5 text-white" />,
+          color: 'bg-blue-100 text-blue-700 border-blue-200'
+        });
         
-        // Se tiver uma coluna de status, mostrar resumo por status
-        const statusColumn = Object.keys(data[0]).find(key => key.toLowerCase() === 'status');
-        if (statusColumn) {
-          const statusCount: Record<string, number> = {};
-          data.forEach(row => {
-            const status = row[statusColumn];
-            if (status) {
-              statusCount[status] = (statusCount[status] || 0) + 1;
-            }
-          });
-          
-          if (Object.keys(statusCount).length > 0) {
-            // Adicionar contagem de status
-            Object.entries(statusCount).forEach(([status, count]) => {
-              const statusTranslated = status === 'completed' ? 'Concluído' : 
-                                        status === 'pending' ? 'Pendente' : 
-                                        status === 'in_progress' ? 'Em Andamento' : status;
-              
-              summaries.push({
-                label: `${statusTranslated}`,
-                value: count,
-                icon: status === 'completed' ? <Check className="h-4 w-4 text-green-500" /> : 
-                      <Timer className="h-4 w-4 text-yellow-500" />,
-                color: status === 'completed' ? "bg-green-50" : "bg-yellow-50"
-              });
+        // Calcular valor médio
+        const average = total / data.length;
+        summaries.push({
+          label: 'Valor Médio',
+          value: `R$ ${average.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+          icon: <DollarSign className="h-5 w-5 text-white" />,
+          color: 'bg-emerald-100 text-emerald-700 border-emerald-200'
+        });
+        
+        // Encontrar maior e menor valor
+        const sortedValues = [...data].sort((a, b) => {
+          const valueAStr = String(a[primaryFinancialField]);
+          const valueBStr = String(b[primaryFinancialField]);
+          const valueA = parseFloat(valueAStr.replace ? valueAStr.replace(/[^0-9.-]+/g, '') : valueAStr);
+          const valueB = parseFloat(valueBStr.replace ? valueBStr.replace(/[^0-9.-]+/g, '') : valueBStr);
+          return valueB - valueA; // Ordem decrescente
+        });
+        
+        if (sortedValues.length > 0) {
+          // Adicionar maior valor como sumário
+          const maxValueStr = String(sortedValues[0][primaryFinancialField]);
+          const maxValue = parseFloat(maxValueStr.replace ? maxValueStr.replace(/[^0-9.-]+/g, '') : maxValueStr);
+          if (!isNaN(maxValue)) {
+            summaries.push({
+              label: 'Maior Valor',
+              value: `R$ ${maxValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+              icon: <TrendingUp className="h-5 w-5 text-white" />,
+              color: 'bg-indigo-100 text-indigo-700 border-indigo-200'
             });
           }
+          
+          // Adicionar insight sobre concentração financeira
+          const top20Percent = Math.ceil(data.length * 0.2);
+          if (top20Percent > 0) {
+            const top20Sum = sortedValues.slice(0, top20Percent).reduce((sum, item) => {
+              const valStr = String(item[primaryFinancialField]);
+              const value = parseFloat(valStr.replace ? valStr.replace(/[^0-9.-]+/g, '') : valStr);
+              return sum + (isNaN(value) ? 0 : value);
+            }, 0);
+            
+            const percentageOfTotal = (top20Sum / total * 100).toFixed(1);
+            insights.push(`Os ${top20Percent} maiores registros representam ${percentageOfTotal}% do valor total.`);
+          }
         }
+        
+        // Adicionar trends com base em dados financeiros
+        if (fieldMap.date.length > 0 && fieldMap.financial.length > 0) {
+          try {
+            const dateField = fieldMap.date[0];
+            const financialField = fieldMap.financial[0];
+            
+            // Ordenar dados por data
+            const chronologicalData = [...data]
+              .map(item => ({
+                date: new Date(item[dateField]),
+                value: parseFloat(String(item[financialField]).replace(/[^0-9.-]+/g, '')),
+                original: item
+              }))
+              .filter(item => !isNaN(item.date.getTime()) && !isNaN(item.value))
+              .sort((a, b) => a.date.getTime() - b.date.getTime());
+            
+            if (chronologicalData.length >= 2) {
+              const first = chronologicalData[0].value;
+              const last = chronologicalData[chronologicalData.length - 1].value;
+              
+              const change = last - first;
+              const percentChange = (change / Math.abs(first) * 100);
+              
+              if (Math.abs(percentChange) > 1) {
+                trends.push({
+                  label: 'Tendência de Valor',
+                  trend: percentChange > 0 ? 'up' : 'down',
+                  percentage: Math.abs(percentChange),
+                  description: percentChange > 0 
+                    ? `Aumento de ${Math.abs(percentChange).toFixed(1)}% no período analisado`
+                    : `Redução de ${Math.abs(percentChange).toFixed(1)}% no período analisado`
+                });
+              } else {
+                trends.push({
+                  label: 'Tendência de Valor',
+                  trend: 'stable',
+                  description: 'Valores estáveis no período analisado'
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Erro ao calcular tendências:", error);
+          }
+        }
+      }
+      
+      // 2. ANÁLISE TEMPORAL
+      if (fieldMap.date.length > 0) {
+        timeData = true;
+        const dateField = fieldMap.date[0];
+        
+        try {
+          // Filtrar datas válidas
+          const validDates = data
+            .map(row => new Date(row[dateField]))
+            .filter(d => !isNaN(d.getTime()));
+          
+          if (validDates.length > 0) {
+            // Ordenar datas e obter período
+            validDates.sort((a, b) => a.getTime() - b.getTime());
+            const oldestDate = validDates[0];
+            const newestDate = validDates[validDates.length - 1];
+            
+            // Adicionar período como sumário
+            summaries.push({
+              label: 'Período',
+              value: `${format(oldestDate, 'dd/MM/yy', { locale: ptBR })} - ${format(newestDate, 'dd/MM/yy', { locale: ptBR })}`,
+              icon: <Calendar className="h-5 w-5 text-white" />,
+              color: 'bg-yellow-100 text-yellow-700 border-yellow-200'
+            });
+            
+            // Calcular dias cobertos
+            const daysDifference = differenceInDays(newestDate, oldestDate);
+            
+            // Adicionar insight sobre frequência temporal
+            if (daysDifference > 0) {
+              const recordsPerDay = (validDates.length / daysDifference).toFixed(1);
+              insights.push(`Média de ${recordsPerDay} registros por dia no período analisado.`);
+              
+              // Identificar picos temporais
+              const dateCount: Record<string, number> = {};
+              validDates.forEach(date => {
+                const dayKey = format(date, 'dd/MM/yyyy');
+                dateCount[dayKey] = (dateCount[dayKey] || 0) + 1;
+              });
+              
+              const maxDateEntries = Object.entries(dateCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 1);
+                
+              if (maxDateEntries.length > 0) {
+                insights.push(`Data com maior atividade: ${maxDateEntries[0][0]} com ${maxDateEntries[0][1]} registros.`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao processar datas:", error);
+        }
+      }
+      
+      // 3. ANÁLISE DE STATUS
+      if (fieldMap.status.length > 0) {
+        statusData = true;
+        const statusField = fieldMap.status[0];
+        
+        // Contar ocorrências de cada status
+        const statusCounts: Record<string, number> = {};
+        data.forEach(item => {
+          const status = String(item[statusField]);
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        // Traduzir status comuns
+        const statusTranslations: Record<string, string> = {
+          'pending': 'Pendente',
+          'in_progress': 'Em Andamento',
+          'completed': 'Concluído',
+          'canceled': 'Cancelado',
+          'success': 'Sucesso',
+          'error': 'Erro',
+          'waiting': 'Aguardando',
+          'approved': 'Aprovado',
+          'rejected': 'Rejeitado',
+          'paid': 'Pago',
+          'unpaid': 'Não Pago',
+          'overdue': 'Atrasado',
+          'active': 'Ativo',
+          'inactive': 'Inativo',
+          'delivery': 'Entrega'
+        };
       } else if (reportName.toLowerCase().includes("vendas")) {
         // Para relatórios de vendas, mostrar média e maior valor
         let totalValue = 0;
@@ -728,7 +911,12 @@ export function ReportExecution({
       setDashboardData({
         summaries,
         chartData,
-        hasFinancialData
+        hasFinancialData,
+        timeData,
+        statusData,
+        trends,
+        topItems,
+        insights
       });
       
     } catch (error) {
