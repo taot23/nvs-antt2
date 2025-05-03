@@ -16,7 +16,12 @@ import {
   BarChart3,
   PieChart,
   LineChart,
-  Percent
+  Percent,
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Tag
 } from "lucide-react";
 import {
   Card,
@@ -29,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -1174,6 +1179,7 @@ export function ReportExecution({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Cartões de indicadores chave */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {dashboardData.summaries.map((summary, index) => (
                 <Card key={index} className={`border ${summary.color}`}>
@@ -1192,6 +1198,95 @@ export function ReportExecution({
               ))}
             </div>
             
+            {/* Seção de tendências */}
+            {dashboardData.trends && dashboardData.trends.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-medium mb-4">Tendências</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dashboardData.trends.map((trend, index) => (
+                    <Card key={index} className="border">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{trend.label}</p>
+                            <p className="text-sm mt-1 text-muted-foreground">{trend.description}</p>
+                          </div>
+                          <div className={`p-2 rounded-full ${
+                            trend.trend === 'up' 
+                              ? 'bg-green-100 text-green-700' 
+                              : trend.trend === 'down' 
+                                ? 'bg-red-100 text-red-700' 
+                                : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {trend.trend === 'up' && <TrendingUp className="h-5 w-5" />}
+                            {trend.trend === 'down' && <TrendingDown className="h-5 w-5" />}
+                            {trend.trend === 'stable' && <ArrowLeft className="h-5 w-5" />}
+                          </div>
+                        </div>
+                        {trend.percentage && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className={
+                              trend.trend === 'up' 
+                                ? 'border-green-200 text-green-700 bg-green-50' 
+                                : trend.trend === 'down' 
+                                  ? 'border-red-200 text-red-700 bg-red-50' 
+                                  : 'border-blue-200 text-blue-700 bg-blue-50'
+                            }>
+                              {trend.percentage.toFixed(1)}%
+                            </Badge>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Seção de itens principais */}
+            {dashboardData.topItems && dashboardData.topItems.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-medium mb-4">Itens em Destaque</h3>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="space-y-3">
+                    {dashboardData.topItems.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                            <span className="text-blue-700 font-medium">{index + 1}</span>
+                          </div>
+                          <span className="font-medium">{item.name}</span>
+                        </div>
+                        <Badge variant="secondary">{item.value}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Seção de insights */}
+            {dashboardData.insights && dashboardData.insights.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-3">Insights</h3>
+                <Card className="border-blue-100 bg-blue-50/40">
+                  <CardContent className="p-4">
+                    <ul className="space-y-2">
+                      {dashboardData.insights.map((insight, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5">
+                            <span className="text-blue-800 text-xs font-bold">{index+1}</span>
+                          </span>
+                          <p className="text-sm text-blue-900">{insight}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            {/* Visualização de dados financeiros */}
             {dashboardData.hasFinancialData && (
               <div className="mt-8 p-6 border rounded-lg">
                 <h3 className="text-lg font-medium mb-4">Análise visual</h3>
@@ -1209,7 +1304,8 @@ export function ReportExecution({
           </CardContent>
           <CardFooter className="border-t px-6 py-4">
             <p className="text-xs text-muted-foreground">
-              O dashboard apresenta uma visão geral dos dados do relatório. Para uma análise mais detalhada, consulte a aba "Dados".
+              O dashboard apresenta uma visão geral e análise inteligente dos dados do relatório. 
+              Insights são baseados na análise automática dos resultados.
             </p>
           </CardFooter>
         </Card>
