@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { DateRange } from "react-day-picker";
-import { format } from "date-fns";
+import { getQueryFn } from "@/lib/queryClient";
+import { format, subDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Insight } from "@/components/dashboard/insights-card";
 
-// Interfaces para os dados do dashboard
 export interface FinancialOverview {
   totalSales: number;
   totalInstallments: number;
@@ -43,152 +44,153 @@ export interface RecentActivity {
 }
 
 export function useDashboardData(dateRange?: DateRange) {
-  // Formatar o intervalo de datas para a query string
-  const dateParams = dateRange
-    ? `startDate=${format(dateRange.from || new Date(), "yyyy-MM-dd")}&endDate=${
-        dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
-      }`
-    : "";
+  // Transformar o intervalo de datas para parâmetros de consulta
+  const startDate = dateRange?.from 
+    ? format(dateRange.from, "yyyy-MM-dd") 
+    : format(subDays(new Date(), 30), "yyyy-MM-dd");
+  
+  const endDate = dateRange?.to 
+    ? format(dateRange.to, "yyyy-MM-dd") 
+    : format(new Date(), "yyyy-MM-dd");
+  
+  const queryParams = `?startDate=${startDate}&endDate=${endDate}`;
 
-  // Visão geral financeira
-  const {
-    data: financialOverview,
-    isLoading: isLoadingFinancial,
-    error: financialError,
-  } = useQuery<FinancialOverview>({
-    queryKey: [`/api/analytics/financial-overview${dateParams ? `?${dateParams}` : ""}`],
-    refetchOnWindowFocus: false,
+  // Usar useQueries para buscar vários endpoints simultaneamente
+  const results = useQueries({
+    queries: [
+      {
+        queryKey: ["/api/dashboard/financial", startDate, endDate],
+        queryFn: getQueryFn(),
+        select: (data: any) => data as FinancialOverview,
+      },
+      {
+        queryKey: ["/api/dashboard/sales", startDate, endDate],
+        queryFn: getQueryFn(),
+        select: (data: any) => data as SalesSummary,
+      },
+      {
+        queryKey: ["/api/dashboard/sellers", startDate, endDate],
+        queryFn: getQueryFn(),
+        select: (data: any) => data as SalesBySeller[],
+      },
+      {
+        queryKey: ["/api/dashboard/activities", startDate, endDate],
+        queryFn: getQueryFn(),
+        select: (data: any) => data as RecentActivity[],
+      },
+    ],
   });
 
-  // Desempenho dos vendedores
-  const {
-    data: sellerPerformance,
-    isLoading: isLoadingSellerPerformance,
-    error: sellerPerformanceError,
-  } = useQuery<SalesBySeller[]>({
-    queryKey: [`/api/analytics/seller-performance${dateParams ? `?${dateParams}` : ""}`],
-    refetchOnWindowFocus: false,
-  });
+  // Extrair resultados individuais
+  const [
+    { data: financialOverview, isLoading: isFinancialLoading },
+    { data: salesSummary, isLoading: isSalesLoading },
+    { data: sellerPerformance, isLoading: isSellersLoading },
+    { data: recentActivities, isLoading: isActivitiesLoading },
+  ] = results;
 
-  // Resumo de vendas
-  const {
-    data: salesSummary,
-    isLoading: isLoadingSalesSummary,
-    error: salesSummaryError,
-  } = useQuery<SalesSummary>({
-    queryKey: [`/api/analytics/sales-summary${dateParams ? `?${dateParams}` : ""}`],
-    refetchOnWindowFocus: false,
-  });
+  // Verificar se ainda está carregando algum dos dados
+  const isLoading = isFinancialLoading || isSalesLoading || isSellersLoading || isActivitiesLoading;
 
-  // Atividades recentes
-  const {
-    data: recentActivities,
-    isLoading: isLoadingRecentActivities,
-    error: recentActivitiesError,
-  } = useQuery<RecentActivity[]>({
-    queryKey: [`/api/recent-executions${dateParams ? `?${dateParams}` : ""}`],
-    refetchOnWindowFocus: false,
-  });
-
-  // Estado para rastrear insights baseados nos dados
-  const [insights, setInsights] = useState<any[]>([]);
-
-  // Gerar insights baseados nos dados recebidos
-  useEffect(() => {
-    const newInsights = [];
-    
-    // Insights baseados nos dados financeiros
-    if (financialOverview) {
-      // Pagamentos pendentes
-      if (financialOverview.pendingAmount > 0) {
-        newInsights.push({
-          id: "pending-payments",
-          title: "Pagamentos pendentes",
-          description: `Há R$ ${financialOverview.pendingAmount.toLocaleString("pt-BR", { 
-            minimumFractionDigits: 2 
-          })} em parcelas a receber.`,
-          type: "info",
-        });
-      }
-      
-      // Taxa de conversão de pagamentos
-      if (financialOverview.totalInstallments > 0) {
-        const paymentRate = (financialOverview.paidInstallments / financialOverview.totalInstallments) * 100;
-        newInsights.push({
-          id: "payment-rate",
-          title: "Taxa de conversão de pagamentos",
-          description: `${paymentRate.toFixed(1)}% das parcelas foram pagas até o momento.`,
-          type: paymentRate > 80 ? "positive" : paymentRate > 50 ? "neutral" : "warning",
-          trend: {
-            direction: paymentRate > 70 ? "up" : "down",
-            value: Number(paymentRate.toFixed(1)),
-          },
-        });
-      }
-    }
-    
-    // Insights baseados no resumo de vendas
-    if (salesSummary) {
-      // Vendas em progresso
-      if (salesSummary.inProgress > 0) {
-        newInsights.push({
-          id: "in-progress-sales",
-          title: "Vendas em andamento",
-          description: `Existem ${salesSummary.inProgress} vendas em andamento que precisam de atenção.`,
-          type: "warning",
-        });
-      }
-      
-      // Taxa de conclusão
-      if (salesSummary.total > 0) {
-        const completionRate = (salesSummary.completed / salesSummary.total) * 100;
-        if (completionRate < 100) {
-          newInsights.push({
-            id: "completion-rate",
-            title: "Taxa de conclusão",
-            description: `${completionRate.toFixed(1)}% das vendas foram concluídas com sucesso.`,
-            type: completionRate > 80 ? "positive" : "warning",
-            trend: {
-              direction: completionRate > 80 ? "up" : "down",
-              value: Number(completionRate.toFixed(1)),
-            },
-          });
-        }
-      }
-    }
-    
-    // Insights baseados no desempenho dos vendedores
-    if (sellerPerformance && sellerPerformance.length > 0) {
-      // Vendedor destaque
-      const topSeller = [...sellerPerformance].sort((a, b) => b.amount - a.amount)[0];
-      if (topSeller) {
-        newInsights.push({
-          id: "top-seller",
-          title: "Vendedor destaque",
-          description: `${topSeller.sellerName} lidera as vendas com R$ ${topSeller.amount.toLocaleString(
-            "pt-BR",
-            { minimumFractionDigits: 2 }
-          )}.`,
-          type: "positive",
-        });
-      }
-    }
-    
-    setInsights(newInsights);
-  }, [financialOverview, salesSummary, sellerPerformance]);
+  // Gerar insights baseados nos dados
+  const insights = generateInsights(financialOverview, salesSummary, sellerPerformance);
 
   return {
     financialOverview,
-    sellerPerformance,
     salesSummary,
+    sellerPerformance,
     recentActivities,
     insights,
-    isLoading: isLoadingFinancial || isLoadingSellerPerformance || isLoadingSalesSummary || isLoadingRecentActivities,
-    errors: {
-      financialError,
-      sellerPerformanceError,
-      salesSummaryError,
-      recentActivitiesError,
-    },
+    isLoading,
   };
+}
+
+function generateInsights(
+  financialOverview?: FinancialOverview,
+  salesSummary?: SalesSummary,
+  sellerPerformance?: SalesBySeller[]
+): Insight[] {
+  const insights: Insight[] = [];
+
+  // Insights financeiros
+  if (financialOverview) {
+    // Tendência de vendas
+    if (financialOverview.trend) {
+      const trend = financialOverview.trend;
+      const trendType = trend > 0 ? "positive" : trend < 0 ? "negative" : "neutral";
+      const trendDesc = trend > 0 
+        ? "crescimento em relação ao período anterior" 
+        : trend < 0 
+          ? "queda em relação ao período anterior" 
+          : "sem alteração em relação ao período anterior";
+
+      insights.push({
+        id: "trend",
+        title: "Tendência de Vendas",
+        description: `${Math.abs(trend).toFixed(1)}% de ${trendDesc}`,
+        type: trendType,
+        trend: {
+          direction: trend > 0 ? "up" : trend < 0 ? "down" : "stable",
+          value: Math.abs(trend),
+        },
+      });
+    }
+
+    // Status de pagamento
+    const paidPercentage = (financialOverview.paidAmount / financialOverview.totalAmount) * 100;
+    insights.push({
+      id: "payment_status",
+      title: "Status de Pagamentos",
+      description: `${paidPercentage.toFixed(1)}% do valor total já foi recebido`,
+      type: paidPercentage > 75 ? "positive" : paidPercentage > 50 ? "neutral" : "warning",
+    });
+
+    // Parcelas pendentes
+    const pendingPercentage = (financialOverview.pendingInstallments / financialOverview.totalInstallments) * 100;
+    if (pendingPercentage > 30) {
+      insights.push({
+        id: "pending_installments",
+        title: "Parcelas Pendentes",
+        description: `${financialOverview.pendingInstallments} parcelas (${pendingPercentage.toFixed(1)}%) ainda pendentes`,
+        type: "warning",
+      });
+    }
+  }
+
+  // Insights de vendas
+  if (salesSummary) {
+    // Status das vendas
+    const completionRate = (salesSummary.completed / salesSummary.total) * 100;
+    insights.push({
+      id: "completion_rate",
+      title: "Taxa de Conclusão",
+      description: `${completionRate.toFixed(1)}% das vendas foram concluídas`,
+      type: completionRate > 75 ? "positive" : completionRate > 50 ? "neutral" : "warning",
+    });
+
+    // Vendas canceladas
+    const cancelRate = (salesSummary.canceled / salesSummary.total) * 100;
+    if (cancelRate > 10) {
+      insights.push({
+        id: "cancel_rate",
+        title: "Taxa de Cancelamento",
+        description: `${cancelRate.toFixed(1)}% das vendas foram canceladas`,
+        type: "negative",
+      });
+    }
+  }
+
+  // Insights de desempenho dos vendedores
+  if (sellerPerformance && sellerPerformance.length > 0) {
+    // Vendedor com melhor desempenho
+    const topSeller = [...sellerPerformance].sort((a, b) => b.amount - a.amount)[0];
+    insights.push({
+      id: "top_seller",
+      title: "Melhor Vendedor",
+      description: `${topSeller.sellerName} com ${topSeller.count} vendas totalizando R$ ${topSeller.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      type: "positive",
+    });
+  }
+
+  return insights;
 }

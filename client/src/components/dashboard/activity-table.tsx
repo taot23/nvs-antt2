@@ -25,7 +25,7 @@ export interface ActivityItem {
   id: number | string;
   type: string;
   description: string;
-  status: "completed" | "pending" | "in_progress" | "error" | "canceled";
+  status: string;
   date: string;
   amount?: number;
   user?: string;
