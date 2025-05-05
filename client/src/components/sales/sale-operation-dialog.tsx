@@ -96,7 +96,9 @@ export default function SaleOperationDialog({
       if (!response.ok) {
         throw new Error("Erro ao carregar dados da venda");
       }
-      return response.json();
+      const data = await response.json();
+      console.log("[SaleOperationDialog] Dados da venda:", data);
+      return data;
     },
     enabled: !!saleId && open,
   });
@@ -228,8 +230,8 @@ export default function SaleOperationDialog({
   const enrichedSale = sale
     ? {
         ...sale,
-        sellerName: sale.sellerName || "Não informado",
-        customerName: sale.customerName || "Não informado",
+        sellerName: sale.seller?.username || "Não informado",
+        customerName: sale.customer?.name || "Não informado",
         serviceTypeName: serviceTypes.find((type: any) => type.id === sale.serviceTypeId)?.name,
         serviceProviderName: serviceProviders.find((provider: any) => provider.id === sale.serviceProviderId)?.name,
       }
