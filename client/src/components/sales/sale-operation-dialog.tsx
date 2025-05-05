@@ -235,12 +235,6 @@ export default function SaleOperationDialog({
         throw new Error("É necessário selecionar um tipo de execução");
       }
       
-      // Se o tipo de serviço for SINDICATO, pelo menos um prestador parceiro é obrigatório
-      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
-        throw new Error("É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO");
-      }
-      
       // Preparar dados para envio
       const requestData: any = {
         serviceTypeId: selectedServiceTypeId,
@@ -259,9 +253,8 @@ export default function SaleOperationDialog({
         throw new Error(error.message || "Erro ao iniciar execução da venda");
       }
       
-      // Se a iniciação for bem-sucedida e for SINDICATO,
-      // também atualizamos os prestadores de serviço
-      if (serviceType?.name === "SINDICATO") {
+      // Se temos prestadores selecionados, atualizamos
+      if (selectedServiceProviderIds.length > 0) {
         await updateServiceProvidersMutation.mutateAsync();
       }
       
@@ -428,12 +421,6 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
-      // Validação: tipo de serviço SINDICATO precisa ter pelo menos um prestador selecionado
-      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
-        throw new Error("É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO");
-      }
-      
       const response = await fetch(`/api/sales/${saleId}/service-providers`, {
         method: "PUT",
         headers: {
@@ -475,12 +462,6 @@ export default function SaleOperationDialog({
         throw new Error("É necessário selecionar um tipo de execução");
       }
       
-      // Se o tipo de serviço for SINDICATO, pelo menos um prestador parceiro é obrigatório
-      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
-        throw new Error("É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO");
-      }
-      
       // Preparar dados para envio
       const requestData: any = {
         serviceTypeId: selectedServiceTypeId,
@@ -499,9 +480,8 @@ export default function SaleOperationDialog({
         throw new Error(error.message || "Erro ao atualizar tipo de execução");
       }
       
-      // Se a atualização do tipo de execução for bem-sucedida e for SINDICATO,
-      // também atualizamos os prestadores de serviço
-      if (serviceType?.name === "SINDICATO") {
+      // Se temos prestadores selecionados, atualizamos
+      if (selectedServiceProviderIds.length > 0) {
         await updateServiceProvidersMutation.mutateAsync();
       }
       
@@ -538,17 +518,6 @@ export default function SaleOperationDialog({
   // Manipulador para atualizar o tipo de execução
   const handleUpdateExecutionType = () => {
     if (sale) {
-      // Verificação adicional de segurança: garantir que pelo menos um prestador é selecionado se for SINDICATO
-      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
-        toast({
-          title: "Prestador parceiro obrigatório",
-          description: "Para execução via SINDICATO, selecione pelo menos um prestador parceiro",
-          variant: "destructive",
-        });
-        return;
-      }
-      
       updateExecutionTypeMutation.mutate();
     }
   };
@@ -577,14 +546,8 @@ export default function SaleOperationDialog({
     if (sale && serviceTypes.length > 0) {
       setSelectedServiceTypeId(sale.serviceTypeId);
       
-      // Verificar se o tipo de serviço é SINDICATO
-      const serviceType = serviceTypes.find((type: any) => type.id === sale.serviceTypeId);
-      if (serviceType && serviceType.name === "SINDICATO") {
-        setShowServiceProviderField(true);
-      } else {
-        setShowServiceProviderField(false);
-        setSelectedServiceProviderIds([]);
-      }
+      // Mostrar campo de prestadores para qualquer tipo de serviço
+      setShowServiceProviderField(true);
     }
   }, [sale, serviceTypes]);
   
@@ -606,14 +569,8 @@ export default function SaleOperationDialog({
     const id = parseInt(typeId);
     setSelectedServiceTypeId(id);
     
-    // Verificar se o novo tipo selecionado é SINDICATO
-    const serviceType = serviceTypes.find((type: any) => type.id === id);
-    if (serviceType && serviceType.name === "SINDICATO") {
-      setShowServiceProviderField(true);
-    } else {
-      setShowServiceProviderField(false);
-      setSelectedServiceProviderIds([]);
-    }
+    // Mostrar campo de prestadores para qualquer tipo de serviço
+    setShowServiceProviderField(true);
   };
 
   // Manipulador para toggle de checkbox de prestador de serviço
@@ -712,7 +669,7 @@ export default function SaleOperationDialog({
                                 : enrichedSale.serviceTypeName || "Não definido"}
                             </span>
                           </div>
-                          {/* Se o tipo de serviço for SINDICATO, mostrar prestadores parceiros */}
+                          {/* Mostrar prestadores parceiros (para qualquer tipo) */}
                           {(showServiceProviderField || enrichedSale.serviceProviderId || saleServiceProviders.length > 0) && (
                             <div className="flex justify-between items-start py-1 border-b border-border/60">
                               <span className="text-sm font-medium">Prestadores Parceiros:</span>
@@ -830,7 +787,7 @@ export default function SaleOperationDialog({
                         </div>
                       </div>
                       
-                      {/* Prestadores Parceiros (se for SINDICATO) */}
+                      {/* Prestadores Parceiros */}
                       {(showServiceProviderField || enrichedSale.serviceProviderId || saleServiceProviders.length > 0) && (
                         <div className="space-y-3">
                           <h3 className="text-sm font-medium">Prestadores de Serviço Parceiros</h3>
@@ -880,11 +837,6 @@ export default function SaleOperationDialog({
                               </div>
                             )}
                           </div>
-                          {showServiceProviderField && selectedServiceProviderIds.length === 0 && (
-                            <p className="text-xs text-destructive">
-                              * É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO
-                            </p>
-                          )}
                         </div>
                       )}
                       
