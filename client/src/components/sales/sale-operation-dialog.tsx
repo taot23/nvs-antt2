@@ -597,121 +597,58 @@ export default function SaleOperationDialog({
             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="summary">Resumo</TabsTrigger>
+                <TabsTrigger value="items">Itens ({saleItems.length})</TabsTrigger>
+                <TabsTrigger value="history">Histórico ({statusHistory.length})</TabsTrigger>
                 <TabsTrigger value="execution">Execução</TabsTrigger>
-                <TabsTrigger value="items">Itens</TabsTrigger>
-                <TabsTrigger value="history">Histórico</TabsTrigger>
               </TabsList>
               
               {/* Tab de Resumo */}
               <TabsContent value="summary">
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle>Informações Gerais</CardTitle>
+                    <CardTitle>Detalhes da Venda</CardTitle>
                     <CardDescription>
-                      Detalhes da venda e dados do cliente
+                      Informações gerais sobre a venda e cliente
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="grid gap-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Dados da Venda</h3>
-                        <div className="grid gap-2">
-                          <div className="flex justify-between items-center py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Nº OS:</span>
-                            <span className="text-sm">{enrichedSale.orderNumber}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Data:</span>
-                            <span className="text-sm">
-                              {enrichedSale.date 
-                                ? format(new Date(enrichedSale.date), 'dd/MM/yyyy', { locale: ptBR })
-                                : format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Tipo de Serviço:</span>
-                            <span className="text-sm">
-                              {selectedServiceTypeId 
-                                ? serviceTypes.find((t: any) => t.id === selectedServiceTypeId)?.name
-                                : enrichedSale.serviceTypeName || "Não definido"}
-                            </span>
-                          </div>
-                          {/* Mostrar prestadores parceiros (para qualquer tipo) */}
-                          {(showServiceProviderField || enrichedSale.serviceProviderId || saleServiceProviders.length > 0) && (
-                            <div className="flex justify-between items-start py-1 border-b border-border/60">
-                              <span className="text-sm font-medium">Prestadores Parceiros:</span>
-                              <div className="text-sm text-right">
-                                {selectedServiceProviderIds.length > 0 ? (
-                                  <div className="flex flex-col items-end">
-                                    {selectedServiceProviderIds.map(id => (
-                                      <span key={id} className="mb-1">
-                                        {serviceProviders.find((p: any) => p.id === id)?.name || `Prestador #${id}`}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : saleServiceProviders.length > 0 ? (
-                                  <div className="flex flex-col items-end">
-                                    {saleServiceProviders.map((sp: any) => (
-                                      <span key={sp.providerId} className="mb-1">
-                                        {serviceProviders.find((p: any) => p.id === sp.providerId)?.name || `Prestador #${sp.providerId}`}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : enrichedSale.serviceProviderId ? (
-                                  serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"
-                                ) : (
-                                  "Não selecionado"
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        
-                          <div className="flex justify-between items-center py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Vendedor:</span>
-                            <span className="text-sm">{enrichedSale.sellerName}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Cliente:</span>
-                            <span className="text-sm">{enrichedSale.customerName}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Valor Total:</span>
-                            <span className="text-sm font-bold">
-                              R$ {parseFloat(enrichedSale.totalAmount).toFixed(2).replace('.', ',')}
-                            </span>
-                          </div>
-                        </div>
+                        <h3 className="font-medium mb-1">Pedido</h3>
+                        <p className="text-sm text-muted-foreground">{enrichedSale.orderNumber}</p>
                       </div>
-                      
                       <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Status e Observações</h3>
-                        <div className="grid gap-4">
-                          <div className="flex flex-col gap-1 py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Status de Execução:</span>
-                            <div>
-                              <Badge variant={getStatusVariant(enrichedSale.status) as any} className="ml-0">
-                                {getStatusLabel(enrichedSale.status)}
-                              </Badge>
-                            </div>
-                          </div>
-                          
-                          {enrichedSale.returnReason && (
-                            <div className="flex flex-col gap-1 py-1 border-b border-border/60">
-                              <span className="text-sm font-medium text-destructive">Motivo da Devolução:</span>
-                              <p className="text-sm bg-destructive/10 text-destructive p-2 rounded">
-                                {enrichedSale.returnReason}
-                              </p>
-                            </div>
-                          )}
-                          
-                          <div className="flex flex-col gap-1 py-1 border-b border-border/60">
-                            <span className="text-sm font-medium">Observações:</span>
-                            <p className="text-sm p-2 bg-muted rounded">
-                              {enrichedSale.notes || "Nenhuma observação registrada"}
-                            </p>
-                          </div>
-                        </div>
+                        <h3 className="font-medium mb-1">Data</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(enrichedSale.date), "dd/MM/yyyy", { locale: ptBR })}
+                        </p>
                       </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Cliente</h3>
+                        <p className="text-sm text-muted-foreground overflow-ellipsis overflow-hidden">
+                          {enrichedSale.customerName}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Vendedor</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {enrichedSale.sellerName}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <h3 className="font-medium mb-1">Valor Total</h3>
+                        <p className="text-lg">
+                          R$ {parseFloat(enrichedSale.totalAmount).toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
+                      {enrichedSale.notes && (
+                        <div className="col-span-2">
+                          <h3 className="font-medium mb-1">Observações</h3>
+                          <p className="text-sm text-muted-foreground whitespace-pre-line">
+                            {enrichedSale.notes}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -721,22 +658,22 @@ export default function SaleOperationDialog({
               <TabsContent value="execution">
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle>Configuração de Execução</CardTitle>
+                    <CardTitle>Configuração da Execução</CardTitle>
                     <CardDescription>
-                      Defina os parâmetros de execução da venda
+                      Defina como o serviço será executado
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="grid gap-4">
+                  <CardContent>
                     <div className="space-y-4">
                       <div className="grid gap-2">
                         <Label htmlFor="serviceType">Tipo de Serviço</Label>
                         <Select 
                           value={selectedServiceTypeId?.toString()} 
                           onValueChange={handleServiceTypeChange}
-                          disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                          disabled={enrichedSale.status === "completed"}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um tipo de serviço" />
+                          <SelectTrigger id="serviceType">
+                            <SelectValue placeholder="Selecione o tipo de serviço" />
                           </SelectTrigger>
                           <SelectContent>
                             {serviceTypes.map((type: any) => (
@@ -772,7 +709,7 @@ export default function SaleOperationDialog({
                                           id={`provider-${provider.id}`}
                                           checked={selectedServiceProviderIds.includes(provider.id)}
                                           onCheckedChange={() => handleServiceProviderToggle(provider.id)}
-                                          disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                                          disabled={enrichedSale.status === "completed"}
                                         />
                                         <Label htmlFor={`provider-${provider.id}`}>{provider.name}</Label>
                                       </div>
@@ -786,7 +723,7 @@ export default function SaleOperationDialog({
                                           id={`provider-${provider.id}`}
                                           checked={selectedServiceProviderIds.includes(provider.id)}
                                           onCheckedChange={() => handleServiceProviderToggle(provider.id)}
-                                          disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                                          disabled={enrichedSale.status === "completed"}
                                         />
                                         <Label htmlFor={`provider-${provider.id}`}>{provider.name}</Label>
                                       </div>
@@ -804,7 +741,7 @@ export default function SaleOperationDialog({
                     <Button 
                       onClick={handleUpdateExecutionType}
                       variant="outline"
-                      disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected") || 
+                      disabled={enrichedSale.status === "completed" || 
                         updateExecutionTypeMutation.isPending}
                       className="mr-2"
                     >

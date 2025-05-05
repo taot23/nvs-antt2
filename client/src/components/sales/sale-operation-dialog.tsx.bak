@@ -120,19 +120,28 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
-      const response = await fetch(`/api/sales/${saleId}/service-providers`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Erro ao atualizar prestadores de serviço");
+      try {
+        const response = await fetch(`/api/sales/${saleId}/service-providers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
+        });
+        
+        if (!response.ok) {
+          const text = await response.text();
+          console.error("Erro na resposta:", text);
+          throw new Error("Erro ao atualizar prestadores de serviço: " + text.substring(0, 100));
+        }
+        
+        // Muitas vezes essa requisição retorna um body vazio
+        const text = await response.text();
+        return text ? JSON.parse(text) : { success: true };
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores:", error);
+        throw error;
       }
-      
-      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "service-providers"] });
@@ -240,6 +249,20 @@ export default function SaleOperationDialog({
         serviceTypeId: selectedServiceTypeId,
       };
       
+      // Se o checkbox não está marcado, zeramos a lista de prestadores
+      if (!hasPrestadorParceiro) {
+        setSelectedServiceProviderIds([]);
+      }
+      
+      try {
+        // Atualizar os prestadores de serviço (sempre, independente do checkbox)
+        await updateServiceProvidersMutation.mutateAsync();
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores no fluxo de início de execução:", error);
+        // Continue mesmo se der erro para evitar travar o fluxo principal
+      }
+      
+      // Iniciar a execução
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
         method: "POST",
         headers: {
@@ -251,23 +274,6 @@ export default function SaleOperationDialog({
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Erro ao iniciar execução da venda");
-      }
-      
-      // Se a opção de prestadores parceiros estiver marcada
-      if (hasPrestadorParceiro) {
-        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
-        if (selectedServiceProviderIds.length === 0) {
-          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
-        }
-        
-        // Atualizar os prestadores selecionados
-        await updateServiceProvidersMutation.mutateAsync();
-      } else {
-        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
-        if (saleServiceProviders.length > 0) {
-          setSelectedServiceProviderIds([]);
-          await updateServiceProvidersMutation.mutateAsync();
-        }
       }
       
       return await response.json();
@@ -429,21 +435,17 @@ export default function SaleOperationDialog({
         throw new Error(error.message || "Erro ao atualizar tipo de execução");
       }
       
-      // Se a opção de prestadores parceiros estiver marcada
-      if (hasPrestadorParceiro) {
-        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
-        if (selectedServiceProviderIds.length === 0) {
-          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
-        }
-        
-        // Atualizar os prestadores selecionados
+      // Se o checkbox não está marcado, zeramos a lista de prestadores
+      if (!hasPrestadorParceiro) {
+        setSelectedServiceProviderIds([]);
+      }
+      
+      try {
+        // Atualizar os prestadores de serviço (sempre, independente do checkbox)
         await updateServiceProvidersMutation.mutateAsync();
-      } else {
-        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
-        if (saleServiceProviders.length > 0) {
-          setSelectedServiceProviderIds([]);
-          await updateServiceProvidersMutation.mutateAsync();
-        }
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores no fluxo principal:", error);
+        // Continue mesmo se der erro para evitar travar o fluxo principal
       }
       
       return await response.json();
@@ -468,7 +470,7 @@ export default function SaleOperationDialog({
   const handleMainAction = () => {
     if (!sale) return;
     
-    if (sale.status === "pending" || sale.status === "corrected") {
+    if (sale.status === "pending" || sale.status === "corrected" || sale.status === "returned") {
       startExecutionMutation.mutate();
     } else if (sale.status === "in_progress") {
       completeExecutionMutation.mutate();
@@ -753,7 +755,7 @@ export default function SaleOperationDialog({
                               id="hasParceiro"
                               checked={hasPrestadorParceiro}
                               onCheckedChange={(checked) => setHasPrestadorParceiro(!!checked)}
-                              disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                              disabled={enrichedSale.status === "completed"}
                             />
                             <Label htmlFor="hasParceiro">Possui prestadores de serviço parceiros</Label>
                           </div>
@@ -802,7 +804,7 @@ export default function SaleOperationDialog({
                     <Button 
                       onClick={handleUpdateExecutionType}
                       variant="outline"
-                      disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected") || 
+                      disabled={enrichedSale.status === "completed" || 
                         updateExecutionTypeMutation.isPending}
                       className="mr-2"
                     >
@@ -845,11 +847,15 @@ export default function SaleOperationDialog({
                         ) : (
                           saleItems.map((item: any) => (
                             <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.serviceName}</TableCell>
-                              <TableCell>{item.serviceTypeName}</TableCell>
+                              <TableCell className="font-medium">
+                                {services.find((s: any) => s.id === item.serviceId)?.name || `Serviço #${item.serviceId}`}
+                              </TableCell>
+                              <TableCell>
+                                {serviceTypes.find((t: any) => t.id === item.serviceTypeId)?.name || `Tipo #${item.serviceTypeId}`}
+                              </TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell className="text-right">
-                                R$ {parseFloat(item.totalPrice).toFixed(2).replace('.', ',')}
+                                R$ {parseFloat(item.totalPrice || '0').toFixed(2).replace('.', ',')}
                               </TableCell>
                             </TableRow>
                           ))
@@ -1002,7 +1008,7 @@ export default function SaleOperationDialog({
                           (hasPrestadorParceiro && selectedServiceProviderIds.length === 0)
                         }
                       >
-                        {enrichedSale.status === "pending" || enrichedSale.status === "corrected" ? (
+                        {enrichedSale.status === "pending" || enrichedSale.status === "corrected" || enrichedSale.status === "returned" ? (
                           <>
                             <Truck className="mr-2 h-4 w-4" />
                             {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
