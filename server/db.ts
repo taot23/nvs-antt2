@@ -10,3 +10,16 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
+
+// Função para registrar logs de depuração detalhados
+export async function logDebug(module: string, message: string, data: any = {}) {
+  try {
+    await pool.query(
+      `INSERT INTO debug_logs (module, message, data) VALUES ($1, $2, $3)`,
+      [module, message, JSON.stringify(data)]
+    );
+    console.log(`[${module}] ${message}`);
+  } catch (error) {
+    console.error(`Erro ao registrar log de depuração:`, error);
+  }
+}
