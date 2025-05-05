@@ -3986,6 +3986,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         [id, 'returned', 'corrected', req.user?.id, correctionNotes]
       );
       
+      // Registrar o motivo da devolução antes da atualização para verificação
+      console.log(`Preservando motivo de devolução para venda #${id} - Motivo atual: "${sale.return_reason}"`);
+      
       // Atualizar a venda para o novo status "corrected" mas preservar o motivo da devolução
       const updateResult = await pool.query(
         `UPDATE sales 
@@ -4007,6 +4010,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Registrar a ação no log
       console.log(`✅ Venda #${id} reenviada após correção por ${req.user?.username}`);
+      
+      // Verificar se o motivo da devolução foi preservado
+      const saleAfterUpdate = await storage.getSale(id);
+      console.log(`✅ Verificação pós-atualização da venda #${id} - Motivo de devolução: "${saleAfterUpdate?.returnReason || 'Não definido'}"`);
       
       // Notificar todos os clientes sobre a atualização da venda
       notifySalesUpdate();
