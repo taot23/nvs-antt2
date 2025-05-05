@@ -1399,14 +1399,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (startDate) {
         params.push(startDate);
         query += ` AND s.date >= $${params.length}::date`;
-        console.log(`Filtrando vendas a partir de ${startDate}`);
+        console.log(`FILTRAGEM POR DATA: Filtrando vendas a partir de ${startDate}`);
       }
       
       if (endDate) {
         params.push(endDate);
         query += ` AND s.date <= $${params.length}::date`;
-        console.log(`Filtrando vendas até ${endDate}`);
+        console.log(`FILTRAGEM POR DATA: Filtrando vendas até ${endDate}`);
       }
+      
+      // Log completo dos parâmetros da consulta para debug
+      console.log('PARÂMETROS DE CONSULTA:', {
+        page, limit, status, financialStatus, 
+        searchTerm, startDate, endDate,
+        sellerId, sortField, sortDirection
+      });
       
       // Contar total antes de aplicar paginação
       const countQuery = `SELECT COUNT(*) FROM (${query}) AS count_query`;
