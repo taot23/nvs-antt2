@@ -330,11 +330,13 @@ export default function SaleOperationDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
+      // Recarregar dados da venda atual
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "history"] });
       toast({
         title: "Execução iniciada",
         description: "A venda foi movida para o status 'Em Execução'",
       });
-      onClose();
+      // Não fechar a tela automaticamente
     },
     onError: (error: Error) => {
       toast({
@@ -376,11 +378,13 @@ export default function SaleOperationDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
+      // Recarregar dados da venda atual
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "history"] });
       toast({
         title: "Execução concluída",
         description: "A venda foi marcada como 'Concluída'",
       });
-      onClose();
+      // Não fechar a tela automaticamente
     },
     onError: (error: Error) => {
       toast({
