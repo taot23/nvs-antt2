@@ -465,6 +465,7 @@ export default function SaleOperationDialog({
   });
 
   // Mutation para atualizar o tipo de execução quando a venda está em andamento
+  const handleMainAction = () => {
   const updateExecutionTypeMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
@@ -492,9 +493,21 @@ export default function SaleOperationDialog({
         throw new Error(error.message || "Erro ao atualizar tipo de execução");
       }
       
-      // Se temos prestadores selecionados, atualizamos
-      if (selectedServiceProviderIds.length > 0) {
+      // Se a opção de prestadores parceiros estiver marcada
+      if (hasPrestadorParceiro) {
+        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
+        if (selectedServiceProviderIds.length === 0) {
+          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
+        }
+        
+        // Atualizar os prestadores selecionados
         await updateServiceProvidersMutation.mutateAsync();
+      } else {
+        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
+        if (saleServiceProviders.length > 0) {
+          setSelectedServiceProviderIds([]);
+          await updateServiceProvidersMutation.mutateAsync();
+        }
       }
       
       return await response.json();
@@ -514,11 +527,7 @@ export default function SaleOperationDialog({
         variant: "destructive",
       });
     },
-  });
-
-  // Manipulador para ações baseadas no status da venda
-  const handleMainAction = () => {
-    if (!sale) return;
+  });    if (!sale) return;
     
     if (sale.status === "pending" || sale.status === "corrected") {
       startExecutionMutation.mutate();
