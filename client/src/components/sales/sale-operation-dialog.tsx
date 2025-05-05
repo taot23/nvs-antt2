@@ -755,7 +755,7 @@ export default function SaleOperationDialog({
                               id="hasParceiro"
                               checked={hasPrestadorParceiro}
                               onCheckedChange={(checked) => setHasPrestadorParceiro(!!checked)}
-                              disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                              disabled={enrichedSale.status === "completed"}
                             />
                             <Label htmlFor="hasParceiro">Possui prestadores de serviço parceiros</Label>
                           </div>
@@ -847,11 +847,15 @@ export default function SaleOperationDialog({
                         ) : (
                           saleItems.map((item: any) => (
                             <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.serviceName}</TableCell>
-                              <TableCell>{item.serviceTypeName}</TableCell>
+                              <TableCell className="font-medium">
+                                {services.find((s: any) => s.id === item.serviceId)?.name || `Serviço #${item.serviceId}`}
+                              </TableCell>
+                              <TableCell>
+                                {serviceTypes.find((t: any) => t.id === item.serviceTypeId)?.name || `Tipo #${item.serviceTypeId}`}
+                              </TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell className="text-right">
-                                R$ {parseFloat(item.totalPrice).toFixed(2).replace('.', ',')}
+                                R$ {parseFloat(item.totalPrice || '0').toFixed(2).replace('.', ',')}
                               </TableCell>
                             </TableRow>
                           ))
