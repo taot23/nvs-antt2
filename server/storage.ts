@@ -726,8 +726,46 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSale(id: number): Promise<Sale | undefined> {
-    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
-    return sale || undefined;
+    try {
+      // Obter a venda com o vendedor e cliente usando SQL nativo para maior controle
+      const result = await pool.query(`
+        SELECT 
+          s.*, 
+          u.id as seller_id, u.username as seller_username, u.role as seller_role,
+          c.id as customer_id, c.name as customer_name, c.document as customer_document,
+          c.contact as customer_contact, c.address as customer_address
+        FROM sales s
+        LEFT JOIN users u ON s.seller_id = u.id
+        LEFT JOIN customers c ON s.customer_id = c.id
+        WHERE s.id = $1
+      `, [id]);
+      
+      if (result.rows.length === 0) {
+        return undefined;
+      }
+      
+      const sale = result.rows[0];
+      
+      // Estruturar os dados de vendedor e cliente de forma aninhada
+      return {
+        ...sale,
+        seller: {
+          id: sale.seller_id,
+          username: sale.seller_username,
+          role: sale.seller_role
+        },
+        customer: {
+          id: sale.customer_id,
+          name: sale.customer_name,
+          document: sale.customer_document,
+          contact: sale.customer_contact,
+          address: sale.customer_address
+        }
+      } as any; // usar 'as any' para contornar problemas de tipagem
+    } catch (error) {
+      console.error("Erro ao obter venda:", error);
+      return undefined;
+    }
   }
 
   async getSaleByOrderNumber(orderNumber: string): Promise<Sale | undefined> {

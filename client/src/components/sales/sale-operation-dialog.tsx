@@ -275,7 +275,7 @@ export default function SaleOperationDialog({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao iniciar execução da venda");
+        throw new Error(error.error || error.message || "Erro ao iniciar execução da venda");
       }
       
       return await response.json();
@@ -312,7 +312,7 @@ export default function SaleOperationDialog({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao completar execução da venda");
+        throw new Error(error.error || error.message || "Erro ao completar execução da venda");
       }
       
       return await response.json();
@@ -349,7 +349,7 @@ export default function SaleOperationDialog({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao devolver a venda");
+        throw new Error(error.error || error.message || "Erro ao devolver a venda");
       }
       
       return await response.json();
@@ -386,7 +386,7 @@ export default function SaleOperationDialog({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao marcar como corrigida");
+        throw new Error(error.error || error.message || "Erro ao marcar como corrigida");
       }
       
       return await response.json();
@@ -434,7 +434,7 @@ export default function SaleOperationDialog({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao atualizar tipo de execução");
+        throw new Error(error.error || error.message || "Erro ao atualizar tipo de execução");
       }
       
       // Se o checkbox não está marcado, zeramos a lista de prestadores
