@@ -3332,7 +3332,7 @@ export class DatabaseStorage implements IStorage {
         SELECT 
           sh.id,
           'Atualização de Status' as type,
-          CONCAT('Venda #', s.order_number, ' atualizada para ', sh.new_status) as description,
+          CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
           s.status,
           sh.created_at as date,
           s.total_amount::numeric as amount,

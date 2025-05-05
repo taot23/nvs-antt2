@@ -13,6 +13,9 @@ export interface FinancialOverview {
   totalAmount: number;
   paidAmount: number;
   pendingAmount: number;
+  operationalCosts: number;
+  profit?: number;
+  margin?: number;
   trend?: number;
 }
 
