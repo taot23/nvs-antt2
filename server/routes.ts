@@ -1349,6 +1349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           s.*, 
           c.name as customer_name,
           COALESCE(u.username, 'Desconhecido') as seller_name,
+          s.return_reason as return_reason,
           (
             SELECT COALESCE(SUM(amount::numeric), 0)
             FROM sale_installments
@@ -1463,6 +1464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           date: row.date,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
+          returnReason: row.return_reason, // Incluir o motivo da devolução
           // Adicionar resumo financeiro quando solicitado pelo financeiro ou explicitamente pelo parâmetro includeSummary
           financialSummary: (financialStatus !== undefined || includeSummary) ? {
             totalAmount,
