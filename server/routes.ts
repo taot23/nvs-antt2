@@ -2763,6 +2763,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
+      // Importar função de log de depuração
+      const { logDebug } = await import("./db");
+      
+      // Registrar início do processo de conclusão
+      await logDebug("complete-execution", `Iniciando conclusão da venda #${id}`, { userId: req.user?.id });
+      
       const sale = await storage.getSale(id);
       if (!sale) {
         return res.status(404).json({ error: "Venda não encontrada" });
@@ -2776,19 +2782,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Concluir execução da venda
+      // Verificar prestadores de serviço ANTES da conclusão
+      const providersBeforeCompletion = await storage.getSaleServiceProviders(id);
+      await logDebug("complete-execution", `Prestadores ANTES da conclusão: ${providersBeforeCompletion.length}`, 
+        { providers: providersBeforeCompletion }
+      );
+      
+      // Se existirem prestadores, registrar IDs para preservar durante a transação
+      const serviceProviderIds = providersBeforeCompletion.map(p => p.serviceProviderId);
+      
+      // Concluir execução da venda (nosso método agora usa transação para preservar dados)
       const updatedSale = await storage.completeSaleExecution(id, req.user!.id);
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
       }
       
-      // NOTA: Os prestadores de serviço já devem ter sido atualizados pelo cliente antes de chamar esta rota
-      // Verificamos se existem prestadores de serviço para manter durante a conclusão
-      const saleProviders = await storage.getSaleServiceProviders(id);
-      if (saleProviders.length === 0) {
-        console.log(`Nenhum prestador de serviço encontrado para a venda #${id} na conclusão.`);
-      } else {
-        console.log(`${saleProviders.length} prestadores de serviço encontrados para a venda #${id} na conclusão.`);
+      // Verificar prestadores de serviço APÓS a conclusão
+      const providersAfterCompletion = await storage.getSaleServiceProviders(id);
+      await logDebug("complete-execution", `Prestadores APÓS a conclusão: ${providersAfterCompletion.length}`, 
+        { providers: providersAfterCompletion }
+      );
+      
+      // Se existia prestadores antes mas não existem mais após a conclusão, tentar restaurar
+      if (providersBeforeCompletion.length > 0 && providersAfterCompletion.length === 0) {
+        await logDebug("complete-execution", `Tentando restaurar ${serviceProviderIds.length} prestadores perdidos`, 
+          { serviceProviderIds }
+        );
+        
+        // Tentar restaurar prestadores perdidos
+        if (serviceProviderIds.length > 0) {
+          await storage.updateSaleServiceProviders(id, serviceProviderIds);
+          
+          // Verificar se a restauração funcionou
+          const restoredProviders = await storage.getSaleServiceProviders(id);
+          await logDebug("complete-execution", `Prestadores APÓS restauração: ${restoredProviders.length}`, 
+            { providers: restoredProviders }
+          );
+        }
       }
       
       // Notificar todos os clientes sobre a atualização da venda
