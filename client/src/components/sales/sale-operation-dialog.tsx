@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Table,
   TableBody,
@@ -22,46 +23,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft, FileCheck, Settings2, Users, Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/use-auth";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { FormControl } from "@/components/ui/form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ArrowLeft, CheckCircle2, RotateCcw, Send, Truck, Ban, Calendar } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
-// Função para obter a descrição do status
 function getStatusLabel(status: string) {
   switch (status) {
-    case 'pending': return 'Pendente';
-    case 'in_progress': return 'Em Andamento';
-    case 'returned': return 'Devolvida';
-    case 'completed': return 'Concluída';
-    case 'canceled': return 'Cancelada';
-    case 'corrected': return 'Corrigida Aguardando Operacional';
-    default: return status;
+    case "pending": return "Pendente";
+    case "in_progress": return "Em Execução";
+    case "completed": return "Concluído";
+    case "returned": return "Devolvido";
+    case "corrected": return "Corrigido";
+    default: return "Desconhecido";
   }
 }
 
-// Função para obter a cor do status
 function getStatusVariant(status: string) {
   switch (status) {
-    case 'pending': return 'warning';
-    case 'in_progress': return 'secondary';
-    case 'returned': return 'destructive';
-    case 'completed': return 'success';
-    case 'canceled': return 'outline';
-    case 'corrected': return 'primary';
-    default: return 'default';
+    case "pending": return "default";
+    case "in_progress": return "warning";
+    case "completed": return "success";
+    case "returned": return "destructive";
+    case "corrected": return "secondary";
+    default: return "default";
   }
 }
 
@@ -94,32 +86,68 @@ export default function SaleOperationDialog({
       console.log(`[SaleOperationDialog] Cache de histórico limpo para venda #${saleId}`);
     }
   }, [open, saleId]);
-
-  // Query para obter os detalhes da venda
+  
+  // Query para obter dados principais da venda
   const { data: sale, isLoading: saleLoading } = useQuery({
     queryKey: ["/api/sales", saleId],
     queryFn: async () => {
       if (!saleId) return null;
       const response = await fetch(`/api/sales/${saleId}`);
       if (!response.ok) {
-        throw new Error("Erro ao carregar venda");
+        throw new Error("Erro ao carregar dados da venda");
       }
-      const saleData = await response.json();
-      
-      // Adicionar logs para debug - verifica se a OS 12 tem o status correto
-      if(saleData?.orderNumber === "12") {
-        console.log("ENCONTRADA OS 12:", saleData);
-        console.log("Status da OS 12:", saleData.status);
-        console.log("Perfil do usuário atual:", user?.role);
-      }
-      
-      return saleData;
+      return response.json();
     },
     enabled: !!saleId && open,
   });
-
-  // Query para obter os itens da venda
-  const { data: items = [], isLoading: itemsLoading } = useQuery({
+  
+  // Query para obter prestadores de serviço já associados a esta venda
+  const { data: saleServiceProviders = [] } = useQuery({
+    queryKey: ["/api/sales", saleId, "service-providers"],
+    queryFn: async () => {
+      if (!saleId) return [];
+      const response = await fetch(`/api/sales/${saleId}/service-providers`);
+      if (!response.ok) {
+        return [];
+      }
+      return response.json();
+    },
+    enabled: !!saleId && open,
+  });
+  
+  // Mutation para atualizar prestadores de serviço
+  const updateServiceProvidersMutation = useMutation({
+    mutationFn: async () => {
+      if (!saleId) throw new Error("ID da venda não fornecido");
+      
+      const response = await fetch(`/api/sales/${saleId}/service-providers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar prestadores de serviço");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "service-providers"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar prestadores",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Query para obter itens da venda
+  const { data: saleItems = [], isLoading: itemsLoading } = useQuery({
     queryKey: ["/api/sales", saleId, "items"],
     queryFn: async () => {
       if (!saleId) return [];
@@ -131,7 +159,7 @@ export default function SaleOperationDialog({
     },
     enabled: !!saleId && open,
   });
-
+  
   // Query para obter o histórico de status
   const { data: statusHistory = [], isLoading: historyLoading } = useQuery({
     queryKey: ["/api/sales", saleId, "history"],
@@ -149,7 +177,7 @@ export default function SaleOperationDialog({
     },
     enabled: !!saleId && open,
   });
-
+  
   // Query para obter dados complementares
   const { data: services = [] } = useQuery({
     queryKey: ["/api/services"],
@@ -162,31 +190,7 @@ export default function SaleOperationDialog({
     },
     enabled: open,
   });
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ["/api/customers"],
-    queryFn: async () => {
-      const response = await fetch("/api/customers");
-      if (!response.ok) {
-        throw new Error("Erro ao carregar clientes");
-      }
-      return response.json();
-    },
-    enabled: open,
-  });
-
-  const { data: users = [] } = useQuery({
-    queryKey: ["/api/users"],
-    queryFn: async () => {
-      const response = await fetch("/api/users");
-      if (!response.ok) {
-        throw new Error("Erro ao carregar usuários");
-      }
-      return response.json();
-    },
-    enabled: open,
-  });
-
+  
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["/api/service-types"],
     queryFn: async () => {
@@ -199,7 +203,6 @@ export default function SaleOperationDialog({
     enabled: open,
   });
   
-  // Query para obter todos os prestadores de serviço
   const { data: serviceProviders = [] } = useQuery({
     queryKey: ["/api/service-providers"],
     queryFn: async () => {
@@ -209,24 +212,19 @@ export default function SaleOperationDialog({
       }
       return response.json();
     },
-    enabled: open && showServiceProviderField,
+    enabled: open,
   });
   
-  // Query para obter os prestadores de serviço associados à venda
-  const { data: saleServiceProviders = [], isLoading: saleServiceProvidersLoading } = useQuery({
-    queryKey: ["/api/sales", saleId, "service-providers"],
-    queryFn: async () => {
-      if (!saleId) return [];
-      const response = await fetch(`/api/sales/${saleId}/service-providers`);
-      if (!response.ok) {
-        throw new Error("Erro ao carregar prestadores de serviço da venda");
+  // Dados da venda enriquecidos
+  const enrichedSale = sale
+    ? {
+        ...sale,
+        sellerName: sale.sellerName || "Não informado",
+        customerName: sale.customerName || "Não informado",
+        serviceTypeName: serviceTypes.find((type: any) => type.id === sale.serviceTypeId)?.name,
+        serviceProviderName: serviceProviders.find((provider: any) => provider.id === sale.serviceProviderId)?.name,
       }
-      return response.json();
-    },
-    enabled: !!saleId && open && showServiceProviderField,
-  });
-
-  // Mutation para iniciar a execução da venda
+    : null;
 
   const startExecutionMutation = useMutation({
     mutationFn: async () => {
@@ -279,8 +277,9 @@ export default function SaleOperationDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
       toast({
         title: "Execução iniciada",
-        description: "A execução da venda foi iniciada com sucesso",
+        description: "A venda foi movida para o status 'Em Execução'",
       });
+      onClose();
     },
     onError: (error: Error) => {
       toast({
@@ -289,7 +288,8 @@ export default function SaleOperationDialog({
         variant: "destructive",
       });
     },
-  });  // Mutation para completar a execução da venda
+  });
+  
   const completeExecutionMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
@@ -304,7 +304,7 @@ export default function SaleOperationDialog({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao concluir execução da venda");
+        throw new Error(error.message || "Erro ao completar execução da venda");
       }
       
       return await response.json();
@@ -314,8 +314,9 @@ export default function SaleOperationDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
       toast({
         title: "Execução concluída",
-        description: "A execução da venda foi concluída com sucesso",
+        description: "A venda foi marcada como 'Concluída'",
       });
+      onClose();
     },
     onError: (error: Error) => {
       toast({
@@ -325,61 +326,22 @@ export default function SaleOperationDialog({
       });
     },
   });
-
-  // Mutation para marcar uma venda como corrigida (supervisor)
-  const markAsCorrectedMutation = useMutation({
-    mutationFn: async () => {
-      if (!saleId) throw new Error("ID da venda não fornecido");
-      
-      const response = await fetch(`/api/sales/${saleId}/mark-as-corrected`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        }
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao marcar venda como corrigida");
-      }
-      
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
-      toast({
-        title: "Venda marcada como corrigida",
-        description: "A venda foi marcada como corrigida e está disponível para o operacional",
-      });
-      onClose();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao marcar venda como corrigida",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
   
-  // Mutation para devolver a venda para o vendedor
   const returnToSellerMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
-      if (!returnReason.trim()) throw new Error("É necessário informar o motivo da devolução");
       
-      const response = await fetch(`/api/sales/${saleId}/return`, {
+      const response = await fetch(`/api/sales/${saleId}/return-to-seller`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ reason: returnReason }),
+        body: JSON.stringify({ returnReason }),
       });
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao devolver venda para correção");
+        throw new Error(error.message || "Erro ao devolver a venda");
       }
       
       return await response.json();
@@ -387,11 +349,9 @@ export default function SaleOperationDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
-      setReturnReason("");
-      setIsReturning(false);
       toast({
         title: "Venda devolvida",
-        description: "A venda foi devolvida para o vendedor para correções",
+        description: "A venda foi devolvida ao vendedor para correção",
       });
       onClose();
     },
@@ -403,69 +363,45 @@ export default function SaleOperationDialog({
       });
     },
   });
-
-  // Enriquecer dados da venda com nomes
-  const enrichedSale = sale ? {
-    ...sale,
-    customerName: customers.find((c: any) => c.id === sale.customerId)?.name || `Cliente #${sale.customerId}`,
-    sellerName: users.find((u: any) => u.id === sale.sellerId)?.username || `Vendedor #${sale.sellerId}`,
-    serviceTypeName: serviceTypes.find((t: any) => t.id === sale.serviceTypeId)?.name || `Tipo #${sale.serviceTypeId}`,
-  } : null;
-
-  // Enriquecer itens com nomes dos serviços
-  const enrichedItems = items.map((item: any) => ({
-    ...item,
-    serviceName: services.find((s: any) => s.id === item.serviceId)?.name || `Serviço #${item.serviceId}`,
-  }));
-
-  // Verificar se o usuário tem permissão para executar ações operacionais
-  const canPerformOperations = user?.role === "admin" || user?.role === "operacional" || user?.role === "supervisor";
   
-  console.log("Permissões do usuário:", {
-    username: user?.username,
-    role: user?.role,
-    canPerformOperations,
-    dialogSaleId: saleId
-  });
-
-  // Mutation para atualizar os prestadores de serviço de uma venda
-  const updateServiceProvidersMutation = useMutation({
+  const markAsCorrectedMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
-      const response = await fetch(`/api/sales/${saleId}/service-providers`, {
-        method: "PUT",
+      const response = await fetch(`/api/sales/${saleId}/mark-as-corrected`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
+        body: JSON.stringify({}),
       });
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Erro ao atualizar prestadores de serviço");
+        throw new Error(error.message || "Erro ao marcar como corrigida");
       }
       
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "service-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
       toast({
-        title: "Prestadores de serviço atualizados",
-        description: "Os prestadores de serviço foram atualizados com sucesso",
+        title: "Venda corrigida",
+        description: "A venda foi marcada como corrigida e está pronta para execução",
       });
+      onClose();
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao atualizar prestadores de serviço",
+        title: "Erro ao marcar como corrigida",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  // Mutation para atualizar o tipo de execução quando a venda está em andamento
-  const handleMainAction = () => {
+  
+  // Manipulador para ações baseadas no status da venda
   const updateExecutionTypeMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
@@ -527,7 +463,10 @@ export default function SaleOperationDialog({
         variant: "destructive",
       });
     },
-  });    if (!sale) return;
+  });
+  
+  const handleMainAction = () => {
+    if (!sale) return;
     
     if (sale.status === "pending" || sale.status === "corrected") {
       startExecutionMutation.mutate();
@@ -542,7 +481,7 @@ export default function SaleOperationDialog({
       updateExecutionTypeMutation.mutate();
     }
   };
-
+  
   // Manipulador para devolver a venda
   const handleReturnSale = () => {
     if (returnReason.trim() === "") {
@@ -780,112 +719,100 @@ export default function SaleOperationDialog({
               <TabsContent value="execution">
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle>Detalhes da Execução</CardTitle>
+                    <CardTitle>Configuração de Execução</CardTitle>
                     <CardDescription>
-                      Informações sobre como o serviço será executado
+                      Defina os parâmetros de execução da venda
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6">
-                      {/* Tipo de Execução */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium">Tipo de Execução</h3>
-                        <div className="bg-muted p-3 rounded-md flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CornerDownRight className="h-5 w-5 text-primary" />
-                            <span className="font-medium">
-                              {selectedServiceTypeId 
-                                ? serviceTypes.find((t: any) => t.id === selectedServiceTypeId)?.name
-                                : enrichedSale.serviceTypeName || "Não definido"}
-                            </span>
-                          </div>
-                          {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && canPerformOperations && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setActiveTab("summary")}
-                              className="text-xs"
-                            >
-                              <Settings2 className="h-3 w-3 mr-1" />
-                              Alterar
-                            </Button>
-                          )}
-                        </div>
+                  <CardContent className="grid gap-4">
+                    <div className="space-y-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="serviceType">Tipo de Serviço</Label>
+                        <Select 
+                          value={selectedServiceTypeId?.toString()} 
+                          onValueChange={handleServiceTypeChange}
+                          disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um tipo de serviço" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceTypes.map((type: any) => (
+                              <SelectItem key={type.id} value={type.id.toString()}>
+                                {type.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       
-                      {/* Prestadores Parceiros */}
-                      {(showServiceProviderField || enrichedSale.serviceProviderId || saleServiceProviders.length > 0) && (
-                        <div className="space-y-3">
-                          <h3 className="text-sm font-medium">Prestadores de Serviço Parceiros</h3>
-                          <div className="bg-muted p-3 rounded-md">
-                            <div className="flex items-start gap-2">
-                              <Users className="h-5 w-5 text-primary mt-0.5" />
+                      {showServiceProviderField && (
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="hasParceiro"
+                              checked={hasPrestadorParceiro}
+                              onCheckedChange={(checked) => setHasPrestadorParceiro(!!checked)}
+                              disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                            />
+                            <Label htmlFor="hasParceiro">Possui prestadores de serviço parceiros</Label>
+                          </div>
+                          
+                          {hasPrestadorParceiro && (
+                            <div className="grid gap-2 mt-3 pl-6">
+                              <Label>Selecione os Prestadores de Serviço</Label>
                               <div className="flex flex-col">
                                 {selectedServiceProviderIds.length > 0 ? (
                                   <div className="space-y-1">
-                                    {selectedServiceProviderIds.map(id => (
-                                      <div key={id} className="font-medium">
-                                        {serviceProviders.find((p: any) => p.id === id)?.name || `Prestador #${id}`}
+                                    {serviceProviders.map((provider: any) => (
+                                      <div key={provider.id} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                          id={`provider-${provider.id}`}
+                                          checked={selectedServiceProviderIds.includes(provider.id)}
+                                          onCheckedChange={() => handleServiceProviderToggle(provider.id)}
+                                          disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                                        />
+                                        <Label htmlFor={`provider-${provider.id}`}>{provider.name}</Label>
                                       </div>
                                     ))}
-                                  </div>
-                                ) : saleServiceProviders.length > 0 ? (
-                                  <div className="space-y-1">
-                                    {saleServiceProviders.map((sp: any) => (
-                                      <div key={sp.providerId} className="font-medium">
-                                        {serviceProviders.find((p: any) => p.id === sp.providerId)?.name || `Prestador #${sp.providerId}`}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : enrichedSale.serviceProviderId ? (
-                                  <div className="font-medium">
-                                    {serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"}
                                   </div>
                                 ) : (
-                                  <div className="font-medium">Não selecionado</div>
+                                  <div className="space-y-1">
+                                    {serviceProviders.map((provider: any) => (
+                                      <div key={provider.id} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                          id={`provider-${provider.id}`}
+                                          checked={selectedServiceProviderIds.includes(provider.id)}
+                                          onCheckedChange={() => handleServiceProviderToggle(provider.id)}
+                                          disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected")}
+                                        />
+                                        <Label htmlFor={`provider-${provider.id}`}>{provider.name}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
                             </div>
-                            
-                            {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && 
-                             showServiceProviderField && 
-                             canPerformOperations && (
-                              <div className="flex justify-end mt-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => setActiveTab("summary")}
-                                  className="text-xs"
-                                >
-                                  <Settings2 className="h-3 w-3 mr-1" />
-                                  Alterar
-                                </Button>
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
                       )}
-                      
-                      {/* Status atual */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium">Status Atual</h3>
-                        <div className="bg-muted p-3 rounded-md">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={getStatusVariant(enrichedSale.status) as any} className="ml-0">
-                              {getStatusLabel(enrichedSale.status)}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {enrichedSale.status === "pending" && "Aguardando início da execução"}
-                              {enrichedSale.status === "in_progress" && "Em processamento pelo operacional"}
-                              {enrichedSale.status === "completed" && "Execução finalizada, aguardando financeiro"}
-                              {enrichedSale.status === "returned" && "Devolvida para correção pelo vendedor"}
-                              {enrichedSale.status === "corrected" && "Corrigida pelo vendedor, aguardando nova análise"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </CardContent>
+                  <CardFooter>
+                    <Button 
+                      onClick={handleUpdateExecutionType}
+                      variant="outline"
+                      disabled={(enrichedSale.status !== "pending" && enrichedSale.status !== "corrected") || 
+                        updateExecutionTypeMutation.isPending}
+                      className="mr-2"
+                    >
+                      {updateExecutionTypeMutation.isPending ? (
+                        "Atualizando..."
+                      ) : (
+                        "Atualizar Tipo de Execução"
+                      )}
+                    </Button>
+                  </CardFooter>
                 </Card>
               </TabsContent>
               
@@ -895,7 +822,7 @@ export default function SaleOperationDialog({
                   <CardHeader className="pb-3">
                     <CardTitle>Itens da Venda</CardTitle>
                     <CardDescription>
-                      Serviços inclusos nesta venda
+                      Serviços e produtos incluídos nesta venda
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -903,31 +830,34 @@ export default function SaleOperationDialog({
                       <TableHeader>
                         <TableRow>
                           <TableHead>Serviço</TableHead>
-                          <TableHead className="text-right">Qtd</TableHead>
-                          <TableHead className="text-right">Observações</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Quantidade</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {enrichedItems.length === 0 ? (
+                        {saleItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-center">
+                            <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                               Nenhum item encontrado
                             </TableCell>
                           </TableRow>
                         ) : (
-                          enrichedItems.map((item: any) => (
+                          saleItems.map((item: any) => (
                             <TableRow key={item.id}>
-                              <TableCell>
-                                <div className="font-medium">{item.serviceName}</div>
-                              </TableCell>
-                              <TableCell className="text-right">{item.quantity}</TableCell>
+                              <TableCell className="font-medium">{item.serviceName}</TableCell>
+                              <TableCell>{item.serviceTypeName}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
                               <TableCell className="text-right">
-                                {item.notes || "-"}
+                                R$ {parseFloat(item.totalPrice).toFixed(2).replace('.', ',')}
                               </TableCell>
                             </TableRow>
                           ))
                         )}
                       </TableBody>
+                      <TableCaption>
+                        Total: R$ {enrichedSale ? parseFloat(enrichedSale.totalAmount).toFixed(2).replace('.', ',') : "0,00"}
+                      </TableCaption>
                     </Table>
                   </CardContent>
                 </Card>
@@ -939,324 +869,150 @@ export default function SaleOperationDialog({
                   <CardHeader className="pb-3">
                     <CardTitle>Histórico de Status</CardTitle>
                     <CardDescription>
-                      Registros de mudanças de status da venda
+                      Timeline de alterações de status desta venda
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {statusHistory.length === 0 ? (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">Nenhum registro de histórico encontrado</p>
-                      </div>
-                    ) : (
-                      <div className="relative pl-6 border-l border-border">
-                        {statusHistory.map((record: any, index: number) => (
-                          <div key={record.id} className="mb-4 relative">
-                            <div className="absolute -left-[28px] h-8 w-8 bg-background rounded-full flex items-center justify-center border border-border">
-                              {record.toStatus === "pending" && <Clock className="h-4 w-4 text-warning" />}
-                              {record.toStatus === "in_progress" && <CornerDownRight className="h-4 w-4 text-secondary" />}
-                              {record.toStatus === "completed" && <CheckCircle2 className="h-4 w-4 text-success" />}
-                              {record.toStatus === "returned" && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                              {record.toStatus === "corrected" && <FileCheck className="h-4 w-4 text-primary" />}
-                            </div>
-                            <div className="bg-muted p-3 rounded">
-                              <div className="flex justify-between items-start mb-1">
-                                <div>
-                                  <Badge variant={getStatusVariant(record.toStatus) as any} className="mb-1">
-                                    {getStatusLabel(record.toStatus)}
-                                  </Badge>
-                                  <p className="text-xs text-muted-foreground">
-                                    Alterado de: {getStatusLabel(record.fromStatus)}
-                                  </p>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(record.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                                </p>
+                    <div className="space-y-4">
+                      {statusHistory.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">
+                          Nenhum registro de histórico encontrado
+                        </p>
+                      ) : (
+                        <div className="space-y-4">
+                          {statusHistory.map((record: any, idx: number) => (
+                            <div key={record.id} className="flex items-start space-x-4 pb-4 border-b border-border/60 last:border-0">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mt-1 ${
+                                record.toStatus === "completed" ? "bg-green-100 text-green-600" :
+                                record.toStatus === "in_progress" ? "bg-yellow-100 text-yellow-600" :
+                                record.toStatus === "returned" ? "bg-red-100 text-red-600" :
+                                "bg-gray-100 text-gray-600"
+                              }`}>
+                                {record.toStatus === "completed" ? (
+                                  <CheckCircle2 className="h-5 w-5" />
+                                ) : record.toStatus === "in_progress" ? (
+                                  <Truck className="h-5 w-5" />
+                                ) : record.toStatus === "returned" ? (
+                                  <Ban className="h-5 w-5" />
+                                ) : (
+                                  <Calendar className="h-5 w-5" />
+                                )}
                               </div>
-                              <p className="text-sm mt-1">
-                                {record.notes || "Nenhuma observação"}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Por: {users.find((u: any) => u.id === record.userId)?.username || `Usuário #${record.userId}`}
-                              </p>
+                              <div className="flex-1">
+                                <div className="flex justify-between mb-1">
+                                  <span className="font-medium">
+                                    {record.toStatus ? (
+                                      <>
+                                        Status alterado para <Badge variant={getStatusVariant(record.toStatus) as any}>{getStatusLabel(record.toStatus)}</Badge>
+                                      </>
+                                    ) : (
+                                      "Venda registrada"
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {record.timestamp ? format(new Date(record.timestamp), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "-"}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {record.fromStatus ? (
+                                    <>
+                                      Status anterior: <Badge variant="outline">{getStatusLabel(record.fromStatus)}</Badge>
+                                    </>
+                                  ) : null}
+                                </div>
+                                {record.notes && (
+                                  <p className="mt-1 text-sm">
+                                    {record.notes}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
             
-            {/* Configuração do tipo de execução quando pendente, em andamento ou corrigida */}
-            {/* Botão para supervisor marcar venda como corrigida quando status é "returned" */}
-            {console.log("OS 12 - Condição para exibir Card:", {
-              canPerformOperations,
-              isReturning,
-              status: enrichedSale?.status,
-              userRole: user?.role,
-              showCard: canPerformOperations && !isReturning && enrichedSale?.status === "returned" && user?.role === "supervisor"
-            })}
-            {console.log("LOG CARD SUPERVISOR:", {
-              status: sale?.status,
-              userRole: user?.role,
-              isReturning,
-              canPerformOperations
-            })}
-            {sale?.status === "returned" && user?.role === "supervisor" && !isReturning && (
-              <Card className="mt-6 mb-4">
-                <CardHeader className="pb-3">
-                  <CardTitle>Marcar como Corrigida</CardTitle>
-                  <CardDescription>
-                    Marque esta venda como corrigida para continuar com o processamento
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm">
-                    Ao marcar esta venda como corrigida, ela será considerada pronta para processamento pelo setor operacional. 
-                    Use esta função quando verificar que as correções necessárias foram implementadas.
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    className="w-full" 
-                    onClick={handleMarkAsCorrected}
-                    disabled={markAsCorrectedMutation.isPending}
-                  >
-                    {markAsCorrectedMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processando...
-                      </>
-                    ) : (
-                      <>
-                        <FileCheck className="mr-2 h-4 w-4" />
-                        Marcar como Corrigida
-                      </>
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
-            )}
-            
-            {canPerformOperations && !isReturning && (sale?.status === "pending" || sale?.status === "in_progress" || sale?.status === "corrected") && (
-              <Card className="mt-6 mb-4">
-                <CardHeader className="pb-3">
-                  <CardTitle>Configuração da Execução</CardTitle>
-                  <CardDescription>
-                    Defina como a venda será executada
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div>
-                    <Label htmlFor="service-type" className="text-sm font-medium mb-2 block">
-                      Tipo de Execução
-                    </Label>
-                    <Select 
-                      value={selectedServiceTypeId?.toString() || ''} 
-                      onValueChange={handleServiceTypeChange}
-                    >
-                      <SelectTrigger id="service-type">
-                        <SelectValue placeholder="Selecione o tipo de execução" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {serviceTypes.map((type: any) => (
-                          <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {/* Checkbox para indicar se a venda tem prestadores parceiros */}
-                  <div className="flex items-center space-x-2 mt-4 mb-2">
-                    <Checkbox 
-                      id="hasPrestadorParceiro"
-                      checked={hasPrestadorParceiro}
-                      onCheckedChange={(checked) => {
-                        setHasPrestadorParceiro(!!checked);
-                        if (!checked) {
-                          setSelectedServiceProviderIds([]);
-                        }
-                      }}
-                    />
-                    <label 
-                      htmlFor="hasPrestadorParceiro"
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      Possui prestadores de serviço parceiros
-                    </label>
-                  </div>
-
-                  {/* Mostrar campo para selecionar prestadores de serviço somente se a opção estiver marcada */}
-                  {showServiceProviderField && hasPrestadorParceiro && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm font-medium">
-                          Prestadores de Serviço Parceiros
-                        </Label>
-                        <span className="text-xs text-primary">Selecione um ou mais</span>
-                      </div>
-                      <div className="border rounded-md p-3 space-y-2">
-                        {serviceProviders
-                          .filter((provider: any) => provider.active)
-                          .map((provider: any) => (
-                            <div key={provider.id} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`provider-${provider.id}`} 
-                                checked={selectedServiceProviderIds.includes(provider.id)}
-                                onCheckedChange={() => handleServiceProviderToggle(provider.id)}
-                              />
-                              <label 
-                                htmlFor={`provider-${provider.id}`}
-                                className="text-sm cursor-pointer w-full"
-                              >
-                                {provider.name}
-                              </label>
-                            </div>
-                          ))}
-                      </div>
-                      {selectedServiceProviderIds.length === 0 && (
-                        <p className="text-xs text-destructive mt-1">
-                          Selecione pelo menos um prestador parceiro
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-                {sale?.status === "in_progress" && (
-                  <CardFooter>
-                    <Button
-                      type="button"
-                      onClick={handleUpdateExecutionType}
-                      disabled={
-                        updateExecutionTypeMutation.isPending
-                      }
-                      className="w-full"
-                    >
-                      {updateExecutionTypeMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Atualizando...
-                        </>
-                      ) : (
-                        <>
-                          <Settings2 className="mr-2 h-4 w-4" />
-                          Atualizar Tipo de Execução
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                )}
-              </Card>
-            )}
-
-            {isReturning ? (
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <h3 className="text-base font-medium">Devolver para o vendedor</h3>
-                </div>
-                <Textarea
-                  placeholder="Informe o motivo da devolução..."
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  className="min-h-24"
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsReturning(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleReturnSale}
-                    disabled={returnToSellerMutation.isPending || !returnReason.trim()}
-                  >
-                    {returnToSellerMutation.isPending ? "Enviando..." : "Devolver para Correção"}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <DialogFooter className="gap-2 sm:gap-0 mt-6">
-                {canPerformOperations && (
+            {/* Ações no rodapé */}
+            {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "returned" || enrichedSale.status === "corrected") && (
+              <DialogFooter className="mt-4">
+                {user?.role === "supervisor" && enrichedSale.status === "returned" && (
                   <>
-                    {/* Botão para voltar */}
                     <Button 
-                      type="button" 
                       variant="outline" 
-                      onClick={onClose}
-                      className="mr-auto"
+                      onClick={handleMarkAsCorrected}
+                      disabled={markAsCorrectedMutation.isPending}
                     >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Voltar
+                      {markAsCorrectedMutation.isPending ? "Marcando..." : "Marcar como Corrigido"}
                     </Button>
-                    
-                    {/* Botão para devolver */}
-                    {(sale?.status === "pending" || sale?.status === "in_progress") && (
-                      <Button 
-                        type="button" 
-                        variant="destructive" 
-                        onClick={() => setIsReturning(true)}
+                  </>
+                )}
+                
+                {user?.role !== "supervisor" && (
+                  <>
+                    {(user?.role === "operacional") && (enrichedSale.status === "pending" || enrichedSale.status === "corrected" || enrichedSale.status === "in_progress") && (
+                      <Button
+                        variant={isReturning ? "outline" : "destructive"}
+                        size="sm"
+                        className="mr-auto"
+                        onClick={() => setIsReturning(!isReturning)}
                       >
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Devolver para Vendedor
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Devolver ao Vendedor
                       </Button>
                     )}
                     
-                    {/* Botão para supervisores reenviarem vendas devolvidas */}
-                    {console.log("OS 12 - Condição para exibir Botão:", {
-                      saleId: saleId,
-                      saleStatus: sale?.status,
-                      enrichedStatus: enrichedSale?.status,
-                      userRole: user?.role,
-                      userName: user?.username,
-                      userId: user?.id,
-                      showButton: sale?.status === "returned" && user?.role === "supervisor",
-                      canPerformOperations: canPerformOperations
-                    })}
-                    {sale?.status === "returned" && user?.role === "supervisor" && (
-                      <Button 
-                        type="button"
-                        variant="default"
-                        onClick={handleMarkAsCorrected}
-                        disabled={markAsCorrectedMutation.isPending}
-                      >
-                        <FileCheck className="mr-2 h-4 w-4" />
-                        {markAsCorrectedMutation.isPending ? "Processando..." : "Reenviar Venda Corrigida"}
-                      </Button>
-                    )}
-                    
-                    {/* Botão para ação principal baseada no status */}
-                    {(sale?.status === "pending" || sale?.status === "corrected") && (
-                      <Button 
-                        type="button" 
+                    {isReturning ? (
+                      <div className="grid gap-2 w-full">
+                        <Label htmlFor="returnReason">Motivo da Devolução</Label>
+                        <Textarea
+                          id="returnReason"
+                          placeholder="Descreva o motivo para devolver esta venda..."
+                          value={returnReason}
+                          onChange={(e) => setReturnReason(e.target.value)}
+                          rows={2}
+                          className="mb-2"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsReturning(false)}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={handleReturnSale}
+                            disabled={returnToSellerMutation.isPending}
+                          >
+                            {returnToSellerMutation.isPending ? "Devolvendo..." : "Confirmar Devolução"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
                         onClick={handleMainAction}
                         disabled={
                           startExecutionMutation.isPending || 
-                          !selectedServiceTypeId
+                          completeExecutionMutation.isPending ||
+                          !selectedServiceTypeId ||
+                          (hasPrestadorParceiro && selectedServiceProviderIds.length === 0)
                         }
-                        className={sale?.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
-                        title={!selectedServiceTypeId 
-                          ? "É necessário selecionar um tipo de execução"
-                          : ""}
                       >
-                        <CornerDownRight className="mr-2 h-4 w-4" />
-                        {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
-                      </Button>
-                    )}
-                    
-                    {sale?.status === "in_progress" && (
-                      <Button 
-                        type="button" 
-                        onClick={handleMainAction}
-                        disabled={completeExecutionMutation.isPending}
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        {completeExecutionMutation.isPending ? "Concluindo..." : "Concluir Execução"}
+                        {enrichedSale.status === "pending" || enrichedSale.status === "corrected" ? (
+                          <>
+                            <Truck className="mr-2 h-4 w-4" />
+                            {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
+                          </>
+                        ) : enrichedSale.status === "in_progress" ? (
+                          <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {completeExecutionMutation.isPending ? "Concluindo..." : "Concluir Execução"}
+                          </>
+                        ) : null}
                       </Button>
                     )}
                   </>
