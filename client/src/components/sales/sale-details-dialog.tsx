@@ -90,6 +90,21 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
     enabled: !!saleId
   });
   
+  // Consulta para obter os prestadores de serviço da venda
+  const { data: serviceProviders = [], isLoading: isLoadingProviders } = useQuery({
+    queryKey: ["/api/sales", saleId, "service-providers"],
+    queryFn: async () => {
+      if (!saleId) return [];
+      const response = await fetch(`/api/sales/${saleId}/service-providers`);
+      if (!response.ok) {
+        console.error(`[SaleDetailsDialog] Erro ao carregar prestadores: ${response.status}`);
+        return [];
+      }
+      return response.json();
+    },
+    enabled: !!saleId
+  });
+  
   // Consulta para obter o histórico de status da venda
   const { data: statusHistory = [], isLoading: isLoadingHistory } = useQuery({
     queryKey: ["/api/sales", saleId, "history"],
@@ -191,7 +206,7 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
   };
   
   // Verifica se está carregando os dados
-  const isLoading = isLoadingSale || isLoadingItems || isLoadingHistory;
+  const isLoading = isLoadingSale || isLoadingItems || isLoadingHistory || isLoadingProviders;
   
   // Verifica se há dados de venda para mostrar
   if (!isLoading && !sale) {
@@ -268,7 +283,22 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                       {sale.responsibleOperationalId && (
                         <div className="mt-2 text-sm">
                           <span className="font-medium text-muted-foreground">Responsável:</span>
-                          <p>{findUserName(sale.responsibleOperationalId)}</p>
+                          <div>{findUserName(sale.responsibleOperationalId)}</div>
+                        </div>
+                      )}
+                      
+                      {serviceProviders && serviceProviders.length > 0 && (
+                        <div className="mt-3 text-sm">
+                          <span className="font-medium text-muted-foreground">Prestadores:</span>
+                          <div className="mt-1">
+                            {serviceProviders.map((provider: any) => (
+                              <div key={provider.id} className="flex items-center gap-1 mb-1">
+                                <Badge variant="outline" className="px-2 py-0.5 text-xs">
+                                  {provider.name}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -286,7 +316,7 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                       {sale.responsibleFinancialId && (
                         <div className="mt-2 text-sm">
                           <span className="font-medium text-muted-foreground">Responsável:</span>
-                          <p>{findUserName(sale.responsibleFinancialId)}</p>
+                          <div>{findUserName(sale.responsibleFinancialId)}</div>
                         </div>
                       )}
                     </CardContent>
