@@ -1642,6 +1642,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Cliente e tipo de serviço são obrigatórios" 
         });
       }
+      
+      // Validação para o número da OS
+      if (!orderNumber || !orderNumber.trim()) {
+        return res.status(400).json({
+          error: "Número da OS obrigatório",
+          message: "O número da ordem de serviço precisa ser informado."
+        });
+      }
 
       // 3. Determinar o vendedor (atual ou especificado)
       const effectiveSellerId = (
@@ -1693,7 +1701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🔄 IMPLEMENTAÇÃO RADICAL: Data formatada para inserção:", formattedDate);
       
       const saleData = {
-        orderNumber: orderNumber || `OS-${Date.now()}`, // Gerar número de ordem se não fornecido
+        orderNumber: orderNumber.trim(), // Número da OS já validado anteriormente
         date: formattedDate, // Usar a data formatada como YYYY-MM-DD para evitar problemas de timezone
         customerId,
         paymentMethodId: paymentMethodId || 1, // Valor padrão
