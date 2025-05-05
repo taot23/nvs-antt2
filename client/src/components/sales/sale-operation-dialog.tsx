@@ -558,10 +558,15 @@ export default function SaleOperationDialog({
       // Extrair IDs dos prestadores associados à venda
       const ids = saleServiceProviders.map((provider: any) => provider.id);
       setSelectedServiceProviderIds(ids);
+      setHasPrestadorParceiro(true); // Se há prestadores associados, ativamos o checkbox
       console.log(`[SaleOperationDialog] Prestadores de serviço carregados: ${ids.length}`);
     } else if (sale?.serviceProviderId && showServiceProviderField) {
       // Compatibilidade com o campo antigo
       setSelectedServiceProviderIds(sale.serviceProviderId ? [sale.serviceProviderId] : []);
+      setHasPrestadorParceiro(!!sale.serviceProviderId); // Ativamos o checkbox se há um prestador legado
+    } else {
+      // Se não há prestadores, o checkbox deve ficar desmarcado por padrão
+      setHasPrestadorParceiro(false);
     }
   }, [saleServiceProviders, sale, showServiceProviderField]);
 

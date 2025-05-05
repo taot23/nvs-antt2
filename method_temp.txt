@@ -1,61 +1,62 @@
-  createSaleOperationalCost(
-    cost: InsertSaleOperationalCost,
-  ): Promise<SaleOperationalCost>;
-  updateSaleOperationalCost(
-    id: number,
-    cost: Partial<InsertSaleOperationalCost>,
-  ): Promise<SaleOperationalCost | undefined>;
-  deleteSaleOperationalCost(id: number): Promise<boolean>;
-
-  // Payment Receipt methods
-  getSalePaymentReceipts(installmentId: number): Promise<SalePaymentReceipt[]>;
-  getSalePaymentReceipt(id: number): Promise<SalePaymentReceipt | undefined>;
-  createSalePaymentReceipt(
-    receipt: InsertSalePaymentReceipt,
-  ): Promise<SalePaymentReceipt>;
-  updateSalePaymentReceipt(
-    id: number,
-    receipt: Partial<InsertSalePaymentReceipt>,
-  ): Promise<SalePaymentReceipt | undefined>;
-  deleteSalePaymentReceipt(id: number): Promise<boolean>;
-
-  // Cost Types methods
-  getCostTypes(): Promise<CostType[]>;
-  getCostType(id: number): Promise<CostType | undefined>;
-  getCostTypeByName(name: string): Promise<CostType | undefined>;
-  createCostType(costType: InsertCostType): Promise<CostType>;
-  updateCostType(
-    id: number,
-    costType: Partial<InsertCostType>,
-  ): Promise<CostType | undefined>;
-  deleteCostType(id: number): Promise<boolean>;
-
-  // Gerenciar confirmação de pagamentos de parcelas
-  confirmInstallmentPayment(
-    installmentId: number,
-    userId: number,
-    paymentDate: string, // Alterado para string para preservar exatamente o formato digitado pelo usuário
-    receiptData?: { type: string; url?: string; data?: any; notes?: string },
-  ): Promise<SaleInstallment | undefined>;
-
-  // Special Sale operations
-  returnSaleToSeller(
-    saleId: number,
-    userId: number,
-    reason: string,
-  ): Promise<Sale | undefined>;
-  markSaleInProgress(
-    saleId: number,
-    operationalId: number,
-    serviceTypeId?: number,
-    serviceProviderId?: number,
-  ): Promise<Sale | undefined>;
-  completeSaleExecution(
-    saleId: number,
-    operationalId: number,
-  ): Promise<Sale | undefined>;
-  markSaleAsPaid(
-    saleId: number,
-    financialId: number,
-  ): Promise<Sale | undefined>;
-  
+  const startExecutionMutation = useMutation({
+    mutationFn: async () => {
+      if (!saleId) throw new Error("ID da venda não fornecido");
+      
+      // Validação obrigatória: tipo de serviço precisa ser selecionado
+      if (!selectedServiceTypeId) {
+        throw new Error("É necessário selecionar um tipo de execução");
+      }
+      
+      // Preparar dados para envio
+      const requestData: any = {
+        serviceTypeId: selectedServiceTypeId,
+      };
+      
+      const response = await fetch(`/api/sales/${saleId}/start-execution`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao iniciar execução da venda");
+      }
+      
+      // Se a opção de prestadores parceiros estiver marcada
+      if (hasPrestadorParceiro) {
+        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
+        if (selectedServiceProviderIds.length === 0) {
+          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
+        }
+        
+        // Atualizar os prestadores selecionados
+        await updateServiceProvidersMutation.mutateAsync();
+      } else {
+        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
+        if (saleServiceProviders.length > 0) {
+          setSelectedServiceProviderIds([]);
+          await updateServiceProvidersMutation.mutateAsync();
+        }
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId] });
+      toast({
+        title: "Execução iniciada",
+        description: "A execução da venda foi iniciada com sucesso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao iniciar execução",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
