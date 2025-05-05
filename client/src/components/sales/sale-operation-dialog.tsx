@@ -28,6 +28,7 @@ import { ptBR } from "date-fns/locale";
 import { CheckCircle2, Clock, AlertTriangle, CornerDownRight, ArrowLeft, FileCheck, Settings2, Users, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -234,21 +235,16 @@ export default function SaleOperationDialog({
         throw new Error("É necessário selecionar um tipo de execução");
       }
       
-      // Se o tipo de serviço for SINDICATO, o prestador parceiro é obrigatório
+      // Se o tipo de serviço for SINDICATO, pelo menos um prestador parceiro é obrigatório
       const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
-        throw new Error("É necessário selecionar um prestador parceiro para execução via SINDICATO");
+      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
+        throw new Error("É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO");
       }
       
       // Preparar dados para envio
       const requestData: any = {
         serviceTypeId: selectedServiceTypeId,
       };
-      
-      // Adicionar prestador parceiro apenas se selecionado
-      if (selectedServiceProviderId) {
-        requestData.serviceProviderId = selectedServiceProviderId;
-      }
       
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
         method: "POST",
@@ -261,6 +257,12 @@ export default function SaleOperationDialog({
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Erro ao iniciar execução da venda");
+      }
+      
+      // Se a iniciação for bem-sucedida e for SINDICATO,
+      // também atualizamos os prestadores de serviço
+      if (serviceType?.name === "SINDICATO") {
+        await updateServiceProvidersMutation.mutateAsync();
       }
       
       return await response.json();
@@ -710,17 +712,33 @@ export default function SaleOperationDialog({
                                 : enrichedSale.serviceTypeName || "Não definido"}
                             </span>
                           </div>
-                          {/* Se o tipo de serviço for SINDICATO, mostrar prestador parceiro */}
-                          {(showServiceProviderField || enrichedSale.serviceProviderId) && (
-                            <div className="flex justify-between items-center py-1 border-b border-border/60">
-                              <span className="text-sm font-medium">Prestador Parceiro:</span>
-                              <span className="text-sm">
-                                {selectedServiceProviderId
-                                  ? serviceProviders.find((p: any) => p.id === selectedServiceProviderId)?.name
-                                  : enrichedSale.serviceProviderId
-                                    ? serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"
-                                    : "Não selecionado"}
-                              </span>
+                          {/* Se o tipo de serviço for SINDICATO, mostrar prestadores parceiros */}
+                          {(showServiceProviderField || enrichedSale.serviceProviderId || saleServiceProviders.length > 0) && (
+                            <div className="flex justify-between items-start py-1 border-b border-border/60">
+                              <span className="text-sm font-medium">Prestadores Parceiros:</span>
+                              <div className="text-sm text-right">
+                                {selectedServiceProviderIds.length > 0 ? (
+                                  <div className="flex flex-col items-end">
+                                    {selectedServiceProviderIds.map(id => (
+                                      <span key={id} className="mb-1">
+                                        {serviceProviders.find((p: any) => p.id === id)?.name || `Prestador #${id}`}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : saleServiceProviders.length > 0 ? (
+                                  <div className="flex flex-col items-end">
+                                    {saleServiceProviders.map((sp: any) => (
+                                      <span key={sp.providerId} className="mb-1">
+                                        {serviceProviders.find((p: any) => p.id === sp.providerId)?.name || `Prestador #${sp.providerId}`}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : enrichedSale.serviceProviderId ? (
+                                  serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"
+                                ) : (
+                                  "Não selecionado"
+                                )}
+                              </div>
                             </div>
                           )}
                         
@@ -812,38 +830,59 @@ export default function SaleOperationDialog({
                         </div>
                       </div>
                       
-                      {/* Prestador Parceiro (se for SINDICATO) */}
-                      {(showServiceProviderField || enrichedSale.serviceProviderId) && (
+                      {/* Prestadores Parceiros (se for SINDICATO) */}
+                      {(showServiceProviderField || enrichedSale.serviceProviderId || saleServiceProviders.length > 0) && (
                         <div className="space-y-3">
-                          <h3 className="text-sm font-medium">Prestador de Serviço Parceiro</h3>
-                          <div className="bg-muted p-3 rounded-md flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-5 w-5 text-primary" />
-                              <span className="font-medium">
-                                {selectedServiceProviderId
-                                  ? serviceProviders.find((p: any) => p.id === selectedServiceProviderId)?.name
-                                  : enrichedSale.serviceProviderId
-                                    ? serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"
-                                    : "Não selecionado"}
-                              </span>
+                          <h3 className="text-sm font-medium">Prestadores de Serviço Parceiros</h3>
+                          <div className="bg-muted p-3 rounded-md">
+                            <div className="flex items-start gap-2">
+                              <Users className="h-5 w-5 text-primary mt-0.5" />
+                              <div className="flex flex-col">
+                                {selectedServiceProviderIds.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {selectedServiceProviderIds.map(id => (
+                                      <div key={id} className="font-medium">
+                                        {serviceProviders.find((p: any) => p.id === id)?.name || `Prestador #${id}`}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : saleServiceProviders.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {saleServiceProviders.map((sp: any) => (
+                                      <div key={sp.providerId} className="font-medium">
+                                        {serviceProviders.find((p: any) => p.id === sp.providerId)?.name || `Prestador #${sp.providerId}`}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : enrichedSale.serviceProviderId ? (
+                                  <div className="font-medium">
+                                    {serviceProviders.find((p: any) => p.id === enrichedSale.serviceProviderId)?.name || "Não identificado"}
+                                  </div>
+                                ) : (
+                                  <div className="font-medium">Não selecionado</div>
+                                )}
+                              </div>
                             </div>
+                            
                             {(enrichedSale.status === "pending" || enrichedSale.status === "in_progress" || enrichedSale.status === "corrected") && 
                              showServiceProviderField && 
                              canPerformOperations && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setActiveTab("summary")}
-                                className="text-xs"
-                              >
-                                <Settings2 className="h-3 w-3 mr-1" />
-                                Alterar
-                              </Button>
+                              <div className="flex justify-end mt-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => setActiveTab("summary")}
+                                  className="text-xs"
+                                >
+                                  <Settings2 className="h-3 w-3 mr-1" />
+                                  Alterar
+                                </Button>
+                              </div>
                             )}
                           </div>
-                          {showServiceProviderField && !selectedServiceProviderId && (
+                          {showServiceProviderField && selectedServiceProviderIds.length === 0 && (
                             <p className="text-xs text-destructive">
-                              * É necessário selecionar um prestador parceiro para execução via SINDICATO
+                              * É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO
                             </p>
                           )}
                         </div>
@@ -1201,12 +1240,12 @@ export default function SaleOperationDialog({
                         onClick={handleMainAction}
                         disabled={
                           startExecutionMutation.isPending || 
-                          (showServiceProviderField && !selectedServiceProviderId) ||
+                          (showServiceProviderField && selectedServiceProviderIds.length === 0) ||
                           !selectedServiceTypeId
                         }
                         className={sale?.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
-                        title={showServiceProviderField && !selectedServiceProviderId 
-                          ? "É necessário selecionar um prestador parceiro para execução via SINDICATO" 
+                        title={showServiceProviderField && selectedServiceProviderIds.length === 0
+                          ? "É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO" 
                           : !selectedServiceTypeId 
                             ? "É necessário selecionar um tipo de execução"
                             : ""}
