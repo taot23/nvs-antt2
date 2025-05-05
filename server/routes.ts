@@ -2770,7 +2770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verificar se a venda está no status correto para concluir execução
       if (sale.status !== "in_progress") {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Não é possível concluir execução", 
           message: "Só é possível concluir a execução de vendas que estão em andamento."
         });
@@ -2780,6 +2780,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedSale = await storage.completeSaleExecution(id, req.user!.id);
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // NOTA: Os prestadores de serviço já devem ter sido atualizados pelo cliente antes de chamar esta rota
+      // Verificamos se existem prestadores de serviço para manter durante a conclusão
+      const saleProviders = await storage.getSaleServiceProviders(id);
+      if (saleProviders.length === 0) {
+        console.log(`Nenhum prestador de serviço encontrado para a venda #${id} na conclusão.`);
+      } else {
+        console.log(`${saleProviders.length} prestadores de serviço encontrados para a venda #${id} na conclusão.`);
       }
       
       // Notificar todos os clientes sobre a atualização da venda

@@ -349,6 +349,15 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
+      // Primeiro, garantir que os prestadores estejam atualizados
+      try {
+        console.log("Atualizando prestadores antes de completar execução:", selectedServiceProviderIds);
+        await updateServiceProvidersMutation.mutateAsync();
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores antes de completar execução:", error);
+        // Continue mesmo com erro para não bloquear o fluxo principal
+      }
+      
       const response = await fetch(`/api/sales/${saleId}/complete-execution`, {
         method: "POST",
         headers: {
