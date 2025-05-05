@@ -120,19 +120,28 @@ export default function SaleOperationDialog({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
       
-      const response = await fetch(`/api/sales/${saleId}/service-providers`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Erro ao atualizar prestadores de serviço");
+      try {
+        const response = await fetch(`/api/sales/${saleId}/service-providers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
+        });
+        
+        if (!response.ok) {
+          const text = await response.text();
+          console.error("Erro na resposta:", text);
+          throw new Error("Erro ao atualizar prestadores de serviço: " + text.substring(0, 100));
+        }
+        
+        // Muitas vezes essa requisição retorna um body vazio
+        const text = await response.text();
+        return text ? JSON.parse(text) : { success: true };
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores:", error);
+        throw error;
       }
-      
-      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "service-providers"] });
@@ -245,8 +254,13 @@ export default function SaleOperationDialog({
         setSelectedServiceProviderIds([]);
       }
       
-      // Atualizar os prestadores de serviço (sempre, independente do checkbox)
-      await updateServiceProvidersMutation.mutateAsync();
+      try {
+        // Atualizar os prestadores de serviço (sempre, independente do checkbox)
+        await updateServiceProvidersMutation.mutateAsync();
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores no fluxo de início de execução:", error);
+        // Continue mesmo se der erro para evitar travar o fluxo principal
+      }
       
       // Iniciar a execução
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
@@ -426,8 +440,13 @@ export default function SaleOperationDialog({
         setSelectedServiceProviderIds([]);
       }
       
-      // Atualizar os prestadores de serviço (sempre, independente do checkbox)
-      await updateServiceProvidersMutation.mutateAsync();
+      try {
+        // Atualizar os prestadores de serviço (sempre, independente do checkbox)
+        await updateServiceProvidersMutation.mutateAsync();
+      } catch (error) {
+        console.error("Erro ao atualizar prestadores no fluxo principal:", error);
+        // Continue mesmo se der erro para evitar travar o fluxo principal
+      }
       
       return await response.json();
     },
