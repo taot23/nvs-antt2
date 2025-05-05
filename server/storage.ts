@@ -2237,14 +2237,20 @@ export class DatabaseStorage implements IStorage {
     saleId: number,
     operationalId: number,
   ): Promise<Sale | undefined> {
-    const sale = await this.getSale(saleId);
-
-    if (!sale) {
-      return undefined;
-    }
-
     try {
-      // Usar uma transação para garantir a consistência dos dados
+      const sale = await this.getSale(saleId);
+      if (!sale) {
+        return undefined;
+      }
+      
+      // Capturar prestadores de serviço ANTES da transação para garantir que não sejam perdidos
+      const providersBeforeTransaction = await this.getSaleServiceProviders(saleId);
+      console.log(`[Storage] Iniciando conclusão da venda #${saleId} com ${providersBeforeTransaction.length} prestadores de serviço antes da transação`);
+      
+      // Lista de IDs de prestadores para preservar durante a transação
+      const serviceProviderIds = providersBeforeTransaction.map(p => p.serviceProviderId);
+
+      // Executar em transação para garantir a consistência
       const result = await db.transaction(async (tx) => {
         // 1. Registrar no histórico
         await this.createSalesStatusHistory({
@@ -2262,16 +2268,46 @@ export class DatabaseStorage implements IStorage {
           responsibleOperationalId: operationalId,
         });
         
-        // 3. Verificar se há prestadores associados (isso é apenas para logging e diagnóstico)
-        const providers = await this.getSaleServiceProviders(saleId);
-        if (providers && providers.length > 0) {
-          console.log(`[Storage] Concluindo execução para venda #${saleId} com ${providers.length} prestadores de serviço`);
-        } else {
-          console.log(`[Storage] Concluindo execução para venda #${saleId} sem prestadores de serviço`);
+        // 3. Se havia prestadores antes da transação, garantir que sejam preservados
+        if (serviceProviderIds.length > 0) {
+          // Remover e recriar as relações dentro da mesma transação
+          await tx
+            .delete(saleServiceProviders)
+            .where(eq(saleServiceProviders.saleId, saleId));
+            
+          // Criar array de objetos para inserção
+          const relations = serviceProviderIds.map((providerId) => ({
+            saleId,
+            serviceProviderId: providerId
+          }));
+          
+          // Inserir todas as relações de uma vez
+          if (relations.length > 0) {
+            await tx
+              .insert(saleServiceProviders)
+              .values(relations);
+              
+            console.log(`[Storage] Preservados ${serviceProviderIds.length} prestadores durante a conclusão da venda #${saleId}`);
+          }
         }
         
         return updatedSale;
       });
+      
+      // Verificar se os prestadores foram mantidos após a transação
+      const providersAfterTransaction = await this.getSaleServiceProviders(saleId);
+      console.log(`[Storage] Concluída venda #${saleId} com ${providersAfterTransaction.length} prestadores de serviço após a transação`);
+      
+      // Se os prestadores foram perdidos, tentar restaurá-los
+      if (providersBeforeTransaction.length > 0 && providersAfterTransaction.length === 0) {
+        console.log(`[Storage] ALERTA: Prestadores perdidos durante a transação. Tentando restaurar...`);
+        
+        await this.updateSaleServiceProviders(saleId, serviceProviderIds);
+        
+        // Verificar novamente após tentativa de restauração
+        const providersAfterRecovery = await this.getSaleServiceProviders(saleId);
+        console.log(`[Storage] Após tentativa de restauração: ${providersAfterRecovery.length} prestadores de serviço`);
+      }
       
       return result;
     } catch (error) {
