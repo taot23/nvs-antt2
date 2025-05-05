@@ -371,6 +371,26 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                   
                   <Card>
                     <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-medium">Prestadores de Serviço</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      {serviceProviders && serviceProviders.length > 0 ? (
+                        <div className="space-y-2">
+                          {serviceProviders.map((provider: any) => (
+                            <div key={provider.id} className="flex items-center gap-2">
+                              <BadgeCheck className="h-4 w-4 text-primary" />
+                              <span className="text-sm">{provider.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Nenhum prestador de serviço associado</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-sm font-medium">Observações</CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
