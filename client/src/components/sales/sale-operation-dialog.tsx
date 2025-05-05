@@ -85,6 +85,7 @@ export default function SaleOperationDialog({
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<number | null>(null);
   const [selectedServiceProviderIds, setSelectedServiceProviderIds] = useState<number[]>([]);
   const [showServiceProviderField, setShowServiceProviderField] = useState(false);
+  const [hasPrestadorParceiro, setHasPrestadorParceiro] = useState(false);
   
   // Limpar o cache do histórico quando o diálogo é aberto
   useEffect(() => {
@@ -1043,14 +1044,34 @@ export default function SaleOperationDialog({
                     </Select>
                   </div>
                   
-                  {/* Mostrar campo para selecionar prestadores de serviço quando for SINDICATO */}
-                  {showServiceProviderField && (
+                  {/* Checkbox para indicar se a venda tem prestadores parceiros */}
+                  <div className="flex items-center space-x-2 mt-4 mb-2">
+                    <Checkbox 
+                      id="hasPrestadorParceiro"
+                      checked={hasPrestadorParceiro}
+                      onCheckedChange={(checked) => {
+                        setHasPrestadorParceiro(!!checked);
+                        if (!checked) {
+                          setSelectedServiceProviderIds([]);
+                        }
+                      }}
+                    />
+                    <label 
+                      htmlFor="hasPrestadorParceiro"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Possui prestadores de serviço parceiros
+                    </label>
+                  </div>
+
+                  {/* Mostrar campo para selecionar prestadores de serviço somente se a opção estiver marcada */}
+                  {showServiceProviderField && hasPrestadorParceiro && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <Label className="text-sm font-medium">
                           Prestadores de Serviço Parceiros
                         </Label>
-                        <span className="text-xs text-primary">* Selecione pelo menos um</span>
+                        <span className="text-xs text-primary">Selecione um ou mais</span>
                       </div>
                       <div className="border rounded-md p-3 space-y-2">
                         {serviceProviders
