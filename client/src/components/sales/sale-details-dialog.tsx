@@ -401,6 +401,24 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                       )}
                     </CardContent>
                   </Card>
+                  
+                  {sale.status === "returned" && (
+                    <Card className="border-red-200 bg-red-50">
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-500" /> 
+                          Motivo da Devolução
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        {sale.returnReason ? (
+                          <p className="text-sm">{sale.returnReason}</p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic">Motivo não especificado</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
                 
                 <Card>
