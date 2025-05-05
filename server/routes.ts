@@ -1399,15 +1399,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filtrar por período de data
       if (startDate) {
-        params.push(startDate);
+        // Formatar a data corretamente, removendo qualquer parte de hora
+        const formattedStartDate = startDate.split('T')[0];
+        params.push(formattedStartDate);
         query += ` AND s.date >= $${params.length}::date`;
-        console.log(`FILTRAGEM POR DATA: Filtrando vendas a partir de ${startDate}`);
+        console.log(`FILTRAGEM POR DATA: Filtrando vendas a partir de ${formattedStartDate} (original: ${startDate})`);
       }
       
       if (endDate) {
-        params.push(endDate);
+        // Formatar a data corretamente, removendo qualquer parte de hora
+        const formattedEndDate = endDate.split('T')[0];
+        params.push(formattedEndDate);
         query += ` AND s.date <= $${params.length}::date`;
-        console.log(`FILTRAGEM POR DATA: Filtrando vendas até ${endDate}`);
+        console.log(`FILTRAGEM POR DATA: Filtrando vendas até ${formattedEndDate} (original: ${endDate})`);
       }
       
       // Log completo dos parâmetros da consulta para debug
