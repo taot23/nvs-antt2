@@ -3174,42 +3174,58 @@ export class DatabaseStorage implements IStorage {
         endDateStr = filters.endDate;
       }
       
-      // Consulta para receita total e paga utilizando informações das parcelas
-      const revenueQuery = `
+      // Consulta para receita total baseada na data da venda
+      const totalRevenueQuery = `
         SELECT 
-          COALESCE(SUM(s.total_amount::numeric), 0) as total_revenue,
-          COALESCE(SUM(
-            (SELECT COALESCE(SUM(i.amount::numeric), 0)
-             FROM sale_installments i
-             WHERE i.sale_id = s.id AND i.status = 'paid')
-          ), 0) as paid_revenue,
-          COALESCE(SUM(
-            (SELECT COALESCE(SUM(i.amount::numeric), 0)
-             FROM sale_installments i
-             WHERE i.sale_id = s.id AND i.status = 'pending')
-          ), 0) as pending_revenue
+          COALESCE(SUM(s.total_amount::numeric), 0) as total_revenue
         FROM sales s
         WHERE s.date >= $1 AND s.date <= $2
       `;
       
-      // Consulta para custos operacionais
+      // Consulta para receita paga baseada na data de pagamento das parcelas
+      const paidRevenueQuery = `
+        SELECT 
+          COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
+        FROM sale_installments i
+        WHERE i.status = 'paid' 
+        AND i.payment_date IS NOT NULL
+        AND i.payment_date >= $1 
+        AND i.payment_date <= $2
+      `;
+      
+      // Consulta para receita pendente (total - pago)
+      const pendingRevenueQuery = `
+        SELECT 
+          COALESCE(SUM(i.amount::numeric), 0) as pending_revenue
+        FROM sale_installments i
+        WHERE i.status = 'pending'
+        AND i.due_date >= $1 
+        AND i.due_date <= $2
+      `;
+      
+      // Consulta para custos operacionais baseada na data de pagamento do custo
       const costQuery = `
         SELECT 
           COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
-        JOIN sales s ON c.sale_id = s.id
-        WHERE s.date >= $1 AND s.date <= $2
+        WHERE c.payment_date IS NOT NULL
+        AND c.payment_date >= $1 
+        AND c.payment_date <= $2
       `;
       
       // Executar consultas com parâmetros explícitos
-      const revenueResult = await pool.query(revenueQuery, [startDateStr, endDateStr]);
-      const costResult = await pool.query(costQuery, [startDateStr, endDateStr]);
+      const [totalResult, paidResult, pendingResult, costResult] = await Promise.all([
+        pool.query(totalRevenueQuery, [startDateStr, endDateStr]),
+        pool.query(paidRevenueQuery, [startDateStr, endDateStr]),
+        pool.query(pendingRevenueQuery, [startDateStr, endDateStr]),
+        pool.query(costQuery, [startDateStr, endDateStr])
+      ]);
       
-      // Extrair valores
-      const totalRevenue = revenueResult.rows[0].total_revenue;
-      const paidRevenue = revenueResult.rows[0].paid_revenue;
-      const pendingRevenue = revenueResult.rows[0].pending_revenue;
-      const totalCost = costResult.rows[0].total_cost;
+      // Extrair valores (garantir que não seja undefined/null)
+      const totalRevenue = totalResult.rows[0]?.total_revenue || "0";
+      const paidRevenue = paidResult.rows[0]?.paid_revenue || "0";
+      const pendingRevenue = pendingResult.rows[0]?.pending_revenue || "0";
+      const totalCost = costResult.rows[0]?.total_cost || "0";
       
       // Calcular lucro e margem
       const profit = (Number(totalRevenue) - Number(totalCost)).toFixed(2);
