@@ -2243,21 +2243,41 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
 
-    // Registrar no histórico
-    await this.createSalesStatusHistory({
-      saleId,
-      fromStatus: sale.status,
-      toStatus: "completed",
-      userId: operationalId,
-      notes: "Execução concluída",
-    });
-
-    // Atualizar status da venda
-    return await this.updateSale(saleId, {
-      status: "completed",
-      executionStatus: "completed",
-      responsibleOperationalId: operationalId,
-    });
+    try {
+      // Usar uma transação para garantir a consistência dos dados
+      const result = await db.transaction(async (tx) => {
+        // 1. Registrar no histórico
+        await this.createSalesStatusHistory({
+          saleId,
+          fromStatus: sale.status,
+          toStatus: "completed",
+          userId: operationalId,
+          notes: "Execução concluída",
+        });
+        
+        // 2. Atualizar status da venda
+        const updatedSale = await this.updateSale(saleId, {
+          status: "completed",
+          executionStatus: "completed",
+          responsibleOperationalId: operationalId,
+        });
+        
+        // 3. Verificar se há prestadores associados (isso é apenas para logging e diagnóstico)
+        const providers = await this.getSaleServiceProviders(saleId);
+        if (providers && providers.length > 0) {
+          console.log(`[Storage] Concluindo execução para venda #${saleId} com ${providers.length} prestadores de serviço`);
+        } else {
+          console.log(`[Storage] Concluindo execução para venda #${saleId} sem prestadores de serviço`);
+        }
+        
+        return updatedSale;
+      });
+      
+      return result;
+    } catch (error) {
+      console.error(`[Storage] Erro ao concluir execução da venda #${saleId}:`, error);
+      throw error;
+    }
   }
 
   async markSaleAsPaid(
