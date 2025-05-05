@@ -31,9 +31,10 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, CheckCircle2, RotateCcw, Send, Truck, Ban, Calendar } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RotateCcw, Send, Truck, Ban, Calendar, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import ConfirmNoProviderDialog from "./confirm-no-provider-dialog";
 
 function getStatusLabel(status: string) {
   switch (status) {
@@ -515,6 +516,9 @@ export default function SaleOperationDialog({
     },
   });
   
+  // Estado para controlar visibilidade do diálogo de confirmação
+  const [showNoProviderConfirm, setShowNoProviderConfirm] = useState(false);
+
   const handleMainAction = () => {
     if (!sale) return;
     
@@ -523,14 +527,24 @@ export default function SaleOperationDialog({
     } else if (sale.status === "in_progress") {
       // Verificar se a venda não tem prestadores de serviço selecionados
       if (saleServiceProviders.length === 0) {
-        // Perguntar ao usuário se realmente deseja concluir sem prestadores
-        const confirmed = window.confirm("Realmente este pedido não possui prestador parceiro? Se não, clique em Cancelar para selecionar um prestador.");
-        if (!confirmed) {
-          return; // Usuário cancelou, não prosseguir com a conclusão
-        }
+        // Mostrar diálogo de confirmação personalizado
+        setShowNoProviderConfirm(true);
+      } else {
+        // Se tiver prestador, prosseguir com a conclusão
+        completeExecutionMutation.mutate();
       }
-      completeExecutionMutation.mutate();
     }
+  };
+  
+  // Handler para quando o usuário confirma que não quer prestador
+  const handleConfirmNoProvider = () => {
+    setShowNoProviderConfirm(false);
+    completeExecutionMutation.mutate();
+  };
+  
+  // Handler para quando o usuário cancela (quer adicionar prestador)
+  const handleCancelNoProvider = () => {
+    setShowNoProviderConfirm(false);
   };
   
   // Manipulador para atualizar o tipo de execução
@@ -624,8 +638,16 @@ export default function SaleOperationDialog({
   const isLoading = saleLoading || itemsLoading || historyLoading;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <>
+      {/* Diálogo de confirmação quando não tem prestador selecionado */}
+      <ConfirmNoProviderDialog 
+        open={showNoProviderConfirm}
+        onConfirm={handleConfirmNoProvider}
+        onCancel={handleCancelNoProvider}
+      />
+    
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>Tratativa da Venda #{enrichedSale?.orderNumber}</span>
@@ -1022,5 +1044,6 @@ export default function SaleOperationDialog({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }
