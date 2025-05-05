@@ -1395,6 +1395,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query += ` AND (LOWER(s.order_number) LIKE $${params.length-1} OR LOWER(c.name) LIKE $${params.length})`;
       }
       
+      // Filtrar por período de data
+      if (startDate) {
+        params.push(startDate);
+        query += ` AND s.date >= $${params.length}::date`;
+        console.log(`Filtrando vendas a partir de ${startDate}`);
+      }
+      
+      if (endDate) {
+        params.push(endDate);
+        query += ` AND s.date <= $${params.length}::date`;
+        console.log(`Filtrando vendas até ${endDate}`);
+      }
+      
       // Contar total antes de aplicar paginação
       const countQuery = `SELECT COUNT(*) FROM (${query}) AS count_query`;
       const countResult = await pool.query(countQuery, params);
