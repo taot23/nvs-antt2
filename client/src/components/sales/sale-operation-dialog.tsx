@@ -197,7 +197,7 @@ export default function SaleOperationDialog({
     enabled: open,
   });
   
-  // Query para obter os prestadores de serviço
+  // Query para obter todos os prestadores de serviço
   const { data: serviceProviders = [] } = useQuery({
     queryKey: ["/api/service-providers"],
     queryFn: async () => {
@@ -208,6 +208,20 @@ export default function SaleOperationDialog({
       return response.json();
     },
     enabled: open && showServiceProviderField,
+  });
+  
+  // Query para obter os prestadores de serviço associados à venda
+  const { data: saleServiceProviders = [], isLoading: saleServiceProvidersLoading } = useQuery({
+    queryKey: ["/api/sales", saleId, "service-providers"],
+    queryFn: async () => {
+      if (!saleId) return [];
+      const response = await fetch(`/api/sales/${saleId}/service-providers`);
+      if (!response.ok) {
+        throw new Error("Erro ao carregar prestadores de serviço da venda");
+      }
+      return response.json();
+    },
+    enabled: !!saleId && open && showServiceProviderField,
   });
 
   // Mutation para iniciar a execução da venda
@@ -407,6 +421,48 @@ export default function SaleOperationDialog({
     dialogSaleId: saleId
   });
 
+  // Mutation para atualizar os prestadores de serviço de uma venda
+  const updateServiceProvidersMutation = useMutation({
+    mutationFn: async () => {
+      if (!saleId) throw new Error("ID da venda não fornecido");
+      
+      // Validação: tipo de serviço SINDICATO precisa ter pelo menos um prestador selecionado
+      const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
+      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
+        throw new Error("É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO");
+      }
+      
+      const response = await fetch(`/api/sales/${saleId}/service-providers`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ providerIds: selectedServiceProviderIds }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao atualizar prestadores de serviço");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "service-providers"] });
+      toast({
+        title: "Prestadores de serviço atualizados",
+        description: "Os prestadores de serviço foram atualizados com sucesso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar prestadores de serviço",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Mutation para atualizar o tipo de execução quando a venda está em andamento
   const updateExecutionTypeMutation = useMutation({
     mutationFn: async () => {
@@ -417,21 +473,16 @@ export default function SaleOperationDialog({
         throw new Error("É necessário selecionar um tipo de execução");
       }
       
-      // Se o tipo de serviço for SINDICATO, o prestador parceiro é obrigatório
+      // Se o tipo de serviço for SINDICATO, pelo menos um prestador parceiro é obrigatório
       const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
-        throw new Error("É necessário selecionar um prestador parceiro para execução via SINDICATO");
+      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
+        throw new Error("É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO");
       }
       
       // Preparar dados para envio
       const requestData: any = {
         serviceTypeId: selectedServiceTypeId,
       };
-      
-      // Adicionar prestador parceiro apenas se selecionado
-      if (selectedServiceProviderId) {
-        requestData.serviceProviderId = selectedServiceProviderId;
-      }
       
       const response = await fetch(`/api/sales/${saleId}/update-execution-type`, {
         method: "POST",
@@ -444,6 +495,12 @@ export default function SaleOperationDialog({
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Erro ao atualizar tipo de execução");
+      }
+      
+      // Se a atualização do tipo de execução for bem-sucedida e for SINDICATO,
+      // também atualizamos os prestadores de serviço
+      if (serviceType?.name === "SINDICATO") {
+        await updateServiceProvidersMutation.mutateAsync();
       }
       
       return await response.json();
@@ -479,12 +536,12 @@ export default function SaleOperationDialog({
   // Manipulador para atualizar o tipo de execução
   const handleUpdateExecutionType = () => {
     if (sale) {
-      // Verificação adicional de segurança: garantir que o prestador é selecionado se for SINDICATO
+      // Verificação adicional de segurança: garantir que pelo menos um prestador é selecionado se for SINDICATO
       const serviceType = serviceTypes.find((type: any) => type.id === selectedServiceTypeId);
-      if (serviceType?.name === "SINDICATO" && !selectedServiceProviderId) {
+      if (serviceType?.name === "SINDICATO" && selectedServiceProviderIds.length === 0) {
         toast({
           title: "Prestador parceiro obrigatório",
-          description: "Para execução via SINDICATO, selecione um prestador parceiro",
+          description: "Para execução via SINDICATO, selecione pelo menos um prestador parceiro",
           variant: "destructive",
         });
         return;
@@ -522,13 +579,25 @@ export default function SaleOperationDialog({
       const serviceType = serviceTypes.find((type: any) => type.id === sale.serviceTypeId);
       if (serviceType && serviceType.name === "SINDICATO") {
         setShowServiceProviderField(true);
-        setSelectedServiceProviderId(sale.serviceProviderId || null);
       } else {
         setShowServiceProviderField(false);
-        setSelectedServiceProviderId(null);
+        setSelectedServiceProviderIds([]);
       }
     }
   }, [sale, serviceTypes]);
+  
+  // Efeito para inicializar os prestadores de serviço selecionados
+  useEffect(() => {
+    if (saleServiceProviders.length > 0) {
+      // Extrair IDs dos prestadores associados à venda
+      const ids = saleServiceProviders.map((provider: any) => provider.id);
+      setSelectedServiceProviderIds(ids);
+      console.log(`[SaleOperationDialog] Prestadores de serviço carregados: ${ids.length}`);
+    } else if (sale?.serviceProviderId && showServiceProviderField) {
+      // Compatibilidade com o campo antigo
+      setSelectedServiceProviderIds(sale.serviceProviderId ? [sale.serviceProviderId] : []);
+    }
+  }, [saleServiceProviders, sale, showServiceProviderField]);
 
   // Manipulador para alterar o tipo de serviço
   const handleServiceTypeChange = (typeId: string) => {
@@ -541,13 +610,20 @@ export default function SaleOperationDialog({
       setShowServiceProviderField(true);
     } else {
       setShowServiceProviderField(false);
-      setSelectedServiceProviderId(null);
+      setSelectedServiceProviderIds([]);
     }
   };
 
-  // Manipulador para alterar o prestador de serviço
-  const handleServiceProviderChange = (providerId: string) => {
-    setSelectedServiceProviderId(parseInt(providerId));
+  // Manipulador para toggle de checkbox de prestador de serviço
+  const handleServiceProviderToggle = (providerId: number) => {
+    setSelectedServiceProviderIds(prevIds => {
+      // Se o ID já estiver selecionado, removê-lo
+      if (prevIds.includes(providerId)) {
+        return prevIds.filter(id => id !== providerId);
+      }
+      // Caso contrário, adicioná-lo
+      return [...prevIds, providerId];
+    });
   };
   
   // Limpar o estado quando o diálogo for fechado
@@ -557,7 +633,7 @@ export default function SaleOperationDialog({
       setIsReturning(false);
       setActiveTab("summary");
       setSelectedServiceTypeId(null);
-      setSelectedServiceProviderId(null);
+      setSelectedServiceProviderIds([]);
       setShowServiceProviderField(false);
     }
   }, [open]);
@@ -976,33 +1052,39 @@ export default function SaleOperationDialog({
                     </Select>
                   </div>
                   
-                  {/* Mostrar campo para selecionar prestador de serviço quando for SINDICATO */}
+                  {/* Mostrar campo para selecionar prestadores de serviço quando for SINDICATO */}
                   {showServiceProviderField && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="service-provider" className="text-sm font-medium">
-                          Prestador de Serviço Parceiro
+                        <Label className="text-sm font-medium">
+                          Prestadores de Serviço Parceiros
                         </Label>
-                        <span className="text-xs text-primary">* Obrigatório para SINDICATO</span>
+                        <span className="text-xs text-primary">* Selecione pelo menos um</span>
                       </div>
-                      <Select 
-                        value={selectedServiceProviderId?.toString() || ''} 
-                        onValueChange={handleServiceProviderChange}
-                      >
-                        <SelectTrigger id="service-provider">
-                          <SelectValue placeholder="Selecione o prestador parceiro" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {serviceProviders
-                            .filter((provider: any) => provider.active)
-                            .map((provider: any) => (
-                              <SelectItem key={provider.id} value={provider.id.toString()}>
+                      <div className="border rounded-md p-3 space-y-2">
+                        {serviceProviders
+                          .filter((provider: any) => provider.active)
+                          .map((provider: any) => (
+                            <div key={provider.id} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`provider-${provider.id}`} 
+                                checked={selectedServiceProviderIds.includes(provider.id)}
+                                onCheckedChange={() => handleServiceProviderToggle(provider.id)}
+                              />
+                              <label 
+                                htmlFor={`provider-${provider.id}`}
+                                className="text-sm cursor-pointer w-full"
+                              >
                                 {provider.name}
-                              </SelectItem>
-                            ))
-                          }
-                        </SelectContent>
-                      </Select>
+                              </label>
+                            </div>
+                          ))}
+                      </div>
+                      {selectedServiceProviderIds.length === 0 && (
+                        <p className="text-xs text-destructive mt-1">
+                          Selecione pelo menos um prestador parceiro
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>
