@@ -2673,9 +2673,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair informações do corpo da requisição
-      const { serviceTypeId, serviceProviderId } = req.body;
+      const { serviceTypeId, serviceProviderId, additionalProviderIds } = req.body;
+      
+      console.log("Dados recebidos para iniciar execução:", {
+        serviceTypeId,
+        serviceProviderId,
+        additionalProviderIds
+      });
       
       // Validar tipo de serviço se fornecido
+      let serviceType;
       if (serviceTypeId !== undefined) {
         const serviceTypeIdNum = parseInt(serviceTypeId);
         if (isNaN(serviceTypeIdNum)) {
@@ -2683,17 +2690,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Verificar se o tipo de serviço existe
-        const serviceType = await storage.getServiceType(serviceTypeIdNum);
+        serviceType = await storage.getServiceType(serviceTypeIdNum);
         if (!serviceType) {
           return res.status(400).json({ error: "Tipo de serviço não encontrado" });
-        }
-        
-        // Se o tipo de serviço for SINDICATO, é obrigatório informar o prestador parceiro
-        if (serviceType.name === "SINDICATO" && !serviceProviderId) {
-          return res.status(400).json({ 
-            error: "Prestador parceiro obrigatório", 
-            message: "Para execução via SINDICATO, é necessário informar o prestador parceiro"
-          });
         }
       }
       
@@ -2728,6 +2727,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!updatedSale) {
         return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Processar prestadores adicionais se fornecidos
+      if (additionalProviderIds && Array.isArray(additionalProviderIds) && additionalProviderIds.length > 0) {
+        // Combinar o prestador principal e os adicionais
+        const allProviderIds = serviceProviderId ? 
+          [parseInt(serviceProviderId), ...additionalProviderIds.map(id => parseInt(id))] : 
+          [...additionalProviderIds.map(id => parseInt(id))];
+        
+        // Remover qualquer relacionamento existente e adicionar os novos
+        await storage.updateSaleServiceProviders(id, allProviderIds);
+        console.log(`Atualizados ${allProviderIds.length} prestadores para a venda ${id}`);
+      } else if (serviceProviderId) {
+        // Se apenas o prestador principal foi informado
+        await storage.updateSaleServiceProviders(id, [parseInt(serviceProviderId)]);
+        console.log(`Atualizado 1 prestador para a venda ${id}`);
       }
       
       // Notificar todos os clientes sobre a atualização da venda

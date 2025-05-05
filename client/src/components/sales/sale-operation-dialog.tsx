@@ -283,8 +283,21 @@ export default function SaleOperationDialog({
         serviceTypeId: selectedServiceTypeId,
       };
       
-      // Se o checkbox não está marcado, zeramos a lista de prestadores
-      if (!hasPrestadorParceiro) {
+      // Se o checkbox estiver marcado, incluir os prestadores selecionados
+      if (hasPrestadorParceiro && selectedServiceProviderIds.length > 0) {
+        // Se houver apenas um prestador selecionado, enviar como serviceProviderId
+        if (selectedServiceProviderIds.length === 1) {
+          requestData.serviceProviderId = selectedServiceProviderIds[0];
+          console.log("Enviando prestador único:", selectedServiceProviderIds[0]);
+        } else {
+          // Se houver múltiplos, enviar o primeiro como principal e os demais na relação
+          requestData.serviceProviderId = selectedServiceProviderIds[0];
+          requestData.additionalProviderIds = selectedServiceProviderIds.slice(1);
+          console.log("Enviando prestador principal:", selectedServiceProviderIds[0], 
+                     "e adicionais:", selectedServiceProviderIds.slice(1));
+        }
+      } else if (!hasPrestadorParceiro) {
+        // Se o checkbox não está marcado, zeramos a lista de prestadores
         setSelectedServiceProviderIds([]);
       }
       
@@ -297,6 +310,7 @@ export default function SaleOperationDialog({
       }
       
       // Iniciar a execução
+      console.log("Iniciando execução com dados:", JSON.stringify(requestData, null, 2));
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
         method: "POST",
         headers: {
