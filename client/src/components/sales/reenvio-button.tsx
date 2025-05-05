@@ -175,8 +175,10 @@ export default function ReenvioButton({ sale }: ReenvioButtonProps) {
               <div className="col-span-2">
                 <Label>Motivo da Devolução</Label>
                 <div className="mt-1 p-3 bg-red-50 border border-red-200 rounded-md text-sm">
-                  {sale.returnReason || 'Não especificado'}
+                  {sale.return_reason || sale.returnReason || 'Não especificado'}
                 </div>
+                {/* Log para depuração */}
+                {console.log("Propriedades da venda no ReenvioButton:", Object.keys(sale), "Valor do return_reason:", sale.return_reason, "Valor do returnReason:", sale.returnReason)}
               </div>
             </div>
 
