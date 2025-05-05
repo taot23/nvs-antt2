@@ -1248,7 +1248,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // API para atualizar prestadores de serviço associados à venda
+  // Rota PUT para atualizar prestadores de serviço (método RESTful padrão)
   app.put("/api/sales/:saleId/service-providers", canManageServiceProviders, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.saleId);
+      const { providerIds } = req.body;
+      
+      if (isNaN(saleId)) {
+        return res.status(400).json({ error: "ID de venda inválido" });
+      }
+      
+      if (!Array.isArray(providerIds)) {
+        return res.status(400).json({ error: "Lista de prestadores inválida" });
+      }
+
+      const sale = await storage.getSale(saleId);
+      
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Atualizar relações
+      const updatedRelations = await storage.updateSaleServiceProviders(saleId, providerIds);
+      
+      return res.status(200).json(updatedRelations);
+    } catch (error) {
+      console.error("Erro ao atualizar prestadores de serviço da venda:", error);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Rota POST para atualizar prestadores de serviço (para compatibilidade com frontend)
+  app.post("/api/sales/:saleId/service-providers", canManageServiceProviders, async (req, res) => {
     try {
       const saleId = parseInt(req.params.saleId);
       const { providerIds } = req.body;
