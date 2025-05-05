@@ -727,41 +727,51 @@ export class DatabaseStorage implements IStorage {
 
   async getSale(id: number): Promise<Sale | undefined> {
     try {
-      // Obter a venda com o vendedor e cliente usando SQL nativo para maior controle
-      const result = await pool.query(`
-        SELECT 
-          s.*, 
-          u.id as seller_id, u.username as seller_username, u.role as seller_role,
-          c.id as customer_id, c.name as customer_name, c.document as customer_document,
-          c.contact as customer_contact, c.address as customer_address
-        FROM sales s
-        LEFT JOIN users u ON s.seller_id = u.id
-        LEFT JOIN customers c ON s.customer_id = c.id
-        WHERE s.id = $1
-      `, [id]);
+      console.log(`Consultando venda ${id} com informações de cliente e vendedor`);
       
-      if (result.rows.length === 0) {
+      // Obter a venda primeiro para garantir que ela existe
+      const [saleBase] = await db.select().from(sales).where(eq(sales.id, id));
+      
+      if (!saleBase) {
+        console.log(`Venda ${id} não encontrada`);
         return undefined;
       }
       
-      const sale = result.rows[0];
+      // Obter dados de cliente e vendedor separadamente
+      const [customer] = saleBase.customerId 
+        ? await db.select().from(customers).where(eq(customers.id, saleBase.customerId))
+        : [];
+        
+      const [seller] = saleBase.sellerId
+        ? await db.select().from(users).where(eq(users.id, saleBase.sellerId))
+        : [];
       
-      // Estruturar os dados de vendedor e cliente de forma aninhada
-      return {
-        ...sale,
-        seller: {
-          id: sale.seller_id,
-          username: sale.seller_username,
-          role: sale.seller_role
-        },
-        customer: {
-          id: sale.customer_id,
-          name: sale.customer_name,
-          document: sale.customer_document,
-          contact: sale.customer_contact,
-          address: sale.customer_address
-        }
-      } as any; // usar 'as any' para contornar problemas de tipagem
+      console.log(`Venda ${id} encontrada:`, {
+        hasCustomer: !!customer,
+        customerName: customer?.name,
+        hasSeller: !!seller,
+        sellerName: seller?.username
+      });
+      
+      // Criar objeto de saída com estrutura aninhada
+      const enrichedSale = {
+        ...saleBase,
+        // Adicionar campos aninhados para cliente e vendedor
+        seller: seller ? {
+          id: seller.id,
+          username: seller.username,
+          role: seller.role
+        } : null,
+        customer: customer ? {
+          id: customer.id,
+          name: customer.name,
+          document: customer.document,
+          contact: customer.phone, // Usar phone como contact
+          address: customer.email  // Usar email como address temporariamente
+        } : null
+      };
+      
+      return enrichedSale as any;
     } catch (error) {
       console.error("Erro ao obter venda:", error);
       return undefined;

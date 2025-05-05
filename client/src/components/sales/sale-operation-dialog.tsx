@@ -123,6 +123,7 @@ export default function SaleOperationDialog({
       if (!saleId) throw new Error("ID da venda não fornecido");
       
       try {
+        console.log("Atualizando prestadores de serviço:", selectedServiceProviderIds);
         const response = await fetch(`/api/sales/${saleId}/service-providers`, {
           method: "POST",
           headers: {
@@ -132,14 +133,44 @@ export default function SaleOperationDialog({
         });
         
         if (!response.ok) {
-          const text = await response.text();
-          console.error("Erro na resposta:", text);
-          throw new Error("Erro ao atualizar prestadores de serviço: " + text.substring(0, 100));
+          let errorMsg = "Erro ao atualizar prestadores de serviço";
+          
+          try {
+            // Tentar extrair mensagem de erro do JSON
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorMsg;
+          } catch {
+            // Se não conseguir extrair JSON, tentar obter o texto simples
+            try {
+              const text = await response.text();
+              // Verificar se há um erro HTML (como erro 500)
+              if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+                console.error("Resposta HTML recebida:", text.substring(0, 100));
+                errorMsg = "Erro interno do servidor ao processar prestadores de serviço";
+              } else if (text) {
+                errorMsg = text;
+              }
+            } catch (e) {
+              console.error("Erro ao extrair texto da resposta:", e);
+            }
+          }
+          
+          throw new Error(errorMsg);
         }
         
-        // Muitas vezes essa requisição retorna um body vazio
-        const text = await response.text();
-        return text ? JSON.parse(text) : { success: true };
+        // Tratar resposta que pode ser vazia
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+          } else {
+            const text = await response.text();
+            return text ? JSON.parse(text) : { success: true };
+          }
+        } catch (e) {
+          console.log("Resposta vazia ou não-JSON, retornando sucesso");
+          return { success: true };
+        }
       } catch (error) {
         console.error("Erro ao atualizar prestadores:", error);
         throw error;
@@ -147,6 +178,7 @@ export default function SaleOperationDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales", saleId, "service-providers"] });
+      console.log("Prestadores de serviço atualizados com sucesso");
     },
     onError: (error: Error) => {
       toast({
