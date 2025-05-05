@@ -227,6 +227,7 @@ export default function SaleOperationDialog({
   });
 
   // Mutation para iniciar a execução da venda
+
   const startExecutionMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
@@ -254,9 +255,21 @@ export default function SaleOperationDialog({
         throw new Error(error.message || "Erro ao iniciar execução da venda");
       }
       
-      // Se temos prestadores selecionados, atualizamos
-      if (selectedServiceProviderIds.length > 0) {
+      // Se a opção de prestadores parceiros estiver marcada
+      if (hasPrestadorParceiro) {
+        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
+        if (selectedServiceProviderIds.length === 0) {
+          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
+        }
+        
+        // Atualizar os prestadores selecionados
         await updateServiceProvidersMutation.mutateAsync();
+      } else {
+        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
+        if (saleServiceProviders.length > 0) {
+          setSelectedServiceProviderIds([]);
+          await updateServiceProvidersMutation.mutateAsync();
+        }
       }
       
       return await response.json();
@@ -276,9 +289,7 @@ export default function SaleOperationDialog({
         variant: "destructive",
       });
     },
-  });
-
-  // Mutation para completar a execução da venda
+  });  // Mutation para completar a execução da venda
   const completeExecutionMutation = useMutation({
     mutationFn: async () => {
       if (!saleId) throw new Error("ID da venda não fornecido");
