@@ -4390,6 +4390,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
+      const { pool } = await import('./db');
+
+      // Verificar permissões - apenas admin e financeiro podem ver dados financeiros completos
+      const userRole = req.user?.role || '';
+      if (!['admin', 'financeiro', 'supervisor'].includes(userRole)) {
+        return res.status(403).json({ error: "Você não tem permissão para acessar dados financeiros" });
+      }
 
       // Buscar dados do dashboard financeiro
       const financialData = await storage.getFinancialOverview({ startDate, endDate });
@@ -4469,6 +4476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Função auxiliar para obter contagem total de vendas
   async function getTotalSalesCount(startDate?: string, endDate?: string): Promise<number> {
     try {
+      const { pool } = await import('./db');
       const query = `
         SELECT COUNT(*) as total 
         FROM sales 
@@ -4492,6 +4500,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
+      const { pool } = await import('./db');
+      
+      // Filtrar por vendedor se o usuário for vendedor
+      const userRole = req.user?.role || '';
+      const userId = req.user?.id || 0;
+      let sellerFilter = '';
+      let params = [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ];
+      
+      if (userRole === 'vendedor') {
+        sellerFilter = 'AND seller_id = $3';
+        params.push(userId.toString());
+      }
 
       // Contar vendas por status
       const statusQuery = `
@@ -4502,14 +4525,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(*) FILTER (WHERE status = 'canceled') as canceled,
           COUNT(*) as total
         FROM sales
-        WHERE date BETWEEN $1 AND $2
+        WHERE date BETWEEN $1 AND $2 ${sellerFilter}
       `;
       
-      const statusResult = await pool.query(statusQuery, [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ]);
-      
+      const statusResult = await pool.query(statusQuery, params);
       const statusData = statusResult.rows[0];
       
       // Buscar vendas agrupadas por data
@@ -4519,15 +4538,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(*) as count,
           COALESCE(SUM(total_amount::numeric), 0) as amount
         FROM sales
-        WHERE date BETWEEN $1 AND $2
+        WHERE date BETWEEN $1 AND $2 ${sellerFilter}
         GROUP BY TO_CHAR(date, 'YYYY-MM-DD')
         ORDER BY date
       `;
       
-      const byDateResult = await pool.query(byDateQuery, [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ]);
+      const byDateResult = await pool.query(byDateQuery, params);
       
       res.json({
         total: parseInt(statusData.total) || 0,
@@ -4554,6 +4570,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
+      const { pool } = await import('./db');
+      
+      // Verificar permissões - apenas admin, supervisor e financeiro podem ver dados de todos vendedores
+      const userRole = req.user?.role || '';
+      const userId = req.user?.id || 0;
+      
+      // Se for vendedor, mostra apenas os próprios dados
+      let sellerFilter = '';
+      let params = [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0]
+      ];
+      
+      if (userRole === 'vendedor') {
+        sellerFilter = 'AND s.seller_id = $3';
+        params.push(userId.toString());
+      }
 
       // Consulta para obter desempenho dos vendedores
       const query = `
@@ -4564,15 +4597,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COALESCE(SUM(s.total_amount::numeric), 0) as amount
         FROM sales s
         JOIN users u ON s.seller_id = u.id
-        WHERE s.date BETWEEN $1 AND $2
+        WHERE s.date BETWEEN $1 AND $2 ${sellerFilter}
         GROUP BY s.seller_id, u.username
         ORDER BY amount DESC
       `;
       
-      const result = await pool.query(query, [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ]);
+      const result = await pool.query(query, params);
       
       res.json(result.rows);
     } catch (error) {
@@ -4587,6 +4617,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
       const limit = Number(req.query.limit) || 10;
+      const { pool } = await import('./db');
+      
+      // Filtrar por vendedor se o usuário for vendedor
+      const userRole = req.user?.role || '';
+      const userId = req.user?.id || 0;
+      
+      let sellerFilter = '';
+      let params = [
+        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate || new Date().toISOString().split('T')[0],
+        limit
+      ];
+      
+      let sellerFilterParams = [...params];
+      
+      if (userRole === 'vendedor') {
+        sellerFilter = 'AND s.seller_id = $4';
+        params.push(userId.toString());
+        sellerFilterParams.push(userId.toString());
+      }
 
       // Consulta para obter vendas recentes
       const salesQuery = `
@@ -4605,7 +4655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM sales s
         JOIN customers c ON s.customer_id = c.id
         JOIN users u ON s.seller_id = u.id
-        WHERE s.date BETWEEN $1 AND $2
+        WHERE s.date BETWEEN $1 AND $2 ${sellerFilter}
         ORDER BY s.date DESC
         LIMIT $3
       `;
@@ -4623,13 +4673,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM sale_installments i
         JOIN sales s ON i.sale_id = s.id
         JOIN users u ON s.seller_id = u.id
-        WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid'
+        WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid' ${sellerFilter}
         ORDER BY i.payment_date DESC
         LIMIT $3
       `;
       
-      // Consulta para obter atualizações de status recentes
-      const statusUpdateQuery = `
+      // Consulta para obter atualizações de status recentes (apenas para admin, financeiro e supervisor)
+      const statusUpdateQuery = userRole !== 'vendedor' ? `
         SELECT 
           sh.id,
           'Atualização de Status' as type,
@@ -4644,26 +4694,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE sh.created_at BETWEEN $1 AND $2
         ORDER BY sh.created_at DESC
         LIMIT $3
-      `;
+      ` : null;
       
       // Executar consultas
-      const [salesResult, paymentsResult, statusResult] = await Promise.all([
-        pool.query(salesQuery, [
-          startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-          endDate || new Date().toISOString().split('T')[0],
-          limit
-        ]),
-        pool.query(paymentsQuery, [
-          startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-          endDate || new Date().toISOString().split('T')[0],
-          limit
-        ]),
-        pool.query(statusUpdateQuery, [
-          startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-          endDate || new Date().toISOString().split('T')[0],
-          limit
-        ]),
-      ]);
+      const salesResult = await pool.query(salesQuery, params);
+      const paymentsResult = await pool.query(paymentsQuery, params);
+      const statusResult = statusUpdateQuery ? await pool.query(statusUpdateQuery, sellerFilterParams) : { rows: [] };
       
       // Combinar resultados e ordenar por data (mais recente primeiro)
       const allActivities = [

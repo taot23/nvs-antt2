@@ -13,19 +13,25 @@ import {
   Clock,
   AlertCircle,
   Activity,
-  BarChart3
+  BarChart3,
+  Lock
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useAuth } from "@/hooks/use-auth";
 import { DateRangePicker } from "./date-range-picker";
 import { StatsCard } from "./stats-card";
 import { SalesAreaChart, PerformanceBarChart, StatusPieChart } from "./charts";
 import { ActivityTable, ActivityItem } from "./activity-table";
 import { InsightsCard, Insight } from "./insights-card";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MainDashboard() {
+  // Obter informações do usuário para controle de acesso
+  const { user } = useAuth();
+  const userRole = user?.role || "";
+  
   // Estado para o intervalo de datas
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
@@ -34,6 +40,15 @@ export default function MainDashboard() {
 
   // Estado para acompanhar a aba ativa
   const [activeTab, setActiveTab] = useState<string>("overview");
+  
+  // Verificar permissões de acesso baseadas no perfil do usuário
+  const hasFinancialAccess = ["admin", "financeiro", "supervisor"].includes(userRole);
+  const isVendedor = userRole === "vendedor";
+  
+  // Se o usuário não tiver acesso à aba financeira e estiver nela, redirecionar para outra aba
+  if (activeTab === "financial" && !hasFinancialAccess) {
+    setActiveTab("sales");
+  }
 
   // Buscar dados do dashboard com base no intervalo de datas selecionado
   const {
@@ -332,13 +347,96 @@ export default function MainDashboard() {
     </div>
   );
 
+  // Renderizar mensagem de acesso negado para a aba financeira
+  const renderFinancialAccessDenied = () => (
+    <Alert variant="destructive" className="my-6">
+      <AlertTitle className="flex items-center gap-2">
+        <Lock className="h-4 w-4" /> Acesso Restrito
+      </AlertTitle>
+      <AlertDescription>
+        Você não tem permissão para acessar os dados financeiros. Esta funcionalidade está disponível apenas para administradores, supervisores e equipe financeira.
+      </AlertDescription>
+    </Alert>
+  );
+
+  // Personalizar visualização de dashboard para vendedor (sem mostrar dados de outros vendedores)
+  const renderVendedorOverview = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Minhas Vendas"
+          value={salesSummary?.total ?? 0}
+          icon={<ShoppingBag className="h-5 w-5 text-blue-600" />}
+          description={`${dateDiff}`}
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Vendas Concluídas"
+          value={salesSummary?.completed ?? 0}
+          icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+          description={salesSummary 
+            ? `${((salesSummary.completed / salesSummary.total) * 100).toFixed(1)}% do total`
+            : "0% do total"
+          }
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Valor Total"
+          value={sellerPerformance && sellerPerformance.length > 0
+            ? `R$ ${sellerPerformance[0].amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            : "R$ 0,00"
+          }
+          icon={<DollarSign className="h-5 w-5 text-emerald-600" />}
+          description={`${dateDiff}`}
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Vendas em Andamento"
+          value={salesSummary?.inProgress ?? 0}
+          icon={<Activity className="h-5 w-5 text-amber-600" />}
+          description={salesSummary 
+            ? `${((salesSummary.inProgress / salesSummary.total) * 100).toFixed(1)}% do total`
+            : "0% do total"
+          }
+          isLoading={isLoading}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <SalesAreaChart 
+            data={salesChartData} 
+            isLoading={isLoading}
+            className="h-[350px]"
+          />
+        </div>
+        <div className="lg:col-span-1">
+          <StatusPieChart 
+            data={statusChartData} 
+            isLoading={isLoading}
+          />
+        </div>
+      </div>
+
+      <ActivityTable
+        title="Minhas Atividades Recentes"
+        description="Suas últimas vendas e ações no sistema"
+        data={activitiesData}
+        isLoading={isLoading}
+      />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
-            Visão geral da performance do negócio
+            {isVendedor 
+              ? "Visão geral da sua performance de vendas" 
+              : "Visão geral da performance do negócio"
+            }
           </p>
         </div>
         <DateRangePicker onChange={setDateRange} />
@@ -352,18 +450,23 @@ export default function MainDashboard() {
           <TabsTrigger value="sales">
             <ShoppingBag className="h-4 w-4 mr-2" /> Vendas
           </TabsTrigger>
-          <TabsTrigger value="financial">
-            <DollarSign className="h-4 w-4 mr-2" /> Financeiro
-          </TabsTrigger>
+          {hasFinancialAccess && (
+            <TabsTrigger value="financial">
+              <DollarSign className="h-4 w-4 mr-2" /> Financeiro
+            </TabsTrigger>
+          )}
         </TabsList>
+
         <TabsContent value="overview" className="space-y-4">
-          {renderOverviewTab()}
+          {isVendedor ? renderVendedorOverview() : renderOverviewTab()}
         </TabsContent>
+        
         <TabsContent value="sales" className="space-y-4">
           {renderSalesTab()}
         </TabsContent>
+        
         <TabsContent value="financial" className="space-y-4">
-          {renderFinancialTab()}
+          {hasFinancialAccess ? renderFinancialTab() : renderFinancialAccessDenied()}
         </TabsContent>
       </Tabs>
     </div>
