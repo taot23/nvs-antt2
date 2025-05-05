@@ -116,7 +116,7 @@ export default function ServiceDialog({
   const updateServiceMutation = useMutation({
     mutationFn: async (data: { id: number; service: ServiceFormValues }) => {
       const res = await apiRequest(
-        "PATCH",
+        "PUT",
         `/api/services/${data.id}`,
         data.service
       );
