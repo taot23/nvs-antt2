@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Activity,
   BarChart3,
-  Lock
+  Lock,
+  CircleDollarSign
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -273,7 +274,7 @@ export default function MainDashboard() {
   // Função para renderizar a aba financeira
   const renderFinancialTab = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
           title="Valor Total"
           value={financialOverview 
@@ -306,6 +307,19 @@ export default function MainDashboard() {
           icon={<TrendingDown className="h-5 w-5 text-amber-600" />}
           description={financialOverview 
             ? `${((financialOverview.pendingAmount / financialOverview.totalAmount) * 100).toFixed(1)}% do total`
+            : "0% do total"
+          }
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Custos Operacionais"
+          value={financialOverview
+            ? `R$ ${financialOverview.operationalCosts?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}`
+            : "R$ 0,00"
+          }
+          icon={<CircleDollarSign className="h-5 w-5 text-purple-600" />}
+          description={financialOverview && financialOverview.totalAmount > 0
+            ? `${((financialOverview.operationalCosts / financialOverview.totalAmount) * 100).toFixed(1)}% do total`
             : "0% do total"
           }
           isLoading={isLoading}
