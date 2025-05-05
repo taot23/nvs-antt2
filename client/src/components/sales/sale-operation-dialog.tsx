@@ -521,6 +521,14 @@ export default function SaleOperationDialog({
     if (sale.status === "pending" || sale.status === "corrected" || sale.status === "returned") {
       startExecutionMutation.mutate();
     } else if (sale.status === "in_progress") {
+      // Verificar se a venda não tem prestadores de serviço selecionados
+      if (saleServiceProviders.length === 0) {
+        // Perguntar ao usuário se realmente deseja concluir sem prestadores
+        const confirmed = window.confirm("Realmente este pedido não possui prestador parceiro? Se não, clique em Cancelar para selecionar um prestador.");
+        if (!confirmed) {
+          return; // Usuário cancelou, não prosseguir com a conclusão
+        }
+      }
       completeExecutionMutation.mutate();
     }
   };
