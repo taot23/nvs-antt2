@@ -2916,6 +2916,20 @@ export default function SaleDialog({
                   console.log("Valores originais:", values);
                   
                   // Verifica campos críticos
+                  if (!values.orderNumber || values.orderNumber.trim() === "") {
+                    toast({
+                      title: "Número de OS obrigatório",
+                      description: "Digite um número de ordem de serviço válido",
+                      variant: "destructive",
+                    });
+                    // Focar o campo de número de OS
+                    const orderNumberField = document.querySelector('input[name="orderNumber"]');
+                    if (orderNumberField) {
+                      (orderNumberField as HTMLInputElement).focus();
+                    }
+                    return;
+                  }
+                  
                   if (!values.customerId || values.customerId <= 0) {
                     toast({
                       title: "Cliente obrigatório",
@@ -3040,17 +3054,26 @@ export default function SaleDialog({
                   - Datas a serem enviadas: ${datesForApi.length}
                   `);
                   
-                  // Verificar se o usuário forneceu um número de ordem ou se precisa gerar um
+                  // Verificar se o usuário forneceu um número de ordem
                   // CORREÇÃO CRÍTICA: Usar o número da ordem definido pelo usuário
-                  let orderNumberToUse = values.orderNumber;
+                  const orderNumberToUse = values.orderNumber.trim();
                   
-                  // Apenas se o campo estiver vazio, gerar um número automático
-                  if (!orderNumberToUse || orderNumberToUse.trim() === '') {
-                    orderNumberToUse = `OS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                    console.log("⚠️ Número de ordem não fornecido, gerando automaticamente:", orderNumberToUse);
-                  } else {
-                    console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
+                  // Verificar novamente se o número de OS está preenchido
+                  if (!orderNumberToUse) {
+                    toast({
+                      title: "Número de OS obrigatório",
+                      description: "Digite um número de ordem de serviço válido",
+                      variant: "destructive",
+                    });
+                    // Focar o campo de número de OS
+                    const orderNumberField = document.querySelector('input[name="orderNumber"]');
+                    if (orderNumberField) {
+                      (orderNumberField as HTMLInputElement).focus();
+                    }
+                    return;
                   }
+                  
+                  console.log("✓ Usando número de ordem fornecido pelo usuário:", orderNumberToUse);
                   
                   // Monta o objeto manualmente ignorando a validação do Zod
                   const saleData = {
