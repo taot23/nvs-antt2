@@ -3174,63 +3174,69 @@ export class DatabaseStorage implements IStorage {
         endDateStr = filters.endDate;
       }
       
-      // Consulta para receita total baseada na data da venda
-      const totalRevenueQuery = `
-        SELECT 
-          COALESCE(SUM(s.total_amount::numeric), 0) as total_revenue
-        FROM sales s
-        WHERE s.date >= $1 AND s.date <= $2
+      // Consulta 1: Obter a receita total das vendas feitas no período (data da venda)
+      const totalSalesQuery = `
+        SELECT COALESCE(SUM(total_amount::numeric), 0) as total_revenue
+        FROM sales
+        WHERE date BETWEEN $1 AND $2
       `;
       
-      // Consulta para receita paga baseada na data de pagamento das parcelas
-      const paidRevenueQuery = `
-        SELECT 
-          COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
+      // Consulta 2: Obter a receita RECEBIDA no período (com base na data do PAGAMENTO)
+      const paidAmountQuery = `
+        SELECT COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
         FROM sale_installments i
-        WHERE i.status = 'paid' 
+        WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
-        AND i.payment_date >= $1 
-        AND i.payment_date <= $2
+        AND i.payment_date BETWEEN $1 AND $2
       `;
       
-      // Consulta para receita pendente (total - pago)
-      const pendingRevenueQuery = `
-        SELECT 
-          COALESCE(SUM(i.amount::numeric), 0) as pending_revenue
+      // Consulta 3: Obter a receita PENDENTE no período (ainda não paga)
+      const pendingAmountQuery = `
+        SELECT COALESCE(SUM(i.amount::numeric), 0) as pending_revenue
         FROM sale_installments i
+        JOIN sales s ON i.sale_id = s.id
         WHERE i.status = 'pending'
-        AND i.due_date >= $1 
-        AND i.due_date <= $2
+        AND s.date BETWEEN $1 AND $2
       `;
       
-      // Consulta para custos operacionais baseada na data de pagamento do custo
+      // Consulta 4: Obter custos operacionais PAGOS no período (com base na data do PAGAMENTO do custo)
       const costQuery = `
-        SELECT 
-          COALESCE(SUM(c.amount::numeric), 0) as total_cost
+        SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
-        AND c.payment_date >= $1 
-        AND c.payment_date <= $2
+        AND c.payment_date BETWEEN $1 AND $2
       `;
       
-      // Executar consultas com parâmetros explícitos
+      console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
+      
+      // Executar todas as consultas em paralelo
       const [totalResult, paidResult, pendingResult, costResult] = await Promise.all([
-        pool.query(totalRevenueQuery, [startDateStr, endDateStr]),
-        pool.query(paidRevenueQuery, [startDateStr, endDateStr]),
-        pool.query(pendingRevenueQuery, [startDateStr, endDateStr]),
+        pool.query(totalSalesQuery, [startDateStr, endDateStr]),
+        pool.query(paidAmountQuery, [startDateStr, endDateStr]),
+        pool.query(pendingAmountQuery, [startDateStr, endDateStr]),
         pool.query(costQuery, [startDateStr, endDateStr])
       ]);
       
-      // Extrair valores (garantir que não seja undefined/null)
+      // Extrair valores com segurança
       const totalRevenue = totalResult.rows[0]?.total_revenue || "0";
       const paidRevenue = paidResult.rows[0]?.paid_revenue || "0";
       const pendingRevenue = pendingResult.rows[0]?.pending_revenue || "0";
       const totalCost = costResult.rows[0]?.total_cost || "0";
       
+      console.log("Valores financeiros calculados:", {
+        totalRevenue,
+        paidRevenue,
+        pendingRevenue,
+        totalCost
+      });
+      
       // Calcular lucro e margem
-      const profit = (Number(totalRevenue) - Number(totalCost)).toFixed(2);
-      const margin = Number(totalRevenue) > 0 
-        ? (Number(profit) / Number(totalRevenue)) * 100 
+      // Lucro é calculado com base no que foi REALMENTE RECEBIDO menos os custos REALMENTE PAGOS
+      const profit = (Number(paidRevenue) - Number(totalCost)).toFixed(2);
+      
+      // Margem é o percentual do lucro em relação à receita RECEBIDA (não à receita total)
+      const margin = Number(paidRevenue) > 0 
+        ? (Number(profit) / Number(paidRevenue)) * 100 
         : 0;
       
       return {
