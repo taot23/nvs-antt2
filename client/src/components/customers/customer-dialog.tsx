@@ -124,7 +124,7 @@ const customerFormSchema = insertCustomerSchema.extend({
   contactName: z.string().optional(),
   phone: z.string().regex(/^\(\d{2}\) \d{5}-\d{4}$/, "Telefone deve estar no formato (00) 00000-0000"),
   phone2: z.string().optional(),
-  email: z.string().email("E-mail inválido"),
+  email: z.string().email("E-mail inválido").optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -672,7 +672,7 @@ export default function CustomerDialog({
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>E-mail</FormLabel>
+                  <FormLabel>E-mail (opcional)</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="email@exemplo.com" 
