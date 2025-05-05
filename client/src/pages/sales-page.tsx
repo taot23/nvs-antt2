@@ -1322,8 +1322,8 @@ export default function SalesPage() {
           
           {/* Filtro por intervalo de datas (versão mobile) */}
           <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
+            value={dateRange}
+            onValueChange={handleDateRangeChange}
             className="w-full"
           />
           
@@ -1667,8 +1667,8 @@ export default function SalesPage() {
           {/* Filtro por intervalo de datas */}
           <div className="flex-shrink-0">
             <DateRangePicker
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
+              value={dateRange}
+              onValueChange={handleDateRangeChange}
             />
           </div>
           
