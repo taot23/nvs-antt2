@@ -43,7 +43,7 @@ export default function MainDashboard() {
   const [activeTab, setActiveTab] = useState<string>("overview");
   
   // Verificar permissões de acesso baseadas no perfil do usuário
-  const hasFinancialAccess = ["admin", "financeiro", "supervisor"].includes(userRole);
+  const hasFinancialAccess = ["admin", "financeiro"].includes(userRole);
   const isVendedor = userRole === "vendedor";
   
   // Se o usuário não tiver acesso à aba financeira e estiver nela, redirecionar para outra aba
@@ -368,7 +368,7 @@ export default function MainDashboard() {
         <Lock className="h-4 w-4" /> Acesso Restrito
       </AlertTitle>
       <AlertDescription>
-        Você não tem permissão para acessar os dados financeiros. Esta funcionalidade está disponível apenas para administradores, supervisores e equipe financeira.
+        Você não tem permissão para acessar os dados financeiros. Esta funcionalidade está disponível apenas para administradores e equipe financeira.
       </AlertDescription>
     </Alert>
   );
