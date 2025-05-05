@@ -4388,8 +4388,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para dashboard financeiro
   app.get("/api/dashboard/financial", isAuthenticated, async (req, res) => {
     try {
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
+      const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
       const { pool } = await import('./db');
 
       // Verificar permissões - apenas admin e financeiro podem ver dados financeiros completos
@@ -4398,30 +4398,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Você não tem permissão para acessar dados financeiros" });
       }
 
-      // Buscar dados do dashboard financeiro
-      const financialData = await storage.getFinancialOverview({ startDate, endDate });
-      
-      // Buscar dados de parcelas
-      const installmentsQuery = `
-        SELECT 
-          COUNT(*) as total_installments,
-          COUNT(*) FILTER (WHERE status = 'paid') as paid_installments,
-          COUNT(*) FILTER (WHERE status = 'pending') as pending_installments
-        FROM sale_installments
-        WHERE due_date BETWEEN $1 AND $2
-      `;
-      
-      const installmentsResult = await pool.query(installmentsQuery, [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ]);
-      
-      const installmentsData = installmentsResult.rows[0];
-      
-      // Calcular tendência (comparando com período anterior)
-      let trend = 0;
-      
-      if (startDate && endDate) {
+      try {
+        // Buscar dados do dashboard financeiro
+        const financialData = await storage.getFinancialOverview({ startDate, endDate });
+        
+        // Preparar datas padrão para uso nas consultas
+        const startDateForQuery = startDate;
+        const endDateForQuery = endDate;
+        
+        // Buscar dados de parcelas
+        const installmentsQuery = `
+          SELECT 
+            COUNT(*) as total_installments,
+            COUNT(*) FILTER (WHERE status = 'paid') as paid_installments,
+            COUNT(*) FILTER (WHERE status = 'pending') as pending_installments
+          FROM sale_installments
+          WHERE due_date BETWEEN $1 AND $2
+        `;
+        
+        // Calcular tendência (comparando com período anterior)
         const startDateObj = new Date(startDate);
         const endDateObj = new Date(endDate);
         
@@ -4442,31 +4437,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
           WHERE date BETWEEN $1 AND $2
         `;
         
-        const trendResult = await pool.query(trendQuery, [
-          prevStartDate.toISOString().split('T')[0],
-          prevEndDate.toISOString().split('T')[0]
+        // Executar todas as consultas simultaneamente
+        const [
+          installmentsResult, 
+          trendResult,
+          totalSalesResult
+        ] = await Promise.all([
+          pool.query(installmentsQuery, [startDateForQuery, endDateForQuery]),
+          pool.query(trendQuery, [
+            prevStartDate.toISOString().split('T')[0],
+            prevEndDate.toISOString().split('T')[0]
+          ]),
+          getTotalSalesCount(startDate, endDate)
         ]);
         
-        const prevTotal = parseFloat(trendResult.rows[0].prev_total || '0');
+        // Extrair resultados
+        const installmentsData = installmentsResult.rows[0] || {
+          total_installments: 0,
+          paid_installments: 0,
+          pending_installments: 0
+        };
+        
+        const prevTotal = parseFloat(trendResult.rows[0]?.prev_total || '0');
         const currentTotal = parseFloat(financialData.totalRevenue || '0');
         
         // Calcular percentual de crescimento
+        let trend = 0;
         if (prevTotal > 0) {
           trend = ((currentTotal - prevTotal) / prevTotal) * 100;
         }
+        
+        // Construir resposta
+        res.json({
+          totalSales: totalSalesResult,
+          totalInstallments: parseInt(installmentsData.total_installments) || 0,
+          paidInstallments: parseInt(installmentsData.paid_installments) || 0,
+          pendingInstallments: parseInt(installmentsData.pending_installments) || 0,
+          totalAmount: parseFloat(financialData.totalRevenue) || 0,
+          paidAmount: parseFloat(financialData.paidRevenue) || 0,
+          pendingAmount: parseFloat(financialData.pendingRevenue) || 0,
+          trend: parseFloat(trend.toFixed(2)),
+          operationalCosts: parseFloat(financialData.totalCost) || 0,
+          profit: parseFloat(financialData.profit) || 0,
+          margin: parseFloat(financialData.margin?.toFixed(2)) || 0
+        });
+      } catch (queryError) {
+        console.error("Erro em consulta específica:", queryError);
+        res.status(500).json({ error: "Erro ao processar consultas financeiras" });
       }
-      
-      // Construir resposta
-      res.json({
-        totalSales: await getTotalSalesCount(startDate, endDate),
-        totalInstallments: parseInt(installmentsData.total_installments) || 0,
-        paidInstallments: parseInt(installmentsData.paid_installments) || 0,
-        pendingInstallments: parseInt(installmentsData.pending_installments) || 0,
-        totalAmount: parseFloat(financialData.totalRevenue) || 0,
-        paidAmount: parseFloat(financialData.paidRevenue) || 0,
-        pendingAmount: parseFloat(financialData.pendingRevenue) || 0,
-        trend: parseFloat(trend.toFixed(2))
-      });
     } catch (error) {
       console.error("Erro ao buscar dados do dashboard financeiro:", error);
       res.status(500).json({ error: "Erro ao buscar dados do dashboard financeiro" });
