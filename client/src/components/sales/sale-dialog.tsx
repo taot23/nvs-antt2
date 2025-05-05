@@ -1965,12 +1965,22 @@ export default function SaleDialog({
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />
-                      Número da OS
+                      Número da OS <span className="text-red-500">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="123456" {...field} />
+                      <Input 
+                        placeholder="Digite o número da OS" 
+                        {...field} 
+                        className={!field.value ? "border-red-300 focus-visible:ring-red-400" : ""}
+                        required
+                      />
                     </FormControl>
                     <FormMessage />
+                    {!field.value && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Este campo é obrigatório
+                      </p>
+                    )}
                   </FormItem>
                 )}
               />

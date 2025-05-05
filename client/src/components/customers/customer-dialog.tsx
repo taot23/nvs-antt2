@@ -124,7 +124,7 @@ const customerFormSchema = insertCustomerSchema.extend({
   contactName: z.string().optional(),
   phone: z.string().regex(/^\(\d{2}\) \d{5}-\d{4}$/, "Telefone deve estar no formato (00) 00000-0000"),
   phone2: z.string().optional(),
-  email: z.string().email("E-mail inválido").optional(),
+  email: z.string().email("E-mail inválido").optional().or(z.literal('')),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
