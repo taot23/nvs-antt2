@@ -560,6 +560,19 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                               {history.notes && (
                                 <p className="text-sm text-muted-foreground">{history.notes}</p>
                               )}
+                              
+                              {/* Mostrar motivo da devolução se o status for alterado para "returned" */}
+                              {history.toStatus === "returned" && (
+                                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                                  <p className="text-sm font-medium flex items-center gap-1 text-red-600 mb-1">
+                                    <AlertTriangle className="h-3 w-3" /> 
+                                    Motivo da Devolução
+                                  </p>
+                                  <p className="text-sm text-gray-700">
+                                    {sale.returnReason || "Não especificado"}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
