@@ -160,7 +160,7 @@ export default function CustomerDialog({
       contactName: customer.contactName || "",
       phone: customer.phone,
       phone2: customer.phone2 || "",
-      email: customer.email,
+      email: customer.email || "",
     } : {
       name: "",
       documentType: "cpf",
@@ -188,7 +188,7 @@ export default function CustomerDialog({
         contactName: customer.contactName || "",
         phone: customer.phone,
         phone2: customer.phone2 || "",
-        email: customer.email,
+        email: customer.email || "",
       });
     } else {
       // Limpar o formulário para novo cadastro
