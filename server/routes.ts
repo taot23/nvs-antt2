@@ -1325,9 +1325,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log para depuração da exportação
       console.log(`API /api/sales: incluir resumo financeiro = ${includeSummary}, financialStatus = ${financialStatus || 'não definido'}`);
+      console.log(`DEBUG DATAS: startDate = ${startDate || 'não definido'}, endDate = ${endDate || 'não definido'}, tipo startDate = ${typeof startDate}, tipo endDate = ${typeof endDate}`);
       console.log(`Parâmetros completos:`, {
         page, limit, status, financialStatus,
-        includeSummary, searchTerm, sortField, sortDirection
+        includeSummary, searchTerm, sortField, sortDirection,
+        startDate, endDate
       });
       
       // Verificar se existe um parâmetro sellerId na query

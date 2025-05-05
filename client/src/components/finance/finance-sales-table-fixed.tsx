@@ -89,10 +89,12 @@ export default function FinanceSalesTableFixed({
       if (searchTerm) url.searchParams.append('searchTerm', searchTerm);
       
       if (dateRange?.from) {
-        url.searchParams.append('startDate', dateRange.from.toISOString());
+        url.searchParams.append('startDate', dateRange.from.toISOString().split('T')[0]);
+        console.log('Filtro de data inicial aplicado:', dateRange.from.toISOString().split('T')[0]);
       }
       if (dateRange?.to) {
-        url.searchParams.append('endDate', dateRange.to.toISOString());
+        url.searchParams.append('endDate', dateRange.to.toISOString().split('T')[0]);
+        console.log('Filtro de data final aplicado:', dateRange.to.toISOString().split('T')[0]);
       }
       
       console.log(`Buscando vendas com ${usesFinancialStatus ? 'financialStatus' : 'status'}: ${status}, termo: ${searchTerm || 'nenhum'}, url: ${url.toString()}`);
