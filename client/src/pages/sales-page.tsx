@@ -236,6 +236,14 @@ export default function SalesPage() {
     // Atualiza as queries para refletir o novo filtro
     queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
   };
+  
+  // Função para lidar com a mudança no filtro de datas
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    setPage(1); // Voltar para a primeira página quando mudar o filtro
+    // Atualiza as queries para refletir o novo intervalo de datas
+    queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+  };
 
   // Para o perfil vendedor, carregamos apenas suas próprias vendas, agora com paginação
   const { data: salesData = { data: [], total: 0, page: 1, totalPages: 1 }, isLoading, error, refetch } = useQuery({
