@@ -99,8 +99,22 @@ export const serviceProviders = pgTable("service_providers", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Tabela de relação entre vendas e prestadores de serviço (muitos para muitos)
+export const saleServiceProviders = pgTable("sale_service_providers", {
+  id: serial("id").primaryKey(),
+  saleId: integer("sale_id").notNull().references(() => sales.id, { onDelete: "cascade" }),
+  serviceProviderId: integer("service_provider_id").notNull().references(() => serviceProviders.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Schema para inserção de prestadores de serviço parceiros
 export const insertServiceProviderSchema = createInsertSchema(serviceProviders).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Schema para inserção na tabela de relação entre vendas e prestadores
+export const insertSaleServiceProviderSchema = createInsertSchema(saleServiceProviders).omit({
   id: true,
   createdAt: true,
 });
