@@ -525,12 +525,16 @@ export default function SaleOperationDialog({
     if (sale.status === "pending" || sale.status === "corrected" || sale.status === "returned") {
       startExecutionMutation.mutate();
     } else if (sale.status === "in_progress") {
-      // Verificar se a venda não tem prestadores de serviço selecionados
-      if (saleServiceProviders.length === 0) {
+      // Verificar se a venda tem prestadores selecionados
+      // Só mostra confirmação se checkbox está ativo MAS não tem prestadores selecionados
+      if (hasPrestadorParceiro && selectedServiceProviderIds.length === 0) {
         // Mostrar diálogo de confirmação personalizado
         setShowNoProviderConfirm(true);
+      } else if (!hasPrestadorParceiro) {
+        // Se checkbox "Possui prestadores" não está marcado, também perguntar
+        setShowNoProviderConfirm(true);
       } else {
-        // Se tiver prestador, prosseguir com a conclusão
+        // Se tiver prestador selecionado, prosseguir com a conclusão
         completeExecutionMutation.mutate();
       }
     }
