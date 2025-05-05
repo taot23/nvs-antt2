@@ -240,6 +240,15 @@ export default function SaleOperationDialog({
         serviceTypeId: selectedServiceTypeId,
       };
       
+      // Se o checkbox não está marcado, zeramos a lista de prestadores
+      if (!hasPrestadorParceiro) {
+        setSelectedServiceProviderIds([]);
+      }
+      
+      // Atualizar os prestadores de serviço (sempre, independente do checkbox)
+      await updateServiceProvidersMutation.mutateAsync();
+      
+      // Iniciar a execução
       const response = await fetch(`/api/sales/${saleId}/start-execution`, {
         method: "POST",
         headers: {
@@ -251,23 +260,6 @@ export default function SaleOperationDialog({
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Erro ao iniciar execução da venda");
-      }
-      
-      // Se a opção de prestadores parceiros estiver marcada
-      if (hasPrestadorParceiro) {
-        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
-        if (selectedServiceProviderIds.length === 0) {
-          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
-        }
-        
-        // Atualizar os prestadores selecionados
-        await updateServiceProvidersMutation.mutateAsync();
-      } else {
-        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
-        if (saleServiceProviders.length > 0) {
-          setSelectedServiceProviderIds([]);
-          await updateServiceProvidersMutation.mutateAsync();
-        }
       }
       
       return await response.json();
@@ -429,22 +421,13 @@ export default function SaleOperationDialog({
         throw new Error(error.message || "Erro ao atualizar tipo de execução");
       }
       
-      // Se a opção de prestadores parceiros estiver marcada
-      if (hasPrestadorParceiro) {
-        // Verificar se pelo menos um prestador foi selecionado quando o checkbox está ativo
-        if (selectedServiceProviderIds.length === 0) {
-          throw new Error("É necessário selecionar pelo menos um prestador parceiro");
-        }
-        
-        // Atualizar os prestadores selecionados
-        await updateServiceProvidersMutation.mutateAsync();
-      } else {
-        // Se não tem prestadores parceiros, remover todos os prestadores associados (se houver)
-        if (saleServiceProviders.length > 0) {
-          setSelectedServiceProviderIds([]);
-          await updateServiceProvidersMutation.mutateAsync();
-        }
+      // Se o checkbox não está marcado, zeramos a lista de prestadores
+      if (!hasPrestadorParceiro) {
+        setSelectedServiceProviderIds([]);
       }
+      
+      // Atualizar os prestadores de serviço (sempre, independente do checkbox)
+      await updateServiceProvidersMutation.mutateAsync();
       
       return await response.json();
     },
