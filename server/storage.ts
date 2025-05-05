@@ -3174,12 +3174,20 @@ export class DatabaseStorage implements IStorage {
         endDateStr = filters.endDate;
       }
       
-      // Consulta para receita total e paga
+      // Consulta para receita total e paga utilizando informações das parcelas
       const revenueQuery = `
         SELECT 
           COALESCE(SUM(s.total_amount::numeric), 0) as total_revenue,
-          COALESCE(SUM(s.total_amount::numeric) FILTER (WHERE s.status = 'paid'), 0) as paid_revenue,
-          COALESCE(SUM(s.total_amount::numeric) FILTER (WHERE s.status != 'paid' AND s.status != 'returned' AND s.status != 'returned_to_seller'), 0) as pending_revenue
+          COALESCE(SUM(
+            (SELECT COALESCE(SUM(i.amount::numeric), 0)
+             FROM sale_installments i
+             WHERE i.sale_id = s.id AND i.status = 'paid')
+          ), 0) as paid_revenue,
+          COALESCE(SUM(
+            (SELECT COALESCE(SUM(i.amount::numeric), 0)
+             FROM sale_installments i
+             WHERE i.sale_id = s.id AND i.status = 'pending')
+          ), 0) as pending_revenue
         FROM sales s
         WHERE s.date >= $1 AND s.date <= $2
       `;
@@ -3288,11 +3296,7 @@ export class DatabaseStorage implements IStorage {
         SELECT 
           s.id,
           'Venda' as type,
-          CASE 
-            WHEN c.company_name IS NOT NULL AND c.company_name != '' 
-            THEN c.company_name 
-            ELSE CONCAT(c.first_name, ' ', c.last_name) 
-          END as description,
+          c.name as description,
           s.status,
           s.date,
           s.total_amount::numeric as amount,
@@ -3333,7 +3337,7 @@ export class DatabaseStorage implements IStorage {
           sh.created_at as date,
           s.total_amount::numeric as amount,
           u.username as user
-        FROM sale_status_history sh
+        FROM sales_status_history sh
         JOIN sales s ON sh.sale_id = s.id
         JOIN users u ON sh.user_id = u.id
         WHERE sh.created_at BETWEEN $1 AND $2

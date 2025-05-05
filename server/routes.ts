@@ -4660,11 +4660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SELECT 
             s.id,
             'Venda' as type,
-            CASE 
-              WHEN c.company_name IS NOT NULL AND c.company_name != '' 
-              THEN c.company_name 
-              ELSE CONCAT(c.first_name, ' ', c.last_name) 
-            END as description,
+            c.name as description,
             s.status,
             s.date,
             s.total_amount::numeric as amount,
@@ -4705,7 +4701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sh.created_at as date,
             s.total_amount::numeric as amount,
             u.username as "user"
-          FROM sale_status_history sh
+          FROM sales_status_history sh
           JOIN sales s ON sh.sale_id = s.id
           JOIN users u ON sh.user_id = u.id
           WHERE sh.created_at BETWEEN $1 AND $2
