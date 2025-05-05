@@ -287,6 +287,8 @@ export type InsertSaleOperationalCost = z.infer<typeof insertSaleOperationalCost
 export type SaleOperationalCost = typeof saleOperationalCosts.$inferSelect;
 export type InsertSalePaymentReceipt = z.infer<typeof insertSalePaymentReceiptSchema>;
 export type SalePaymentReceipt = typeof salePaymentReceipts.$inferSelect;
+export type InsertSaleServiceProvider = z.infer<typeof insertSaleServiceProviderSchema>;
+export type SaleServiceProvider = typeof saleServiceProviders.$inferSelect;
 
 // Tabela de relatórios
 export const reports = pgTable("reports", {

@@ -17,6 +17,9 @@ import {
   serviceProviders,
   type ServiceProvider,
   type InsertServiceProvider,
+  saleServiceProviders,
+  type SaleServiceProvider,
+  type InsertSaleServiceProvider,
   sales,
   type Sale,
   type InsertSale,
@@ -44,6 +47,9 @@ import {
   reportExecutions,
   type ReportExecution,
   type InsertReportExecution,
+  saleServiceProviders,
+  type SaleServiceProvider,
+  type InsertSaleServiceProvider,
 } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -177,6 +183,12 @@ export interface IStorage {
   createSalesStatusHistory(
     statusHistory: InsertSalesStatusHistory,
   ): Promise<SalesStatusHistory>;
+  
+  // Sale Service Providers methods
+  getSaleServiceProviders(saleId: number): Promise<SaleServiceProvider[]>;
+  createSaleServiceProvider(relation: InsertSaleServiceProvider): Promise<SaleServiceProvider>;
+  updateSaleServiceProviders(saleId: number, serviceProviderIds: number[]): Promise<SaleServiceProvider[]>;
+  deleteSaleServiceProviders(saleId: number): Promise<boolean>;
 
   // Sale Installments methods
   getSaleInstallments(saleId: number): Promise<SaleInstallment[]>;
@@ -1744,6 +1756,69 @@ export class DatabaseStorage implements IStorage {
       .values(historyData)
       .returning();
     return createdHistory;
+  }
+
+  // Implementação dos métodos de relacionamento Sale-ServiceProvider
+  async getSaleServiceProviders(saleId: number): Promise<SaleServiceProvider[]> {
+    return await db
+      .select()
+      .from(saleServiceProviders)
+      .where(eq(saleServiceProviders.saleId, saleId));
+  }
+  
+  async createSaleServiceProvider(relation: InsertSaleServiceProvider): Promise<SaleServiceProvider> {
+    const [createdRelation] = await db
+      .insert(saleServiceProviders)
+      .values(relation)
+      .returning();
+    return createdRelation;
+  }
+  
+  async updateSaleServiceProviders(saleId: number, serviceProviderIds: number[]): Promise<SaleServiceProvider[]> {
+    try {
+      // Iniciar transação
+      const result = await db.transaction(async (tx) => {
+        // 1. Remover todas as relações existentes
+        await tx
+          .delete(saleServiceProviders)
+          .where(eq(saleServiceProviders.saleId, saleId));
+        
+        // 2. Se não há novos prestadores, apenas retornar array vazio
+        if (!serviceProviderIds || serviceProviderIds.length === 0) {
+          return [];
+        }
+        
+        // 3. Inserir novas relações
+        const relations = serviceProviderIds.map((providerId) => ({
+          saleId,
+          serviceProviderId: providerId
+        }));
+        
+        return await tx
+          .insert(saleServiceProviders)
+          .values(relations)
+          .returning();
+      });
+      
+      return result;
+    } catch (error) {
+      console.error("Erro ao atualizar prestadores da venda:", error);
+      throw error;
+    }
+  }
+  
+  async deleteSaleServiceProviders(saleId: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(saleServiceProviders)
+        .where(eq(saleServiceProviders.saleId, saleId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Erro ao excluir prestadores da venda:", error);
+      return false;
+    }
   }
 
   // Métodos de gerenciamento de parcelas
