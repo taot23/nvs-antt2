@@ -3187,7 +3187,12 @@ export class DatabaseStorage implements IStorage {
         FROM sale_installments i
         WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
-        AND i.payment_date BETWEEN $1 AND $2
+        AND (
+          -- Tenta converter a data de pagamento para data, independentemente do formato
+          (i.payment_date ~ '\\d{4}-\\d{2}-\\d{2}' AND i.payment_date::date BETWEEN $1::date AND $2::date)
+          OR
+          (i.payment_date ~ '\\d{2}/\\d{2}/\\d{4}' AND TO_DATE(i.payment_date, 'DD/MM/YYYY') BETWEEN $1::date AND $2::date)
+        )
       `;
       
       // Consulta 3: Obter a receita PENDENTE no período (ainda não paga)
@@ -3204,7 +3209,12 @@ export class DatabaseStorage implements IStorage {
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
-        AND c.payment_date BETWEEN $1 AND $2
+        AND (
+          -- Tenta converter a data de pagamento para data, independentemente do formato
+          (c.payment_date ~ '\\d{4}-\\d{2}-\\d{2}' AND c.payment_date::date BETWEEN $1::date AND $2::date)
+          OR
+          (c.payment_date ~ '\\d{2}/\\d{2}/\\d{4}' AND TO_DATE(c.payment_date, 'DD/MM/YYYY') BETWEEN $1::date AND $2::date)
+        )
       `;
       
       console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
