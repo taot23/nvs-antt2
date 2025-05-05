@@ -54,7 +54,9 @@ const saleItemSchema = z.object({
 
 // Esquema de validação para a venda
 const saleSchema = z.object({
-  orderNumber: z.string().min(1, "Número de ordem é obrigatório"),
+  orderNumber: z.string()
+    .min(1, "Número de ordem é obrigatório")
+    .nonempty("Número de ordem é obrigatório"),
   // Aceita date ou string para maior flexibilidade
   date: z.union([
     z.date({
@@ -1743,6 +1745,17 @@ export default function SaleDialog({
       
       console.log("📅 Data a ser enviada:", formattedDate, "Tipo:", typeof formattedDate);
       
+      // Verifica se o campo de número da OS está preenchido
+      if (!values.orderNumber || !values.orderNumber.trim()) {
+        toast({
+          title: "Número da OS obrigatório",
+          description: "O número da ordem de serviço precisa ser informado.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Verifica se estamos editando uma venda devolvida e se as observações de correção foram preenchidas
       if ((originalStatus === "returned" || forceResendMode) && !correctionNotes.trim()) {
         toast({
@@ -1778,8 +1791,8 @@ export default function SaleDialog({
         ...values,
         // CRITICAL FIX: Incluir ID da venda quando estiver editando
         ...(sale && { id: sale.id }),
-        // Garante que o número da OS esteja definido
-        orderNumber: values.orderNumber.trim() || `OS-${Date.now()}`,
+        // O número da OS deve ser fornecido pelo usuário, sem fallback
+        orderNumber: values.orderNumber.trim(),
         // Usa a data formatada
         date: formattedDate,
         // Garante que o valor total esteja sempre no formato correto (ponto, não vírgula)
