@@ -4528,7 +4528,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (userRole === 'vendedor') {
         sellerFilter = 'AND seller_id = $3';
-        params.push(userId.toString());
+        params.push(userId);
+        console.log(`Vendedor ${userId} visualizando apenas suas vendas no dashboard`);
       }
 
       // Contar vendas por status
@@ -4606,7 +4607,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (userRole === 'vendedor') {
         sellerFilter = 'AND s.seller_id = $3';
-        params.push(userId.toString());
+        params.push(userId);
+        console.log(`Vendedor ${userId} visualizando apenas seus próprios dados de desempenho`);
       }
 
       // Consulta para obter desempenho dos vendedores
@@ -4650,8 +4652,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (userRole === 'vendedor') {
         sellerFilter = 'AND s.seller_id = $4';
-        params.push(userId.toString());
-        sellerFilterParams.push(userId.toString());
+        params.push(userId);
+        sellerFilterParams.push(userId);
+        console.log(`Vendedor ${userId} visualizando apenas suas atividades no dashboard`);
       }
 
       try {
@@ -4691,23 +4694,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           LIMIT $3
         `;
         
-        // Consulta para obter atualizações de status recentes (apenas para admin, financeiro e supervisor)
-        const statusUpdateQuery = userRole !== 'vendedor' ? `
-          SELECT 
-            sh.id,
-            'Atualização de Status' as type,
-            CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
-            s.status,
-            sh.created_at as date,
-            s.total_amount::numeric as amount,
-            u.username as "user"
-          FROM sales_status_history sh
-          JOIN sales s ON sh.sale_id = s.id
-          JOIN users u ON sh.user_id = u.id
-          WHERE sh.created_at BETWEEN $1 AND $2
-          ORDER BY sh.created_at DESC
-          LIMIT $3
-        ` : null;
+        // Consulta para obter atualizações de status recentes
+        // Para vendedores, mostrar apenas de suas próprias vendas
+        // Para outros usuários (admin, financeiro, supervisor), mostrar todos
+        const statusUpdateQuery = userRole !== 'vendedor' 
+          ? `
+              SELECT 
+                sh.id,
+                'Atualização de Status' as type,
+                CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
+                s.status,
+                sh.created_at as date,
+                s.total_amount::numeric as amount,
+                u.username as "user"
+              FROM sales_status_history sh
+              JOIN sales s ON sh.sale_id = s.id
+              JOIN users u ON sh.user_id = u.id
+              WHERE sh.created_at BETWEEN $1 AND $2
+              ORDER BY sh.created_at DESC
+              LIMIT $3
+            `
+          : `
+              SELECT 
+                sh.id,
+                'Atualização de Status' as type,
+                CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
+                s.status,
+                sh.created_at as date,
+                s.total_amount::numeric as amount,
+                u.username as "user"
+              FROM sales_status_history sh
+              JOIN sales s ON sh.sale_id = s.id
+              JOIN users u ON sh.user_id = u.id
+              WHERE sh.created_at BETWEEN $1 AND $2
+              AND s.seller_id = $4
+              ORDER BY sh.created_at DESC
+              LIMIT $3
+            `;
         
         // Executar consultas simultaneamente
         const [salesResult, paymentsResult, statusResult] = await Promise.all([
