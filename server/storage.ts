@@ -3153,9 +3153,8 @@ export class DatabaseStorage implements IStorage {
     margin: number;
   }> {
     try {
-      // Preparar filtros de data
-      const queryParams: any[] = [];
-      let paramIndex = 1;
+      // Importar o pool
+      const { pool } = await import('./db');
       
       // Data inicial padrão: 30 dias atrás
       let startDate = new Date();
@@ -3167,16 +3166,12 @@ export class DatabaseStorage implements IStorage {
         startDateStr = filters.startDate;
       }
       
-      queryParams.push(startDateStr);
-      
       // Data final padrão: hoje
-      let endDateParam = paramIndex++;
-      let endDateCondition = `AND s.date <= $${endDateParam}`;
-      queryParams.push(new Date().toISOString().split('T')[0]);
+      let endDateStr = new Date().toISOString().split('T')[0];
       
       // Substituir por filtro fornecido, se existir
       if (filters?.endDate) {
-        queryParams[endDateParam - 1] = filters.endDate;
+        endDateStr = filters.endDate;
       }
       
       // Consulta para receita total e paga
@@ -3186,7 +3181,7 @@ export class DatabaseStorage implements IStorage {
           COALESCE(SUM(s.total_amount::numeric) FILTER (WHERE s.status = 'paid'), 0) as paid_revenue,
           COALESCE(SUM(s.total_amount::numeric) FILTER (WHERE s.status != 'paid' AND s.status != 'returned' AND s.status != 'returned_to_seller'), 0) as pending_revenue
         FROM sales s
-        WHERE s.date >= $1 ${endDateCondition}
+        WHERE s.date >= $1 AND s.date <= $2
       `;
       
       // Consulta para custos operacionais
@@ -3195,12 +3190,12 @@ export class DatabaseStorage implements IStorage {
           COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         JOIN sales s ON c.sale_id = s.id
-        WHERE s.date >= $1 ${endDateCondition}
+        WHERE s.date >= $1 AND s.date <= $2
       `;
       
-      // Executar consultas
-      const revenueResult = await pool.query(revenueQuery, queryParams);
-      const costResult = await pool.query(costQuery, queryParams);
+      // Executar consultas com parâmetros explícitos
+      const revenueResult = await pool.query(revenueQuery, [startDateStr, endDateStr]);
+      const costResult = await pool.query(costQuery, [startDateStr, endDateStr]);
       
       // Extrair valores
       const totalRevenue = revenueResult.rows[0].total_revenue;

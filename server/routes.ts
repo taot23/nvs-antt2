@@ -4498,18 +4498,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para resumo de vendas do dashboard
   app.get("/api/dashboard/sales", isAuthenticated, async (req, res) => {
     try {
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
+      const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
       const { pool } = await import('./db');
       
       // Filtrar por vendedor se o usuário for vendedor
       const userRole = req.user?.role || '';
       const userId = req.user?.id || 0;
       let sellerFilter = '';
-      let params = [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ];
+      let params = [startDate, endDate];
       
       if (userRole === 'vendedor') {
         sellerFilter = 'AND seller_id = $3';
@@ -4528,9 +4525,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE date BETWEEN $1 AND $2 ${sellerFilter}
       `;
       
-      const statusResult = await pool.query(statusQuery, params);
-      const statusData = statusResult.rows[0];
-      
       // Buscar vendas agrupadas por data
       const byDateQuery = `
         SELECT 
@@ -4543,7 +4537,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY date
       `;
       
-      const byDateResult = await pool.query(byDateQuery, params);
+      // Executar ambas as consultas simultaneamente
+      const [statusResult, byDateResult] = await Promise.all([
+        pool.query(statusQuery, params),
+        pool.query(byDateQuery, params)
+      ]);
+      
+      const statusData = statusResult.rows[0] || {
+        completed: 0,
+        in_progress: 0,
+        pending: 0,
+        canceled: 0,
+        total: 0
+      };
       
       res.json({
         total: parseInt(statusData.total) || 0,
@@ -4557,7 +4563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pending: parseInt(statusData.pending) || 0,
           canceled: parseInt(statusData.canceled) || 0
         },
-        byDate: byDateResult.rows
+        byDate: byDateResult.rows || []
       });
     } catch (error) {
       console.error("Erro ao buscar dados do resumo de vendas:", error);
@@ -4568,8 +4574,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para desempenho dos vendedores no dashboard
   app.get("/api/dashboard/sellers", isAuthenticated, async (req, res) => {
     try {
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
+      const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
       const { pool } = await import('./db');
       
       // Verificar permissões - apenas admin, supervisor e financeiro podem ver dados de todos vendedores
@@ -4578,10 +4584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Se for vendedor, mostra apenas os próprios dados
       let sellerFilter = '';
-      let params = [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ];
+      let params = [startDate, endDate];
       
       if (userRole === 'vendedor') {
         sellerFilter = 'AND s.seller_id = $3';
@@ -4614,8 +4617,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para atividades recentes no dashboard
   app.get("/api/dashboard/activities", isAuthenticated, async (req, res) => {
     try {
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
+      const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
       const limit = Number(req.query.limit) || 10;
       const { pool } = await import('./db');
       
@@ -4624,12 +4627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id || 0;
       
       let sellerFilter = '';
-      let params = [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0],
-        limit
-      ];
-      
+      let params = [startDate, endDate, limit];
       let sellerFilterParams = [...params];
       
       if (userRole === 'vendedor') {
@@ -4638,78 +4636,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sellerFilterParams.push(userId.toString());
       }
 
-      // Consulta para obter vendas recentes
-      const salesQuery = `
-        SELECT 
-          s.id,
-          'Venda' as type,
-          CASE 
-            WHEN c.company_name IS NOT NULL AND c.company_name != '' 
-            THEN c.company_name 
-            ELSE CONCAT(c.first_name, ' ', c.last_name) 
-          END as description,
-          s.status,
-          s.date,
-          s.total_amount::numeric as amount,
-          u.username as "user"
-        FROM sales s
-        JOIN customers c ON s.customer_id = c.id
-        JOIN users u ON s.seller_id = u.id
-        WHERE s.date BETWEEN $1 AND $2 ${sellerFilter}
-        ORDER BY s.date DESC
-        LIMIT $3
-      `;
-      
-      // Consulta para obter pagamentos recentes
-      const paymentsQuery = `
-        SELECT 
-          i.id,
-          'Pagamento' as type,
-          CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
-          i.status,
-          i.payment_date as date,
-          i.amount::numeric as amount,
-          u.username as "user"
-        FROM sale_installments i
-        JOIN sales s ON i.sale_id = s.id
-        JOIN users u ON s.seller_id = u.id
-        WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid' ${sellerFilter}
-        ORDER BY i.payment_date DESC
-        LIMIT $3
-      `;
-      
-      // Consulta para obter atualizações de status recentes (apenas para admin, financeiro e supervisor)
-      const statusUpdateQuery = userRole !== 'vendedor' ? `
-        SELECT 
-          sh.id,
-          'Atualização de Status' as type,
-          CONCAT('Venda #', s.order_number, ' atualizada para ', sh.new_status) as description,
-          s.status,
-          sh.created_at as date,
-          s.total_amount::numeric as amount,
-          u.username as "user"
-        FROM sale_status_history sh
-        JOIN sales s ON sh.sale_id = s.id
-        JOIN users u ON sh.user_id = u.id
-        WHERE sh.created_at BETWEEN $1 AND $2
-        ORDER BY sh.created_at DESC
-        LIMIT $3
-      ` : null;
-      
-      // Executar consultas
-      const salesResult = await pool.query(salesQuery, params);
-      const paymentsResult = await pool.query(paymentsQuery, params);
-      const statusResult = statusUpdateQuery ? await pool.query(statusUpdateQuery, sellerFilterParams) : { rows: [] };
-      
-      // Combinar resultados e ordenar por data (mais recente primeiro)
-      const allActivities = [
-        ...salesResult.rows,
-        ...paymentsResult.rows,
-        ...statusResult.rows,
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      // Retornar apenas os primeiros 'limit' resultados
-      res.json(allActivities.slice(0, limit));
+      try {
+        // Consulta para obter vendas recentes
+        const salesQuery = `
+          SELECT 
+            s.id,
+            'Venda' as type,
+            CASE 
+              WHEN c.company_name IS NOT NULL AND c.company_name != '' 
+              THEN c.company_name 
+              ELSE CONCAT(c.first_name, ' ', c.last_name) 
+            END as description,
+            s.status,
+            s.date,
+            s.total_amount::numeric as amount,
+            u.username as "user"
+          FROM sales s
+          JOIN customers c ON s.customer_id = c.id
+          JOIN users u ON s.seller_id = u.id
+          WHERE s.date BETWEEN $1 AND $2 ${sellerFilter}
+          ORDER BY s.date DESC
+          LIMIT $3
+        `;
+        
+        // Consulta para obter pagamentos recentes
+        const paymentsQuery = `
+          SELECT 
+            i.id,
+            'Pagamento' as type,
+            CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
+            i.status,
+            i.payment_date as date,
+            i.amount::numeric as amount,
+            u.username as "user"
+          FROM sale_installments i
+          JOIN sales s ON i.sale_id = s.id
+          JOIN users u ON s.seller_id = u.id
+          WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid' ${sellerFilter}
+          ORDER BY i.payment_date DESC
+          LIMIT $3
+        `;
+        
+        // Consulta para obter atualizações de status recentes (apenas para admin, financeiro e supervisor)
+        const statusUpdateQuery = userRole !== 'vendedor' ? `
+          SELECT 
+            sh.id,
+            'Atualização de Status' as type,
+            CONCAT('Venda #', s.order_number, ' atualizada para ', sh.new_status) as description,
+            s.status,
+            sh.created_at as date,
+            s.total_amount::numeric as amount,
+            u.username as "user"
+          FROM sale_status_history sh
+          JOIN sales s ON sh.sale_id = s.id
+          JOIN users u ON sh.user_id = u.id
+          WHERE sh.created_at BETWEEN $1 AND $2
+          ORDER BY sh.created_at DESC
+          LIMIT $3
+        ` : null;
+        
+        // Executar consultas simultaneamente
+        const [salesResult, paymentsResult, statusResult] = await Promise.all([
+          pool.query(salesQuery, params),
+          pool.query(paymentsQuery, params),
+          statusUpdateQuery ? pool.query(statusUpdateQuery, sellerFilterParams) : Promise.resolve({ rows: [] })
+        ]);
+        
+        // Combinar resultados e ordenar por data (mais recente primeiro)
+        const allActivities = [
+          ...salesResult.rows,
+          ...paymentsResult.rows,
+          ...statusResult.rows,
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        // Retornar apenas os primeiros 'limit' resultados
+        res.json(allActivities.slice(0, limit));
+      } catch (queryError) {
+        console.error("Erro na consulta de atividades:", queryError);
+        res.status(500).json({ error: "Erro na consulta de atividades" });
+      }
     } catch (error) {
       console.error("Erro ao buscar atividades recentes:", error);
       res.status(500).json({ error: "Erro ao buscar atividades recentes" });
