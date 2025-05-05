@@ -750,8 +750,14 @@ export class DatabaseStorage implements IStorage {
         hasCustomer: !!customer,
         customerName: customer?.name,
         hasSeller: !!seller,
-        sellerName: seller?.username
+        sellerName: seller?.username,
+        returnReason: saleBase.returnReason || null
       });
+      
+      // Logando motivo da devolução para depuração
+      if (saleBase.status === "returned") {
+        console.log(`Motivo da devolução para venda ${id}: ${saleBase.returnReason || "Não especificado"}`);
+      }
       
       // Criar objeto de saída com estrutura aninhada
       const enrichedSale = {
