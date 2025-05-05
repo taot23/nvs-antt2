@@ -2470,69 +2470,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint para reenviar uma venda que foi devolvida para correção (returned -> corrected)
-  app.post("/api/sales/:id/resubmit", isAuthenticated, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "ID inválido" });
-      }
-      
-      const sale = await storage.getSale(id);
-      if (!sale) {
-        return res.status(404).json({ error: "Venda não encontrada" });
-      }
-      
-      // Verificar se a venda está em status "returned"
-      if (sale.status !== "returned") {
-        return res.status(400).json({ 
-          error: "Status inválido", 
-          message: "Apenas vendas com status 'returned' podem ser reenviadas"
-        });
-      }
-      
-      // Verificar se o usuário tem permissão para reenviar esta venda
-      if (req.user?.role !== "admin" && 
-          req.user?.role !== "supervisor" && 
-          !(req.user?.role === "vendedor" && sale.sellerId === req.user?.id)) {
-        return res.status(403).json({ 
-          error: "Permissão negada", 
-          message: "Você não tem permissão para reenviar esta venda" 
-        });
-      }
-      
-      // Extrair as notas de correção da solicitação
-      const { correctionNotes } = req.body;
-      
-      if (!correctionNotes || typeof correctionNotes !== "string" || correctionNotes.trim() === "") {
-        return res.status(400).json({ 
-          error: "Descrição de correções é obrigatória", 
-          message: "Por favor, descreva as correções realizadas"
-        });
-      }
-      
-      // Atualizar o status da venda para "corrected"
-      const updatedSale = await storage.updateSaleStatus(
-        id, 
-        "returned", 
-        "corrected", 
-        `Venda reenviada após correções. Notas: ${correctionNotes}`,
-        req.user?.id || null,
-        { isResubmitted: true, correctionNotes }
-      );
-      
-      // Notificar clientes WebSocket sobre a mudança
-      notifySalesUpdate();
-      
-      return res.status(200).json(updatedSale);
-    } catch (error) {
-      console.error("Erro ao reenviar venda:", error);
-      return res.status(500).json({ 
-        error: "Erro ao reenviar venda", 
-        message: error instanceof Error ? error.message : "Erro desconhecido" 
-      });
-    }
-  });
+  // Rota para reenvio de vendas removida daqui para evitar duplicação
+  // Mantivemos a implementação na linha ~4000 que preserva o motivo de devolução (return_reason)
 
   app.delete("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
@@ -4047,11 +3986,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         [id, 'returned', 'corrected', req.user?.id, correctionNotes]
       );
       
-      // Atualizar a venda para o novo status "corrected"
+      // Atualizar a venda para o novo status "corrected" mas preservar o motivo da devolução
       const updateResult = await pool.query(
         `UPDATE sales 
           SET status = 'corrected', 
-              return_reason = NULL, 
+              /* Preservando o motivo de devolução (return_reason) para histórico */
               notes = CASE 
                       WHEN notes IS NULL OR notes = '' THEN $1 
                       ELSE notes || ' | CORREÇÃO: ' || $1 
