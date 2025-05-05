@@ -1085,8 +1085,7 @@ export default function SaleOperationDialog({
                       type="button"
                       onClick={handleUpdateExecutionType}
                       disabled={
-                        updateExecutionTypeMutation.isPending || 
-                        (showServiceProviderField && !selectedServiceProviderId)
+                        updateExecutionTypeMutation.isPending
                       }
                       className="w-full"
                     >
@@ -1192,15 +1191,12 @@ export default function SaleOperationDialog({
                         onClick={handleMainAction}
                         disabled={
                           startExecutionMutation.isPending || 
-                          (showServiceProviderField && selectedServiceProviderIds.length === 0) ||
                           !selectedServiceTypeId
                         }
                         className={sale?.status === "corrected" ? "bg-primary hover:bg-primary/90" : ""}
-                        title={showServiceProviderField && selectedServiceProviderIds.length === 0
-                          ? "É necessário selecionar pelo menos um prestador parceiro para execução via SINDICATO" 
-                          : !selectedServiceTypeId 
-                            ? "É necessário selecionar um tipo de execução"
-                            : ""}
+                        title={!selectedServiceTypeId 
+                          ? "É necessário selecionar um tipo de execução"
+                          : ""}
                       >
                         <CornerDownRight className="mr-2 h-4 w-4" />
                         {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
