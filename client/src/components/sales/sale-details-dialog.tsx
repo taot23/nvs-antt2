@@ -302,11 +302,11 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                       <dl className="space-y-2 text-sm">
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Cliente</dt>
-                          <dd>{findCustomerName(sale.customerId)}</dd>
+                          <dd>{sale.customer?.name || sale.customerName || findCustomerName(sale.customerId) || "Não informado"}</dd>
                         </div>
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Vendedor</dt>
-                          <dd>{findUserName(sale.sellerId)}</dd>
+                          <dd>{sale.seller?.username || sale.sellerName || findUserName(sale.sellerId) || "Não informado"}</dd>
                         </div>
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Forma de Pagamento</dt>
