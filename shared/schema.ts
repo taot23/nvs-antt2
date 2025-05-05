@@ -23,7 +23,7 @@ export const customers = pgTable("customers", {
   contactName: text("contact_name"), // Nome do contato (para CNPJ)
   phone: text("phone").notNull(), // Telefone principal
   phone2: text("phone2"), // Telefone secundário
-  email: text("email").notNull(), // Email
+  email: text("email"), // Email (opcional)
   userId: integer("user_id").notNull().references(() => users.id),
 });
 
