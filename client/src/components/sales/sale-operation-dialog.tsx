@@ -451,7 +451,7 @@ export default function SaleOperationDialog({
   const handleMainAction = () => {
     if (!sale) return;
     
-    if (sale.status === "pending" || sale.status === "corrected") {
+    if (sale.status === "pending" || sale.status === "corrected" || sale.status === "returned") {
       startExecutionMutation.mutate();
     } else if (sale.status === "in_progress") {
       completeExecutionMutation.mutate();
@@ -985,7 +985,7 @@ export default function SaleOperationDialog({
                           (hasPrestadorParceiro && selectedServiceProviderIds.length === 0)
                         }
                       >
-                        {enrichedSale.status === "pending" || enrichedSale.status === "corrected" ? (
+                        {enrichedSale.status === "pending" || enrichedSale.status === "corrected" || enrichedSale.status === "returned" ? (
                           <>
                             <Truck className="mr-2 h-4 w-4" />
                             {startExecutionMutation.isPending ? "Iniciando..." : "Iniciar Execução"}
