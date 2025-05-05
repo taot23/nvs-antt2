@@ -82,7 +82,7 @@ export default function SaleOperationDialog({
   const [activeTab, setActiveTab] = useState("summary");
   const [isReturning, setIsReturning] = useState(false);
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<number | null>(null);
-  const [selectedServiceProviderId, setSelectedServiceProviderId] = useState<number | null>(null);
+  const [selectedServiceProviderIds, setSelectedServiceProviderIds] = useState<number[]>([]);
   const [showServiceProviderField, setShowServiceProviderField] = useState(false);
   
   // Limpar o cache do histórico quando o diálogo é aberto

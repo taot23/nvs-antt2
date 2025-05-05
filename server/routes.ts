@@ -1202,6 +1202,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== Rotas para gerenciamento de vendas ==========
   
+  // API para obter prestadores de serviço associados à venda
+  app.get("/api/sales/:saleId/service-providers", isAuthenticated, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.saleId);
+      
+      if (isNaN(saleId)) {
+        return res.status(400).json({ error: "ID de venda inválido" });
+      }
+
+      const sale = await storage.getSale(saleId);
+      
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Obter as relações entre venda e prestadores de serviço
+      const relations = await storage.getSaleServiceProviders(saleId);
+      
+      if (!relations || relations.length === 0) {
+        // Caso ainda esteja usando o campo antigo na tabela sales
+        if (sale.serviceProviderId) {
+          const provider = await storage.getServiceProvider(sale.serviceProviderId);
+          if (provider) {
+            return res.status(200).json([provider]);
+          }
+        }
+        return res.status(200).json([]);
+      }
+      
+      // Obter detalhes de todos os prestadores relacionados
+      const providers = [];
+      for (const relation of relations) {
+        const provider = await storage.getServiceProvider(relation.serviceProviderId);
+        if (provider) {
+          providers.push(provider);
+        }
+      }
+      
+      return res.status(200).json(providers);
+    } catch (error) {
+      console.error("Erro ao obter prestadores de serviço da venda:", error);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // API para atualizar prestadores de serviço associados à venda
+  app.put("/api/sales/:saleId/service-providers", canManageServiceProviders, async (req, res) => {
+    try {
+      const saleId = parseInt(req.params.saleId);
+      const { providerIds } = req.body;
+      
+      if (isNaN(saleId)) {
+        return res.status(400).json({ error: "ID de venda inválido" });
+      }
+      
+      if (!Array.isArray(providerIds)) {
+        return res.status(400).json({ error: "Lista de prestadores inválida" });
+      }
+
+      const sale = await storage.getSale(saleId);
+      
+      if (!sale) {
+        return res.status(404).json({ error: "Venda não encontrada" });
+      }
+      
+      // Atualizar relações
+      const updatedRelations = await storage.updateSaleServiceProviders(saleId, providerIds);
+      
+      return res.status(200).json(updatedRelations);
+    } catch (error) {
+      console.error("Erro ao atualizar prestadores de serviço da venda:", error);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
   // Rota para listar todas as vendas (com base na permissão do usuário) - com suporte a paginação
   app.get("/api/sales", isAuthenticated, async (req, res) => {
     try {
