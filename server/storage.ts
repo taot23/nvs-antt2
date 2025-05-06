@@ -2540,8 +2540,8 @@ export class DatabaseStorage implements IStorage {
         // Criar um novo recibo para registrar a edição
         await pool.query(
           `INSERT INTO sale_payment_receipts 
-           (installment_id, user_id, type, data, created_at, updated_at, notes)
-           VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)`,
+           (installment_id, user_id, receipt_type, receipt_data, created_at, notes)
+           VALUES ($1, $2, $3, $4, NOW(), $5)`,
           [
             installmentId,
             userId,
