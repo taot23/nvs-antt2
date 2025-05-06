@@ -273,30 +273,56 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
   const openEditDialog = (installment: any) => {
     setSelectedInstallment(installment);
     
-    // Preencher com os valores atuais da parcela
+    // Preencher com os valores atuais da parcela preservando exatamente como estão
     // Se a parcela já tem uma data de pagamento, usá-la como valor inicial
     if (installment.paymentDate) {
-      // Converter a data para o formato brasileiro
-      const date = new Date(installment.paymentDate);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      const formattedDate = `${day}/${month}/${year}`;
-      
-      setPaymentDateStr(formattedDate);
+      // Usar a data exatamente como está no banco de dados, sem conversões
+      // Verifica se já está no formato brasileiro (dd/mm/aaaa)
+      if (installment.paymentDate.includes('/')) {
+        setPaymentDateStr(installment.paymentDate);
+      } else {
+        // Se estiver no formato ISO, converter para o formato brasileiro
+        try {
+          const date = new Date(installment.paymentDate);
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          const formattedDate = `${day}/${month}/${year}`;
+          
+          // Mostrar na console para debug
+          console.log(`Data original: ${installment.paymentDate}`);
+          console.log(`Data formatada: ${formattedDate}`);
+          
+          setPaymentDateStr(formattedDate);
+        } catch (error) {
+          // Em caso de erro, usar a data original sem alterações
+          console.error("Erro ao formatar data:", error);
+          setPaymentDateStr(installment.paymentDate);
+        }
+      }
     } else {
       setPaymentDateStr("");
     }
     
-    // Definir as notas do pagamento, se existirem
+    // Preservar as notas do pagamento exatamente como estão
     setPaymentNotes(installment.paymentNotes || "");
     
-    // Definir o método de pagamento, se existir
+    // Preservar o método de pagamento exatamente como está
     if (installment.paymentMethodId) {
       setPaymentMethodId(String(installment.paymentMethodId));
     } else if (paymentMethods.length > 0) {
       setPaymentMethodId(String(paymentMethods[0].id));
     }
+    
+    // Logar as informações para debug
+    console.log("Abrindo edição com dados originais:", {
+      id: installment.id,
+      installmentNumber: installment.installmentNumber,
+      paymentDate: installment.paymentDate,
+      paymentDateStr: paymentDateStr,
+      paymentMethodId: installment.paymentMethodId,
+      paymentNotes: installment.paymentNotes
+    });
     
     setEditDialogOpen(true);
   };
