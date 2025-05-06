@@ -314,6 +314,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(403).json({ error: "Permissão negada" });
   };
   
+  // Middleware para verificar permissões - apenas administradores podem editar vendas já pagas
+  const onlyAdminCanEditPaidSales = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores podem editar vendas já pagas
+    if (req.user?.role === "admin") {
+      return next();
+    }
+    return res.status(403).json({ error: "Permissão negada. Apenas administradores podem editar vendas já pagas." });
+  };
+  
   // Middleware para verificar se usuário pode ver todas as vendas da empresa
   const canViewAllSales = (req: Request, res: Response, next: Function) => {
     if (!req.isAuthenticated()) {

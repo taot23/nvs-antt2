@@ -247,6 +247,16 @@ export interface IStorage {
     paymentDate: string, // Alterado para string para preservar exatamente o formato digitado pelo usuário
     receiptData?: { type: string; url?: string; data?: any; notes?: string },
   ): Promise<SaleInstallment | undefined>;
+  
+  // Editar pagamento já confirmado de uma parcela (exclusivo para administradores)
+  editInstallmentPayment(
+    installmentId: number,
+    userId: number,
+    paymentDate: string,
+    paymentMethodId: number,
+    notes?: string,
+    receiptData?: { detail: string; paymentMethod: string },
+  ): Promise<SaleInstallment | undefined>;
 
   // Special Sale operations
   returnSaleToSeller(
