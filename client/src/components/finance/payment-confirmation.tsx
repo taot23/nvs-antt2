@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   Card, 
   CardContent, 
@@ -27,7 +28,9 @@ import {
   Loader2, 
   Upload,
   RefreshCw, 
-  FileText 
+  FileText,
+  Edit,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,14 +68,19 @@ const formatDateToBR = (date: Date) => {
 
 export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   // Inicializar com string vazia para forçar o usuário a digitar a data
   const [paymentDate, setPaymentDate] = useState<string>("");
   const [paymentDateStr, setPaymentDateStr] = useState<string>("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string>("");
+  
+  // Verificar se o usuário é administrador (só administradores podem editar pagamentos já confirmados)
+  const isAdmin = user?.role === "admin";
   
   // Buscar métodos de pagamento do sistema
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } = useQuery({
@@ -94,7 +102,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       // Debug: Verificar o formato das datas das parcelas
       if (data && data.length > 0) {
         console.log("Parcelas recebidas do servidor:", data);
-        data.forEach((installment, index) => {
+        data.forEach((installment: any, index: number) => {
           console.log(`Parcela #${index+1} (${installment.installmentNumber}): dueDate=${installment.dueDate}, tipo=${typeof installment.dueDate}`);
         });
       }
@@ -102,6 +110,48 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       return data;
     },
     enabled: !!saleId,
+  });
+  
+  // Mutation para editar um pagamento confirmado (apenas admin pode fazer isso)
+  const editPaymentMutation = useMutation({
+    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: string, notes: string, paymentMethodId: string }) => {
+      // Buscar o método de pagamento selecionado para usar seu nome
+      const selectedMethod = paymentMethods.find((m: any) => String(m.id) === paymentMethodId);
+      
+      // Criar rota para editar pagamento
+      const res = await apiRequest("POST", `/api/installments/${installmentId}/edit-payment`, {
+        paymentDate, // Enviar a data exatamente como está
+        paymentMethodId: Number(paymentMethodId),
+        notes: notes,
+        receiptData: { 
+          detail: "Edição de pagamento",
+          paymentMethod: selectedMethod?.name || "Método não especificado"
+        }
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      // Atualizar os dados após a edição
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId, 'installments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales', saleId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
+      
+      toast({
+        title: "Pagamento atualizado",
+        description: "As informações de pagamento foram atualizadas com sucesso.",
+      });
+      
+      // Fechar o diálogo de edição
+      closeEditDialog();
+    },
+    onError: (error: any) => {
+      console.error("Erro ao editar pagamento:", error);
+      toast({
+        title: "Erro ao editar pagamento",
+        description: error.message || "Não foi possível atualizar as informações de pagamento.",
+        variant: "destructive",
+      });
+    }
   });
   
   // Mutation para confirmar pagamento
@@ -218,6 +268,38 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     setConfirmDialogOpen(true);
   };
   
+  // Função para abrir o diálogo de edição de pagamento (apenas admin)
+  const openEditDialog = (installment: any) => {
+    setSelectedInstallment(installment);
+    
+    // Preencher com os valores atuais da parcela
+    // Se a parcela já tem uma data de pagamento, usá-la como valor inicial
+    if (installment.paymentDate) {
+      // Converter a data para o formato brasileiro
+      const date = new Date(installment.paymentDate);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const formattedDate = `${day}/${month}/${year}`;
+      
+      setPaymentDateStr(formattedDate);
+    } else {
+      setPaymentDateStr("");
+    }
+    
+    // Definir as notas do pagamento, se existirem
+    setPaymentNotes(installment.paymentNotes || "");
+    
+    // Definir o método de pagamento, se existir
+    if (installment.paymentMethodId) {
+      setPaymentMethodId(String(installment.paymentMethodId));
+    } else if (paymentMethods.length > 0) {
+      setPaymentMethodId(String(paymentMethods[0].id));
+    }
+    
+    setEditDialogOpen(true);
+  };
+  
   // Função para abrir o diálogo de confirmação para múltiplas parcelas
   const openMultiConfirmDialog = () => {
     setSelectedInstallment(null);
@@ -234,17 +316,37 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
     }
     
     // Selecionar todas as parcelas pendentes
-    setSelectedInstallments(pendingInstallments.map(inst => inst.id));
+    setSelectedInstallments(pendingInstallments.map((inst: any) => inst.id));
     
     setConfirmDialogOpen(true);
   };
   
-  // Fechar diálogo
+  // Fechar diálogo de confirmação
   const closeConfirmDialog = () => {
     setConfirmDialogOpen(false);
     setSelectedInstallment(null);
     setShowMultiConfirm(false);
     setSelectedInstallments([]);
+  };
+  
+  // Fechar diálogo de edição
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setSelectedInstallment(null);
+  };
+  
+  // Função para salvar a edição de um pagamento (apenas admin)
+  const handleEditPayment = () => {
+    if (!selectedInstallment) return;
+    if (!paymentDateStr || !paymentMethodId) return;
+    
+    // Chamar a mutation para editar o pagamento
+    editPaymentMutation.mutate({
+      installmentId: selectedInstallment.id,
+      paymentDate: paymentDateStr,
+      notes: paymentNotes,
+      paymentMethodId
+    });
   };
   
   // Confirmar pagamento de uma única parcela
@@ -422,7 +524,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                         Confirmar
                       </Button>
                     )}
-                    {installment.status === 'paid' && (
+                    {installment.status === 'paid' && !isAdmin && (
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -432,6 +534,29 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Confirmado
                       </Button>
+                    )}
+                    {/* Botão de edição apenas para administradores em parcelas já pagas */}
+                    {installment.status === 'paid' && isAdmin && (
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-green-600"
+                          disabled
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Confirmado
+                        </Button>
+                        <Button
+                          onClick={() => openEditDialog(installment)}
+                          size="sm"
+                          variant="outline"
+                          className="border-amber-500 text-amber-600 hover:bg-amber-50"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -464,6 +589,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
       </Card>
       
       {/* Diálogo de confirmação de pagamento */}
+      {/* Diálogo de confirmação de pagamento */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -491,7 +617,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                 <div className="mt-3 p-2 bg-white rounded border border-amber-100">
                   <p className="text-xs font-medium mb-1">Parcelas a serem confirmadas:</p>
                   <div className="flex flex-wrap gap-1">
-                    {pendingInstallments.map(inst => (
+                    {pendingInstallments.map((inst: any) => (
                       <span key={inst.id} className="inline-flex items-center px-2 py-1 rounded text-xs bg-amber-100 text-amber-800">
                         Parcela {inst.installmentNumber}
                       </span>
@@ -570,6 +696,105 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
                 <Check className="h-4 w-4 mr-2" />
               )}
               {showMultiConfirm ? "Confirmar Parcelas" : "Confirmar Pagamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de edição de pagamento (apenas para administradores) */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Edit className="h-5 w-5 mr-2 text-amber-600" />
+              Editar Pagamento Confirmado
+            </DialogTitle>
+            <DialogDescription>
+              <div className="mt-2 flex items-center">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
+                <span>Esta operação é exclusiva para administradores.</span>
+              </div>
+              <p className="mt-2">
+                Edite as informações de pagamento da parcela {selectedInstallment?.installmentNumber}.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
+              <p className="text-sm text-amber-800 flex items-center mb-2">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Atenção: Modo de edição ativado
+              </p>
+              <p className="text-sm text-amber-700">
+                Você está modificando um pagamento já confirmado. Esta operação afetará relatórios financeiros.
+              </p>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-payment-method">Método de Pagamento</Label>
+              <Select 
+                value={paymentMethodId} 
+                onValueChange={setPaymentMethodId}
+                disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingPaymentMethods ? "Carregando..." : "Selecione o método de pagamento"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((method: any) => (
+                    <SelectItem key={method.id} value={String(method.id)}>
+                      {method.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-payment-date">Data do Pagamento</Label>
+              <Input
+                id="edit-payment-date"
+                type="text"
+                placeholder="dd/mm/aaaa"
+                value={paymentDateStr}
+                onChange={(e) => {
+                  setPaymentDateStr(e.target.value);
+                  setPaymentDate(e.target.value);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Digite a data no formato dd/mm/aaaa, dd-mm-aaaa ou aaaa-mm-dd
+              </p>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-payment-notes">Observações</Label>
+              <Textarea
+                id="edit-payment-notes"
+                placeholder="Informações adicionais sobre o pagamento..."
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditDialog}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleEditPayment}
+              disabled={!paymentDateStr || !paymentMethodId || editPaymentMutation.isPending}
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {editPaymentMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Edit className="h-4 w-4 mr-2" />
+              )}
+              Salvar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>
