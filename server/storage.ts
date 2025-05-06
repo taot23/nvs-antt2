@@ -1380,8 +1380,20 @@ export class DatabaseStorage implements IStorage {
 
       // Excluir as parcelas relacionadas
       await this.deleteSaleInstallments(id);
+      
+      // Excluir os relacionamentos com prestadores de serviço
+      await db.delete(saleServiceProviders).where(eq(saleServiceProviders.saleId, id));
+      
+      // Excluir o histórico de status da venda
+      await db.delete(salesStatusHistory).where(eq(salesStatusHistory.saleId, id));
+      
+      // Excluir os custos operacionais da venda
+      await db.delete(saleOperationalCosts).where(eq(saleOperationalCosts.saleId, id));
+      
+      // Excluir os recibos de pagamento da venda
+      await db.delete(salePaymentReceipts).where(eq(salePaymentReceipts.saleId, id));
 
-      // Depois excluir a venda
+      // Por último excluir a venda
       const [deletedSale] = await db
         .delete(sales)
         .where(eq(sales.id, id))
