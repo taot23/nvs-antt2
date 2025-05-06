@@ -330,18 +330,64 @@ export default function SaleDetailsDialog({ open, onClose, saleId }: SaleDetails
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                       <dl className="space-y-2 text-sm">
+                        {/* Informações do Cliente com CPF/CNPJ */}
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Cliente</dt>
                           <dd>{sale.customer?.name || sale.customerName || findCustomerName(sale.customerId) || "Não informado"}</dd>
                         </div>
+                        
+                        {/* Documento do cliente (CPF/CNPJ) */}
+                        {(() => {
+                          // Buscar o cliente pelo ID para acessar os dados completos
+                          const customer = customers.find((c: any) => c.id === sale.customerId);
+                          if (customer?.document) {
+                            const documentType = customer.documentType === 'cnpj' ? 'CNPJ' : 'CPF';
+                            return (
+                              <div className="flex flex-col">
+                                <dt className="font-medium text-muted-foreground">{documentType}</dt>
+                                <dd>{customer.document}</dd>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
+                        {/* Telefones do cliente */}
+                        {(() => {
+                          // Buscar o cliente pelo ID para acessar os dados completos
+                          const customer = customers.find((c: any) => c.id === sale.customerId);
+                          if (customer?.phone) {
+                            return (
+                              <>
+                                <div className="flex flex-col">
+                                  <dt className="font-medium text-muted-foreground">Telefone</dt>
+                                  <dd>{customer.phone}</dd>
+                                </div>
+                                {customer.phone2 && (
+                                  <div className="flex flex-col">
+                                    <dt className="font-medium text-muted-foreground">Telefone 2</dt>
+                                    <dd>{customer.phone2}</dd>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
+                        {/* Vendedor */}
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Vendedor</dt>
                           <dd>{sale.seller?.username || sale.sellerName || findUserName(sale.sellerId) || "Não informado"}</dd>
                         </div>
+                        
+                        {/* Forma de Pagamento */}
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Forma de Pagamento</dt>
                           <dd>{findPaymentMethodName(sale.paymentMethodId)}</dd>
                         </div>
+                        
+                        {/* Valor Total */}
                         <div className="flex flex-col">
                           <dt className="font-medium text-muted-foreground">Valor Total</dt>
                           <dd className="font-medium text-lg text-primary">
