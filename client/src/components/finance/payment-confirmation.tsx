@@ -525,7 +525,7 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                         Confirmar
                       </Button>
                     )}
-                    {installment.status === 'paid' && !isAdmin && (
+                    {installment.status === 'paid' && !isUserAdmin && (
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -537,7 +537,7 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                       </Button>
                     )}
                     {/* Botão de edição apenas para administradores em parcelas já pagas */}
-                    {installment.status === 'paid' && isAdmin && (
+                    {installment.status === 'paid' && isUserAdmin && (
                       <div className="flex space-x-2">
                         <Button 
                           size="sm" 

@@ -3760,6 +3760,30 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Não foi possível buscar as execuções recentes de relatórios.");
     }
   }
+
+  // Método para registrar atividades do sistema (log de atividades)
+  async createActivityLog(data: {
+    userId: number;
+    action: string;
+    description: string;
+    details?: string;
+    entityId?: number;
+    entityType?: string;
+  }): Promise<void> {
+    try {
+      const { userId, action, description, details, entityId, entityType } = data;
+
+      await pool.query(
+        `INSERT INTO activity_logs 
+         (user_id, action, description, details, entity_id, entity_type, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        [userId, action, description, details, entityId, entityType]
+      );
+    } catch (error) {
+      console.error("Erro ao criar log de atividade:", error);
+      // Não propagar o erro para não interromper o fluxo principal
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
