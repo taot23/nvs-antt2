@@ -56,6 +56,7 @@ import { Textarea } from "@/components/ui/textarea";
 interface PaymentConfirmationProps {
   saleId: number | null;
   canManage: boolean;
+  isAdmin?: boolean;
 }
 
 // Função para formatar data no padrão brasileiro
@@ -66,7 +67,7 @@ const formatDateToBR = (date: Date) => {
   return `${day}/${month}/${year}`;
 };
 
-export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationProps) {
+export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfirmationProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -80,7 +81,7 @@ export function PaymentConfirmation({ saleId, canManage }: PaymentConfirmationPr
   const [paymentMethodId, setPaymentMethodId] = useState<string>("");
   
   // Verificar se o usuário é administrador (só administradores podem editar pagamentos já confirmados)
-  const isAdmin = user?.role === "admin";
+  const isUserAdmin = isAdmin ?? (user?.role === "admin");
   
   // Buscar métodos de pagamento do sistema
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } = useQuery({

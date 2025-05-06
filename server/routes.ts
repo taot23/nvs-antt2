@@ -3616,6 +3616,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para editar um pagamento já confirmado (exclusivo para administradores)
+  app.post("/api/installments/:id/edit-payment", onlyAdminAccess, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const installment = await storage.getSaleInstallment(id);
+      if (!installment) {
+        return res.status(404).json({ error: "Parcela não encontrada" });
+      }
+      
+      // Verificar se a parcela está paga (só podemos editar pagamentos confirmados)
+      if (installment.status !== 'paid') {
+        return res.status(400).json({ error: "Só é possível editar parcelas já pagas" });
+      }
+      
+      // Extrair dados do corpo da requisição
+      const { paymentDate, paymentMethodId, notes } = req.body;
+      
+      if (!paymentDate || !paymentMethodId) {
+        return res.status(400).json({ error: "Data de pagamento e método de pagamento são obrigatórios" });
+      }
+      
+      // Verificar se o método de pagamento existe
+      const paymentMethod = await storage.getPaymentMethod(paymentMethodId);
+      if (!paymentMethod) {
+        return res.status(400).json({ error: "Método de pagamento não encontrado" });
+      }
+      
+      console.log(`🔧 Editando pagamento da parcela ${id} com a nova data: ${paymentDate}`);
+      
+      const updatedInstallment = await storage.editInstallmentPayment(
+        id,
+        req.user!.id,
+        paymentDate,
+        paymentMethodId,
+        notes,
+        {
+          detail: `Pagamento editado por ${req.user?.username} (${req.user?.role})`,
+          paymentMethod: paymentMethod.name
+        }
+      );
+      
+      if (!updatedInstallment) {
+        return res.status(500).json({ error: "Erro ao editar pagamento da parcela" });
+      }
+      
+      // Registrar atividade de edição
+      await storage.createActivityLog({
+        userId: req.user!.id,
+        action: "EDIT_PAYMENT",
+        description: `Edição de pagamento da parcela #${installment.installmentNumber} da venda #${installment.saleId} - Nova data: ${paymentDate}`,
+        details: JSON.stringify({
+          previousDate: installment.paymentDate,
+          newDate: paymentDate,
+          installmentId: id,
+          saleId: installment.saleId
+        })
+      });
+      
+      // Notificar todos os clientes sobre a atualização
+      notifySalesUpdate();
+      
+      res.json(updatedInstallment);
+    } catch (error) {
+      console.error("Erro ao editar pagamento de parcela:", error);
+      res.status(500).json({ error: "Erro ao editar pagamento de parcela" });
+    }
+  });
+  
   // Rota para buscar comprovantes de pagamento de uma parcela
   app.get("/api/installments/:id/payment-receipts", isAuthenticated, async (req, res) => {
     try {
