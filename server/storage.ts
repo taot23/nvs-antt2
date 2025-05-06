@@ -1375,31 +1375,48 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSale(id: number): Promise<boolean> {
     try {
-      // Primeiro excluir os itens relacionados
-      await db.delete(saleItems).where(eq(saleItems.saleId, id));
-
-      // Excluir as parcelas relacionadas
-      await this.deleteSaleInstallments(id);
+      const { pool } = await import("./db");
       
-      // Excluir os relacionamentos com prestadores de serviço
-      await db.delete(saleServiceProviders).where(eq(saleServiceProviders.saleId, id));
+      // Usar SQL diretamente para excluir todos os registros relacionados
+      console.log(`Tentando excluir venda #${id} usando SQL direto`);
       
-      // Excluir o histórico de status da venda
-      await db.delete(salesStatusHistory).where(eq(salesStatusHistory.saleId, id));
+      // Excluir histórico de status
+      await pool.query('DELETE FROM sales_status_history WHERE sale_id = $1', [id]);
+      console.log(`Excluído histórico de status da venda #${id}`);
       
-      // Excluir os custos operacionais da venda
-      await db.delete(saleOperationalCosts).where(eq(saleOperationalCosts.saleId, id));
+      // Excluir recibos de pagamento das parcelas
+      await pool.query(`
+        DELETE FROM sale_payment_receipts 
+        WHERE installment_id IN (SELECT id FROM sale_installments WHERE sale_id = $1)
+      `, [id]);
+      console.log(`Excluídos recibos de pagamento da venda #${id}`);
       
-      // Excluir os recibos de pagamento da venda
-      await db.delete(salePaymentReceipts).where(eq(salePaymentReceipts.saleId, id));
-
-      // Por último excluir a venda
-      const [deletedSale] = await db
-        .delete(sales)
-        .where(eq(sales.id, id))
-        .returning();
-
-      return !!deletedSale;
+      // Excluir parcelas
+      await pool.query('DELETE FROM sale_installments WHERE sale_id = $1', [id]);
+      console.log(`Excluídas parcelas da venda #${id}`);
+      
+      // Excluir itens da venda
+      await pool.query('DELETE FROM sale_items WHERE sale_id = $1', [id]);
+      console.log(`Excluídos itens da venda #${id}`);
+      
+      // Excluir custos operacionais
+      await pool.query('DELETE FROM sale_operational_costs WHERE sale_id = $1', [id]);
+      console.log(`Excluídos custos operacionais da venda #${id}`);
+      
+      // Excluir relações com prestadores de serviço
+      await pool.query('DELETE FROM sale_service_providers WHERE sale_id = $1', [id]);
+      console.log(`Excluídas relações com prestadores da venda #${id}`);
+      
+      // Finalmente excluir a venda
+      const result = await pool.query('DELETE FROM sales WHERE id = $1 RETURNING *', [id]);
+      
+      if (result.rows.length > 0) {
+        console.log(`Venda #${id} excluída com sucesso!`);
+        return true;
+      } else {
+        console.log(`Venda #${id} não encontrada para exclusão.`);
+        return false;
+      }
     } catch (error) {
       console.error(`Erro ao excluir venda #${id}:`, error);
       return false;
