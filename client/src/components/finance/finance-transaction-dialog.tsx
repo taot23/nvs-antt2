@@ -410,6 +410,7 @@ export default function FinanceTransactionDialog({
             <PaymentConfirmation 
               saleId={saleId} 
               canManage={sale.financialStatus === 'in_progress' || sale.financialStatus === 'partial'} 
+              isAdmin={user?.role === 'admin'}
             />
           </TabsContent>
           
