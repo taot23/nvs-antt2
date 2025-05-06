@@ -2467,6 +2467,119 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Método para confirmar pagamento de parcela
+  async editInstallmentPayment(
+    installmentId: number,
+    userId: number,
+    paymentDate: string,
+    paymentMethodId: number,
+    notes?: string,
+    receiptData?: { detail: string; paymentMethod: string },
+  ): Promise<SaleInstallment | undefined> {
+    // Obter parcela
+    const installment = await this.getSaleInstallment(installmentId);
+    if (!installment) return undefined;
+
+    // Verificar se a parcela já está paga (só pode editar parcelas pagas)
+    if (installment.status !== 'paid') {
+      console.log(`⚠️ Tentativa de editar parcela não paga: #${installmentId} (status: ${installment.status})`);
+      return undefined;
+    }
+
+    // Processar a data de pagamento para garantir formato correto
+    // Mantemos a data exatamente como foi enviada do frontend
+    // apenas removendo a parte do timezone se existir (T00:00:00.000Z)
+    let formattedPaymentDate: string = paymentDate;
+
+    // Se a data contiver o caractere 'T' (formato ISO), remover a parte do timezone
+    if (paymentDate.includes("T")) {
+      formattedPaymentDate = paymentDate.split("T")[0];
+      console.log(`📅 Removendo parte timezone da data: ${formattedPaymentDate}`);
+    }
+
+    console.log(
+      `🔧 EDIÇÃO DE PAGAMENTO: Data original recebida: ${paymentDate}, Data formatada: ${formattedPaymentDate}`,
+    );
+
+    console.log(`🔄 USANDO SQL NATIVO para garantir preservação exata de data: ${formattedPaymentDate}`);
+    
+    // Registrar que esta é uma edição de administrador no histórico
+    const editDetails = {
+      previousPaymentDate: installment.paymentDate,
+      previousPaymentMethodId: installment.paymentMethodId,
+      updatedByUserId: userId
+    };
+
+    try {
+      // Usar SQL nativo para atualizar a parcela com a data exata
+      const { pool } = await import("./db");
+      const result = await pool.query(
+        `UPDATE sale_installments 
+         SET payment_date = $1, 
+             payment_method_id = $2, 
+             payment_notes = $3, 
+             updated_at = NOW(),
+             admin_edit_history = COALESCE(admin_edit_history, '[]')::jsonb || $4::jsonb
+         WHERE id = $5
+         RETURNING *`,
+        [
+          formattedPaymentDate,
+          paymentMethodId,
+          notes || installment.paymentNotes,
+          JSON.stringify([{ timestamp: new Date().toISOString(), ...editDetails }]),
+          installmentId
+        ]
+      );
+
+      if (result.rows.length === 0) {
+        console.log(`❌ Falha ao atualizar parcela #${installmentId}`);
+        return undefined;
+      }
+
+      // Se existir um recibo anterior, criar um novo recibo indicando a edição
+      if (receiptData) {
+        // Criar um novo recibo para registrar a edição
+        await pool.query(
+          `INSERT INTO sale_payment_receipts 
+           (installment_id, user_id, type, data, created_at, updated_at, notes)
+           VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)`,
+          [
+            installmentId,
+            userId,
+            "admin_edit",
+            JSON.stringify({ 
+              ...receiptData, 
+              editDetails: { 
+                previousPaymentDate: installment.paymentDate,
+                newPaymentDate: formattedPaymentDate
+              }
+            }),
+            `Edição administrativa de pagamento realizada por usuário ID ${userId}`
+          ]
+        );
+      }
+
+      // Mapear para o formato esperado
+      const updatedInstallment = result.rows[0];
+      return {
+        id: updatedInstallment.id,
+        saleId: updatedInstallment.sale_id,
+        installmentNumber: updatedInstallment.installment_number,
+        dueDate: updatedInstallment.due_date,
+        paymentDate: updatedInstallment.payment_date,
+        amount: updatedInstallment.amount,
+        status: updatedInstallment.status,
+        notes: updatedInstallment.notes,
+        createdAt: updatedInstallment.created_at,
+        updatedAt: updatedInstallment.updated_at,
+        paymentMethodId: updatedInstallment.payment_method_id,
+        paymentNotes: updatedInstallment.payment_notes
+      };
+    } catch (error) {
+      console.error(`❌ ERRO ao editar pagamento da parcela #${installmentId}:`, error);
+      throw error;
+    }
+  }
+  
   async confirmInstallmentPayment(
     installmentId: number,
     userId: number,

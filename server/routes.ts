@@ -264,6 +264,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(403).json({ error: "Permissão negada" });
   };
   
+  // Middleware especial para restringir ações apenas para administradores
+  const onlyAdminAccess = (req: Request, res: Response, next: Function) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    // Apenas administradores podem acessar
+    if (req.user?.role === "admin") {
+      return next();
+    }
+    return res.status(403).json({ error: "Acesso restrito apenas a administradores" });
+  };
+  
   // Middleware para verificar permissões - gerenciamento de tipos de serviço
   const canManageServiceTypes = (req: Request, res: Response, next: Function) => {
     if (!req.isAuthenticated()) {
