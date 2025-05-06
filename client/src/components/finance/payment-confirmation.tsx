@@ -475,39 +475,56 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Pagamento</TableHead>
                 <TableHead>Valor</TableHead>
+                <TableHead>Método</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {installments.map((installment: any) => (
-                <TableRow key={installment.id}>
-                  <TableCell>{installment.installmentNumber}</TableCell>
-                  <TableCell>
-                    {formatDate(installment.dueDate)}
-                  </TableCell>
-                  <TableCell>
-                    {installment.paymentDate ? (
-                      <span className="text-green-700">{formatDate(installment.paymentDate)}</span>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">Não pago</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{formatCurrency(installment.amount)}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      installment.status === 'paid' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {installment.status === 'paid' ? (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Pago
-                        </>
+              {installments.map((installment: any) => {
+                // Encontrar o método de pagamento, se existir
+                const paymentMethod = paymentMethods.find((m: any) => 
+                  m.id === installment.paymentMethodId
+                );
+                
+                return (
+                  <TableRow key={installment.id}>
+                    <TableCell>{installment.installmentNumber}</TableCell>
+                    <TableCell>
+                      {formatDate(installment.dueDate)}
+                    </TableCell>
+                    <TableCell>
+                      {installment.paymentDate ? (
+                        <span className="text-green-700">{formatDate(installment.paymentDate)}</span>
                       ) : (
-                        <>
-                          <AlertCircle className="h-3 w-3 mr-1" />
+                        <span className="text-muted-foreground text-xs">Não pago</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatCurrency(installment.amount)}</TableCell>
+                    <TableCell>
+                      {installment.status === 'paid' && paymentMethod ? (
+                        <span className="flex items-center text-sm">
+                          <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
+                          {paymentMethod.name}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        installment.status === 'paid' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {installment.status === 'paid' ? (
+                          <>
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Pago
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="h-3 w-3 mr-1" />
                           Pendente
                         </>
                       )}
@@ -561,7 +578,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+            })}
             </TableBody>
           </Table>
         </CardContent>
