@@ -149,7 +149,7 @@ export default function MainDashboard() {
           isLoading={isLoading}
         />
         <StatsCard
-          title="Parcelas Pagas"
+          title="Valor Pago"
           value={financialOverview
             ? `R$ ${financialOverview.paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             : "R$ 0,00"
@@ -159,7 +159,7 @@ export default function MainDashboard() {
           isLoading={isLoading}
         />
         <StatsCard
-          title="Parcelas Pendentes"
+          title="Valor Pendente"
           value={financialOverview
             ? `R$ ${financialOverview.pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             : "R$ 0,00"
