@@ -3744,9 +3744,9 @@ export class DatabaseStorage implements IStorage {
       // Executar todas as consultas em paralelo
       const [totalResult, paidResult, pendingResult, costResult] = await Promise.all([
         pool.query(totalSalesQuery, [startDateStr, endDateStr]),
-        pool.query(paidAmountQuery, [startDateStr, endDateStr]),
+        pool.query(paidAmountQuery), // Sem parâmetros, pois removemos os filtros de data
         pool.query(pendingAmountQuery, [startDateStr, endDateStr]),
-        pool.query(costQuery, [startDateStr, endDateStr])
+        pool.query(costQuery) // Sem parâmetros, pois removemos os filtros de data
       ]);
       
       // Extrair valores com segurança

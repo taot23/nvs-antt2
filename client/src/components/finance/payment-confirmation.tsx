@@ -1114,19 +1114,70 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                           ) : (
                             // Se não for pagamento dividido, mostrar o método padrão
                             <>
-                              {paymentMethod ? (
-                                <div className="flex items-center justify-between w-full">
-                                  <div className="flex items-center">
-                                    <div className="h-3 w-3 rounded-full bg-blue-500 mr-2"></div>
-                                    <span className="font-medium">{paymentMethod.name}</span>
-                                  </div>
-                                  <div className="font-medium">
-                                    {formatCurrency(installment.amount)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">Método não especificado</span>
-                              )}
+                              {(() => {
+                                // Verificamos primeiro se a parcela tem um método de pagamento associado
+                                if (paymentMethod) {
+                                  return (
+                                    <div className="flex items-center justify-between w-full">
+                                      <div className="flex items-center">
+                                        <div className={`h-3 w-3 rounded-full mr-2 ${
+                                          paymentMethod.name.toUpperCase().includes('PIX') ? 'bg-green-500' :
+                                          paymentMethod.name.toUpperCase().includes('CARTAO') || 
+                                          paymentMethod.name.toUpperCase().includes('CARTÃO') ? 'bg-blue-500' :
+                                          'bg-blue-500'
+                                        }`}></div>
+                                        <span className="font-medium">{paymentMethod.name}</span>
+                                      </div>
+                                      <div className="font-medium">
+                                        {formatCurrency(installment.amount)}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                // Segunda verificação: buscar nos recibos de pagamento
+                                const installmentReceipts = paymentReceipts.filter((receipt: any) => 
+                                  receipt.installmentId === installment.id && 
+                                  receipt.receiptType === "manual"
+                                );
+                                
+                                if (installmentReceipts.length > 0) {
+                                  // Pegar o primeiro recibo que tenha informações de método
+                                  const receipt = installmentReceipts[0];
+                                  const methodName = receipt.receiptData?.paymentMethod || "Método do recibo";
+                                  
+                                  // Verificar se encontramos um método correspondente na lista
+                                  const methodMatch = paymentMethods.find((m: any) => 
+                                    m.name.toUpperCase() === methodName.toUpperCase() ||
+                                    methodName.toUpperCase().includes(m.name.toUpperCase())
+                                  );
+                                  
+                                  const isPix = methodName.toUpperCase().includes('PIX');
+                                  const isCard = methodName.toUpperCase().includes('CART') || 
+                                                methodName.toUpperCase().includes('CARTÃO');
+                                  
+                                  return (
+                                    <div className="flex items-center justify-between w-full">
+                                      <div className="flex items-center">
+                                        <div className={`h-3 w-3 rounded-full mr-2 ${
+                                          isPix ? 'bg-green-500' :
+                                          isCard ? 'bg-blue-500' :
+                                          'bg-blue-500'
+                                        }`}></div>
+                                        <span className="font-medium">
+                                          {methodMatch ? methodMatch.name : methodName}
+                                        </span>
+                                      </div>
+                                      <div className="font-medium">
+                                        {formatCurrency(installment.amount)}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                // Se chegamos aqui, não encontramos informações de método
+                                return <span className="text-muted-foreground">Método não especificado</span>;
+                              })()}
                             </>
                           )}
                         </>
