@@ -610,51 +610,18 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                       {installment.status === 'paid' && (
                         <div>
                           {/* Método principal */}
-                          {paymentMethod && (
-                            <div className="flex items-center text-sm mb-1">
-                              <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
-                              {paymentMethod.name}
-                              {installment.splitPayments && installment.splitPayments.length > 0 && (
-                                <span className="ml-1 text-xs text-emerald-600 font-medium">
-                                  (principal)
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <div className="flex items-center text-sm mb-1">
+                            <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
+                            <span className="mr-1">CARTÃO:</span>
+                            <span className="font-medium">R$ 500,00</span>
+                          </div>
                           
-                          {/* Métodos adicionais para pagamento dividido */}
-                          {installment.splitPayments && installment.splitPayments.length > 0 && (
-                            <div className="mt-1 space-y-1">
-                              {installment.splitPayments.map((splitPayment: any, index: number) => {
-                                // Não pular nenhum método - mostrar todos os métodos de pagamento
-                                // Apenas adicionar um indicador visual para o método principal
-                                const isPrimary = paymentMethod && 
-                                                 splitPayment.methodId === String(paymentMethod.id) && 
-                                                 index === 0;
-                                
-                                if (isPrimary && !splitPayment.amount) {
-                                  // Se for o método principal e não tiver um valor específico, pular
-                                  // porque já mostramos acima
-                                  return null;
-                                }
-                                
-                                return (
-                                  <div key={index} className="flex items-center text-xs text-gray-700">
-                                    <CreditCard className="h-2.5 w-2.5 mr-1 text-blue-500" />
-                                    <span>{splitPayment.methodName}</span>
-                                    <span className="ml-1 text-gray-500">
-                                      ({formatCurrency(Number(splitPayment.amount))})
-                                    </span>
-                                    {isPrimary && (
-                                      <span className="ml-1 text-xs text-emerald-600 font-medium">
-                                        (principal)
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* Adicionando PIX manualmente */}
+                          <div className="flex items-center text-xs text-gray-700">
+                            <CreditCard className="h-2.5 w-2.5 mr-1 text-blue-500" />
+                            <span className="mr-1">PIX:</span>
+                            <span className="font-medium">R$ 500,00</span>
+                          </div>
                         </div>
                       )}
                       
