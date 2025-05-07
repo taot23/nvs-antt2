@@ -184,8 +184,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
       let paymentDetails = "Confirmação manual";
       if (splitPayments.length > 0) {
         const splitDetails = splitPayments.map(p => {
-          const method = paymentMethods.find((m: any) => m.id === p.methodId);
-          return `${method?.name || 'Método ' + p.methodId}: ${formatCurrency(p.amount)}`;
+          const method = paymentMethods.find((m: any) => Number(m.id) === Number(p.methodId));
+          return `${method?.name || 'MÉTODO ' + p.methodId}: ${formatCurrency(p.amount)}`;
         }).join(' | ');
         
         paymentDetails = `PAGAMENTO DIVIDIDO`;
@@ -452,8 +452,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
         
         // Formatar detalhes do pagamento para as notas
         const methodDetails = splitPayments.map(p => {
-          const method = paymentMethods.find((m: any) => String(m.id) === p.methodId);
-          return `${method?.name || 'Método ' + p.methodId}: ${formatCurrency(Number(p.amount))}`;
+          const method = paymentMethods.find((m: any) => Number(m.id) === Number(p.methodId));
+          return `${method?.name || 'MÉTODO ' + p.methodId}: ${formatCurrency(Number(p.amount))}`;
         }).join(' | ');
         
         // Modificar o formato das notas para facilitar a exibição na interface
@@ -624,12 +624,13 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                             </div>
                           )}
                           
-                          {/* Se não houver método de pagamento definido, verificar se nas notas há info sobre pagamento dividido */}
-                          {!paymentMethod && installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") && (
+                          {/* Verificar se nas notas há info sobre pagamento dividido independente de ter ou não método de pagamento definido */}
+                          {installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") && (
                             <div className="space-y-1">
-                              {installment.paymentNotes.split('|').map((note, index) => {
+                              {installment.paymentNotes.split('|').map((note: string, index: number) => {
+                                if (note.trim() === "PAGAMENTO DIVIDIDO") return null;
                                 if (note.includes(':')) {
-                                  const [method, amount] = note.split(':').map(s => s.trim());
+                                  const [method, amount] = note.split(':').map((s: string) => s.trim());
                                   return (
                                     <div key={index} className="flex items-center justify-between w-full">
                                       <div>
@@ -641,6 +642,7 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     </div>
                                   );
                                 }
+                                if (note.toLowerCase().includes("notas:")) return null;
                                 return null;
                               })}
                             </div>
