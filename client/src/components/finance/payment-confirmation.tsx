@@ -469,6 +469,7 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
   const [splitPayments, setSplitPayments] = useState<{methodId: string, amount: string}[]>([]);
   const [showSplitPayment, setShowSplitPayment] = useState(false);
   const [remainingAmount, setRemainingAmount] = useState("");
+  const [splitAmount, setSplitAmount] = useState("");
   
   // Verificar se todas as parcelas estão pagas
   // Não verificamos mais se TODAS as parcelas estão pagas, apenas se existem parcelas
@@ -775,9 +776,26 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Pagamento Dividido</Label>
-                  <div className="text-sm text-muted-foreground">
-                    Valor total: <span className="font-medium">{formatCurrency(selectedInstallment?.amount)}</span>
+                  <div className="flex items-center">
+                    <SplitSquareVertical className="h-4 w-4 mr-2 text-blue-600" />
+                    <Label>Pagamento Dividido</Label>
+                  </div>
+                  <div className="text-sm flex items-center space-x-2">
+                    <div className="text-muted-foreground">
+                      Valor total: <span className="font-medium">{formatCurrency(selectedInstallment?.amount || 0)}</span>
+                    </div>
+                    {Number(remainingAmount) > 0 && (
+                      <div className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs flex items-center">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Falta: {formatCurrency(Number(remainingAmount))}
+                      </div>
+                    )}
+                    {Number(remainingAmount) === 0 && splitPayments.length > 0 && (
+                      <div className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs flex items-center">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Completo
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -816,7 +834,11 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                   </div>
                 ) : (
                   <div className="rounded-md border border-dashed p-4 text-center text-muted-foreground">
-                    Nenhum método de pagamento adicionado
+                    <div className="flex flex-col items-center">
+                      <CreditCard className="h-10 w-10 mb-2 text-muted-foreground/50" />
+                      <p>Nenhum método de pagamento adicionado</p>
+                      <p className="text-xs mt-1">Utilize o formulário abaixo para adicionar métodos de pagamento</p>
+                    </div>
                   </div>
                 )}
                 
@@ -850,8 +872,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                       <Input
                         type="text"
                         placeholder="Valor"
-                        value={remainingAmount}
-                        onChange={(e) => setRemainingAmount(e.target.value)}
+                        value={splitAmount}
+                        onChange={(e) => setSplitAmount(e.target.value)}
                       />
                     </div>
                     
@@ -861,16 +883,52 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                         variant="secondary"
                         className="w-full"
                         onClick={() => {
-                          if (!paymentMethodId || !remainingAmount || Number(remainingAmount) <= 0) return;
+                          if (!paymentMethodId || !splitAmount) return;
                           
-                          // Adicionar novo método de pagamento
-                          const newPayment = { methodId: paymentMethodId, amount: remainingAmount };
-                          setSplitPayments([...splitPayments, newPayment]);
-                          
-                          // Limpar campo de valor e calcular valor restante
-                          const totalPaid = [...splitPayments, newPayment].reduce((sum, p) => sum + Number(p.amount), 0);
-                          const remaining = Math.max(0, selectedInstallment?.amount - totalPaid);
-                          setRemainingAmount(String(remaining));
+                          try {
+                            // Converter para número e garantir formato correto
+                            const amountValue = Number(splitAmount.replace(/[^0-9.,]/g, '').replace(',', '.'));
+                            
+                            if (isNaN(amountValue) || amountValue <= 0) {
+                              toast({
+                                title: "Valor inválido",
+                                description: "Por favor, insira um valor válido maior que zero.",
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+                            
+                            // Verificar o valor restante
+                            const totalPaid = splitPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+                            const maxPossibleAmount = selectedInstallment ? Number(selectedInstallment.amount) - totalPaid : 0;
+                            
+                            if (amountValue > maxPossibleAmount) {
+                              toast({
+                                title: "Valor excede o limite",
+                                description: `O valor máximo permitido é ${formatCurrency(maxPossibleAmount)}.`,
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+                            
+                            // Adicionar novo método de pagamento
+                            const newPayment = { methodId: paymentMethodId, amount: String(amountValue) };
+                            setSplitPayments([...splitPayments, newPayment]);
+                            
+                            // Limpar campo de valor e calcular valor restante
+                            setSplitAmount("");
+                            const newTotalPaid = totalPaid + amountValue;
+                            const remaining = selectedInstallment ? 
+                              Math.max(0, Number(selectedInstallment.amount) - newTotalPaid) : 0;
+                            setRemainingAmount(String(remaining));
+                          } catch (error) {
+                            console.error("Erro ao adicionar pagamento dividido:", error);
+                            toast({
+                              title: "Erro ao adicionar pagamento",
+                              description: "Ocorreu um erro ao processar o valor. Verifique se o formato está correto.",
+                              variant: "destructive"
+                            });
+                          }
                         }}
                       >
                         <Plus className="h-4 w-4" />
