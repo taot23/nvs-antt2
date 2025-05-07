@@ -615,42 +615,63 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                           {/* Verificar se as notas contêm informações sobre pagamento dividido */}
                           {installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") ? (
                             <div className="space-y-1 border-l-2 border-blue-400 pl-2">
-                              <div className="text-xs font-medium text-blue-600 mb-1">Pagamento Dividido:</div>
-                              {/* Processando cada método no formato "MÉTODO: VALOR" */}
-                              {installment.paymentNotes.split('|').map((part: string, idx: number) => {
-                                const trimmedPart = part.trim();
-                                // Pular o marcador "PAGAMENTO DIVIDIDO"
-                                if (trimmedPart === "PAGAMENTO DIVIDIDO") return null;
-                                // Pular a seção de notas adicionais
-                                if (trimmedPart.startsWith("NOTAS:")) return null;
+                              <div className="text-xs font-medium text-blue-600 mb-1">Pagamento Dividido</div>
+                              {(() => {
+                                // Extrair as partes de pagamento dividido com uma lógica mais robusta
+                                const parts = installment.paymentNotes.split('|').map(p => p.trim());
+                                const paymentParts = parts.filter(part => 
+                                  part !== "PAGAMENTO DIVIDIDO" && 
+                                  !part.startsWith("NOTAS:") && 
+                                  part.includes(':')
+                                );
                                 
-                                // Processar cada método de pagamento
-                                if (trimmedPart.includes(':')) {
-                                  const [method, value] = trimmedPart.split(':').map(s => s.trim());
+                                // Debug para verificar o que estamos encontrando
+                                console.log("Dados do pagamento dividido:", {
+                                  notas: installment.paymentNotes,
+                                  partes: parts,
+                                  pagamentosParsed: paymentParts
+                                });
+                                
+                                // Tentar usar o formato correto para PIX e CARTAO
+                                return paymentParts.map((part, idx) => {
+                                  // Separar método e valor pela última ocorrência de ":"
+                                  const colonPos = part.lastIndexOf(':');
+                                  if (colonPos === -1) return null;
+                                  
+                                  const methodName = part.substring(0, colonPos).trim();
+                                  const valueText = part.substring(colonPos + 1).trim();
+                                  
+                                  // Encontrar o método de pagamento pelo nome
+                                  const method = paymentMethods.find(m => 
+                                    m.name === methodName || m.name.includes(methodName) || methodName.includes(m.name)
+                                  );
+                                  
                                   return (
-                                    <div key={idx} className="flex items-center justify-between w-full py-0.5">
+                                    <div key={idx} className="flex items-center justify-between w-full py-0.5 border-b border-gray-100 last:border-0">
                                       <div className="flex items-center">
-                                        <span className="h-2 w-2 rounded-full bg-blue-500 mr-1.5"></span>
-                                        <span>{method}</span>
+                                        <div className="h-2 w-2 rounded-full bg-blue-500 mr-1.5"></div>
+                                        <span className="font-medium">
+                                          {method ? method.name : methodName}
+                                        </span>
                                       </div>
                                       <div className="font-medium">
-                                        {value}
+                                        {valueText}
                                       </div>
                                     </div>
                                   );
-                                }
-                                return null;
-                              })}
+                                });
+                              })()}
                             </div>
                           ) : (
                             // Se não for pagamento dividido, mostrar o método padrão
                             <>
                               {paymentMethod ? (
                                 <div className="flex items-center justify-between w-full">
-                                  <div>
-                                    <span className="text-blue-600">▢</span> {paymentMethod.name}:
+                                  <div className="flex items-center">
+                                    <div className="h-2 w-2 rounded-full bg-blue-500 mr-1.5"></div>
+                                    <span className="font-medium">{paymentMethod.name}</span>
                                   </div>
-                                  <div>
+                                  <div className="font-medium">
                                     {formatCurrency(installment.amount)}
                                   </div>
                                 </div>
