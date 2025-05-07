@@ -45,6 +45,7 @@ export default function MainDashboard() {
   // Verificar permissões de acesso baseadas no perfil do usuário
   const hasFinancialAccess = ["admin", "financeiro"].includes(userRole);
   const isVendedor = userRole === "vendedor";
+  const isSupervisorOrOperacional = ["supervisor", "operacional"].includes(userRole);
   
   // Se o usuário não tiver acesso à aba financeira e estiver nela, redirecionar para outra aba
   if (activeTab === "financial" && !hasFinancialAccess) {
