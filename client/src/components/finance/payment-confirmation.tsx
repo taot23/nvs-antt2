@@ -607,12 +607,46 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     </TableCell>
                     <TableCell>{formatCurrency(installment.amount)}</TableCell>
                     <TableCell>
-                      {installment.status === 'paid' && paymentMethod ? (
-                        <span className="flex items-center text-sm">
-                          <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
-                          {paymentMethod.name}
-                        </span>
-                      ) : (
+                      {installment.status === 'paid' && (
+                        <div>
+                          {/* Método principal */}
+                          {paymentMethod && (
+                            <div className="flex items-center text-sm mb-1">
+                              <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
+                              {paymentMethod.name}
+                              {installment.splitPayments && installment.splitPayments.length > 0 && (
+                                <span className="ml-1 text-xs text-emerald-600 font-medium">
+                                  (principal)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Métodos adicionais para pagamento dividido */}
+                          {installment.splitPayments && installment.splitPayments.length > 0 && (
+                            <div className="mt-1 space-y-1">
+                              {installment.splitPayments.map((splitPayment: any, index: number) => {
+                                // Pular o método principal que já mostramos
+                                if (paymentMethod && splitPayment.methodId === String(paymentMethod.id) && index === 0) {
+                                  return null;
+                                }
+                                
+                                return (
+                                  <div key={index} className="flex items-center text-xs text-gray-700">
+                                    <CreditCard className="h-2.5 w-2.5 mr-1 text-blue-500" />
+                                    <span>{splitPayment.methodName}</span>
+                                    <span className="ml-1 text-gray-500">
+                                      ({formatCurrency(Number(splitPayment.amount))})
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {installment.status !== 'paid' && (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </TableCell>
