@@ -3700,11 +3700,17 @@ export class DatabaseStorage implements IStorage {
         endDateStr = filters.endDate;
       }
       
-      // Consulta 1: Receita total das vendas realizadas no período
+      // Consulta 1: Valor total das vendas no período (soma pendentes + pagos)
       const totalSalesQuery = `
-        SELECT COALESCE(SUM(total_amount::numeric), 0) as total_revenue
-        FROM sales
-        WHERE date BETWEEN $1 AND $2
+        SELECT 
+          (SELECT COALESCE(SUM(i.amount::numeric), 0)
+           FROM sale_installments i
+           JOIN sales s ON i.sale_id = s.id
+           WHERE i.status = 'paid' AND s.date BETWEEN $1 AND $2) +
+          (SELECT COALESCE(SUM(i.amount::numeric), 0)
+           FROM sale_installments i
+           JOIN sales s ON i.sale_id = s.id
+           WHERE i.status = 'pending' AND s.date BETWEEN $1 AND $2) as total_revenue
       `;
       
       // Consulta 2: Valor total já PAGO no período (da venda)
@@ -3725,11 +3731,13 @@ export class DatabaseStorage implements IStorage {
         AND s.date BETWEEN $1 AND $2
       `;
       
-      // Consulta 4: Custos operacionais totais PAGOS
+      // Consulta 4: Custos operacionais PAGOS no período
       const costQuery = `
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
+        JOIN sales s ON c.sale_id = s.id
         WHERE c.payment_date IS NOT NULL
+        AND s.date BETWEEN $1 AND $2
       `;
       
       console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
@@ -3738,7 +3746,7 @@ export class DatabaseStorage implements IStorage {
       const totalResult = await pool.query(totalSalesQuery, [startDateStr, endDateStr]);
       const paidResult = await pool.query(paidAmountQuery, [startDateStr, endDateStr]);
       const pendingResult = await pool.query(pendingAmountQuery, [startDateStr, endDateStr]);
-      const costResult = await pool.query(costQuery);
+      const costResult = await pool.query(costQuery, [startDateStr, endDateStr]);
       
       // Extrair valores com segurança
       const totalRevenue = totalResult.rows[0]?.total_revenue || "0";
