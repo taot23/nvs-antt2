@@ -634,18 +634,46 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     paymentMethodId: installment.paymentMethodId,
                                   });
                                   
-                                  // Dividir a string pelas barras verticais
-                                  const parts = installment.paymentNotes.split('|').map(p => p.trim());
+                                  // Usando várias abordagens de expressão regular para máxima flexibilidade
+                                  // Padrão 1: procura por palavras (métodos) seguidas por ':' e depois valores em R$
+                                  const padrao1 = /([A-Za-z0-9\s]+):\s*(R\$\s*[\d,.]+)/g;
                                   
-                                  // Filtrar apenas as partes que contêm informações de método:valor
-                                  const paymentParts = parts.filter(part => {
-                                    // Pular o marcador "PAGAMENTO DIVIDIDO"
-                                    if (part === "PAGAMENTO DIVIDIDO") return false;
-                                    // Pular a seção de notas adicionais
-                                    if (part.toLowerCase().includes("notas:")) return false;
-                                    // Manter apenas partes que contêm o formato "método: valor"
-                                    return part.includes(':');
-                                  });
+                                  // Padrão 2: mais flexível, captura qualquer texto antes de ":" seguido por valores numéricos
+                                  const padrao2 = /([A-Za-z0-9\s]+):\s*([\d,.]+)/g;
+                                  
+                                  // Primeiro tenta com o padrão mais específico
+                                  let matches = [...(installment.paymentNotes?.matchAll(padrao1) || [])];
+                                  
+                                  // Se não encontrou nada, tenta com o padrão mais genérico
+                                  if (matches.length === 0) {
+                                    matches = [...(installment.paymentNotes?.matchAll(padrao2) || [])];
+                                  }
+                                  
+                                  console.log(`🧩 Matches encontrados para ID ${installment.id}:`, matches);
+                                  
+                                  // Se temos matches, usamos eles diretamente em vez de fazer split/filter
+                                  let paymentParts: string[] = [];
+                                  
+                                  if (matches.length > 0) {
+                                    // Extrair cada match como "MÉTODO: VALOR"
+                                    paymentParts = matches.map(match => match[0]);
+                                  } else {
+                                    // Fallback para o método anterior se não encontrar matches
+                                    // Dividir a string pelas barras verticais
+                                    const parts = installment.paymentNotes.split('|').map(p => p.trim());
+                                    
+                                    // Filtrar apenas as partes que contêm informações de método:valor
+                                    paymentParts = parts.filter(part => {
+                                      // Pular o marcador "PAGAMENTO DIVIDIDO"
+                                      if (part === "PAGAMENTO DIVIDIDO") return false;
+                                      // Pular a seção de notas adicionais
+                                      if (part.toLowerCase().includes("notas:")) return false;
+                                      // Manter apenas partes que contêm o formato "método: valor"
+                                      return part.includes(':');
+                                    });
+                                  }
+                                  
+                                  console.log(`📊 Partes de pagamento para ID ${installment.id}:`, paymentParts);
                                   
                                   // Se não encontramos partes de pagamento, mostrar uma mensagem
                                   if (paymentParts.length === 0) {
@@ -671,7 +699,16 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     
                                     // Extrair nome do método e valor
                                     const methodName = part.substring(0, colonPos).trim();
-                                    const valueText = part.substring(colonPos + 1).trim();
+                                    let valueText = part.substring(colonPos + 1).trim();
+                                    
+                                    // Formatar valor adequadamente se não estiver no formato R$
+                                    if (!valueText.includes('R$')) {
+                                      // Tenta extrair um valor numérico da string
+                                      const valorNumerico = parseFloat(valueText.replace(/[^\d,.]/g, '').replace(',', '.'));
+                                      if (!isNaN(valorNumerico)) {
+                                        valueText = formatCurrency(valorNumerico);
+                                      }
+                                    }
                                     
                                     // Normalizar o nome do método para comparação
                                     const normalizedMethodName = methodName.toUpperCase();
@@ -689,14 +726,18 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     }
                                     
                                     return (
-                                      <div key={idx} className="flex items-center justify-between w-full py-1 border-b border-gray-100 last:border-0">
+                                      <div key={idx} className="flex items-center justify-between w-full py-1.5 border-b border-gray-100 last:border-0">
                                         <div className="flex items-center">
-                                          <div className="h-3 w-3 rounded-full bg-blue-500 mr-2"></div>
+                                          <div className={`h-3 w-3 rounded-full mr-2 ${
+                                            foundMethod?.name === 'PIX' ? 'bg-green-500' : 
+                                            foundMethod?.name === 'CARTAO' ? 'bg-blue-500' : 
+                                            foundMethod?.name === 'BOLETO' ? 'bg-amber-500' : 'bg-blue-400'
+                                          }`}></div>
                                           <span className="font-medium">
                                             {foundMethod ? foundMethod.name : methodName}
                                           </span>
                                         </div>
-                                        <div className="font-medium">
+                                        <div className="font-medium text-emerald-700">
                                           {valueText}
                                         </div>
                                       </div>
