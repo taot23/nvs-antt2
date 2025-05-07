@@ -123,15 +123,32 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
     queryFn: async () => {
       if (!saleId) return [];
       try {
+        console.log(`🚀 Buscando recibos de pagamento para venda #${saleId}`);
         const res = await apiRequest("GET", `/api/sales/${saleId}/payment-receipts`);
         const receipts = await res.json();
         console.log("📜 Recibos de pagamento recuperados:", receipts.length);
         
+        // Se encontramos recibos, vamos verificar o formato dos dados
         if (receipts.length > 0) {
+          console.log("📜 Formato de dados do primeiro recibo:", JSON.stringify(receipts[0], null, 2));
+          
           // Log detalhado para diagnóstico
           receipts.forEach((receipt: any, index: number) => {
             if (receipt.receiptType === "split_payment") {
-              console.log(`📜 Recibo #${index+1}: Tipo=${receipt.receiptType}, Parcela=${receipt.installmentId}, Método=${receipt.receiptData?.methodName}, Valor=${receipt.receiptData?.amount}`);
+              console.log(`📜 SPLIT PAYMENT #${index+1}: Parcela=${receipt.installmentId}, Método=${receipt.receiptData?.methodName}, Valor=${receipt.receiptData?.amount}`);
+              
+              // Verificar se receiptData é uma string ou um objeto
+              if (typeof receipt.receiptData === 'string') {
+                try {
+                  // Tentar fazer o parse do JSON
+                  const receiptDataObj = JSON.parse(receipt.receiptData);
+                  console.log(`📜 ReceiptData parsed:`, receiptDataObj);
+                  // Atualizar o objeto receipt com o receiptData parseado
+                  receipt.receiptData = receiptDataObj;
+                } catch (e) {
+                  console.error(`📜 Erro ao fazer parse do receiptData:`, e);
+                }
+              }
             }
           });
         }
@@ -843,8 +860,20 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     
                                     // Criar as partes do pagamento a partir dos recibos
                                     paymentParts = splitReceipts.map((receipt: any) => {
-                                      const methodName = receipt.receiptData?.methodName || 'MÉTODO DESCONHECIDO';
-                                      const amount = receipt.receiptData?.amount || 0;
+                                      // Verificar se receiptData é uma string e tentar fazer o parse
+                                      let receiptDataObj = receipt.receiptData;
+                                      if (typeof receiptDataObj === 'string') {
+                                        try {
+                                          receiptDataObj = JSON.parse(receiptDataObj);
+                                        } catch (e) {
+                                          console.error("Erro ao fazer parse de receiptData:", e);
+                                        }
+                                      }
+                                      
+                                      // Usar o objeto receiptData (original ou parseado)
+                                      const methodName = receiptDataObj?.methodName || 'MÉTODO DESCONHECIDO';
+                                      const amount = receiptDataObj?.amount || 0;
+                                      console.log(`🎯 Método: ${methodName}, Valor: ${amount}`);
                                       return `${methodName}: R$ ${amount}`;
                                     });
                                   }
