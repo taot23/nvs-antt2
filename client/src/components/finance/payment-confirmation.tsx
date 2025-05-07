@@ -117,6 +117,36 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
     enabled: !!saleId,
   });
   
+  // Buscar recibos de pagamento para detectar pagamentos divididos
+  const { data: paymentReceipts = [], isLoading: isLoadingReceipts } = useQuery({
+    queryKey: ['/api/sales', saleId, 'payment-receipts'],
+    queryFn: async () => {
+      if (!saleId) return [];
+      try {
+        const res = await apiRequest("GET", `/api/sales/${saleId}/payment-receipts`);
+        const receipts = await res.json();
+        console.log("📜 Recibos de pagamento recuperados:", receipts.length);
+        
+        if (receipts.length > 0) {
+          // Log detalhado para diagnóstico
+          receipts.forEach((receipt: any, index: number) => {
+            if (receipt.receiptType === "split_payment") {
+              console.log(`📜 Recibo #${index+1}: Tipo=${receipt.receiptType}, Parcela=${receipt.installmentId}, Método=${receipt.receiptData?.methodName}, Valor=${receipt.receiptData?.amount}`);
+            }
+          });
+        }
+        
+        return receipts;
+      } catch (error) {
+        console.error("Erro ao buscar recibos de pagamento:", error);
+        return [];
+      }
+    },
+    enabled: !!saleId,
+    // Mesmo se falhar, não vamos bloquear a interface
+    retry: false,
+  });
+  
   // Mutation para editar um pagamento confirmado (apenas admin pode fazer isso)
   const editPaymentMutation = useMutation({
     mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: string, notes: string, paymentMethodId: string }) => {
@@ -624,26 +654,41 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                         <>
                           {/* Função auxiliar para detectar melhor os pagamentos divididos */}
                           {(() => {
-                            // Várias condições para detectar pagamentos divididos
-                            let isPagamentoDividido = false;
+                            // Nova forma de detecção: verificar se a parcela tem recibos do tipo "split_payment"
+                            const receipts = paymentReceipts.filter((receipt: any) => 
+                              receipt.installmentId === installment.id && 
+                              receipt.receiptType === "split_payment"
+                            );
                             
-                            // Condição 1: Verificar marcador explícito PAGAMENTO DIVIDIDO
-                            if (installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
-                              isPagamentoDividido = true;
+                            // Se encontrou recibos de pagamento dividido, é um pagamento dividido
+                            const hasSplitReceipts = receipts.length > 0;
+                            
+                            if (hasSplitReceipts) {
+                              console.log(`💰 Pagamento dividido detectado automaticamente para parcela #${installment.id} via recibos (${receipts.length} recibos encontrados)`);
                             }
                             
-                            // Condição 2: Verificar se existem múltiplos métodos de pagamento na nota
-                            else if (installment.paymentNotes && 
+                            // Método alternativo: verificar as notas de pagamento
+                            let isPagamentoDividido = hasSplitReceipts;
+                            
+                            // Método alternativo 1: Verificar marcador explícito PAGAMENTO DIVIDIDO
+                            if (!isPagamentoDividido && installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
+                              isPagamentoDividido = true;
+                              console.log(`🚨 Pagamento dividido detectado via texto "PAGAMENTO DIVIDIDO" ID ${installment.id}`);
+                            }
+                            
+                            // Método alternativo 2: Verificar se existem múltiplos métodos de pagamento na nota
+                            else if (!isPagamentoDividido && installment.paymentNotes && 
                               ((installment.paymentNotes.includes("PIX") && (
                                 installment.paymentNotes.includes("CARTAO") || 
                                 installment.paymentNotes.includes("BOLETO"))) ||
                                (installment.paymentNotes.includes("CARTAO") && installment.paymentNotes.includes("BOLETO"))
                               )) {
                               isPagamentoDividido = true;
+                              console.log(`🚨 Pagamento dividido detectado via múltiplos métodos ID ${installment.id}`);
                             }
                             
-                            // Condição 3: Verificar formato de notação com método: valor
-                            else if (installment.paymentNotes && 
+                            // Método alternativo 3: Verificar formato de notação com método: valor
+                            else if (!isPagamentoDividido && installment.paymentNotes && 
                               /[A-Za-z]+:\s*R?\$?\s*[\d,.]+/.test(installment.paymentNotes)) {
                               
                               // Contar quantas ocorrências de ":" existem na string (desconsiderando a parte após NOTAS:)
@@ -658,35 +703,10 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                 .filter(p => p && p !== "PAGAMENTO DIVIDIDO" && p.includes(':'));
                                 
                               isPagamentoDividido = partesPagamento.length > 1;
-                            }
-                            
-                            // Verificar em paymentNotes se contém "PAGAMENTO DIVIDIDO" em algum lugar
-                            // Esta é a verificação mais importante, pois captura pagamentos divididos novos
-                            if (installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
-                              isPagamentoDividido = true;
-                              console.log(`🚨 Detectado pagamento dividido via texto "PAGAMENTO DIVIDIDO" ID ${installment.id}`);
-                            }
-                            
-                            // Verificar se temos mais de um método separado por barras na string paymentNotes
-                            if (installment.paymentNotes && installment.paymentNotes.split('|').filter(p => p.includes(':')).length > 1) {
-                              isPagamentoDividido = true;
-                              console.log(`🚨 Detectado pagamento dividido via múltiplos ":" ID ${installment.id}`);
-                            }
-                            
-                            // Verificar IDs específicos - FOR DEBUG ONLY, remove depois
-                            if (installment.id === 175) {
-                              console.log("🏆 PARCELA TESTE ENCONTRADA ID 175");
-                              console.log("🏆 DADOS:", installment);
                               
-                              // Forçar pagamento dividido para o ID 175
-                              isPagamentoDividido = true;
-                              
-                              // Override das payment parts para esta parcela específica
-                              window.paymentPartsOverride = [
-                                "CARTAO: R$ 20,00",
-                                "CARTAO: R$ 60,00",
-                                "PIX: R$ 20,00"
-                              ];
+                              if (isPagamentoDividido) {
+                                console.log(`🚨 Pagamento dividido detectado via padrão "método: valor" ID ${installment.id}`);
+                              }
                             }
                             
                             return isPagamentoDividido;
@@ -811,8 +831,26 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                   
                                   console.log(`📊 Partes de pagamento para ID ${installment.id}:`, paymentParts);
                                   
-                                  // Verificar se temos override de dados para esta parcela
-                                  if (installment.id === 175 && (window as any).paymentPartsOverride) {
+                                  // NOVA ABORDAGEM: Usar dados de recibos para detectar as partes do pagamento
+                                  const splitReceipts = paymentReceipts.filter((receipt: any) => 
+                                    receipt.installmentId === installment.id && 
+                                    receipt.receiptType === "split_payment"
+                                  );
+                                  
+                                  // Se temos recibos de pagamento dividido, usar eles diretamente
+                                  if (splitReceipts.length > 0) {
+                                    console.log(`🎯 Usando ${splitReceipts.length} recibos de pagamento dividido para parcela #${installment.id}`);
+                                    
+                                    // Criar as partes do pagamento a partir dos recibos
+                                    paymentParts = splitReceipts.map((receipt: any) => {
+                                      const methodName = receipt.receiptData?.methodName || 'MÉTODO DESCONHECIDO';
+                                      const amount = receipt.receiptData?.amount || 0;
+                                      return `${methodName}: R$ ${amount}`;
+                                    });
+                                  }
+                                  
+                                  // Se ainda tem o override para casos específicos, usar como último recurso
+                                  if (paymentParts.length === 0 && installment.id === 175 && (window as any).paymentPartsOverride) {
                                     console.log("🎮 Usando override para parcela 175:", (window as any).paymentPartsOverride);
                                     paymentParts = (window as any).paymentPartsOverride;
                                   }

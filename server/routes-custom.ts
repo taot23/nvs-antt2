@@ -9,6 +9,52 @@ function generateBypassToken() {
 }
 
 export function registerCustomRoutes(app: Express) {
+  // Rota para recuperar os recibos de pagamento para uma venda
+  app.get("/api/sales/:id/payment-receipts", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Não autorizado" });
+      }
+      
+      const saleId = parseInt(req.params.id);
+      if (isNaN(saleId)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      // Primeiro, buscar todas as parcelas da venda
+      const installmentsResult = await pool.query(
+        "SELECT id FROM sale_installments WHERE saleId = $1",
+        [saleId]
+      );
+      
+      const installmentIds = installmentsResult.rows.map(row => row.id);
+      
+      if (installmentIds.length === 0) {
+        return res.json([]);
+      }
+      
+      // Buscar todos os recibos para essas parcelas
+      const receiptsResult = await pool.query(
+        `SELECT 
+          id, installment_id as "installmentId", receipt_type as "receiptType", 
+          receipt_url as "receiptUrl", receipt_data as "receiptData", 
+          confirmed_by as "confirmedBy", confirmation_date as "confirmationDate", 
+          notes, created_at as "createdAt"
+        FROM sale_payment_receipts 
+        WHERE installment_id = ANY($1)
+        ORDER BY created_at`,
+        [installmentIds]
+      );
+      
+      // Log de diagnóstico
+      console.log(`Recuperados ${receiptsResult.rows.length} recibos de pagamento para a venda #${saleId}`);
+      
+      return res.json(receiptsResult.rows);
+    } catch (error) {
+      console.error("Erro ao buscar recibos de pagamento:", error);
+      return res.status(500).json({ error: "Erro ao buscar recibos de pagamento" });
+    }
+  });
   // ULTRA BYPASS ENDPOINT (27/04/2025)
   // Este endpoint ignora completamente qualquer validação Zod/Drizzle e executa SQL direto
   app.post('/api/ultra-bypass/sales', async (req: Request, res: Response) => {
