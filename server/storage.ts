@@ -1918,11 +1918,83 @@ export class DatabaseStorage implements IStorage {
 
   // Métodos de gerenciamento de parcelas
   async getSaleInstallments(saleId: number): Promise<SaleInstallment[]> {
-    return await db
-      .select()
-      .from(saleInstallments)
-      .where(eq(saleInstallments.saleId, saleId))
-      .orderBy(saleInstallments.installmentNumber);
+    try {
+      console.log(`🔵 Buscando parcelas via SQL direto para venda #${saleId}`);
+      
+      // Usar SQL nativo para buscar parcelas e detalhes de método de pagamento
+      const { pool } = await import("./db");
+      
+      // Consulta SQL que busca parcelas e associa os métodos de pagamento
+      const result = await pool.query(`
+        SELECT 
+          si.*,
+          (
+            SELECT json_agg(
+              json_build_object(
+                'methodId', spr.receipt_data->>'methodId',
+                'methodName', spr.receipt_data->>'methodName',
+                'amount', spr.receipt_data->>'amount'
+              )
+            )
+            FROM sale_payment_receipts spr
+            WHERE spr.installment_id = si.id 
+            AND spr.receipt_type = 'split_payment'
+          ) as split_payments
+        FROM sale_installments si
+        WHERE si.sale_id = $1
+        ORDER BY si.installment_number
+      `, [saleId]);
+      
+      console.log(`🔵 Encontradas ${result.rows.length} parcelas para a venda #${saleId}`);
+      
+      // Processa os resultados para o formato esperado
+      const parsedInstallments = result.rows.map(row => {
+        // Verificar se temos informação de pagamentos divididos
+        let splitPaymentMethods = [];
+        
+        // Se tiver pagamento dividido, incluir essa informação
+        if (row.split_payments && row.split_payments.length > 0) {
+          // Adicionar os pagamentos divididos à lista
+          splitPaymentMethods = row.split_payments;
+        }
+        
+        // Buscar o método de pagamento principal
+        let paymentMethodInfo = null;
+        if (row.payment_method_id) {
+          paymentMethodInfo = {
+            id: row.payment_method_id,
+            // O nome será preenchido pelo frontend
+          };
+        }
+        
+        return {
+          id: row.id,
+          saleId: row.sale_id,
+          installmentNumber: row.installment_number,
+          dueDate: row.due_date,
+          paymentDate: row.payment_date,
+          amount: row.amount,
+          status: row.status,
+          notes: row.notes,
+          paymentMethodId: row.payment_method_id,
+          paymentNotes: row.payment_notes,
+          splitPayments: splitPaymentMethods,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at)
+        };
+      });
+      
+      console.log(`🔵 Retornando parcelas encontradas no banco`);
+      return parsedInstallments;
+    } catch (error) {
+      console.error("Erro ao buscar parcelas da venda:", error);
+      // Em caso de erro, voltar para o método padrão
+      return await db
+        .select()
+        .from(saleInstallments)
+        .where(eq(saleInstallments.saleId, saleId))
+        .orderBy(saleInstallments.installmentNumber);
+    }
   }
 
   async getSaleInstallment(id: number): Promise<SaleInstallment | undefined> {
