@@ -610,52 +610,57 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     </TableCell>
                     <TableCell>{formatCurrency(installment.amount)}</TableCell>
                     <TableCell>
-                      {installment.status === 'paid' && (
+                      {installment.status === 'paid' ? (
                         <>
-                          {/* Se houver um método de pagamento definido */}
-                          {paymentMethod && (
-                            <div className="flex items-center justify-between w-full">
-                              <div>
-                                <span className="text-blue-600">▢</span> {paymentMethod.name}:
-                              </div>
-                              <div>
-                                {formatCurrency(installment.amount)}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Verificar se nas notas há info sobre pagamento dividido independente de ter ou não método de pagamento definido */}
-                          {installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") && (
-                            <div className="space-y-1">
-                              {installment.paymentNotes.split('|').map((note: string, index: number) => {
-                                if (note.trim() === "PAGAMENTO DIVIDIDO") return null;
-                                if (note.includes(':')) {
-                                  const [method, amount] = note.split(':').map((s: string) => s.trim());
+                          {/* Verificar se as notas contêm informações sobre pagamento dividido */}
+                          {installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") ? (
+                            <div className="space-y-1 border-l-2 border-blue-400 pl-2">
+                              <div className="text-xs font-medium text-blue-600 mb-1">Pagamento Dividido:</div>
+                              {/* Processando cada método no formato "MÉTODO: VALOR" */}
+                              {installment.paymentNotes.split('|').map((part: string, idx: number) => {
+                                const trimmedPart = part.trim();
+                                // Pular o marcador "PAGAMENTO DIVIDIDO"
+                                if (trimmedPart === "PAGAMENTO DIVIDIDO") return null;
+                                // Pular a seção de notas adicionais
+                                if (trimmedPart.startsWith("NOTAS:")) return null;
+                                
+                                // Processar cada método de pagamento
+                                if (trimmedPart.includes(':')) {
+                                  const [method, value] = trimmedPart.split(':').map(s => s.trim());
                                   return (
-                                    <div key={index} className="flex items-center justify-between w-full">
-                                      <div>
-                                        <span className="text-blue-600">▢</span> {method}:
+                                    <div key={idx} className="flex items-center justify-between w-full py-0.5">
+                                      <div className="flex items-center">
+                                        <span className="h-2 w-2 rounded-full bg-blue-500 mr-1.5"></span>
+                                        <span>{method}</span>
                                       </div>
-                                      <div>
-                                        {amount}
+                                      <div className="font-medium">
+                                        {value}
                                       </div>
                                     </div>
                                   );
                                 }
-                                if (note.toLowerCase().includes("notas:")) return null;
                                 return null;
                               })}
                             </div>
-                          )}
-                          
-                          {/* Se não houver método nem notas sobre pagamento dividido */}
-                          {!paymentMethod && (!installment.paymentNotes || !installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) && (
-                            <span className="text-muted-foreground">Método não especificado</span>
+                          ) : (
+                            // Se não for pagamento dividido, mostrar o método padrão
+                            <>
+                              {paymentMethod ? (
+                                <div className="flex items-center justify-between w-full">
+                                  <div>
+                                    <span className="text-blue-600">▢</span> {paymentMethod.name}:
+                                  </div>
+                                  <div>
+                                    {formatCurrency(installment.amount)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Método não especificado</span>
+                              )}
+                            </>
                           )}
                         </>
-                      )}
-                      
-                      {installment.status !== 'paid' && (
+                      ) : (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </TableCell>
