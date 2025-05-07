@@ -660,14 +660,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                               isPagamentoDividido = partesPagamento.length > 1;
                             }
                             
-                            // Verificar se a parcela tem ID específico para teste
-                            // Isso garante que as parcelas de teste sempre serão exibidas como divididas
-                            if (installment.id === 163 || installment.id === 164 || installment.id === 168 || installment.id === 169) {
-                              isPagamentoDividido = true;
-                            }
-                            
-                            // Verificar se é da venda teste2 (que teve problemas)
-                            if (installment.saleId === 172) {
+                            // Verificar em paymentNotes se contém "PAGAMENTO DIVIDIDO" em algum lugar
+                            if (installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
                               isPagamentoDividido = true;
                             }
                             
@@ -693,35 +687,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                   // Inicializar matches para todas as abordagens
                                   let matches: any[] = [];
                                   
-                                  // ABORDAGEM ESPECIAL PARA PARCELAS DE TESTE (ID 163 e 164)
-                                  // Se for uma das parcelas de teste específicas, forçar um tratamento especial
-                                  if (installment.id === 163 || installment.id === 164) {
-                                    // Definir valores manualmente para as parcelas de teste
-                                    let metodosEValores: {metodo: string, valor: string}[] = [];
-                                    
-                                    if (installment.id === 163) {
-                                      // Parcela 1: PIX: R$ 50,00 | CARTAO: R$ 50,00
-                                      metodosEValores = [
-                                        { metodo: "PIX", valor: "R$ 50,00" },
-                                        { metodo: "CARTAO", valor: "R$ 50,00" }
-                                      ];
-                                    } else if (installment.id === 164) {
-                                      // Parcela 2: PIX: R$ 30,00 | CARTAO: R$ 70,00
-                                      metodosEValores = [
-                                        { metodo: "PIX", valor: "R$ 30,00" },
-                                        { metodo: "CARTAO", valor: "R$ 70,00" }
-                                      ];
-                                    }
-                                    
-                                    // Formatar matches no formato esperado pelo restante do código
-                                    matches = metodosEValores.map(mv => {
-                                      return [`${mv.metodo}: ${mv.valor}`, mv.metodo, mv.valor];
-                                    });
-                                    
-                                    console.log(`🎯 Usando valores fixos para parcela de teste ID ${installment.id}:`, matches);
-                                  } 
-                                  // ABORDAGEM PARA DEMAIS PARCELAS
-                                  else {
+                                  // ABORDAGEM UNIVERSAL PARA TODAS AS PARCELAS
+                                  {
                                     // Usando várias abordagens de expressão regular para máxima flexibilidade
                                     // Padrão 1: procura por palavras (métodos) seguidas por ':' e depois valores em R$
                                     const padrao1 = /([A-Za-z0-9\s]+):\s*(R\$\s*[\d,.]+)/g;
@@ -779,127 +746,18 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                       return part.includes(':');
                                     });
                                     
-                                    // Se ainda não encontramos partes e é uma das parcelas de teste
-                                    if (paymentParts.length === 0 && (installment.id === 163 || installment.id === 164)) {
-                                      // Adicionar manualmente os valores para testes
-                                      paymentParts = installment.id === 163 ? 
-                                        ["PIX: R$ 50,00", "CARTAO: R$ 50,00"] :
-                                        ["PIX: R$ 30,00", "CARTAO: R$ 70,00"];
-                                    }
+                                    // Não precisamos mais deste tratamento específico
                                   }
                                   
                                   console.log(`📊 Partes de pagamento para ID ${installment.id}:`, paymentParts);
                                   
-                                  // Se não encontramos partes de pagamento, verificar IDs específicos
+                                  // Se não conseguimos extrair partes de pagamento, mostrar mensagem
                                   if (paymentParts.length === 0) {
-                                    // Forçar exibição para parcelas específicas de teste
-                                    if (installment.id === 163) {
-                                      return (
-                                        <div className="space-y-2">
-                                          <div className="flex items-center justify-between w-full py-1.5 border-b border-gray-100">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                              <span className="font-medium">PIX</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 50,00</div>
-                                          </div>
-                                          <div className="flex items-center justify-between w-full py-1.5">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-blue-500"></div>
-                                              <span className="font-medium">CARTÃO</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 50,00</div>
-                                          </div>
-                                        </div>
-                                      );
-                                    } else if (installment.id === 164) {
-                                      return (
-                                        <div className="space-y-2">
-                                          <div className="flex items-center justify-between w-full py-1.5 border-b border-gray-100">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                              <span className="font-medium">PIX</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 30,00</div>
-                                          </div>
-                                          <div className="flex items-center justify-between w-full py-1.5">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-blue-500"></div>
-                                              <span className="font-medium">CARTÃO</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 70,00</div>
-                                          </div>
-                                        </div>
-                                      );
-                                    } else if (installment.id === 168) {
-                                      // Parcela 1 da venda teste2
-                                      return (
-                                        <div className="space-y-2">
-                                          <div className="flex items-center justify-between w-full py-1.5 border-b border-gray-100">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                              <span className="font-medium">PIX</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 100,00</div>
-                                          </div>
-                                          <div className="flex items-center justify-between w-full py-1.5">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                              <span className="font-medium">PIX</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 50,00</div>
-                                          </div>
-                                        </div>
-                                      );
-                                    } else if (installment.id === 169) {
-                                      // Parcela 2 da venda teste2
-                                      return (
-                                        <div className="space-y-2">
-                                          <div className="flex items-center justify-between w-full py-1.5 border-b border-gray-100">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                              <span className="font-medium">PIX</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 70,00</div>
-                                          </div>
-                                          <div className="flex items-center justify-between w-full py-1.5">
-                                            <div className="flex items-center">
-                                              <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                              <span className="font-medium">PIX</span>
-                                            </div>
-                                            <div className="font-medium text-emerald-700">R$ 80,00</div>
-                                          </div>
-                                        </div>
-                                      );
-                                    } else {
-                                      // Se for uma venda com saleId 172 (teste2)
-                                      if (installment.saleId === 172) {
-                                        return (
-                                          <div className="space-y-2">
-                                            <div className="flex items-center justify-between w-full py-1.5 border-b border-gray-100">
-                                              <div className="flex items-center">
-                                                <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                                <span className="font-medium">PIX</span>
-                                              </div>
-                                              <div className="font-medium text-emerald-700">R$ 75,00</div>
-                                            </div>
-                                            <div className="flex items-center justify-between w-full py-1.5">
-                                              <div className="flex items-center">
-                                                <div className="h-3 w-3 rounded-full mr-2 bg-green-500"></div>
-                                                <span className="font-medium">PIX</span>
-                                              </div>
-                                              <div className="font-medium text-emerald-700">R$ 75,00</div>
-                                            </div>
-                                          </div>
-                                        );
-                                      } else {
-                                        return (
-                                          <div className="text-amber-600 bg-amber-50 p-2 rounded-md text-sm">
-                                            Pagamento dividido, mas detalhes não disponíveis
-                                          </div>
-                                        );
-                                      }
-                                    }
+                                    return (
+                                      <div className="text-amber-600 bg-amber-50 p-2 rounded-md text-sm">
+                                        Pagamento dividido, mas detalhes não disponíveis
+                                      </div>
+                                    );
                                   }
                                   
                                   // Renderizar cada método de pagamento
