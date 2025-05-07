@@ -3581,7 +3581,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair dados do corpo da requisição
-      const { paymentDate, receiptType, receiptUrl, receiptData, notes } = req.body;
+      const { 
+        paymentDate, 
+        receiptType, 
+        receiptUrl, 
+        receiptData, 
+        notes, 
+        paymentMethodId, 
+        splitPayments = [] 
+      } = req.body;
       
       // Validar data de pagamento
       if (!paymentDate) {
@@ -3593,21 +3601,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Tipo de comprovante é obrigatório" });
       }
       
-      // Confirmar pagamento da parcela
-      // Enviar a data de pagamento exatamente como recebida do cliente
-      // O método confirmInstallmentPayment vai lidar com a formatação correta
+      // Validar método de pagamento principal
+      if (!paymentMethodId) {
+        return res.status(400).json({ error: "Método de pagamento é obrigatório" });
+      }
+      
+      // Logging para debug
       console.log(`🔍 Rota de confirmação de pagamento: Data recebida do cliente: ${paymentDate}`);
+      if (splitPayments && splitPayments.length > 0) {
+        console.log(`🔍 Pagamento dividido em ${splitPayments.length} métodos diferentes`);
+        splitPayments.forEach((pay, index) => {
+          console.log(`  - Método #${index+1}: ID ${pay.methodId}, Valor: ${pay.amount}`);
+        });
+      }
       
       const updatedInstallment = await storage.confirmInstallmentPayment(
         id,
         req.user!.id,
-        paymentDate, // Passar a data sem conversão adicional
+        paymentDate,
         {
           type: receiptType,
           url: receiptUrl,
           data: receiptData,
           notes
-        }
+        },
+        paymentMethodId,
+        splitPayments
       );
       
       // Emitir evento de atualização

@@ -246,6 +246,8 @@ export interface IStorage {
     userId: number,
     paymentDate: string, // Alterado para string para preservar exatamente o formato digitado pelo usuário
     receiptData?: { type: string; url?: string; data?: any; notes?: string },
+    paymentMethodId?: number,
+    splitPayments?: Array<{methodId: number, amount: number}>
   ): Promise<SaleInstallment | undefined>;
   
   // Editar pagamento já confirmado de uma parcela (exclusivo para administradores)
@@ -2585,6 +2587,8 @@ export class DatabaseStorage implements IStorage {
     userId: number,
     paymentDate: string, // Aceitar apenas string para evitar conversões automáticas
     receiptData?: { type: string; url?: string; data?: any; notes?: string },
+    paymentMethodId?: number,
+    splitPayments: Array<{methodId: number, amount: number}> = []
   ): Promise<SaleInstallment | undefined> {
     // Obter parcela
     const installment = await this.getSaleInstallment(installmentId);
@@ -2614,14 +2618,19 @@ export class DatabaseStorage implements IStorage {
       const { pool } = await import("./db");
       
       // Atualizar a parcela com SQL nativo para garantir preservação exata do formato da data
+      // Incluir também o método de pagamento se fornecido
+      const paymentMethodSql = paymentMethodId ? ", payment_method_id = $3" : "";
+      const paymentMethodParams = paymentMethodId ? [formattedPaymentDate, installmentId, paymentMethodId] : [formattedPaymentDate, installmentId];
+      
       const result = await pool.query(`
         UPDATE sale_installments 
         SET status = 'paid', 
-            payment_date = $1,  
+            payment_date = $1,
+            ${paymentMethodSql}
             updated_at = NOW()
         WHERE id = $2
         RETURNING *
-      `, [formattedPaymentDate, installmentId]);
+      `, paymentMethodParams);
       
       if (result.rows.length === 0) {
         console.log(`⚠️ Parcela #${installmentId} não encontrada durante atualização via SQL`);
@@ -2643,20 +2652,63 @@ export class DatabaseStorage implements IStorage {
         amount: updatedInstallment.amount,
         status: updatedInstallment.status,
         notes: updatedInstallment.notes,
+        paymentMethodId: updatedInstallment.payment_method_id,
         createdAt: updatedInstallment.created_at,
         updatedAt: updatedInstallment.updated_at
       };
       
       // Se temos dados de comprovante, registrá-lo
       if (receiptData) {
+        // Adicionar informações sobre pagamento dividido no receiptData se aplicável
+        let enhancedReceiptData = { ...receiptData.data || {} };
+        
+        if (splitPayments && splitPayments.length > 0) {
+          enhancedReceiptData.splitPayments = splitPayments;
+          enhancedReceiptData.paymentType = "split";
+        }
+        
         await this.createSalePaymentReceipt({
           installmentId,
           receiptType: receiptData.type,
           receiptUrl: receiptData.url || null,
-          receiptData: receiptData.data ? receiptData.data : null,
+          receiptData: enhancedReceiptData,
           confirmedBy: userId,
           notes: receiptData.notes || null,
         });
+        
+        // Se temos pagamentos divididos, registrar cada método de pagamento em separado
+        if (splitPayments && splitPayments.length > 0) {
+          console.log(`💰 Registrando ${splitPayments.length} pagamentos parciais`);
+          
+          // Criar um registro de pagamento para cada método adicional (exceto o principal)
+          for (let i = 0; i < splitPayments.length; i++) {
+            const splitPayment = splitPayments[i];
+            
+            // Se este é o método principal que já registramos na parcela, pular
+            if (paymentMethodId && splitPayment.methodId === paymentMethodId && i === 0) {
+              continue;
+            }
+            
+            // Buscar nome do método de pagamento
+            const paymentMethod = await this.getPaymentMethod(splitPayment.methodId);
+            const methodName = paymentMethod ? paymentMethod.name : `Método ${splitPayment.methodId}`;
+            
+            // Registrar um comprovante adicional para este método de pagamento
+            await this.createSalePaymentReceipt({
+              installmentId,
+              receiptType: "split_payment",
+              receiptUrl: null,
+              receiptData: {
+                methodId: splitPayment.methodId,
+                methodName: methodName,
+                amount: splitPayment.amount,
+                isPartial: true
+              },
+              confirmedBy: userId,
+              notes: `Pagamento parcial - ${methodName}: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(splitPayment.amount)}`
+            });
+          }
+        }
       }
 
       // Verificar se todas as parcelas desta venda estão pagas
