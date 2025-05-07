@@ -1924,50 +1924,62 @@ export class DatabaseStorage implements IStorage {
       // Usar SQL nativo para buscar parcelas e detalhes de método de pagamento
       const { pool } = await import("./db");
       
-      // Consulta SQL que busca parcelas e associa os métodos de pagamento
-      const result = await pool.query(`
-        SELECT 
-          si.*,
-          (
-            SELECT json_agg(
-              json_build_object(
-                'methodId', spr.receipt_data->>'methodId',
-                'methodName', spr.receipt_data->>'methodName',
-                'amount', spr.receipt_data->>'amount'
-              )
-            )
-            FROM sale_payment_receipts spr
-            WHERE spr.installment_id = si.id 
-            AND spr.receipt_type = 'split_payment'
-          ) as split_payments
-        FROM sale_installments si
-        WHERE si.sale_id = $1
-        ORDER BY si.installment_number
+      // Fazemos duas operações:
+      // 1. Buscamos os dados das parcelas
+      const installmentsResult = await pool.query(`
+        SELECT * FROM sale_installments 
+        WHERE sale_id = $1
+        ORDER BY installment_number
       `, [saleId]);
       
-      console.log(`🔵 Encontradas ${result.rows.length} parcelas para a venda #${saleId}`);
+      // 2. Para cada parcela, buscamos seus pagamentos divididos
+      const parsedInstallments = [];
       
-      // Processa os resultados para o formato esperado
-      const parsedInstallments = result.rows.map(row => {
-        // Verificar se temos informação de pagamentos divididos
-        let splitPaymentMethods = [];
+      for (const row of installmentsResult.rows) {
+        // Buscar pagamentos divididos para esta parcela
+        const splitPaymentsResult = await pool.query(`
+          SELECT * FROM sale_payment_receipts 
+          WHERE installment_id = $1 
+          AND receipt_type = 'split_payment'
+        `, [row.id]);
         
-        // Se tiver pagamento dividido, incluir essa informação
-        if (row.split_payments && row.split_payments.length > 0) {
-          // Adicionar os pagamentos divididos à lista
-          splitPaymentMethods = row.split_payments;
-        }
+        // Formatar os pagamentos divididos para o formato esperado
+        const splitPayments = splitPaymentsResult.rows.map(receipt => {
+          try {
+            const data = receipt.receipt_data || {};
+            return {
+              methodId: data.methodId || '',
+              methodName: data.methodName || '',
+              amount: data.amount || '0'
+            };
+          } catch (e) {
+            console.error(`Erro ao processar pagamento dividido:`, e);
+            return null;
+          }
+        }).filter(item => item !== null);
         
-        // Buscar o método de pagamento principal
-        let paymentMethodInfo = null;
+        console.log(`💰 Parcela #${row.id} tem ${splitPayments.length} pagamentos divididos`);
+        
+        // Se tivermos um método de pagamento principal, incluir também
         if (row.payment_method_id) {
-          paymentMethodInfo = {
-            id: row.payment_method_id,
-            // O nome será preenchido pelo frontend
-          };
+          // Buscar informações do método principal
+          const methodResult = await pool.query(`
+            SELECT name FROM payment_methods WHERE id = $1
+          `, [row.payment_method_id]);
+          
+          const methodName = methodResult.rows.length > 0 ? methodResult.rows[0].name : `Método ${row.payment_method_id}`;
+          
+          // Adicionar o método principal à lista de pagamentos
+          splitPayments.unshift({
+            methodId: String(row.payment_method_id),
+            methodName: methodName,
+            amount: row.amount || '0',
+            isPrimary: true
+          });
         }
         
-        return {
+        // Mapear para o formato esperado
+        parsedInstallments.push({
           id: row.id,
           saleId: row.sale_id,
           installmentNumber: row.installment_number,
@@ -1978,12 +1990,13 @@ export class DatabaseStorage implements IStorage {
           notes: row.notes,
           paymentMethodId: row.payment_method_id,
           paymentNotes: row.payment_notes,
-          splitPayments: splitPaymentMethods,
+          splitPayments: splitPayments,
           createdAt: new Date(row.created_at),
           updatedAt: new Date(row.updated_at)
-        };
-      });
+        });
+      }
       
+      console.log(`🔵 Encontradas ${parsedInstallments.length} parcelas para a venda #${saleId}`);
       console.log(`🔵 Retornando parcelas encontradas no banco`);
       return parsedInstallments;
     } catch (error) {
