@@ -3713,7 +3713,17 @@ export class DatabaseStorage implements IStorage {
         FROM sale_installments i
         WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
-        AND TO_DATE(i.payment_date, 'DD/MM/YYYY') BETWEEN $1::date AND $2::date
+        AND (
+          -- Tratar de forma segura datas que podem estar em diferentes formatos
+          CASE 
+            WHEN i.payment_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN -- Formato YYYY-MM-DD
+              i.payment_date::date
+            WHEN i.payment_date ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN -- Formato DD/MM/YYYY
+              TO_DATE(i.payment_date, 'DD/MM/YYYY')
+            ELSE 
+              NULL -- Ignorar formatos inválidos
+          END
+        ) BETWEEN $1::date AND $2::date
       `;
       
       // Consulta 3: Obter a receita PENDENTE no período (ainda não paga)
@@ -3730,7 +3740,17 @@ export class DatabaseStorage implements IStorage {
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
-        AND c.payment_date::date BETWEEN $1::date AND $2::date
+        AND (
+          -- Tratar de forma segura datas que podem estar em diferentes formatos
+          CASE 
+            WHEN c.payment_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN -- Formato YYYY-MM-DD
+              c.payment_date::date
+            WHEN c.payment_date ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN -- Formato DD/MM/YYYY
+              TO_DATE(c.payment_date, 'DD/MM/YYYY')
+            ELSE 
+              NULL -- Ignorar formatos inválidos
+          END
+        ) BETWEEN $1::date AND $2::date
       `;
       
       console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
