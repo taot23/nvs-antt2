@@ -661,8 +661,16 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                             }
                             
                             // Verificar em paymentNotes se contém "PAGAMENTO DIVIDIDO" em algum lugar
+                            // Esta é a verificação mais importante, pois captura pagamentos divididos novos
                             if (installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
                               isPagamentoDividido = true;
+                              console.log(`🚨 Detectado pagamento dividido via texto "PAGAMENTO DIVIDIDO" ID ${installment.id}`);
+                            }
+                            
+                            // Verificar se temos mais de um método separado por barras na string paymentNotes
+                            if (installment.paymentNotes && installment.paymentNotes.split('|').filter(p => p.includes(':')).length > 1) {
+                              isPagamentoDividido = true;
+                              console.log(`🚨 Detectado pagamento dividido via múltiplos ":" ID ${installment.id}`);
                             }
                             
                             return isPagamentoDividido;
@@ -726,27 +734,63 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                   // Se temos matches, usamos eles diretamente em vez de fazer split/filter
                                   let paymentParts: string[] = [];
                                   
+                                  // Vamos sempre tentar as duas abordagens e usar a que produzir mais resultados
+                                  
+                                  // Abordagem 1: Usando regex matches
+                                  let paymentParts1: string[] = [];
                                   if (matches.length > 0) {
                                     // Extrair cada match como "MÉTODO: VALOR"
-                                    paymentParts = matches.map(match => match[0]);
-                                  } else {
-                                    // Fallback para o método anterior se não encontrar matches
-                                    // Dividir a string pelas barras verticais
-                                    const parts = installment.paymentNotes ? 
-                                      installment.paymentNotes.split('|').map((p: string) => p.trim()) : 
-                                      [];
+                                    paymentParts1 = matches.map(match => match[0]);
+                                  }
+                                  
+                                  // Abordagem 2: Usando split por barras
+                                  const parts = installment.paymentNotes ? 
+                                    installment.paymentNotes.split('|').map((p: string) => p.trim()) : 
+                                    [];
+                                  
+                                  // Filtrar apenas as partes que contêm informações de método:valor
+                                  const paymentParts2 = parts.filter((part: string) => {
+                                    // Pular o marcador "PAGAMENTO DIVIDIDO"
+                                    if (part === "PAGAMENTO DIVIDIDO") return false;
+                                    // Pular a seção de notas adicionais
+                                    if (part.toLowerCase().includes("notas:")) return false;
+                                    // Manter apenas partes que contêm o formato "método: valor"
+                                    return part.includes(':');
+                                  });
+                                  
+                                  // Usar a abordagem que encontrar mais partes ou a primeira se forem iguais
+                                  paymentParts = paymentParts1.length >= paymentParts2.length ? paymentParts1 : paymentParts2;
+                                  
+                                  // Se ainda não tiver partes e for claramente um pagamento dividido, extrair 
+                                  // métodos e valores direto do splitPayments que foi enviado
+                                  if (paymentParts.length === 0 && installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
+                                    // Tentar extrair os métodos a partir de combinações de palavras-chave conhecidas
+                                    const metodosConhecidosArray = paymentMethods.map(m => m.name.toUpperCase());
+                                    let metodosExtraidos: {metodo: string, valor: string}[] = [];
                                     
-                                    // Filtrar apenas as partes que contêm informações de método:valor
-                                    paymentParts = parts.filter((part: string) => {
-                                      // Pular o marcador "PAGAMENTO DIVIDIDO"
-                                      if (part === "PAGAMENTO DIVIDIDO") return false;
-                                      // Pular a seção de notas adicionais
-                                      if (part.toLowerCase().includes("notas:")) return false;
-                                      // Manter apenas partes que contêm o formato "método: valor"
-                                      return part.includes(':');
-                                    });
+                                    // Procurar por palavras-chave de métodos conhecidos em qualquer parte da string
+                                    for (const metodo of metodosConhecidosArray) {
+                                      if (installment.paymentNotes.toUpperCase().includes(metodo)) {
+                                        // Método encontrado, agora procurar por valores numéricos próximos
+                                        const regex = new RegExp(`${metodo}[^\\d]*(\\d+[,.\\d]*)`, 'i');
+                                        const match = installment.paymentNotes.match(regex);
+                                        
+                                        if (match && match[1]) {
+                                          // Encontrou um valor associado ao método
+                                          const valor = match[1].trim();
+                                          metodosExtraidos.push({
+                                            metodo: metodo,
+                                            valor: valor.includes("R$") ? valor : `R$ ${valor}`
+                                          });
+                                        }
+                                      }
+                                    }
                                     
-                                    // Não precisamos mais deste tratamento específico
+                                    // Se encontrou métodos, converter para o formato esperado
+                                    if (metodosExtraidos.length > 0) {
+                                      paymentParts = metodosExtraidos.map(mv => `${mv.metodo}: ${mv.valor}`);
+                                      console.log(`🎯 Extraídos métodos direto da string: ${JSON.stringify(metodosExtraidos)}`);
+                                    }
                                   }
                                   
                                   console.log(`📊 Partes de pagamento para ID ${installment.id}:`, paymentParts);
