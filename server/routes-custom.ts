@@ -145,7 +145,7 @@ export function registerCustomRoutes(app: Express) {
       
       // Primeiro, buscar todas as parcelas da venda
       const installmentsResult = await pool.query(
-        "SELECT id FROM sale_installments WHERE saleId = $1",
+        "SELECT id FROM sale_installments WHERE sale_id = $1",
         [saleId]
       );
       
@@ -392,7 +392,7 @@ export function registerCustomRoutes(app: Express) {
       // Primeiro, excluir parcelas existentes
       await pool.query(`
         DELETE FROM sale_installments 
-        WHERE saleId = $1
+        WHERE sale_id = $1
       `, [saleId]);
       
       console.log(`[DEBUG] Excluídas parcelas existentes da venda ${saleId}`);
@@ -410,11 +410,11 @@ export function registerCustomRoutes(app: Express) {
         // Inserir usando SQL nativo para evitar qualquer conversão automática de data
         const result = await pool.query(`
           INSERT INTO sale_installments (
-            saleId, installmentNumber, dueDate, amount, status, createdAt, updatedAt
+            sale_id, installment_number, due_date, amount, status, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, 'pendente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-          ) RETURNING id, saleId, installmentNumber, 
-            dueDate,
+          ) RETURNING id, sale_id as "saleId", installment_number as "installmentNumber", 
+            due_date as "dueDate",
             amount, status
         `, [saleId, installmentNumber, dueDate, amount]);
         
@@ -448,16 +448,16 @@ export function registerCustomRoutes(app: Express) {
       const result = await pool.query(`
         SELECT 
           id, 
-          saleId, 
-          installmentNumber, 
-          dueDate, 
-          paymentDate,
+          sale_id as "saleId", 
+          installment_number as "installmentNumber", 
+          due_date as "dueDate", 
+          payment_date as "paymentDate",
           amount, 
           status, 
           notes
         FROM sale_installments
-        WHERE saleId = $1
-        ORDER BY installmentNumber
+        WHERE sale_id = $1
+        ORDER BY installment_number
       `, [saleId]);
       
       const installments = result.rows;
