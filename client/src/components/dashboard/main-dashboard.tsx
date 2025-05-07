@@ -325,6 +325,16 @@ export default function MainDashboard() {
           isLoading={isLoading}
         />
         <StatsCard
+          title="Resultado Líquido"
+          value={financialOverview
+            ? `R$ ${(parseFloat(financialOverview.paidAmount.toString()) - parseFloat(financialOverview.operationalCosts?.toString() || '0')).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            : "R$ 0,00"
+          }
+          icon={<BarChart3 className="h-5 w-5 text-blue-600" />}
+          description={`Receita paga menos custos`}
+          isLoading={isLoading}
+        />
+        <StatsCard
           title="Parcelas Pendentes"
           value={financialOverview?.pendingInstallments ?? 0}
           icon={<Clock className="h-5 w-5 text-red-600" />}
