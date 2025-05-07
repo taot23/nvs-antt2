@@ -607,26 +607,13 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     </TableCell>
                     <TableCell>{formatCurrency(installment.amount)}</TableCell>
                     <TableCell>
-                      {installment.status === 'paid' && (
-                        <div className="flex flex-col gap-1">
-                          {/* Método CARTÃO */}
-                          <div className="flex items-center justify-between w-full">
-                            <div>
-                              <span className="text-blue-600">▢</span> CARTÃO:
-                            </div>
-                            <div>
-                              R$ 500,00
-                            </div>
+                      {installment.status === 'paid' && paymentMethod && (
+                        <div className="flex items-center justify-between w-full">
+                          <div>
+                            <span className="text-blue-600">▢</span> {paymentMethod.name}:
                           </div>
-                          
-                          {/* Método PIX */}
-                          <div className="flex items-center justify-between w-full">
-                            <div>
-                              <span className="text-blue-600">▢</span> PIX:
-                            </div>
-                            <div>
-                              R$ 500,00
-                            </div>
+                          <div>
+                            {formatCurrency(installment.amount)}
                           </div>
                         </div>
                       )}
