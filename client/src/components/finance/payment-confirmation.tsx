@@ -293,7 +293,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
     
     // Limpar pagamentos parciais anteriores
     setSplitPayments([]);
-    setRemainingAmount(installment.amount);
+    setSplitAmount("");
+    setRemainingAmount(String(installment.amount));
     
     // Definir primeiro método de pagamento como padrão, se disponível
     if (paymentMethods.length > 0) {
@@ -433,12 +434,33 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
       }
     } else if (selectedInstallment) {
       if (showSplitPayment && splitPayments.length > 0) {
+        // Verificar se o valor total dos pagamentos divididos é igual ao valor da parcela
+        const totalPaid = splitPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const installmentAmount = Number(selectedInstallment.amount);
+        
+        // Verificar se o valor total é igual ao valor da parcela (com uma pequena margem de erro)
+        if (Math.abs(totalPaid - installmentAmount) > 0.01) {
+          toast({
+            title: "Valor total incorreto",
+            description: `O valor total dos pagamentos (${formatCurrency(totalPaid)}) deve ser igual ao valor da parcela (${formatCurrency(installmentAmount)}).`,
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Formatar detalhes do pagamento para as notas
+        const methodDetails = splitPayments.map(p => {
+          const method = paymentMethods.find(m => String(m.id) === p.methodId);
+          return `${method?.name || 'Método ' + p.methodId}: ${formatCurrency(Number(p.amount))}`;
+        }).join('; ');
+        
+        const paymentDetailsNote = `\n\nPagamento dividido: ${methodDetails}`;
+        
         // Confirmar com pagamento dividido
         confirmPaymentMutation.mutate({
           installmentId: selectedInstallment.id,
           paymentDate: paymentDateStr,
-          notes: paymentNotes + (splitPayments.length > 0 ? 
-            `\n\nPagamento dividido entre ${splitPayments.length} métodos` : ""),
+          notes: paymentNotes + paymentDetailsNote,
           paymentMethodId: splitPayments[0].methodId, // Usar o primeiro método como principal
           splitPayments: splitPayments.map(p => ({
             methodId: Number(p.methodId),
