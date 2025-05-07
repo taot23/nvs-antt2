@@ -165,8 +165,6 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
           // Log detalhado para diagnóstico
           receipts.forEach((receipt: any, index: number) => {
             if (receipt.receiptType === "split_payment") {
-              console.log(`📜 SPLIT PAYMENT #${index+1}: Parcela=${receipt.installmentId}, Método=${receipt.receiptData?.methodName}, Valor=${receipt.receiptData?.amount}`);
-              
               // Verificar se receiptData é uma string ou um objeto
               if (typeof receipt.receiptData === 'string') {
                 try {
@@ -179,6 +177,9 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                   console.error(`📜 Erro ao fazer parse do receiptData:`, e);
                 }
               }
+              
+              // Agora podemos fazer o log com os dados atualizados
+              console.log(`📜 SPLIT PAYMENT #${index+1}: Parcela=${receipt.installmentId}, Método=${receipt.receiptData?.methodName}, Valor=${receipt.receiptData?.amount}`);
             }
           });
         }
@@ -193,6 +194,53 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
     // Mesmo se falhar, não vamos bloquear a interface
     retry: false,
   });
+  
+  // Organizar recibos por parcela para facilitar o acesso 
+  const splitPaymentReceiptsByInstallment = React.useMemo(() => {
+    const receiptMap: Record<number, any[]> = {};
+    
+    if (paymentReceipts && paymentReceipts.length > 0) {
+      // Filtrar e processar apenas recibos de pagamentos divididos
+      paymentReceipts.forEach((receipt: any) => {
+        // Verificar se é um recibo de pagamento dividido
+        if (receipt.receiptType === "split_payment") {
+          const installmentId = receipt.installmentId;
+          
+          // Inicializar array para esta parcela se ainda não existir
+          if (!receiptMap[installmentId]) {
+            receiptMap[installmentId] = [];
+          }
+          
+          // Verificar e fazer parse do receiptData se for uma string
+          let receiptData = receipt.receiptData;
+          if (typeof receiptData === 'string') {
+            try {
+              receiptData = JSON.parse(receiptData);
+            } catch (e) {
+              console.error(`❌ Erro ao processar receiptData para recibo ${receipt.id}:`, e);
+              receiptData = {};
+            }
+          }
+          
+          // Adicionar ao mapa
+          receiptMap[installmentId].push({
+            ...receipt,
+            receiptData,
+          });
+        }
+      });
+      
+      // Log para diagnóstico
+      if (Object.keys(receiptMap).length > 0) {
+        console.log(`🔍 Mapa de recibos por parcela:`, Object.keys(receiptMap));
+        Object.entries(receiptMap).forEach(([installmentId, receipts]) => {
+          console.log(`   -> Parcela #${installmentId}: ${receipts.length} recibos`);
+        });
+      }
+    }
+    
+    return receiptMap;
+  }, [paymentReceipts]);
   
   // Mutation para editar um pagamento confirmado (apenas admin pode fazer isso)
   const editPaymentMutation = useMutation({
