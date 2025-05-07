@@ -3700,54 +3700,41 @@ export class DatabaseStorage implements IStorage {
         endDateStr = filters.endDate;
       }
       
-      // Consulta 1: Obter a receita total das vendas feitas no período (data da venda)
+      // Consulta 1: Receita total das vendas realizadas no período
       const totalSalesQuery = `
         SELECT COALESCE(SUM(total_amount::numeric), 0) as total_revenue
         FROM sales
         WHERE date BETWEEN $1 AND $2
       `;
       
-      // Consulta 2: Obter a receita RECEBIDA no período (com base na data do PAGAMENTO)
-      // Abordagem robusta que funciona com todos os formatos de data
+      // Consulta 2: Valor total já PAGO
       const paidAmountQuery = `
         SELECT COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
         FROM sale_installments i
         WHERE i.status = 'paid'
-        AND i.payment_date IS NOT NULL
       `;
       
-      // Nota: Removendo o filtro de data temporariamente para mostrar todos os pagamentos
-      // Se necessário, será reintroduzido após verificar e normalizar os formatos de data
-      
-      // Consulta 3: Obter a receita PENDENTE no período (ainda não paga)
+      // Consulta 3: Valor total PENDENTE
       const pendingAmountQuery = `
         SELECT COALESCE(SUM(i.amount::numeric), 0) as pending_revenue
         FROM sale_installments i
-        JOIN sales s ON i.sale_id = s.id
         WHERE i.status = 'pending'
-        AND s.date BETWEEN $1 AND $2
       `;
       
-      // Consulta 4: Obter custos operacionais PAGOS no período (com base na data do PAGAMENTO do custo)
-      // Abordagem robusta que funciona com todos os formatos de data
+      // Consulta 4: Custos operacionais totais PAGOS
       const costQuery = `
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
       `;
       
-      // Nota: Removendo o filtro de data temporariamente para mostrar todos os custos
-      // Se necessário, será reintroduzido após verificar e normalizar os formatos de data
-      
       console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
       
-      // Executar todas as consultas em paralelo
-      const [totalResult, paidResult, pendingResult, costResult] = await Promise.all([
-        pool.query(totalSalesQuery, [startDateStr, endDateStr]),
-        pool.query(paidAmountQuery), // Sem parâmetros, pois removemos os filtros de data
-        pool.query(pendingAmountQuery, [startDateStr, endDateStr]),
-        pool.query(costQuery) // Sem parâmetros, pois removemos os filtros de data
-      ]);
+      // Executar consultas individualmente para identificar problemas específicos
+      const totalResult = await pool.query(totalSalesQuery, [startDateStr, endDateStr]);
+      const paidResult = await pool.query(paidAmountQuery);
+      const pendingResult = await pool.query(pendingAmountQuery);
+      const costResult = await pool.query(costQuery);
       
       // Extrair valores com segurança
       const totalRevenue = totalResult.rows[0]?.total_revenue || "0";
