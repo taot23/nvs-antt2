@@ -278,7 +278,7 @@ export default function MainDashboard() {
         <StatsCard
           title="Valor Total"
           value={financialOverview 
-            ? `R$ ${financialOverview.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ? `R$ ${parseFloat(financialOverview.totalAmount.toString()).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             : "R$ 0,00"
           }
           icon={<DollarSign className="h-5 w-5 text-green-600" />}
@@ -286,26 +286,26 @@ export default function MainDashboard() {
           isLoading={isLoading}
         />
         <StatsCard
-          title="Valor Recebido"
+          title="Valor Pago"
           value={financialOverview
-            ? `R$ ${financialOverview.paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ? `R$ ${parseFloat(financialOverview.paidAmount.toString()).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             : "R$ 0,00"
           }
           icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-          description={financialOverview 
+          description={financialOverview && financialOverview.totalAmount > 0
             ? `${((financialOverview.paidAmount / financialOverview.totalAmount) * 100).toFixed(1)}% do total`
             : "0% do total"
           }
           isLoading={isLoading}
         />
         <StatsCard
-          title="Valor a Receber"
+          title="Valor Pendente"
           value={financialOverview
-            ? `R$ ${financialOverview.pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ? `R$ ${parseFloat(financialOverview.pendingAmount.toString()).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             : "R$ 0,00"
           }
           icon={<TrendingDown className="h-5 w-5 text-amber-600" />}
-          description={financialOverview 
+          description={financialOverview && financialOverview.totalAmount > 0
             ? `${((financialOverview.pendingAmount / financialOverview.totalAmount) * 100).toFixed(1)}% do total`
             : "0% do total"
           }
@@ -314,7 +314,7 @@ export default function MainDashboard() {
         <StatsCard
           title="Custos Operacionais"
           value={financialOverview
-            ? `R$ ${financialOverview.operationalCosts?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}`
+            ? `R$ ${parseFloat(financialOverview.operationalCosts?.toString() || '0').toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             : "R$ 0,00"
           }
           icon={<CircleDollarSign className="h-5 w-5 text-purple-600" />}
