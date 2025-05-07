@@ -3588,7 +3588,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         receiptData, 
         notes, 
         paymentMethodId, 
-        splitPayments = [] 
+        splitPayments = [],
+        createSplitReceipts = false // Nova flag para indicar se queremos criar recibos
       } = req.body;
       
       // Validar data de pagamento
@@ -3615,6 +3616,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Log para debug
+      console.log(`🔄 Confirmando pagamento com createSplitReceipts=${createSplitReceipts}`);
+      
+      // Chamar método com o novo parâmetro
       const updatedInstallment = await storage.confirmInstallmentPayment(
         id,
         req.user!.id,
@@ -3626,7 +3631,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes
         },
         paymentMethodId,
-        splitPayments
+        splitPayments,
+        createSplitReceipts // Passar a flag para o método de storage
       );
       
       // Emitir evento de atualização

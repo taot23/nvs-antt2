@@ -2673,7 +2673,8 @@ export class DatabaseStorage implements IStorage {
     paymentDate: string, // Aceitar apenas string para evitar conversões automáticas
     receiptData?: { type: string; url?: string; data?: any; notes?: string },
     paymentMethodId?: number,
-    splitPayments: Array<{methodId: number, amount: number}> = []
+    splitPayments: Array<{methodId: number, amount: number}> = [],
+    createSplitReceipts: boolean = false // Nova flag para forçar criação de recibos para pagamentos divididos
   ): Promise<SaleInstallment | undefined> {
     // Obter parcela
     const installment = await this.getSaleInstallment(installmentId);
@@ -2787,14 +2788,17 @@ export class DatabaseStorage implements IStorage {
           for (let i = 0; i < splitPayments.length; i++) {
             const splitPayment = splitPayments[i];
             
-            // Se este é o método principal que já registramos na parcela, pular
-            if (paymentMethodId && splitPayment.methodId === paymentMethodId && i === 0) {
+            // Se este é o método principal que já registramos na parcela, pular (mas só se não forçamos a criação)
+            if (!createSplitReceipts && paymentMethodId && splitPayment.methodId === paymentMethodId && i === 0) {
+              console.log(`⏭️ Pulando registro do método principal ${paymentMethodId} que já foi registrado na parcela`);
               continue;
             }
             
             // Buscar nome do método de pagamento
             const paymentMethod = await this.getPaymentMethod(splitPayment.methodId);
             const methodName = paymentMethod ? paymentMethod.name : `Método ${splitPayment.methodId}`;
+            
+            console.log(`📝 Registrando comprovante de pagamento parcial: ${methodName}, Valor: ${splitPayment.amount}`);
             
             // Registrar um comprovante adicional para este método de pagamento
             await this.createSalePaymentReceipt({
@@ -2811,6 +2815,36 @@ export class DatabaseStorage implements IStorage {
               notes: `Pagamento parcial - ${methodName}: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(splitPayment.amount)}`
             });
           }
+        }
+      }
+      // Se não temos dados de comprovante mas a flag createSplitReceipts está ativa,
+      // vamos criar recibos de pagamento dividido automaticamente
+      else if (createSplitReceipts && splitPayments && splitPayments.length > 0) {
+        console.log(`🔄 Criando recibos de pagamento dividido automaticamente (${splitPayments.length} métodos)`);
+        
+        // Processar cada método de pagamento
+        for (const splitPayment of splitPayments) {
+          // Buscar nome do método de pagamento
+          const paymentMethod = await this.getPaymentMethod(splitPayment.methodId);
+          const methodName = paymentMethod ? paymentMethod.name : `Método ${splitPayment.methodId}`;
+          
+          console.log(`📝 Criando recibo automático: ${methodName}, Valor: ${splitPayment.amount}`);
+          
+          // Criar um recibo para este método de pagamento
+          await this.createSalePaymentReceipt({
+            installmentId,
+            receiptType: "split_payment", 
+            receiptUrl: null,
+            receiptData: {
+              methodId: splitPayment.methodId,
+              methodName: methodName,
+              amount: splitPayment.amount,
+              isPartial: true,
+              autoCreated: true
+            },
+            confirmedBy: userId,
+            notes: `Pagamento parcial - ${methodName}: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(splitPayment.amount)}`
+          });
         }
       }
 

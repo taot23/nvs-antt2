@@ -9,6 +9,128 @@ function generateBypassToken() {
 }
 
 export function registerCustomRoutes(app: Express) {
+  // Rota para adicionar pagamentos divididos a uma parcela existente
+  app.post("/api/installments/:id/add-split-payments", async (req, res) => {
+    try {
+      // Verificar autenticação
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Não autorizado" });
+      }
+      
+      const installmentId = parseInt(req.params.id);
+      if (isNaN(installmentId)) {
+        return res.status(400).json({ error: "ID de parcela inválido" });
+      }
+      
+      // Obter a parcela para verificação
+      const installmentResult = await pool.query(
+        "SELECT * FROM sale_installments WHERE id = $1",
+        [installmentId]
+      );
+      
+      if (installmentResult.rows.length === 0) {
+        return res.status(404).json({ error: "Parcela não encontrada" });
+      }
+      
+      const installment = installmentResult.rows[0];
+      
+      // Verificar se a parcela está paga
+      if (installment.status !== 'paid') {
+        return res.status(400).json({ error: "Só é possível adicionar pagamentos divididos a parcelas já pagas" });
+      }
+      
+      // Extrair dados do corpo da requisição
+      const { 
+        splitPayments = [] 
+      } = req.body;
+      
+      if (!Array.isArray(splitPayments) || splitPayments.length === 0) {
+        return res.status(400).json({ error: "Lista de pagamentos divididos é obrigatória" });
+      }
+      
+      // Log de diagnóstico
+      console.log(`🔄 Adicionando ${splitPayments.length} pagamentos divididos para a parcela #${installmentId}`);
+      
+      // Para cada método de pagamento, criar um recibo de pagamento
+      const receiptResults = [];
+      
+      for (const splitPayment of splitPayments) {
+        // Verificar se o método de pagamento existe
+        const methodResult = await pool.query(
+          "SELECT * FROM payment_methods WHERE id = $1",
+          [splitPayment.methodId]
+        );
+        
+        if (methodResult.rows.length === 0) {
+          return res.status(400).json({ error: `Método de pagamento ${splitPayment.methodId} não encontrado` });
+        }
+        
+        const method = methodResult.rows[0];
+        const methodName = method.name;
+        
+        // Formatação do valor em moeda brasileira
+        const amountFormatted = new Intl.NumberFormat('pt-BR', { 
+          style: 'currency', 
+          currency: 'BRL' 
+        }).format(splitPayment.amount);
+        
+        // Criar o recibo de pagamento
+        const receiptResult = await pool.query(`
+          INSERT INTO sale_payment_receipts (
+            installment_id, receipt_type, receipt_url, receipt_data, 
+            confirmed_by, confirmation_date, notes, created_at
+          ) 
+          VALUES (
+            $1, $2, $3, $4, $5, NOW(), $6, NOW()
+          )
+          RETURNING *
+        `, [
+          installmentId,
+          "split_payment",
+          null,
+          JSON.stringify({
+            methodId: splitPayment.methodId,
+            methodName: methodName,
+            amount: splitPayment.amount,
+            isPartial: true,
+            autoCreated: true
+          }),
+          req.user!.id,
+          `Pagamento parcial - ${methodName}: ${amountFormatted}`
+        ]);
+        
+        receiptResults.push(receiptResult.rows[0]);
+        console.log(`✅ Recibo de pagamento dividido criado: Método ${methodName}, Valor ${amountFormatted}`);
+      }
+      
+      // Notificar usuários via WebSocket se disponível
+      try {
+        // @ts-ignore
+        if (global.broadcastEvent) {
+          // @ts-ignore
+          global.broadcastEvent({ 
+            type: 'sales_update', 
+            payload: { 
+              action: 'payment-receipts-updated', 
+              installmentId
+            } 
+          });
+        }
+      } catch (wsError) {
+        console.error("Erro ao notificar via WebSocket:", wsError);
+      }
+      
+      res.status(201).json({ 
+        success: true, 
+        message: `${receiptResults.length} recibos de pagamento dividido criados com sucesso`,
+        receipts: receiptResults
+      });
+      
+    } catch (error) {
+      console.error("Erro ao adicionar pagamentos divididos:", error);
+      res.status(500).json({ error: "Erro ao adicionar pagamentos divididos" });
+    }
+  });
   // Rota para recuperar os recibos de pagamento para uma venda
   app.get("/api/sales/:id/payment-receipts", async (req, res) => {
     try {
