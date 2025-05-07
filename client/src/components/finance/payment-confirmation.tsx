@@ -626,8 +626,15 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                           {installment.splitPayments && installment.splitPayments.length > 0 && (
                             <div className="mt-1 space-y-1">
                               {installment.splitPayments.map((splitPayment: any, index: number) => {
-                                // Pular o método principal que já mostramos
-                                if (paymentMethod && splitPayment.methodId === String(paymentMethod.id) && index === 0) {
+                                // Não pular nenhum método - mostrar todos os métodos de pagamento
+                                // Apenas adicionar um indicador visual para o método principal
+                                const isPrimary = paymentMethod && 
+                                                 splitPayment.methodId === String(paymentMethod.id) && 
+                                                 index === 0;
+                                
+                                if (isPrimary && !splitPayment.amount) {
+                                  // Se for o método principal e não tiver um valor específico, pular
+                                  // porque já mostramos acima
                                   return null;
                                 }
                                 
@@ -638,6 +645,11 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     <span className="ml-1 text-gray-500">
                                       ({formatCurrency(Number(splitPayment.amount))})
                                     </span>
+                                    {isPrimary && (
+                                      <span className="ml-1 text-xs text-emerald-600 font-medium">
+                                        (principal)
+                                      </span>
+                                    )}
                                   </div>
                                 );
                               })}
