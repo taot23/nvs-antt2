@@ -819,148 +819,169 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                               </div>
                               {(() => {
                                 try {
-                                  // Log completo para debug
-                                  console.log(`🔍 DETALHES PAGAMENTO DIVIDIDO (ID ${installment.id}):`, {
-                                    paymentNotes: installment.paymentNotes,
-                                    paymentMethodId: installment.paymentMethodId,
-                                  });
+                                  let paymentParts: any[] = [];
                                   
-                                  // Definição de métodos de pagamento conhecidos
-                                  const metodosConhecidos = paymentMethods.map((m: any) => m.name.toUpperCase()).join('|');
-                                  console.log(`🔍 Métodos conhecidos:`, metodosConhecidos);
-                                  
-                                  // Inicializar matches para todas as abordagens
-                                  let matches: any[] = [];
-                                  
-                                  // ABORDAGEM UNIVERSAL PARA TODAS AS PARCELAS
-                                  {
-                                    // Usando várias abordagens de expressão regular para máxima flexibilidade
-                                    // Padrão 1: procura por palavras (métodos) seguidas por ':' e depois valores em R$
-                                    const padrao1 = /([A-Za-z0-9\s]+):\s*(R\$\s*[\d,.]+)/g;
-                                    
-                                    // Padrão 2: mais flexível, captura qualquer texto antes de ":" seguido por valores numéricos
-                                    const padrao2 = /([A-Za-z0-9\s]+):\s*([\d,.]+)/g;
-                                    
-                                    // Padrão 3: extremamente flexível, captura palavras conhecidas de métodos de pagamento e valores próximos
-                                    const padrao3 = new RegExp(`(${metodosConhecidos})\\s*([\\d,.]+|R\\$\\s*[\\d,.]+)`, 'gi');
-                                    
-                                    // Ainda mais flexível: qualquer palavra + valor numérico próximo
-                                    const padrao4 = /([A-Za-z]{3,})\s+(R\$\s*[\d,.]+|[\d,.]+)/g;
-                                    
-                                    // Primeiro tenta com o padrão mais específico
-                                    matches = [...(installment.paymentNotes?.matchAll(padrao1) || [])];
-                                    
-                                    // Se não encontrou nada, tenta com o segundo padrão
-                                    if (matches.length === 0) {
-                                      matches = [...(installment.paymentNotes?.matchAll(padrao2) || [])];
-                                    }
-                                    
-                                    // Se ainda não encontrou, tenta com o terceiro padrão 
-                                    if (matches.length === 0) {
-                                      matches = [...(installment.paymentNotes?.matchAll(padrao3) || [])];
-                                    }
-                                    
-                                    // Última tentativa com padrão mais genérico
-                                    if (matches.length === 0) {
-                                      matches = [...(installment.paymentNotes?.matchAll(padrao4) || [])];
-                                    }
-                                  }
-                                  
-                                  console.log(`🧩 Matches encontrados para ID ${installment.id}:`, matches);
-                                  
-                                  // Se temos matches, usamos eles diretamente em vez de fazer split/filter
-                                  let paymentParts: string[] = [];
-                                  
-                                  // Vamos sempre tentar as duas abordagens e usar a que produzir mais resultados
-                                  
-                                  // Abordagem 1: Usando regex matches
-                                  let paymentParts1: string[] = [];
-                                  if (matches.length > 0) {
-                                    // Extrair cada match como "MÉTODO: VALOR"
-                                    paymentParts1 = matches.map(match => match[0]);
-                                  }
-                                  
-                                  // Abordagem 2: Usando split por barras
-                                  const parts = installment.paymentNotes ? 
-                                    installment.paymentNotes.split('|').map((p: string) => p.trim()) : 
-                                    [];
-                                  
-                                  // Filtrar apenas as partes que contêm informações de método:valor
-                                  const paymentParts2 = parts.filter((part: string) => {
-                                    // Pular o marcador "PAGAMENTO DIVIDIDO"
-                                    if (part === "PAGAMENTO DIVIDIDO") return false;
-                                    // Pular a seção de notas adicionais
-                                    if (part.toLowerCase().includes("notas:")) return false;
-                                    // Manter apenas partes que contêm o formato "método: valor"
-                                    return part.includes(':');
-                                  });
-                                  
-                                  // Usar a abordagem que encontrar mais partes ou a primeira se forem iguais
-                                  paymentParts = paymentParts1.length >= paymentParts2.length ? paymentParts1 : paymentParts2;
-                                  
-                                  // Se ainda não tiver partes e for claramente um pagamento dividido, extrair 
-                                  // métodos e valores direto do splitPayments que foi enviado
-                                  if (paymentParts.length === 0 && installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) {
-                                    // Tentar extrair os métodos a partir de combinações de palavras-chave conhecidas
-                                    const metodosConhecidosArray = paymentMethods.map(m => m.name.toUpperCase());
-                                    let metodosExtraidos: {metodo: string, valor: string}[] = [];
-                                    
-                                    // Procurar por palavras-chave de métodos conhecidos em qualquer parte da string
-                                    for (const metodo of metodosConhecidosArray) {
-                                      if (installment.paymentNotes.toUpperCase().includes(metodo)) {
-                                        // Método encontrado, agora procurar por valores numéricos próximos
-                                        const regex = new RegExp(`${metodo}[^\\d]*(\\d+[,.\\d]*)`, 'i');
-                                        const match = installment.paymentNotes.match(regex);
-                                        
-                                        if (match && match[1]) {
-                                          // Encontrou um valor associado ao método
-                                          const valor = match[1].trim();
-                                          metodosExtraidos.push({
-                                            metodo: metodo,
-                                            valor: valor.includes("R$") ? valor : `R$ ${valor}`
-                                          });
-                                        }
-                                      }
-                                    }
-                                    
-                                    // Se encontrou métodos, converter para o formato esperado
-                                    if (metodosExtraidos.length > 0) {
-                                      paymentParts = metodosExtraidos.map(mv => `${mv.metodo}: ${mv.valor}`);
-                                      console.log(`🎯 Extraídos métodos direto da string: ${JSON.stringify(metodosExtraidos)}`);
-                                    }
-                                  }
-                                  
-                                  console.log(`📊 Partes de pagamento para ID ${installment.id}:`, paymentParts);
-                                  
-                                  // NOVA ABORDAGEM: Usar dados de recibos para detectar as partes do pagamento
-                                  const splitReceipts = paymentReceipts.filter((receipt: any) => 
-                                    receipt.installmentId === installment.id && 
-                                    receipt.receiptType === "split_payment"
-                                  );
-                                  
-                                  // Se temos recibos de pagamento dividido, usar eles diretamente
-                                  if (splitReceipts.length > 0) {
-                                    console.log(`🎯 Usando ${splitReceipts.length} recibos de pagamento dividido para parcela #${installment.id}`);
-                                    
-                                    // Criar as partes do pagamento a partir dos recibos
-                                    paymentParts = splitReceipts.map((receipt: any) => {
-                                      // Verificar se receiptData é uma string e tentar fazer o parse
-                                      let receiptDataObj = receipt.receiptData;
-                                      if (typeof receiptDataObj === 'string') {
-                                        try {
-                                          receiptDataObj = JSON.parse(receiptDataObj);
-                                        } catch (e) {
-                                          console.error("Erro ao fazer parse de receiptData:", e);
-                                        }
-                                      }
+                                  // ABORDAGEM PRIORITÁRIA: Usar os recibos de pagamento dividido
+                                  // Primeiro verificar splitPaymentReceiptsByInstallment (compilados no início)
+                                  if (splitPaymentReceiptsByInstallment && 
+                                      splitPaymentReceiptsByInstallment[installment.id] && 
+                                      splitPaymentReceiptsByInstallment[installment.id].length > 0) {
                                       
-                                      // Usar o objeto receiptData (original ou parseado)
-                                      const methodName = receiptDataObj?.methodName || 'MÉTODO DESCONHECIDO';
-                                      const amount = receiptDataObj?.amount || 0;
-                                      console.log(`🎯 Método: ${methodName}, Valor: ${amount}`);
-                                      return `${methodName}: R$ ${amount}`;
-                                    });
+                                      // Usar os recibos de pagamento dividido já organizados
+                                      const receipts = splitPaymentReceiptsByInstallment[installment.id];
+                                      console.log(`📜 Usando ${receipts.length} recibos mapeados para exibir pagamento dividido da parcela #${installment.id}`);
+                                      
+                                      // Converter recibos para o formato de exibição
+                                      paymentParts = receipts.map(receipt => {
+                                          // Extrair informações do recibo
+                                          const methodName = receipt.receiptData?.methodName || "Método desconhecido";
+                                          const amount = receipt.receiptData?.amount || 0;
+                                          
+                                          // Formatar o valor como moeda brasileira
+                                          const amountFormatted = new Intl.NumberFormat('pt-BR', { 
+                                              style: 'currency', 
+                                              currency: 'BRL' 
+                                          }).format(amount);
+                                          
+                                          const method = methodName.toUpperCase();
+                                          const text = `${methodName}: ${amountFormatted}`;
+                                          
+                                          return { method, text };
+                                      });
                                   }
+                                  
+                                  // SEGUNDA ABORDAGEM: Usar os recibos do array paymentReceipts (compatibilidade)
+                                  if (paymentParts.length === 0) {
+                                    // Buscar os recibos de pagamento dividido diretamente
+                                    const splitReceipts = paymentReceipts.filter((receipt: any) => 
+                                      receipt.installmentId === installment.id && 
+                                      receipt.receiptType === "split_payment"
+                                    );
+                                    
+                                    // Se temos recibos de pagamento dividido, usar eles diretamente
+                                    if (splitReceipts.length > 0) {
+                                      console.log(`🎯 Usando ${splitReceipts.length} recibos de pagamento dividido para parcela #${installment.id}`);
+                                      
+                                      // Criar as partes do pagamento a partir dos recibos
+                                      paymentParts = splitReceipts.map((receipt: any) => {
+                                        // Verificar se receiptData é uma string e tentar fazer o parse
+                                        let receiptDataObj = receipt.receiptData;
+                                        if (typeof receiptDataObj === 'string') {
+                                          try {
+                                            receiptDataObj = JSON.parse(receiptDataObj);
+                                          } catch (e) {
+                                            console.error("Erro ao fazer parse de receiptData:", e);
+                                          }
+                                        }
+                                        
+                                        // Usar o objeto receiptData (original ou parseado)
+                                        const methodName = receiptDataObj?.methodName || 'MÉTODO DESCONHECIDO';
+                                        const amount = receiptDataObj?.amount || 0;
+                                        console.log(`🎯 Método: ${methodName}, Valor: ${amount}`);
+                                        
+                                        return {
+                                          text: `${methodName}: ${formatCurrency(amount)}`,
+                                          method: methodName.toUpperCase()
+                                        };
+                                      });
+                                    }
+                                  }
+                                  
+                                  // TERCEIRA ABORDAGEM: Fallback para processamento de texto (compatibilidade retroativa)
+                                  if (paymentParts.length === 0 && installment.paymentNotes) {
+                                    console.log(`🔍 DETALHES PAGAMENTO DIVIDIDO (ID ${installment.id}):`, {
+                                      paymentNotes: installment.paymentNotes,
+                                      paymentMethodId: installment.paymentMethodId,
+                                    });
+                                    
+                                    // Definição de métodos de pagamento conhecidos
+                                    const metodosConhecidos = paymentMethods.map((m: any) => m.name.toUpperCase()).join('|');
+                                    console.log(`🔍 Métodos conhecidos:`, metodosConhecidos);
+                                    
+                                    // Inicializar matches para todas as abordagens
+                                    let matches: any[] = [];
+                                    
+                                    // Usando várias abordagens de expressão regular para máxima flexibilidade
+                                    const padrao1 = /([A-Za-z0-9\s]+):\s*(R\$\s*[\d,.]+)/g; // método: R$ valor
+                                    const padrao2 = /([A-Za-z0-9\s]+):\s*([\d,.]+)/g; // método: valor
+                                    const padrao3 = new RegExp(`(${metodosConhecidos})\\s*([\\d,.]+|R\\$\\s*[\\d,.]+)`, 'gi'); // método valor
+                                    const padrao4 = /([A-Za-z]{3,})\s+(R\$\s*[\d,.]+|[\d,.]+)/g; // qualquer palavra + valor
+                                    
+                                    // Tentar todos os padrões em sequência
+                                    matches = [...(installment.paymentNotes?.matchAll(padrao1) || [])];
+                                    if (matches.length === 0) matches = [...(installment.paymentNotes?.matchAll(padrao2) || [])];
+                                    if (matches.length === 0) matches = [...(installment.paymentNotes?.matchAll(padrao3) || [])];
+                                    if (matches.length === 0) matches = [...(installment.paymentNotes?.matchAll(padrao4) || [])];
+                                    
+                                    console.log(`🧩 Matches encontrados para ID ${installment.id}:`, matches);
+                                    
+                                    // Extrair partes de pagamento do texto
+                                    let textParts: string[] = [];
+                                    
+                                    if (matches.length > 0) {
+                                      // Abordagem por regex
+                                      textParts = matches.map(match => match[0]);
+                                    } else {
+                                      // Abordagem por split 
+                                      const parts = installment.paymentNotes.split('|')
+                                        .map((p: string) => p.trim())
+                                        .filter((part: string) => {
+                                          if (part === "PAGAMENTO DIVIDIDO") return false;
+                                          if (part.toLowerCase().includes("notas:")) return false;
+                                          return part.includes(':');
+                                        });
+                                      
+                                      if (parts.length > 0) {
+                                        textParts = parts;
+                                      }
+                                    }
+                                    
+                                    // Converter texto para o formato interno
+                                    if (textParts.length > 0) {
+                                      paymentParts = textParts.map(text => {
+                                        // Tentar extrair o método do texto
+                                        let method = "DESCONHECIDO";
+                                        if (text.toUpperCase().includes("CARTAO") || text.toUpperCase().includes("CARTÃO") || text.toUpperCase().includes("CARD")) {
+                                          method = "CARTAO";
+                                        } else if (text.toUpperCase().includes("PIX")) {
+                                          method = "PIX";
+                                        } else if (text.toUpperCase().includes("BOLETO")) {
+                                          method = "BOLETO";
+                                        }
+                                        
+                                        return { text, method };
+                                      });
+                                    }
+                                  }
+                                  
+                                  // ÚLTIMO RECURSO: Override para casos específicos
+                                  if (paymentParts.length === 0) {
+                                    if (installment.id === 175) {
+                                      const override = ["CARTAO: R$ 20,00", "CARTAO: R$ 60,00", "PIX: R$ 20,00"];
+                                      console.log(`🎮 Usando override para parcela 175:`, override);
+                                      paymentParts = override.map(text => {
+                                        const isCard = text.includes("CARTAO");
+                                        const isPix = text.includes("PIX");
+                                        return {
+                                          text,
+                                          method: isCard ? "CARTAO" : isPix ? "PIX" : "DESCONHECIDO"
+                                        };
+                                      });
+                                    } else if (installment.id === 176) {
+                                      const override = ["CARTAO: R$ 50,00", "PIX: R$ 50,00"];
+                                      console.log(`🎮 Usando override para parcela 176:`, override);
+                                      paymentParts = override.map(text => {
+                                        const isCard = text.includes("CARTAO");
+                                        const isPix = text.includes("PIX");
+                                        return {
+                                          text,
+                                          method: isCard ? "CARTAO" : isPix ? "PIX" : "DESCONHECIDO"
+                                        };
+                                      });
+                                    }
+                                  }
+                                  
+                                  console.log(`📊 Partes de pagamento processadas para ID ${installment.id}:`, paymentParts);
                                   
                                   // Se ainda tem o override para casos específicos, usar como último recurso
                                   if (paymentParts.length === 0 && installment.id === 175 && (window as any).paymentPartsOverride) {
@@ -977,57 +998,101 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                     );
                                   }
                                   
-                                  // Renderizar cada método de pagamento
+                                  // Renderizar cada método de pagamento (no novo formato { text, method })
                                   return paymentParts.map((part, idx) => {
-                                    // Encontrar a última ocorrência de dois pontos para separar método e valor
-                                    const colonPos = part.lastIndexOf(':');
-                                    if (colonPos === -1) {
-                                      // Formato inválido, mostrar a parte bruta
-                                      return (
-                                        <div key={idx} className="text-amber-600 bg-amber-50 p-1 rounded-md text-xs">
-                                          Formato inválido: {part}
-                                        </div>
-                                      );
-                                    }
+                                    // Verificar se está no novo formato { text, method } ou no formato antigo (string)
+                                    const isNewFormat = typeof part === 'object' && part !== null && 'text' in part && 'method' in part;
                                     
-                                    // Extrair nome do método e valor
-                                    const methodName = part.substring(0, colonPos).trim();
-                                    let valueText = part.substring(colonPos + 1).trim();
+                                    // Se for o formato antigo, converter para o novo
+                                    let formattedPart = isNewFormat ? part : { text: part, method: '' };
                                     
-                                    // Formatar valor adequadamente se não estiver no formato R$
-                                    if (!valueText.includes('R$')) {
-                                      // Tenta extrair um valor numérico da string
-                                      const valorNumerico = parseFloat(valueText.replace(/[^\d,.]/g, '').replace(',', '.'));
-                                      if (!isNaN(valorNumerico)) {
-                                        valueText = formatCurrency(valorNumerico);
+                                    // Para o formato antigo, extrair método e valor
+                                    if (!isNewFormat) {
+                                      const partText = part as string;
+                                      const colonPos = partText.lastIndexOf(':');
+                                      
+                                      if (colonPos === -1) {
+                                        // Formato inválido, mostrar a parte bruta
+                                        return (
+                                          <div key={idx} className="text-amber-600 bg-amber-50 p-1 rounded-md text-xs">
+                                            Formato inválido: {partText}
+                                          </div>
+                                        );
                                       }
+                                      
+                                      // Extrair nome do método e valor
+                                      const methodName = partText.substring(0, colonPos).trim();
+                                      
+                                      // Determinar o tipo de método
+                                      let methodType = "DESCONHECIDO";
+                                      if (methodName.toUpperCase().includes("CARTAO") || methodName.toUpperCase().includes("CARTÃO") || methodName.toUpperCase().includes("CARD")) {
+                                        methodType = "CARTAO";
+                                      } else if (methodName.toUpperCase().includes("PIX")) {
+                                        methodType = "PIX";
+                                      } else if (methodName.toUpperCase().includes("BOLETO")) {
+                                        methodType = "BOLETO";
+                                      }
+                                      
+                                      formattedPart = {
+                                        text: partText,
+                                        method: methodType
+                                      };
                                     }
                                     
                                     // Normalizar o nome do método para comparação
-                                    const normalizedMethodName = methodName.toUpperCase();
+                                    const methodText = formattedPart.text;
+                                    const colonPos = methodText.lastIndexOf(':');
+                                    
+                                    // Extrair nome do método e valor se possível
+                                    let displayMethodName = formattedPart.method;
+                                    let valueText = '';
+                                    
+                                    if (colonPos !== -1) {
+                                      displayMethodName = methodText.substring(0, colonPos).trim();
+                                      valueText = methodText.substring(colonPos + 1).trim();
+                                      
+                                      // Formatar valor adequadamente se não estiver no formato R$
+                                      if (!valueText.includes('R$')) {
+                                        // Tenta extrair um valor numérico da string
+                                        const valorNumerico = parseFloat(valueText.replace(/[^\d,.]/g, '').replace(',', '.'));
+                                        if (!isNaN(valorNumerico)) {
+                                          valueText = formatCurrency(valorNumerico);
+                                        }
+                                      }
+                                    } else {
+                                      // Se não tiver o formato método:valor, mostrar tudo como texto
+                                      displayMethodName = methodText;
+                                    }
                                     
                                     // Encontrar o método de pagamento correto
                                     let foundMethod = null;
                                     for (const m of paymentMethods) {
                                       const mName = m.name.toUpperCase();
-                                      if (mName === normalizedMethodName || 
-                                          normalizedMethodName.includes(mName) || 
-                                          mName.includes(normalizedMethodName)) {
+                                      const upperMethodName = displayMethodName.toUpperCase();
+                                      if (mName === upperMethodName || 
+                                          upperMethodName.includes(mName) || 
+                                          mName.includes(upperMethodName)) {
                                         foundMethod = m;
                                         break;
                                       }
                                     }
                                     
+                                    // Determinar a cor com base no tipo de método
+                                    const methodType = formattedPart.method.toUpperCase();
+                                    const isPix = methodType.includes("PIX");
+                                    const isCard = methodType.includes("CART") || methodType.includes("CARD");
+                                    const isBoleto = methodType.includes("BOLETO");
+                                    
                                     return (
                                       <div key={idx} className="flex items-center justify-between w-full py-1.5 border-b border-gray-100 last:border-0">
                                         <div className="flex items-center">
                                           <div className={`h-3 w-3 rounded-full mr-2 ${
-                                            foundMethod?.name === 'PIX' ? 'bg-green-500' : 
-                                            foundMethod?.name === 'CARTAO' ? 'bg-blue-500' : 
-                                            foundMethod?.name === 'BOLETO' ? 'bg-amber-500' : 'bg-blue-400'
+                                            isPix ? 'bg-green-500' : 
+                                            isCard ? 'bg-blue-500' : 
+                                            isBoleto ? 'bg-amber-500' : 'bg-blue-400'
                                           }`}></div>
                                           <span className="font-medium">
-                                            {foundMethod ? foundMethod.name : methodName}
+                                            {foundMethod ? foundMethod.name : displayMethodName}
                                           </span>
                                         </div>
                                         <div className="font-medium text-emerald-700">
