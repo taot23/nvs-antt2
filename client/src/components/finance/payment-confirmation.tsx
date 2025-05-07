@@ -255,11 +255,16 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
   const openConfirmDialog = (installment: any) => {
     setSelectedInstallment(installment);
     setShowMultiConfirm(false);
+    setShowSplitPayment(false);
     
     // Inicializar com string vazia para forçar a digitação manual
     setPaymentDate("");
     setPaymentDateStr("");
     setPaymentNotes("");
+    
+    // Limpar pagamentos parciais anteriores
+    setSplitPayments([]);
+    setRemainingAmount(installment.amount);
     
     // Definir primeiro método de pagamento como padrão, se disponível
     if (paymentMethods.length > 0) {
@@ -413,6 +418,11 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
   // Estado para seleção múltipla de parcelas
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
   const [showMultiConfirm, setShowMultiConfirm] = useState(false);
+  
+  // Estado para pagamento parcial (múltiplos métodos de pagamento)
+  const [splitPayments, setSplitPayments] = useState<{methodId: string, amount: string}[]>([]);
+  const [showSplitPayment, setShowSplitPayment] = useState(false);
+  const [remainingAmount, setRemainingAmount] = useState("");
   
   // Verificar se todas as parcelas estão pagas
   // Não verificamos mais se TODAS as parcelas estão pagas, apenas se existem parcelas
