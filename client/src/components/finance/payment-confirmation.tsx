@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { 
   AlertCircle, 
+  ArrowDownRight,
   Check, 
   CheckCircle, 
   CreditCard, 
@@ -30,7 +31,10 @@ import {
   RefreshCw, 
   FileText,
   Edit,
-  AlertTriangle
+  AlertTriangle,
+  SplitSquareVertical,
+  Plus,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -157,12 +161,35 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
   
   // Mutation para confirmar pagamento
   const confirmPaymentMutation = useMutation({
-    mutationFn: async ({ installmentId, paymentDate, notes, paymentMethodId }: { installmentId: number, paymentDate: string, notes: string, paymentMethodId: string }) => {
+    mutationFn: async ({ 
+      installmentId, 
+      paymentDate, 
+      notes, 
+      paymentMethodId, 
+      splitPayments = [] 
+    }: { 
+      installmentId: number, 
+      paymentDate: string, 
+      notes: string, 
+      paymentMethodId: string,
+      splitPayments?: Array<{methodId: number, amount: number}>
+    }) => {
       // Buscar o método de pagamento selecionado para usar seu nome
       const selectedMethod = paymentMethods.find(m => String(m.id) === paymentMethodId);
       
       // Usar a data exatamente como foi fornecida pelo usuário
       console.log(`🔍 Confirmação de pagamento: Data a ser enviada: ${paymentDate}`);
+      
+      // Se temos pagamentos divididos, formatar os detalhes
+      let paymentDetails = "Confirmação manual";
+      if (splitPayments.length > 0) {
+        const splitDetails = splitPayments.map(p => {
+          const method = paymentMethods.find(m => m.id === p.methodId);
+          return `${method?.name || 'Método ' + p.methodId}: ${formatCurrency(p.amount)}`;
+        }).join(', ');
+        
+        paymentDetails = `Pagamento dividido: ${splitDetails}`;
+      }
       
       const res = await apiRequest("POST", `/api/installments/${installmentId}/confirm-payment`, {
         paymentDate, // Enviar a data exatamente como está para preservar o formato
@@ -170,9 +197,10 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
         receiptType: "manual", // "manual" é o tipo de comprovante
         notes: notes,
         receiptData: { 
-          detail: "Confirmação manual",
+          detail: paymentDetails,
           paymentMethod: selectedMethod?.name || "Método não especificado"
-        }
+        },
+        splitPayments // Enviar os pagamentos divididos ao backend
       });
       return res.json();
     },
@@ -206,7 +234,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                 installmentId: nextInstallment.id,
                 paymentDate: paymentDateStr,
                 notes: paymentNotes,
-                paymentMethodId
+                paymentMethodId,
+                splitPayments: []
               });
             }, 500);
           }
@@ -381,10 +410,10 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
     });
   };
   
-  // Confirmar pagamento de uma única parcela
+  // Confirmar pagamento de uma parcela ou múltiplas parcelas
   const handleConfirmPayment = () => {
     if (!selectedInstallment && !showMultiConfirm) return;
-    if (!paymentDateStr || !paymentMethodId) return;
+    if (!paymentDateStr) return;
     
     // Usar exatamente o que o usuário digitou sem conversões automáticas
     console.log(`📅 Enviando data exatamente como digitada: "${paymentDateStr}"`);
@@ -398,17 +427,34 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
           installmentId: currentInstallment.id,
           paymentDate: paymentDateStr,
           notes: paymentNotes,
-          paymentMethodId
+          paymentMethodId,
+          splitPayments: [] // Não permitir pagamentos divididos em confirmação em lote
         });
       }
     } else if (selectedInstallment) {
-      // Confirmar uma parcela única
-      confirmPaymentMutation.mutate({
-        installmentId: selectedInstallment.id,
-        paymentDate: paymentDateStr,
-        notes: paymentNotes,
-        paymentMethodId
-      });
+      if (showSplitPayment && splitPayments.length > 0) {
+        // Confirmar com pagamento dividido
+        confirmPaymentMutation.mutate({
+          installmentId: selectedInstallment.id,
+          paymentDate: paymentDateStr,
+          notes: paymentNotes + (splitPayments.length > 0 ? 
+            `\n\nPagamento dividido entre ${splitPayments.length} métodos` : ""),
+          paymentMethodId: splitPayments[0].methodId, // Usar o primeiro método como principal
+          splitPayments: splitPayments.map(p => ({
+            methodId: Number(p.methodId),
+            amount: Number(p.amount)
+          }))
+        });
+      } else {
+        // Confirmar uma parcela única com método único
+        confirmPaymentMutation.mutate({
+          installmentId: selectedInstallment.id,
+          paymentDate: paymentDateStr,
+          notes: paymentNotes,
+          paymentMethodId,
+          splitPayments: []
+        });
+      }
     }
   };
   
@@ -655,6 +701,29 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                 : `Confirme o recebimento do pagamento da parcela ${selectedInstallment?.installmentNumber}.`
               }
             </DialogDescription>
+            {!showMultiConfirm && selectedInstallment && (
+              <div className="flex justify-end mt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  className={showSplitPayment ? "border-blue-500 text-blue-600" : ""}
+                  onClick={() => setShowSplitPayment(!showSplitPayment)}
+                >
+                  {showSplitPayment ? (
+                    <>
+                      <ArrowDownRight className="h-4 w-4 mr-1" />
+                      Pagamento único
+                    </>
+                  ) : (
+                    <>
+                      <SplitSquareVertical className="h-4 w-4 mr-1" />
+                      Pagamento dividido
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
@@ -682,25 +751,135 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
               </div>
             )}
             
-            <div className="grid gap-2">
-              <Label htmlFor="payment-method">Método de Pagamento</Label>
-              <Select 
-                value={paymentMethodId} 
-                onValueChange={setPaymentMethodId}
-                disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={isLoadingPaymentMethods ? "Carregando..." : "Selecione o método de pagamento"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods.map((method: any) => (
-                    <SelectItem key={method.id} value={String(method.id)}>
-                      {method.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Interface de pagamento normal (único método) ou múltiplo */}
+            {!showSplitPayment ? (
+              <div className="grid gap-2">
+                <Label htmlFor="payment-method">Método de Pagamento</Label>
+                <Select 
+                  value={paymentMethodId} 
+                  onValueChange={setPaymentMethodId}
+                  disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingPaymentMethods ? "Carregando..." : "Selecione o método de pagamento"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((method: any) => (
+                      <SelectItem key={method.id} value={String(method.id)}>
+                        {method.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Pagamento Dividido</Label>
+                  <div className="text-sm text-muted-foreground">
+                    Valor total: <span className="font-medium">{formatCurrency(selectedInstallment?.amount)}</span>
+                  </div>
+                </div>
+                
+                {splitPayments.length > 0 ? (
+                  <div className="rounded-md border divide-y">
+                    {splitPayments.map((payment, index) => {
+                      const method = paymentMethods.find(m => String(m.id) === payment.methodId);
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3">
+                          <div className="flex items-center">
+                            <CreditCard className="h-4 w-4 mr-2 text-blue-600" />
+                            <span>{method?.name || "Método desconhecido"}</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <span className="font-medium">{formatCurrency(Number(payment.amount))}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-6 w-6 text-red-500"
+                              onClick={() => {
+                                // Remover este método de pagamento
+                                const updated = splitPayments.filter((_, i) => i !== index);
+                                setSplitPayments(updated);
+                                
+                                // Recalcular valor restante
+                                const totalPaid = updated.reduce((sum, p) => sum + Number(p.amount), 0);
+                                setRemainingAmount(String(selectedInstallment?.amount - totalPaid));
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed p-4 text-center text-muted-foreground">
+                    Nenhum método de pagamento adicionado
+                  </div>
+                )}
+                
+                <div className="bg-muted/50 rounded-md p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <Label htmlFor="split-method">Adicionar Método</Label>
+                    <span className="text-sm">{splitPayments.length > 0 ? `Restante: ${formatCurrency(Number(remainingAmount))}` : ''}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-6">
+                      <Select 
+                        value={paymentMethodId} 
+                        onValueChange={setPaymentMethodId}
+                        disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoadingPaymentMethods ? "Carregando..." : "Selecione"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods.map((method: any) => (
+                            <SelectItem key={method.id} value={String(method.id)}>
+                              {method.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="col-span-4">
+                      <Input
+                        type="text"
+                        placeholder="Valor"
+                        value={remainingAmount}
+                        onChange={(e) => setRemainingAmount(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="col-span-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => {
+                          if (!paymentMethodId || !remainingAmount || Number(remainingAmount) <= 0) return;
+                          
+                          // Adicionar novo método de pagamento
+                          const newPayment = { methodId: paymentMethodId, amount: remainingAmount };
+                          setSplitPayments([...splitPayments, newPayment]);
+                          
+                          // Limpar campo de valor e calcular valor restante
+                          const totalPaid = [...splitPayments, newPayment].reduce((sum, p) => sum + Number(p.amount), 0);
+                          const remaining = Math.max(0, selectedInstallment?.amount - totalPaid);
+                          setRemainingAmount(String(remaining));
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="grid gap-2">
               <Label htmlFor="payment-date">Data do Pagamento</Label>
@@ -741,7 +920,11 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
             </Button>
             <Button 
               onClick={handleConfirmPayment}
-              disabled={!paymentDateStr || !paymentMethodId || confirmPaymentMutation.isPending}
+              disabled={
+                (!paymentDateStr) || 
+                (showSplitPayment ? splitPayments.length === 0 : !paymentMethodId) || 
+                confirmPaymentMutation.isPending
+              }
               variant="default"
               className="bg-green-600 hover:bg-green-700"
             >
@@ -750,7 +933,8 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
               ) : (
                 <Check className="h-4 w-4 mr-2" />
               )}
-              {showMultiConfirm ? "Confirmar Parcelas" : "Confirmar Pagamento"}
+              {showMultiConfirm ? "Confirmar Parcelas" : 
+               showSplitPayment ? "Confirmar Pagamento Dividido" : "Confirmar Pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
