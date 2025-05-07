@@ -3714,14 +3714,21 @@ export class DatabaseStorage implements IStorage {
         WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
         AND (
-          -- Tratar de forma segura datas que podem estar em diferentes formatos
+          -- Tentar converter a data de forma segura usando várias funções
           CASE 
-            WHEN i.payment_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN -- Formato YYYY-MM-DD
+            -- Tentar converter diretamente para date (funciona para YYYY-MM-DD)
+            WHEN i.payment_date::date IS NOT NULL THEN 
               i.payment_date::date
-            WHEN i.payment_date ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN -- Formato DD/MM/YYYY
-              TO_DATE(i.payment_date, 'DD/MM/YYYY')
-            ELSE 
-              NULL -- Ignorar formatos inválidos
+            -- Se falhar a conversão direta, tentar tratar como DD/MM/YYYY
+            ELSE
+              (
+                CASE 
+                  WHEN position('/' in i.payment_date) > 0 THEN 
+                    TO_DATE(i.payment_date, 'DD/MM/YYYY')
+                  ELSE 
+                    NULL -- Formato desconhecido, ignorar
+                END
+              )
           END
         ) BETWEEN $1::date AND $2::date
       `;
@@ -3741,14 +3748,21 @@ export class DatabaseStorage implements IStorage {
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
         AND (
-          -- Tratar de forma segura datas que podem estar em diferentes formatos
+          -- Tentar converter a data de forma segura usando várias funções
           CASE 
-            WHEN c.payment_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN -- Formato YYYY-MM-DD
+            -- Tentar converter diretamente para date (funciona para YYYY-MM-DD)
+            WHEN c.payment_date::date IS NOT NULL THEN 
               c.payment_date::date
-            WHEN c.payment_date ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN -- Formato DD/MM/YYYY
-              TO_DATE(c.payment_date, 'DD/MM/YYYY')
-            ELSE 
-              NULL -- Ignorar formatos inválidos
+            -- Se falhar a conversão direta, tentar tratar como DD/MM/YYYY
+            ELSE
+              (
+                CASE 
+                  WHEN position('/' in c.payment_date) > 0 THEN 
+                    TO_DATE(c.payment_date, 'DD/MM/YYYY')
+                  ELSE 
+                    NULL -- Formato desconhecido, ignorar
+                END
+              )
           END
         ) BETWEEN $1::date AND $2::date
       `;
