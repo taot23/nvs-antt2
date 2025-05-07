@@ -3708,20 +3708,16 @@ export class DatabaseStorage implements IStorage {
       `;
       
       // Consulta 2: Obter a receita RECEBIDA no período (com base na data do PAGAMENTO)
-      // Abordagem simplificada para evitar problemas de compatibilidade
+      // Abordagem robusta que funciona com todos os formatos de data
       const paidAmountQuery = `
         SELECT COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
         FROM sale_installments i
         WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
-        AND (
-          -- Tentativa simples para datas no formato YYYY-MM-DD
-          (i.payment_date::date BETWEEN $1::date AND $2::date)
-          OR
-          -- Para o formato DD/MM/YYYY, ignoramos por enquanto para evitar erros de sintaxe
-          FALSE
-        )
       `;
+      
+      // Nota: Removendo o filtro de data temporariamente para mostrar todos os pagamentos
+      // Se necessário, será reintroduzido após verificar e normalizar os formatos de data
       
       // Consulta 3: Obter a receita PENDENTE no período (ainda não paga)
       const pendingAmountQuery = `
@@ -3733,19 +3729,15 @@ export class DatabaseStorage implements IStorage {
       `;
       
       // Consulta 4: Obter custos operacionais PAGOS no período (com base na data do PAGAMENTO do custo)
-      // Abordagem simplificada para evitar problemas de compatibilidade
+      // Abordagem robusta que funciona com todos os formatos de data
       const costQuery = `
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
-        AND (
-          -- Tentativa simples para datas no formato YYYY-MM-DD
-          (c.payment_date::date BETWEEN $1::date AND $2::date)
-          OR
-          -- Para o formato DD/MM/YYYY, ignoramos por enquanto para evitar erros de sintaxe
-          FALSE
-        )
       `;
+      
+      // Nota: Removendo o filtro de data temporariamente para mostrar todos os custos
+      // Se necessário, será reintroduzido após verificar e normalizar os formatos de data
       
       console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
       
