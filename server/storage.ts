@@ -3708,29 +3708,25 @@ export class DatabaseStorage implements IStorage {
       `;
       
       // Consulta 2: Obter a receita RECEBIDA no período (com base na data do PAGAMENTO)
+      // Abordagem mais simples para evitar problemas com tipos
       const paidAmountQuery = `
         SELECT COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
         FROM sale_installments i
         WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
         AND (
-          -- Tentar converter a data de forma segura usando várias funções
-          CASE 
-            -- Tentar converter diretamente para date (funciona para YYYY-MM-DD)
-            WHEN i.payment_date::date IS NOT NULL THEN 
-              i.payment_date::date
-            -- Se falhar a conversão direta, tentar tratar como DD/MM/YYYY
-            ELSE
-              (
-                CASE 
-                  WHEN position('/' in i.payment_date) > 0 THEN 
-                    TO_DATE(i.payment_date, 'DD/MM/YYYY')
-                  ELSE 
-                    NULL -- Formato desconhecido, ignorar
-                END
-              )
-          END
-        ) BETWEEN $1::date AND $2::date
+          -- Para datas YYYY-MM-DD
+          TRY_CAST(i.payment_date AS date) BETWEEN $1::date AND $2::date
+          -- Para datas no formato DD/MM/YYYY, usamos uma abordagem diferente
+          OR (
+            i.payment_date LIKE '%/%/%' 
+            AND TRY_CAST(
+              substring(i.payment_date, 7, 4) || '-' || 
+              substring(i.payment_date, 4, 2) || '-' || 
+              substring(i.payment_date, 1, 2)
+              AS date) BETWEEN $1::date AND $2::date
+          )
+        )
       `;
       
       // Consulta 3: Obter a receita PENDENTE no período (ainda não paga)
@@ -3743,28 +3739,24 @@ export class DatabaseStorage implements IStorage {
       `;
       
       // Consulta 4: Obter custos operacionais PAGOS no período (com base na data do PAGAMENTO do custo)
+      // Abordagem mais simples para evitar problemas com tipos
       const costQuery = `
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
         AND (
-          -- Tentar converter a data de forma segura usando várias funções
-          CASE 
-            -- Tentar converter diretamente para date (funciona para YYYY-MM-DD)
-            WHEN c.payment_date::date IS NOT NULL THEN 
-              c.payment_date::date
-            -- Se falhar a conversão direta, tentar tratar como DD/MM/YYYY
-            ELSE
-              (
-                CASE 
-                  WHEN position('/' in c.payment_date) > 0 THEN 
-                    TO_DATE(c.payment_date, 'DD/MM/YYYY')
-                  ELSE 
-                    NULL -- Formato desconhecido, ignorar
-                END
-              )
-          END
-        ) BETWEEN $1::date AND $2::date
+          -- Para datas YYYY-MM-DD
+          TRY_CAST(c.payment_date AS date) BETWEEN $1::date AND $2::date
+          -- Para datas no formato DD/MM/YYYY, usamos uma abordagem diferente
+          OR (
+            c.payment_date LIKE '%/%/%' 
+            AND TRY_CAST(
+              substring(c.payment_date, 7, 4) || '-' || 
+              substring(c.payment_date, 4, 2) || '-' || 
+              substring(c.payment_date, 1, 2)
+              AS date) BETWEEN $1::date AND $2::date
+          )
+        )
       `;
       
       console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
