@@ -127,8 +127,95 @@ export default function MainDashboard() {
     return `últimos ${days} dias`;
   }, [dateRange]);
 
-  // Função para renderizar a aba de visão geral
-  const renderOverviewTab = () => (
+  // Função para renderizar a aba de visão geral para supervisor e operacional
+  const renderSupervisorOverviewTab = () => (
+    <div className="space-y-6">
+      {/* Cards de estatísticas limitados */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Total de Vendas"
+          value={salesSummary?.total ?? 0}
+          icon={<ShoppingBag className="h-5 w-5 text-blue-600" />}
+          description={`${dateDiff}`}
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Valor Total"
+          value={financialOverview 
+            ? `R$ ${financialOverview.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            : "R$ 0,00"
+          }
+          icon={<DollarSign className="h-5 w-5 text-green-600" />}
+          description={`${dateDiff}`}
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Vendas Concluídas"
+          value={salesSummary?.completed ?? 0}
+          icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
+          description={salesSummary 
+            ? `${((salesSummary.completed / salesSummary.total) * 100).toFixed(1)}% do total`
+            : "0% do total"
+          }
+          isLoading={isLoading}
+        />
+        <StatsCard
+          title="Vendas em Andamento"
+          value={salesSummary?.inProgress ?? 0}
+          icon={<Activity className="h-5 w-5 text-amber-600" />}
+          description={salesSummary 
+            ? `${((salesSummary.inProgress / salesSummary.total) * 100).toFixed(1)}% do total`
+            : "0% do total"
+          }
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Gráficos e tabelas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <SalesAreaChart 
+            data={salesChartData} 
+            isLoading={isLoading}
+            className="h-[350px]"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PerformanceBarChart 
+              data={sellerChartData} 
+              isLoading={isLoading}
+            />
+            <StatusPieChart 
+              data={statusChartData} 
+              isLoading={isLoading}
+            />
+          </div>
+        </div>
+        <div className="lg:col-span-1">
+          <InsightsCard
+            title="Insights"
+            description="Análises baseadas nos dados"
+            insights={insights as Insight[]}
+            isLoading={isLoading}
+            className="h-full"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  // Função para determinar qual visualização de visão geral mostrar com base no perfil
+  const renderOverviewTab = () => {
+    if (isVendedor) {
+      return renderVendedorOverview();
+    } else if (isSupervisorOrOperacional) {
+      return renderSupervisorOverviewTab();
+    } else {
+      return renderAdminOverviewTab();
+    }
+  };
+
+  // Função para renderizar a aba de visão geral para admin e financeiro
+  const renderAdminOverviewTab = () => (
     <div className="space-y-6">
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -483,7 +570,7 @@ export default function MainDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {isVendedor ? renderVendedorOverview() : renderOverviewTab()}
+          {renderOverviewTab()}
         </TabsContent>
         
         <TabsContent value="sales" className="space-y-4">
