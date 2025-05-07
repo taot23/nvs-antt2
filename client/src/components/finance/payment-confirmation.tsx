@@ -622,8 +622,24 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     <TableCell>
                       {installment.status === 'paid' ? (
                         <>
-                          {/* Nova lógica aprimorada para detectar pagamentos divididos */}
-                          {installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") ? (
+                          {/* Função auxiliar para detectar melhor os pagamentos divididos */}
+                          {(() => {
+                            // Várias condições para detectar pagamentos divididos
+                            const isPagamentoDividido = 
+                              // Verifica a string direta "PAGAMENTO DIVIDIDO"
+                              (installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) ||
+                              // Verifica se existem múltiplos métodos de pagamento na nota
+                              (installment.paymentNotes && 
+                               (installment.paymentNotes.includes("PIX") && (
+                                 installment.paymentNotes.includes("CARTAO") || 
+                                 installment.paymentNotes.includes("BOLETO")
+                               ))) ||
+                              // Verifica formato de notação com método: valor
+                              (installment.paymentNotes && /[A-Za-z]+:\s*R?\$?\s*[\d,.]+/.test(installment.paymentNotes) && 
+                                installment.paymentNotes.split('|').filter(p => p.includes(':')).length > 1);
+                            
+                            return isPagamentoDividido;
+                          })() ? (
                             <div className="space-y-1 border-l-2 border-blue-400 pl-2">
                               <div className="text-xs font-medium text-blue-600 mb-1">Pagamento Dividido</div>
                               {(() => {
@@ -641,12 +657,31 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                   // Padrão 2: mais flexível, captura qualquer texto antes de ":" seguido por valores numéricos
                                   const padrao2 = /([A-Za-z0-9\s]+):\s*([\d,.]+)/g;
                                   
+                                  // Padrão 3: extremamente flexível, captura palavras conhecidas de métodos de pagamento e valores próximos
+                                  const metodosConhecidos = paymentMethods.map(m => m.name.toUpperCase()).join('|');
+                                  const padrao3 = new RegExp(`(${metodosConhecidos})\\s*([\\d,.]+|R\\$\\s*[\\d,.]+)`, 'gi');
+                                  
+                                  // Ainda mais flexível: qualquer palavra + valor numérico próximo
+                                  const padrao4 = /([A-Za-z]{3,})\s+(R\$\s*[\d,.]+|[\d,.]+)/g;
+                                  
+                                  console.log(`🔍 Métodos conhecidos:`, metodosConhecidos);
+                                  
                                   // Primeiro tenta com o padrão mais específico
                                   let matches = [...(installment.paymentNotes?.matchAll(padrao1) || [])];
                                   
-                                  // Se não encontrou nada, tenta com o padrão mais genérico
+                                  // Se não encontrou nada, tenta com o segundo padrão
                                   if (matches.length === 0) {
                                     matches = [...(installment.paymentNotes?.matchAll(padrao2) || [])];
+                                  }
+                                  
+                                  // Se ainda não encontrou, tenta com o terceiro padrão 
+                                  if (matches.length === 0) {
+                                    matches = [...(installment.paymentNotes?.matchAll(padrao3) || [])];
+                                  }
+                                  
+                                  // Última tentativa com padrão mais genérico
+                                  if (matches.length === 0) {
+                                    matches = [...(installment.paymentNotes?.matchAll(padrao4) || [])];
                                   }
                                   
                                   console.log(`🧩 Matches encontrados para ID ${installment.id}:`, matches);
