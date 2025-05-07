@@ -175,7 +175,7 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
       splitPayments?: Array<{methodId: number, amount: number}>
     }) => {
       // Buscar o método de pagamento selecionado para usar seu nome
-      const selectedMethod = paymentMethods.find(m => String(m.id) === paymentMethodId);
+      const selectedMethod = paymentMethods.find((m: any) => String(m.id) === paymentMethodId);
       
       // Usar a data exatamente como foi fornecida pelo usuário
       console.log(`🔍 Confirmação de pagamento: Data a ser enviada: ${paymentDate}`);
@@ -184,11 +184,13 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
       let paymentDetails = "Confirmação manual";
       if (splitPayments.length > 0) {
         const splitDetails = splitPayments.map(p => {
-          const method = paymentMethods.find(m => m.id === p.methodId);
+          const method = paymentMethods.find((m: any) => m.id === p.methodId);
           return `${method?.name || 'Método ' + p.methodId}: ${formatCurrency(p.amount)}`;
-        }).join(', ');
+        }).join(' | ');
         
-        paymentDetails = `Pagamento dividido: ${splitDetails}`;
+        paymentDetails = `PAGAMENTO DIVIDIDO`;
+        // Adicionar a string PAGAMENTO DIVIDIDO também nas notas para facilitar a exibição na interface
+        notes = `PAGAMENTO DIVIDIDO | ${splitDetails}${notes ? ' | NOTAS: ' + notes : ''}`;
       }
       
       const res = await apiRequest("POST", `/api/installments/${installmentId}/confirm-payment`, {
@@ -450,17 +452,18 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
         
         // Formatar detalhes do pagamento para as notas
         const methodDetails = splitPayments.map(p => {
-          const method = paymentMethods.find(m => String(m.id) === p.methodId);
+          const method = paymentMethods.find((m: any) => String(m.id) === p.methodId);
           return `${method?.name || 'Método ' + p.methodId}: ${formatCurrency(Number(p.amount))}`;
-        }).join('; ');
+        }).join(' | ');
         
-        const paymentDetailsNote = `\n\nPagamento dividido: ${methodDetails}`;
+        // Modificar o formato das notas para facilitar a exibição na interface
+        const notasAdicionais = paymentNotes ? ` | NOTAS: ${paymentNotes}` : '';
         
         // Confirmar com pagamento dividido
         confirmPaymentMutation.mutate({
           installmentId: selectedInstallment.id,
           paymentDate: paymentDateStr,
-          notes: paymentNotes + paymentDetailsNote,
+          notes: `PAGAMENTO DIVIDIDO | ${methodDetails}${notasAdicionais}`,
           paymentMethodId: splitPayments[0].methodId, // Usar o primeiro método como principal
           splitPayments: splitPayments.map(p => ({
             methodId: Number(p.methodId),
@@ -607,15 +610,47 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     </TableCell>
                     <TableCell>{formatCurrency(installment.amount)}</TableCell>
                     <TableCell>
-                      {installment.status === 'paid' && paymentMethod && (
-                        <div className="flex items-center justify-between w-full">
-                          <div>
-                            <span className="text-blue-600">▢</span> {paymentMethod.name}:
-                          </div>
-                          <div>
-                            {formatCurrency(installment.amount)}
-                          </div>
-                        </div>
+                      {installment.status === 'paid' && (
+                        <>
+                          {/* Se houver um método de pagamento definido */}
+                          {paymentMethod && (
+                            <div className="flex items-center justify-between w-full">
+                              <div>
+                                <span className="text-blue-600">▢</span> {paymentMethod.name}:
+                              </div>
+                              <div>
+                                {formatCurrency(installment.amount)}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Se não houver método de pagamento definido, verificar se nas notas há info sobre pagamento dividido */}
+                          {!paymentMethod && installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") && (
+                            <div className="space-y-1">
+                              {installment.paymentNotes.split('|').map((note, index) => {
+                                if (note.includes(':')) {
+                                  const [method, amount] = note.split(':').map(s => s.trim());
+                                  return (
+                                    <div key={index} className="flex items-center justify-between w-full">
+                                      <div>
+                                        <span className="text-blue-600">▢</span> {method}:
+                                      </div>
+                                      <div>
+                                        {amount}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Se não houver método nem notas sobre pagamento dividido */}
+                          {!paymentMethod && (!installment.paymentNotes || !installment.paymentNotes.includes("PAGAMENTO DIVIDIDO")) && (
+                            <span className="text-muted-foreground">Método não especificado</span>
+                          )}
+                        </>
                       )}
                       
                       {installment.status !== 'paid' && (
