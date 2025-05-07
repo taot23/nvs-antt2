@@ -2618,19 +2618,37 @@ export class DatabaseStorage implements IStorage {
       const { pool } = await import("./db");
       
       // Atualizar a parcela com SQL nativo para garantir preservação exata do formato da data
-      // Incluir também o método de pagamento se fornecido
-      const paymentMethodSql = paymentMethodId ? ", payment_method_id = $3" : "";
-      const paymentMethodParams = paymentMethodId ? [formattedPaymentDate, installmentId, paymentMethodId] : [formattedPaymentDate, installmentId];
+      // O SQL precisa ser construído de forma diferente dependendo de se temos um método de pagamento
+      let sql;
+      let params;
       
-      const result = await pool.query(`
-        UPDATE sale_installments 
-        SET status = 'paid', 
-            payment_date = $1
-            ${paymentMethodSql ? paymentMethodSql + "," : ""}
-            updated_at = NOW()
-        WHERE id = $2
-        RETURNING *
-      `, paymentMethodParams);
+      if (paymentMethodId) {
+        // Com método de pagamento
+        sql = `
+          UPDATE sale_installments 
+          SET status = 'paid', 
+              payment_date = $1,
+              payment_method_id = $3,
+              updated_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `;
+        params = [formattedPaymentDate, installmentId, paymentMethodId];
+      } else {
+        // Sem método de pagamento
+        sql = `
+          UPDATE sale_installments 
+          SET status = 'paid', 
+              payment_date = $1,
+              updated_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `;
+        params = [formattedPaymentDate, installmentId];
+      }
+      
+      console.log("SQL para atualização de parcela:", sql);
+      const result = await pool.query(sql, params);
       
       if (result.rows.length === 0) {
         console.log(`⚠️ Parcela #${installmentId} não encontrada durante atualização via SQL`);
