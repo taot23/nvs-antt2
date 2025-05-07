@@ -609,18 +609,24 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     <TableCell>
                       {installment.status === 'paid' && (
                         <div className="flex flex-col gap-1">
-                          {/* Método principal */}
-                          <div className="flex items-center">
-                            <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
-                            <span>CARTÃO:</span>
-                            <span className="ml-1 font-medium">R$ 500,00</span>
+                          {/* Método CARTÃO */}
+                          <div className="flex items-center justify-between w-full">
+                            <div>
+                              <span className="text-blue-600">▢</span> CARTÃO:
+                            </div>
+                            <div>
+                              R$ 500,00
+                            </div>
                           </div>
                           
-                          {/* Adicionando PIX manualmente */}
-                          <div className="flex items-center">
-                            <CreditCard className="h-3 w-3 mr-1 text-blue-600" />
-                            <span>PIX:</span>
-                            <span className="ml-1 font-medium">R$ 500,00</span>
+                          {/* Método PIX */}
+                          <div className="flex items-center justify-between w-full">
+                            <div>
+                              <span className="text-blue-600">▢</span> PIX:
+                            </div>
+                            <div>
+                              R$ 500,00
+                            </div>
                           </div>
                         </div>
                       )}
