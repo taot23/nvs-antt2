@@ -3714,11 +3714,13 @@ export class DatabaseStorage implements IStorage {
         WHERE i.status = 'paid'
       `;
       
-      // Consulta 3: Valor total PENDENTE
+      // Consulta 3: Valor total PENDENTE no período (considerando a data da venda)
       const pendingAmountQuery = `
         SELECT COALESCE(SUM(i.amount::numeric), 0) as pending_revenue
         FROM sale_installments i
+        JOIN sales s ON i.sale_id = s.id
         WHERE i.status = 'pending'
+        AND s.date BETWEEN $1 AND $2
       `;
       
       // Consulta 4: Custos operacionais totais PAGOS
@@ -3733,7 +3735,7 @@ export class DatabaseStorage implements IStorage {
       // Executar consultas individualmente para identificar problemas específicos
       const totalResult = await pool.query(totalSalesQuery, [startDateStr, endDateStr]);
       const paidResult = await pool.query(paidAmountQuery);
-      const pendingResult = await pool.query(pendingAmountQuery);
+      const pendingResult = await pool.query(pendingAmountQuery, [startDateStr, endDateStr]);
       const costResult = await pool.query(costQuery);
       
       // Extrair valores com segurança
