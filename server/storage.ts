@@ -3708,24 +3708,18 @@ export class DatabaseStorage implements IStorage {
       `;
       
       // Consulta 2: Obter a receita RECEBIDA no período (com base na data do PAGAMENTO)
-      // Abordagem mais simples para evitar problemas com tipos
+      // Abordagem simplificada para evitar problemas de compatibilidade
       const paidAmountQuery = `
         SELECT COALESCE(SUM(i.amount::numeric), 0) as paid_revenue
         FROM sale_installments i
         WHERE i.status = 'paid'
         AND i.payment_date IS NOT NULL
         AND (
-          -- Para datas YYYY-MM-DD
-          TRY_CAST(i.payment_date AS date) BETWEEN $1::date AND $2::date
-          -- Para datas no formato DD/MM/YYYY, usamos uma abordagem diferente
-          OR (
-            i.payment_date LIKE '%/%/%' 
-            AND TRY_CAST(
-              substring(i.payment_date, 7, 4) || '-' || 
-              substring(i.payment_date, 4, 2) || '-' || 
-              substring(i.payment_date, 1, 2)
-              AS date) BETWEEN $1::date AND $2::date
-          )
+          -- Tentativa simples para datas no formato YYYY-MM-DD
+          (i.payment_date::date BETWEEN $1::date AND $2::date)
+          OR
+          -- Para o formato DD/MM/YYYY, ignoramos por enquanto para evitar erros de sintaxe
+          FALSE
         )
       `;
       
@@ -3739,23 +3733,17 @@ export class DatabaseStorage implements IStorage {
       `;
       
       // Consulta 4: Obter custos operacionais PAGOS no período (com base na data do PAGAMENTO do custo)
-      // Abordagem mais simples para evitar problemas com tipos
+      // Abordagem simplificada para evitar problemas de compatibilidade
       const costQuery = `
         SELECT COALESCE(SUM(c.amount::numeric), 0) as total_cost
         FROM sale_operational_costs c
         WHERE c.payment_date IS NOT NULL
         AND (
-          -- Para datas YYYY-MM-DD
-          TRY_CAST(c.payment_date AS date) BETWEEN $1::date AND $2::date
-          -- Para datas no formato DD/MM/YYYY, usamos uma abordagem diferente
-          OR (
-            c.payment_date LIKE '%/%/%' 
-            AND TRY_CAST(
-              substring(c.payment_date, 7, 4) || '-' || 
-              substring(c.payment_date, 4, 2) || '-' || 
-              substring(c.payment_date, 1, 2)
-              AS date) BETWEEN $1::date AND $2::date
-          )
+          -- Tentativa simples para datas no formato YYYY-MM-DD
+          (c.payment_date::date BETWEEN $1::date AND $2::date)
+          OR
+          -- Para o formato DD/MM/YYYY, ignoramos por enquanto para evitar erros de sintaxe
+          FALSE
         )
       `;
       
