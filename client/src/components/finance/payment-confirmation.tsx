@@ -626,10 +626,12 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                                 );
                                 
                                 // Debug para verificar o que estamos encontrando
-                                console.log("Dados do pagamento dividido:", {
+                                console.log(`🔍 Dados do pagamento dividido parcela #${installment.installmentNumber}:`, {
+                                  id: installment.id,
                                   notas: installment.paymentNotes,
                                   partes: parts,
-                                  pagamentosParsed: paymentParts
+                                  pagamentosParsed: paymentParts,
+                                  metodosDisponiveis: paymentMethods.map(m => `${m.id}: ${m.name}`)
                                 });
                                 
                                 // Tentar usar o formato correto para PIX e CARTAO
