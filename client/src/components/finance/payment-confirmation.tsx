@@ -452,9 +452,19 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
         
         // Formatar detalhes do pagamento para as notas
         const methodDetails = splitPayments.map(p => {
+          // Encontrar o método de pagamento pelo ID exato
           const method = paymentMethods.find((m: any) => Number(m.id) === Number(p.methodId));
+          if (!method) {
+            console.warn(`⚠️ Método de pagamento ID ${p.methodId} não encontrado!`);
+          }
           return `${method?.name || 'MÉTODO ' + p.methodId}: ${formatCurrency(Number(p.amount))}`;
         }).join(' | ');
+        
+        // Log para verificar o que está sendo enviado
+        console.log("📝 Gerando pagamento dividido:", {
+          metodos: splitPayments,
+          stringFinal: `PAGAMENTO DIVIDIDO | ${methodDetails}${paymentNotes ? ' | NOTAS: ' + paymentNotes : ''}`
+        });
         
         // Modificar o formato das notas para facilitar a exibição na interface
         const notasAdicionais = paymentNotes ? ` | NOTAS: ${paymentNotes}` : '';
@@ -612,56 +622,94 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                     <TableCell>
                       {installment.status === 'paid' ? (
                         <>
-                          {/* Verificar se as notas contêm informações sobre pagamento dividido */}
+                          {/* Nova lógica aprimorada para detectar pagamentos divididos */}
                           {installment.paymentNotes && installment.paymentNotes.includes("PAGAMENTO DIVIDIDO") ? (
                             <div className="space-y-1 border-l-2 border-blue-400 pl-2">
                               <div className="text-xs font-medium text-blue-600 mb-1">Pagamento Dividido</div>
                               {(() => {
-                                // Extrair as partes de pagamento dividido com uma lógica mais robusta
-                                const parts = installment.paymentNotes.split('|').map(p => p.trim());
-                                const paymentParts = parts.filter(part => 
-                                  part !== "PAGAMENTO DIVIDIDO" && 
-                                  !part.startsWith("NOTAS:") && 
-                                  part.includes(':')
-                                );
-                                
-                                // Debug para verificar o que estamos encontrando
-                                console.log(`🔍 Dados do pagamento dividido parcela #${installment.installmentNumber}:`, {
-                                  id: installment.id,
-                                  notas: installment.paymentNotes,
-                                  partes: parts,
-                                  pagamentosParsed: paymentParts,
-                                  metodosDisponiveis: paymentMethods.map(m => `${m.id}: ${m.name}`)
-                                });
-                                
-                                // Tentar usar o formato correto para PIX e CARTAO
-                                return paymentParts.map((part, idx) => {
-                                  // Separar método e valor pela última ocorrência de ":"
-                                  const colonPos = part.lastIndexOf(':');
-                                  if (colonPos === -1) return null;
+                                try {
+                                  // Log completo para debug
+                                  console.log(`🔍 DETALHES PAGAMENTO DIVIDIDO (ID ${installment.id}):`, {
+                                    paymentNotes: installment.paymentNotes,
+                                    paymentMethodId: installment.paymentMethodId,
+                                  });
                                   
-                                  const methodName = part.substring(0, colonPos).trim();
-                                  const valueText = part.substring(colonPos + 1).trim();
+                                  // Dividir a string pelas barras verticais
+                                  const parts = installment.paymentNotes.split('|').map(p => p.trim());
                                   
-                                  // Encontrar o método de pagamento pelo nome
-                                  const method = paymentMethods.find(m => 
-                                    m.name === methodName || m.name.includes(methodName) || methodName.includes(m.name)
-                                  );
+                                  // Filtrar apenas as partes que contêm informações de método:valor
+                                  const paymentParts = parts.filter(part => {
+                                    // Pular o marcador "PAGAMENTO DIVIDIDO"
+                                    if (part === "PAGAMENTO DIVIDIDO") return false;
+                                    // Pular a seção de notas adicionais
+                                    if (part.toLowerCase().includes("notas:")) return false;
+                                    // Manter apenas partes que contêm o formato "método: valor"
+                                    return part.includes(':');
+                                  });
                                   
+                                  // Se não encontramos partes de pagamento, mostrar uma mensagem
+                                  if (paymentParts.length === 0) {
+                                    return (
+                                      <div className="text-amber-600 bg-amber-50 p-2 rounded-md text-sm">
+                                        Pagamento dividido, mas detalhes não disponíveis
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // Renderizar cada método de pagamento
+                                  return paymentParts.map((part, idx) => {
+                                    // Encontrar a última ocorrência de dois pontos para separar método e valor
+                                    const colonPos = part.lastIndexOf(':');
+                                    if (colonPos === -1) {
+                                      // Formato inválido, mostrar a parte bruta
+                                      return (
+                                        <div key={idx} className="text-amber-600 bg-amber-50 p-1 rounded-md text-xs">
+                                          Formato inválido: {part}
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Extrair nome do método e valor
+                                    const methodName = part.substring(0, colonPos).trim();
+                                    const valueText = part.substring(colonPos + 1).trim();
+                                    
+                                    // Normalizar o nome do método para comparação
+                                    const normalizedMethodName = methodName.toUpperCase();
+                                    
+                                    // Encontrar o método de pagamento correto
+                                    let foundMethod = null;
+                                    for (const m of paymentMethods) {
+                                      const mName = m.name.toUpperCase();
+                                      if (mName === normalizedMethodName || 
+                                          normalizedMethodName.includes(mName) || 
+                                          mName.includes(normalizedMethodName)) {
+                                        foundMethod = m;
+                                        break;
+                                      }
+                                    }
+                                    
+                                    return (
+                                      <div key={idx} className="flex items-center justify-between w-full py-1 border-b border-gray-100 last:border-0">
+                                        <div className="flex items-center">
+                                          <div className="h-3 w-3 rounded-full bg-blue-500 mr-2"></div>
+                                          <span className="font-medium">
+                                            {foundMethod ? foundMethod.name : methodName}
+                                          </span>
+                                        </div>
+                                        <div className="font-medium">
+                                          {valueText}
+                                        </div>
+                                      </div>
+                                    );
+                                  });
+                                } catch (error) {
+                                  console.error("Erro ao processar pagamento dividido:", error);
                                   return (
-                                    <div key={idx} className="flex items-center justify-between w-full py-0.5 border-b border-gray-100 last:border-0">
-                                      <div className="flex items-center">
-                                        <div className="h-2 w-2 rounded-full bg-blue-500 mr-1.5"></div>
-                                        <span className="font-medium">
-                                          {method ? method.name : methodName}
-                                        </span>
-                                      </div>
-                                      <div className="font-medium">
-                                        {valueText}
-                                      </div>
+                                    <div className="text-red-600 bg-red-50 p-2 rounded-md text-sm">
+                                      Erro ao processar pagamento dividido
                                     </div>
                                   );
-                                });
+                                }
                               })()}
                             </div>
                           ) : (
@@ -670,7 +718,7 @@ export function PaymentConfirmation({ saleId, canManage, isAdmin }: PaymentConfi
                               {paymentMethod ? (
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex items-center">
-                                    <div className="h-2 w-2 rounded-full bg-blue-500 mr-1.5"></div>
+                                    <div className="h-3 w-3 rounded-full bg-blue-500 mr-2"></div>
                                     <span className="font-medium">{paymentMethod.name}</span>
                                   </div>
                                   <div className="font-medium">
