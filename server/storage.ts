@@ -2625,8 +2625,8 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(`
         UPDATE sale_installments 
         SET status = 'paid', 
-            payment_date = $1,
-            ${paymentMethodSql}
+            payment_date = $1
+            ${paymentMethodSql ? paymentMethodSql + "," : ""}
             updated_at = NOW()
         WHERE id = $2
         RETURNING *
