@@ -3701,17 +3701,30 @@ export class DatabaseStorage implements IStorage {
         endDateStr = filters.endDate;
       }
       
+      // Verificar se há filtro de vendedor
+      const hasSellerFilter = filters?.sellerId !== undefined;
+      let sellerCondition = '';
+      let params = [startDateStr, endDateStr];
+      
+      if (hasSellerFilter) {
+        sellerCondition = 'AND s.seller_id = $3';
+        params.push(filters.sellerId);
+        console.log(`Consultando dados financeiros entre ${startDateStr} e ${endDateStr} para o vendedor ${filters.sellerId}`);
+      } else {
+        console.log(`Consultando dados financeiros entre ${startDateStr} e ${endDateStr}`);
+      }
+      
       // Consulta 1: Valor total das vendas no período (soma pendentes + pagos)
       const totalSalesQuery = `
         SELECT 
           (SELECT COALESCE(SUM(i.amount::numeric), 0)
            FROM sale_installments i
            JOIN sales s ON i.sale_id = s.id
-           WHERE i.status = 'paid' AND s.date BETWEEN $1 AND $2) +
+           WHERE i.status = 'paid' AND s.date BETWEEN $1 AND $2 ${sellerCondition}) +
           (SELECT COALESCE(SUM(i.amount::numeric), 0)
            FROM sale_installments i
            JOIN sales s ON i.sale_id = s.id
-           WHERE i.status = 'pending' AND s.date BETWEEN $1 AND $2) as total_revenue
+           WHERE i.status = 'pending' AND s.date BETWEEN $1 AND $2 ${sellerCondition}) as total_revenue
       `;
       
       // Consulta 2: Valor total já PAGO no período (da venda)
@@ -3721,6 +3734,7 @@ export class DatabaseStorage implements IStorage {
         JOIN sales s ON i.sale_id = s.id
         WHERE i.status = 'paid'
         AND s.date BETWEEN $1 AND $2
+        ${sellerCondition}
       `;
       
       // Consulta 3: Valor total PENDENTE no período (considerando a data da venda)
@@ -3730,6 +3744,7 @@ export class DatabaseStorage implements IStorage {
         JOIN sales s ON i.sale_id = s.id
         WHERE i.status = 'pending'
         AND s.date BETWEEN $1 AND $2
+        ${sellerCondition}
       `;
       
       // Consulta 4: Custos operacionais PAGOS no período
@@ -3739,15 +3754,14 @@ export class DatabaseStorage implements IStorage {
         JOIN sales s ON c.sale_id = s.id
         WHERE c.payment_date IS NOT NULL
         AND s.date BETWEEN $1 AND $2
+        ${sellerCondition}
       `;
       
-      console.log("Consultando dados financeiros entre", startDateStr, "e", endDateStr);
-      
       // Executar consultas individualmente para identificar problemas específicos
-      const totalResult = await pool.query(totalSalesQuery, [startDateStr, endDateStr]);
-      const paidResult = await pool.query(paidAmountQuery, [startDateStr, endDateStr]);
-      const pendingResult = await pool.query(pendingAmountQuery, [startDateStr, endDateStr]);
-      const costResult = await pool.query(costQuery, [startDateStr, endDateStr]);
+      const totalResult = await pool.query(totalSalesQuery, params);
+      const paidResult = await pool.query(paidAmountQuery, params);
+      const pendingResult = await pool.query(pendingAmountQuery, params);
+      const costResult = await pool.query(costQuery, params);
       
       // Extrair valores com segurança
       const totalRevenue = totalResult.rows[0]?.total_revenue || "0";

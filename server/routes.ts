@@ -4719,7 +4719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             prevStartDate.toISOString().split('T')[0],
             prevEndDate.toISOString().split('T')[0]
           ]),
-          getTotalSalesCount(startDate, endDate)
+          getTotalSalesCount(startDate, endDate, sellerId)
         ]);
         
         // Extrair resultados
@@ -4763,20 +4763,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Função auxiliar para obter contagem total de vendas
-  async function getTotalSalesCount(startDate?: string, endDate?: string): Promise<number> {
+  async function getTotalSalesCount(startDate?: string, endDate?: string, sellerId?: number): Promise<number> {
     try {
       const { pool } = await import('./db');
-      const query = `
-        SELECT COUNT(*) as total 
-        FROM sales 
-        WHERE date BETWEEN $1 AND $2
-      `;
       
-      const result = await pool.query(query, [
-        startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate || new Date().toISOString().split('T')[0]
-      ]);
+      // Definir parâmetros padrão se não fornecidos
+      const defaultStartDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const defaultEndDate = new Date().toISOString().split('T')[0];
       
+      // Usar parâmetros fornecidos ou padrões
+      const effectiveStartDate = startDate || defaultStartDate;
+      const effectiveEndDate = endDate || defaultEndDate;
+      
+      let query = '';
+      let params = [];
+      
+      if (sellerId !== undefined) {
+        // Com filtro de vendedor
+        query = `
+          SELECT COUNT(*) as total 
+          FROM sales 
+          WHERE date BETWEEN $1 AND $2
+          AND seller_id = $3
+        `;
+        params = [effectiveStartDate, effectiveEndDate, sellerId];
+      } else {
+        // Sem filtro de vendedor
+        query = `
+          SELECT COUNT(*) as total 
+          FROM sales 
+          WHERE date BETWEEN $1 AND $2
+        `;
+        params = [effectiveStartDate, effectiveEndDate];
+      }
+      
+      const result = await pool.query(query, params);
       return parseInt(result.rows[0].total) || 0;
     } catch (error) {
       console.error("Erro ao contar vendas:", error);
