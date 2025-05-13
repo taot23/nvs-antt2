@@ -20,6 +20,7 @@ import {
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useAuth } from "@/hooks/use-auth";
 import { DateRangePicker } from "./date-range-picker";
+import { SellerPicker } from "./seller-picker";
 import { StatsCard } from "./stats-card";
 import { SalesAreaChart, PerformanceBarChart, StatusPieChart } from "./charts";
 import { ActivityTable, ActivityItem } from "./activity-table";
@@ -52,15 +53,19 @@ export default function MainDashboard() {
     setActiveTab("sales");
   }
 
-  // Buscar dados do dashboard com base no intervalo de datas selecionado
+  // Estado para armazenar o vendedor selecionado
+  const [selectedSellerId, setSelectedSellerId] = useState<number | undefined>(undefined);
+  
+  // Buscar dados do dashboard com base no intervalo de datas e vendedor selecionados
   const {
     financialOverview,
     sellerPerformance,
     salesSummary,
     recentActivities,
     insights,
+    salesBySeller,
     isLoading,
-  } = useDashboardData(dateRange);
+  } = useDashboardData(dateRange, selectedSellerId);
 
   // Preparar dados para gráficos
   const salesChartData = useMemo(() => {
@@ -551,7 +556,18 @@ export default function MainDashboard() {
             }
           </p>
         </div>
-        <DateRangePicker onChange={setDateRange} />
+        <div className="flex gap-2 items-center">
+          {/* Seletor de vendedor para perfis não-vendedor */}
+          {!isVendedor && (
+            <SellerPicker 
+              sellers={salesBySeller}
+              isLoading={isLoading}
+              onChange={setSelectedSellerId}
+              selectedSellerId={selectedSellerId}
+            />
+          )}
+          <DateRangePicker onChange={setDateRange} />
+        </div>
       </div>
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
