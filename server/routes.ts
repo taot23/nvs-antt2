@@ -4945,84 +4945,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         // Consulta para obter vendas recentes
-        const salesQuery = `
-          SELECT 
-            s.id,
-            'Venda' as type,
-            c.name as description,
-            s.status,
-            s.date,
-            s.total_amount::numeric as amount,
-            u.username as "user"
-          FROM sales s
-          JOIN customers c ON s.customer_id = c.id
-          JOIN users u ON s.seller_id = u.id
-          WHERE s.date BETWEEN $1 AND $2 ${sellerFilter}
-          ORDER BY s.date DESC
-          LIMIT $3
-        `;
+        let salesQuery = '';
+        
+        if (sellerFilter) {
+          // Com filtro de vendedor
+          salesQuery = `
+            SELECT 
+              s.id,
+              'Venda' as type,
+              c.name as description,
+              s.status,
+              s.date,
+              s.total_amount::numeric as amount,
+              u.username as "user"
+            FROM sales s
+            JOIN customers c ON s.customer_id = c.id
+            JOIN users u ON s.seller_id = u.id
+            WHERE s.date BETWEEN $1 AND $2
+            AND s.seller_id = $4
+            ORDER BY s.date DESC
+            LIMIT $3
+          `;
+        } else {
+          // Sem filtro de vendedor
+          salesQuery = `
+            SELECT 
+              s.id,
+              'Venda' as type,
+              c.name as description,
+              s.status,
+              s.date,
+              s.total_amount::numeric as amount,
+              u.username as "user"
+            FROM sales s
+            JOIN customers c ON s.customer_id = c.id
+            JOIN users u ON s.seller_id = u.id
+            WHERE s.date BETWEEN $1 AND $2
+            ORDER BY s.date DESC
+            LIMIT $3
+          `;
+        }
         
         // Consulta para obter pagamentos recentes
-        const paymentsQuery = `
-          SELECT 
-            i.id,
-            'Pagamento' as type,
-            CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
-            i.status,
-            i.payment_date as date,
-            i.amount::numeric as amount,
-            u.username as "user"
-          FROM sale_installments i
-          JOIN sales s ON i.sale_id = s.id
-          JOIN users u ON s.seller_id = u.id
-          WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid' ${sellerFilter}
-          ORDER BY i.payment_date DESC
-          LIMIT $3
-        `;
+        let paymentsQuery = '';
+        
+        if (sellerFilter) {
+          // Com filtro de vendedor
+          paymentsQuery = `
+            SELECT 
+              i.id,
+              'Pagamento' as type,
+              CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
+              i.status,
+              i.payment_date as date,
+              i.amount::numeric as amount,
+              u.username as "user"
+            FROM sale_installments i
+            JOIN sales s ON i.sale_id = s.id
+            JOIN users u ON s.seller_id = u.id
+            WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid'
+            AND s.seller_id = $4
+            ORDER BY i.payment_date DESC
+            LIMIT $3
+          `;
+        } else {
+          // Sem filtro de vendedor
+          paymentsQuery = `
+            SELECT 
+              i.id,
+              'Pagamento' as type,
+              CONCAT('Parcela #', i.installment_number, ' da venda #', s.order_number) as description,
+              i.status,
+              i.payment_date as date,
+              i.amount::numeric as amount,
+              u.username as "user"
+            FROM sale_installments i
+            JOIN sales s ON i.sale_id = s.id
+            JOIN users u ON s.seller_id = u.id
+            WHERE i.payment_date BETWEEN $1 AND $2 AND i.status = 'paid'
+            ORDER BY i.payment_date DESC
+            LIMIT $3
+          `;
+        }
         
         // Consulta para obter atualizações de status recentes
-        // Para vendedores, mostrar apenas de suas próprias vendas
-        // Para outros usuários (admin, financeiro, supervisor), mostrar todos
-        const statusUpdateQuery = userRole !== 'vendedor' 
-          ? `
-              SELECT 
-                sh.id,
-                'Atualização de Status' as type,
-                CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
-                s.status,
-                sh.created_at as date,
-                s.total_amount::numeric as amount,
-                u.username as "user"
-              FROM sales_status_history sh
-              JOIN sales s ON sh.sale_id = s.id
-              JOIN users u ON sh.user_id = u.id
-              WHERE sh.created_at BETWEEN $1 AND $2
-              ORDER BY sh.created_at DESC
-              LIMIT $3
-            `
-          : `
-              SELECT 
-                sh.id,
-                'Atualização de Status' as type,
-                CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
-                s.status,
-                sh.created_at as date,
-                s.total_amount::numeric as amount,
-                u.username as "user"
-              FROM sales_status_history sh
-              JOIN sales s ON sh.sale_id = s.id
-              JOIN users u ON sh.user_id = u.id
-              WHERE sh.created_at BETWEEN $1 AND $2
-              AND s.seller_id = $4
-              ORDER BY sh.created_at DESC
-              LIMIT $3
-            `;
+        // Para vendedores ou quando filtrado por vendedor, mostrar apenas vendas do vendedor especificado
+        // Caso contrário, mostrar todos
+        let statusUpdateQuery = '';
+        
+        if (sellerFilter) {
+          // Com filtro de vendedor
+          statusUpdateQuery = `
+            SELECT 
+              sh.id,
+              'Atualização de Status' as type,
+              CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
+              s.status,
+              sh.created_at as date,
+              s.total_amount::numeric as amount,
+              u.username as "user"
+            FROM sales_status_history sh
+            JOIN sales s ON sh.sale_id = s.id
+            JOIN users u ON sh.user_id = u.id
+            WHERE sh.created_at BETWEEN $1 AND $2
+            AND s.seller_id = $4
+            ORDER BY sh.created_at DESC
+            LIMIT $3
+          `;
+        } else {
+          // Sem filtro de vendedor
+          statusUpdateQuery = `
+            SELECT 
+              sh.id,
+              'Atualização de Status' as type,
+              CONCAT('Venda #', s.order_number, ' atualizada para ', sh.to_status) as description,
+              s.status,
+              sh.created_at as date,
+              s.total_amount::numeric as amount,
+              u.username as "user"
+            FROM sales_status_history sh
+            JOIN sales s ON sh.sale_id = s.id
+            JOIN users u ON sh.user_id = u.id
+            WHERE sh.created_at BETWEEN $1 AND $2
+            ORDER BY sh.created_at DESC
+            LIMIT $3
+          `;
+        }
         
         // Executar consultas simultaneamente
         const [salesResult, paymentsResult, statusResult] = await Promise.all([
-          pool.query(salesQuery, params),
-          pool.query(paymentsQuery, params),
-          statusUpdateQuery ? pool.query(statusUpdateQuery, sellerFilterParams) : Promise.resolve({ rows: [] })
+          pool.query(salesQuery, sellerFilter ? params : params.slice(0, 3)),
+          pool.query(paymentsQuery, sellerFilter ? params : params.slice(0, 3)),
+          statusUpdateQuery ? pool.query(statusUpdateQuery, sellerFilter ? params : params.slice(0, 3)) : Promise.resolve({ rows: [] })
         ]);
         
         // Combinar resultados e ordenar por data (mais recente primeiro)
