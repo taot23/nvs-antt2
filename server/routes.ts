@@ -4667,17 +4667,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
+        // Log único para facilitar depuração
+        console.log(`Dashboard financeiro: ${userRole} consultando período ${startDate} a ${endDate}${sellerId ? ` para vendedor ${sellerId}` : ' para todos vendedores'}`);
+        
         // Buscar dados do dashboard financeiro com filtro de vendedor se necessário
         const filters = { startDate, endDate, sellerId };
-        console.log(`Consultando dados financeiros entre ${startDate} e ${endDate}${sellerId ? ` para o vendedor ${sellerId}` : ''}`);
-        
         const financialData = await storage.getFinancialOverview(filters);
         
         // Preparar datas padrão para uso nas consultas
         const startDateForQuery = startDate;
         const endDateForQuery = endDate;
-        
-        console.log(`Processando dashboard com filtro de vendedor: ${sellerId !== undefined ? sellerId : 'todos'} no período de ${startDate} a ${endDate}`);
         
         // Buscar dados de parcelas com filtro de vendedor, se necessário
         let installmentsQuery = `

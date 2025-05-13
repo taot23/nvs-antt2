@@ -3709,9 +3709,6 @@ export class DatabaseStorage implements IStorage {
       if (hasSellerFilter) {
         sellerCondition = 'AND s.seller_id = $3';
         params.push(filters.sellerId);
-        console.log(`Consultando dados financeiros entre ${startDateStr} e ${endDateStr} para o vendedor ${filters.sellerId}`);
-      } else {
-        console.log(`Consultando dados financeiros entre ${startDateStr} e ${endDateStr}`);
       }
       
       // Consulta 1: Valor total das vendas no período (soma pendentes + pagos)
@@ -3769,12 +3766,7 @@ export class DatabaseStorage implements IStorage {
       const pendingRevenue = pendingResult.rows[0]?.pending_revenue || "0";
       const totalCost = costResult.rows[0]?.total_cost || "0";
       
-      console.log("Valores financeiros calculados:", {
-        totalRevenue,
-        paidRevenue,
-        pendingRevenue,
-        totalCost
-      });
+      // Calcular valores sem logging excessivo
       
       // Calcular lucro e margem
       // Lucro é calculado com base no que foi REALMENTE RECEBIDO menos os custos REALMENTE PAGOS
