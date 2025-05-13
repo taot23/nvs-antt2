@@ -4657,6 +4657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
       const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
+      const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
       const { pool } = await import('./db');
 
       // Verificar permissões - apenas admin e financeiro podem ver dados financeiros completos
@@ -4666,8 +4667,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        // Buscar dados do dashboard financeiro
-        const financialData = await storage.getFinancialOverview({ startDate, endDate });
+        // Buscar dados do dashboard financeiro com filtro de vendedor se necessário
+        const filters = { startDate, endDate, sellerId };
+        console.log(`Consultando dados financeiros entre ${startDate} e ${endDate}${sellerId ? ` para o vendedor ${sellerId}` : ''}`);
+        
+        const financialData = await storage.getFinancialOverview(filters);
         
         // Preparar datas padrão para uso nas consultas
         const startDateForQuery = startDate;
@@ -4785,18 +4789,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
       const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
+      const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
       const { pool } = await import('./db');
       
-      // Filtrar por vendedor se o usuário for vendedor
+      // Filtrar por vendedor se o usuário for vendedor ou se um sellerId foi especificado
       const userRole = req.user?.role || '';
       const userId = req.user?.id || 0;
       let sellerFilter = '';
       let params = [startDate, endDate];
       
       if (userRole === 'vendedor') {
+        // Vendedor só pode ver suas próprias vendas
         sellerFilter = 'AND seller_id = $3';
         params.push(userId);
         console.log(`Vendedor ${userId} visualizando apenas suas vendas no dashboard`);
+      } else if (sellerId !== undefined) {
+        // Filtro explícito por um vendedor específico para outros tipos de usuários
+        sellerFilter = 'AND seller_id = $3';
+        params.push(sellerId);
+        console.log(`Usuário com perfil ${userRole} filtrando dashboard por vendedor ${sellerId}`);
       }
 
       // Contar vendas por status
@@ -4907,9 +4918,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate as string || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
       const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
       const limit = Number(req.query.limit) || 10;
+      const sellerId = req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined;
       const { pool } = await import('./db');
       
-      // Filtrar por vendedor se o usuário for vendedor
+      // Filtrar por vendedor se o usuário for vendedor ou se um ID de vendedor foi fornecido
       const userRole = req.user?.role || '';
       const userId = req.user?.id || 0;
       
@@ -4918,10 +4930,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let sellerFilterParams = [...params];
       
       if (userRole === 'vendedor') {
+        // Vendedor só pode ver suas próprias atividades
         sellerFilter = 'AND s.seller_id = $4';
         params.push(userId);
         sellerFilterParams.push(userId);
         console.log(`Vendedor ${userId} visualizando apenas suas atividades no dashboard`);
+      } else if (sellerId !== undefined) {
+        // Filtro explícito por vendedor para outros perfis
+        sellerFilter = 'AND s.seller_id = $4';
+        params.push(sellerId);
+        sellerFilterParams.push(sellerId);
+        console.log(`Usuário com perfil ${userRole} filtrando atividades por vendedor ${sellerId}`);
       }
 
       try {
