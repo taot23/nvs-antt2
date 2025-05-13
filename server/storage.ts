@@ -3670,6 +3670,7 @@ export class DatabaseStorage implements IStorage {
   async getFinancialOverview(filters?: {
     startDate?: string;
     endDate?: string;
+    sellerId?: number;
   }): Promise<{
     totalRevenue: string;
     pendingRevenue: string;
