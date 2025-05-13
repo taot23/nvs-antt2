@@ -4677,15 +4677,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const startDateForQuery = startDate;
         const endDateForQuery = endDate;
         
-        // Buscar dados de parcelas
-        const installmentsQuery = `
+        console.log(`Processando dashboard com filtro de vendedor: ${sellerId !== undefined ? sellerId : 'todos'} no período de ${startDate} a ${endDate}`);
+        
+        // Buscar dados de parcelas com filtro de vendedor, se necessário
+        let installmentsQuery = `
           SELECT 
             COUNT(*) as total_installments,
-            COUNT(*) FILTER (WHERE status = 'paid') as paid_installments,
-            COUNT(*) FILTER (WHERE status = 'pending') as pending_installments
-          FROM sale_installments
-          WHERE due_date BETWEEN $1 AND $2
+            COUNT(*) FILTER (WHERE i.status = 'paid') as paid_installments,
+            COUNT(*) FILTER (WHERE i.status = 'pending') as pending_installments
+          FROM sale_installments i
+          JOIN sales s ON i.sale_id = s.id
+          WHERE i.due_date BETWEEN $1 AND $2
         `;
+        
+        // Parâmetros para consulta de parcelas
+        let installmentsParams = [startDateForQuery, endDateForQuery];
+        
+        // Adicionar filtro de vendedor, se necessário
+        if (sellerId !== undefined) {
+          installmentsQuery += ` AND s.seller_id = $3`;
+          installmentsParams.push(sellerId);
+        }
         
         // Calcular tendência (comparando com período anterior)
         const startDateObj = new Date(startDate);
@@ -4701,12 +4713,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const prevEndDate = new Date(startDateObj);
         prevEndDate.setDate(prevEndDate.getDate() - 1);
         
-        // Consultar vendas no período anterior
-        const trendQuery = `
+        // Construir a consulta de tendência com filtro de vendedor
+        let trendQuery = `
           SELECT COALESCE(SUM(total_amount::numeric), 0) as prev_total
           FROM sales
           WHERE date BETWEEN $1 AND $2
         `;
+        
+        // Parâmetros para a consulta de tendência
+        let trendParams = [
+          prevStartDate.toISOString().split('T')[0],
+          prevEndDate.toISOString().split('T')[0]
+        ];
+        
+        // Adicionar filtro de vendedor à consulta de tendência, se necessário
+        if (sellerId !== undefined) {
+          trendQuery += ` AND seller_id = $3`;
+          trendParams.push(sellerId);
+        }
         
         // Executar todas as consultas simultaneamente
         const [
@@ -4714,11 +4738,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trendResult,
           totalSalesResult
         ] = await Promise.all([
-          pool.query(installmentsQuery, [startDateForQuery, endDateForQuery]),
-          pool.query(trendQuery, [
-            prevStartDate.toISOString().split('T')[0],
-            prevEndDate.toISOString().split('T')[0]
-          ]),
+          pool.query(installmentsQuery, installmentsParams),
+          pool.query(trendQuery, trendParams),
           getTotalSalesCount(startDate, endDate, sellerId)
         ]);
         
