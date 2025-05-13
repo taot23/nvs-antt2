@@ -3711,17 +3711,11 @@ export class DatabaseStorage implements IStorage {
         params.push(filters.sellerId);
       }
       
-      // Consulta 1: Valor total das vendas no período (soma pendentes + pagos)
+      // Consulta 1: Valor total das vendas no período (usando o total_amount das vendas)
       const totalSalesQuery = `
-        SELECT 
-          (SELECT COALESCE(SUM(i.amount::numeric), 0)
-           FROM sale_installments i
-           JOIN sales s ON i.sale_id = s.id
-           WHERE i.status = 'paid' AND s.date BETWEEN $1 AND $2 ${sellerCondition}) +
-          (SELECT COALESCE(SUM(i.amount::numeric), 0)
-           FROM sale_installments i
-           JOIN sales s ON i.sale_id = s.id
-           WHERE i.status = 'pending' AND s.date BETWEEN $1 AND $2 ${sellerCondition}) as total_revenue
+        SELECT COALESCE(SUM(total_amount::numeric), 0) as total_revenue
+        FROM sales s
+        WHERE s.date BETWEEN $1 AND $2 ${sellerCondition}
       `;
       
       // Consulta 2: Valor total já PAGO no período (da venda)
