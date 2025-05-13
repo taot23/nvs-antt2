@@ -46,7 +46,7 @@ export interface RecentActivity {
   user?: string;
 }
 
-export function useDashboardData(dateRange?: DateRange) {
+export function useDashboardData(dateRange?: DateRange, sellerId?: number) {
   // Transformar o intervalo de datas para parâmetros de consulta
   const startDate = dateRange?.from 
     ? format(dateRange.from, "yyyy-MM-dd") 
@@ -56,13 +56,15 @@ export function useDashboardData(dateRange?: DateRange) {
     ? format(dateRange.to, "yyyy-MM-dd") 
     : format(new Date(), "yyyy-MM-dd");
   
-  const queryParams = `?startDate=${startDate}&endDate=${endDate}`;
+  // Adicionar o filtro de vendedor se fornecido
+  const sellerParam = sellerId ? `&sellerId=${sellerId}` : '';
+  const queryParams = `?startDate=${startDate}&endDate=${endDate}${sellerParam}`;
 
   // Usar useQueries para buscar vários endpoints simultaneamente
   const results = useQueries({
     queries: [
       {
-        queryKey: ["/api/dashboard/financial", startDate, endDate],
+        queryKey: ["/api/dashboard/financial", startDate, endDate, sellerId],
         queryFn: () => fetch(`/api/dashboard/financial${queryParams}`).then(res => {
           if (!res.ok) throw new Error("Falha ao buscar dados financeiros");
           return res.json();
@@ -70,7 +72,7 @@ export function useDashboardData(dateRange?: DateRange) {
         select: (data: any) => data as FinancialOverview,
       },
       {
-        queryKey: ["/api/dashboard/sales", startDate, endDate],
+        queryKey: ["/api/dashboard/sales", startDate, endDate, sellerId],
         queryFn: () => fetch(`/api/dashboard/sales${queryParams}`).then(res => {
           if (!res.ok) throw new Error("Falha ao buscar dados de vendas");
           return res.json();
@@ -79,14 +81,14 @@ export function useDashboardData(dateRange?: DateRange) {
       },
       {
         queryKey: ["/api/dashboard/sellers", startDate, endDate],
-        queryFn: () => fetch(`/api/dashboard/sellers${queryParams}`).then(res => {
+        queryFn: () => fetch(`/api/dashboard/sellers${queryParams.replace(sellerParam, '')}`).then(res => {
           if (!res.ok) throw new Error("Falha ao buscar dados de vendedores");
           return res.json();
         }),
         select: (data: any) => data as SalesBySeller[],
       },
       {
-        queryKey: ["/api/dashboard/activities", startDate, endDate],
+        queryKey: ["/api/dashboard/activities", startDate, endDate, sellerId],
         queryFn: () => fetch(`/api/dashboard/activities${queryParams}`).then(res => {
           if (!res.ok) throw new Error("Falha ao buscar atividades recentes");
           return res.json();
