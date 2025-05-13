@@ -108,6 +108,9 @@ export function useDashboardData(dateRange?: DateRange, sellerId?: number) {
 
   // Verificar se ainda está carregando algum dos dados
   const isLoading = isFinancialLoading || isSalesLoading || isSellersLoading || isActivitiesLoading;
+  
+  // Renomear sellerPerformance para salesBySeller para manter a compatibilidade
+  const salesBySeller = sellerPerformance;
 
   // Gerar insights baseados nos dados
   const insights = generateInsights(financialOverview, salesSummary, sellerPerformance);
@@ -116,6 +119,7 @@ export function useDashboardData(dateRange?: DateRange, sellerId?: number) {
     financialOverview,
     salesSummary,
     sellerPerformance,
+    salesBySeller,
     recentActivities,
     insights,
     isLoading,
